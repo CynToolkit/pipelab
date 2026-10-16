@@ -153,7 +153,17 @@
                   <small
                     >Targets: {{ enabledTargetLabels(build).join(", ") || "None selected" }}</small
                   >
-                  <small>Input: {{ outputLabel(build.input) }}</small>
+                  <small>
+                    Input:
+                    {{
+                      plannedBuildInputLabel(flow, plan, catalog, build.id) || "No compatible input"
+                    }}
+                    {{
+                      build.input || !plannedBuildInputLabel(flow, plan, catalog, build.id)
+                        ? ""
+                        : "(automatic)"
+                    }}
+                  </small>
                 </div>
               </div>
               <div class="build-status">
@@ -324,27 +334,41 @@
       </div>
 
       <div class="release-field wide">
-        <label :for="`settings-input-${draftBuild.id}`">Input</label>
-        <Select
-          :id="`settings-input-${draftBuild.id}`"
-          :class="{ 'issue-focus': isSettingsIssueControl(`settings-input-${draftBuild.id}`) }"
-          :model-value="releaseOutputRefValue(draftBuild.input)"
-          :options="draftBuildInputOptions"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="No compatible input found"
-          :loading="buildInputChecking"
-          :disabled="!draftBuildInputOptions.length || buildInputChecking"
-          @update:model-value="setDraftBuildInput"
-        />
-        <small v-if="buildInputError" class="field-issue field-issue-error">{{
-          buildInputError
-        }}</small>
-        <small v-else-if="buildInputChecking" class="field-note"
-          >Checking planner-compatible inputs…</small
+        <template
+          v-if="
+            buildInputChecking ||
+            buildInputControlVisible(draftBuildInputOptions, [], draftBuild.input)
+          "
         >
-        <small v-else-if="!draftBuildInputOptions.length" class="field-note">
-          No planner-compatible Source or build output is available.
+          <label :for="`settings-input-${draftBuild.id}`">Input</label>
+          <Select
+            :id="`settings-input-${draftBuild.id}`"
+            :class="{ 'issue-focus': isSettingsIssueControl(`settings-input-${draftBuild.id}`) }"
+            :model-value="releaseOutputRefValue(draftBuild.input)"
+            :options="draftBuildInputOptions"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Select a compatible input"
+            :loading="buildInputChecking"
+            :disabled="!draftBuildInputOptions.length || buildInputChecking"
+            @update:model-value="setDraftBuildInput"
+          />
+          <small v-if="buildInputError" class="field-issue field-issue-error">{{
+            buildInputError
+          }}</small>
+          <small v-else-if="buildInputChecking" class="field-note"
+            >Checking planner-compatible inputs…</small
+          >
+          <small v-else-if="!draftBuildInputOptions.length" class="field-note">
+            No compatible Source or build output is available.
+          </small>
+        </template>
+        <small v-else class="field-note">
+          {{ draftBuild.input ? "Input:" : "Automatically connected to" }}
+          {{
+            compatibleBuildInputLabel(draftBuildInputOptions, draftBuild.input) ||
+            "the compatible input"
+          }}.
         </small>
       </div>
 
@@ -479,7 +503,6 @@ import type {
   ReleaseConfig,
   ReleaseFieldDefinition,
   ReleaseFieldOption,
-  ReleaseOutputRef,
   ReleasePlan,
   ValidationIssue,
 } from "@pipelab/shared";
@@ -493,6 +516,8 @@ import { useConnectionsStore } from "../store/connections";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 import {
   applyProducerInspection,
+  buildInputControlVisible,
+  compatibleBuildInputLabel,
   buildEnginesFor,
   buildProfileSummary,
   buildTargetAvailabilityReason,
@@ -506,6 +531,7 @@ import {
   outputReferenceChangeImpact,
   outputReferenceConsumers,
   planOutputOptions,
+  plannedBuildInputLabel,
   probeBuildInputCandidates,
   probeCompatibleBuildCandidates,
   releaseOutputRefValue,
@@ -693,14 +719,6 @@ const targetDefinition = (engine: string, type: string, targetId: string) =>
   buildTargetsFor(catalog.value, engine, type).find((target) => target.id === targetId);
 const enabledTargetLabels = (build: ReleaseBuildProfileConfig) =>
   buildProfileSummary(catalog.value, build).targetLabels;
-const outputLabel = (ref?: ReleaseOutputRef) => {
-  if (!ref) return "No input selected";
-  if ("source" in ref)
-    return `Source · ${catalog.value.sources.find((source) => source.id === flow.value?.source.provider)?.label || flow.value?.source.provider || "output"}`;
-  const build = flow.value?.builds.find((candidate) => candidate.id === ref.buildId);
-  const target = build && targetDefinition(build.engine, build.type, ref.targetId);
-  return `${build?.name || (build ? buildTypeLabel(build.type) : "Missing build")} · ${target?.label || ref.targetId}`;
-};
 const buildIssues = (build: ReleaseBuildProfileConfig, index: number) =>
   deduplicateValidationIssues([
     ...(plan.value ? issuesForPath(plan.value.issues, `builds.${index}`) : []),

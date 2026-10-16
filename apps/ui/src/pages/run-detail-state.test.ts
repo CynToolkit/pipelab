@@ -60,7 +60,16 @@ describe("applyWorkflowEventToRunEntry", () => {
       result: {
         status: "completed",
         outputs: { package: { path: "/tmp/package.zip" } },
-        artifacts: [{ name: "package.zip", path: "/tmp/package.zip" }],
+        artifacts: [
+          {
+            id: "package-artifact",
+            descriptor: { kind: "application", container: "directory" },
+            path: "/tmp/package.zip",
+            stepId: "build",
+            artifact: "output",
+            size: 0,
+          },
+        ],
         deliveries: [
           {
             id: "delivery-1",
@@ -100,6 +109,7 @@ describe("applyWorkflowEventToRunEntry", () => {
       cancelledSteps: 0,
     });
     expect(run.artifacts).toHaveLength(1);
+    expect(run.artifacts?.[0]).not.toHaveProperty("size");
     expect(run.deliveries).toHaveLength(1);
     expect(run.steps[0]).toMatchObject({ id: "build", status: "completed", duration: 6 });
   });

@@ -141,4 +141,33 @@ describe("aggregateWorkflowArtifacts", () => {
     expect(artifact).not.toHaveProperty("architecture");
     expect(artifact).not.toHaveProperty("format");
   });
+
+  it("omits the zero sentinel when an artifact size was not measured", () => {
+    const [artifact] = aggregateWorkflowArtifacts(
+      [
+        run({
+          id: "run-1",
+          workflowId: "flow-1",
+          projectId: "project-1",
+          startTime: 10,
+          artifacts: [
+            {
+              id: "runtime-artifact",
+              name: "linux-package",
+              path: "/artifacts/linux-package",
+              size: 0,
+              type: "file",
+              descriptor: { kind: "application", container: "directory" },
+              stepId: "package",
+              artifact: "output",
+            },
+          ],
+        }),
+      ],
+      "flow-1",
+      "project-1",
+    );
+
+    expect(artifact).not.toHaveProperty("size");
+  });
 });

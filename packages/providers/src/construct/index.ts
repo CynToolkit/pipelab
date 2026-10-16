@@ -1,6 +1,11 @@
 /// <reference path="./declarations.d.ts" />
 import { createProviderDefinition } from "@pipelab/shared";
-import { discoverBrowserProfiles } from "./browser-profiles";
+import { basename, normalize } from "node:path";
+import {
+  discoverBrowserProfiles,
+  isChromiumProfileDirectory,
+  listChromiumBrowserProfiles,
+} from "./browser-profiles";
 import type { ReleaseSourceDefinition } from "@pipelab/shared";
 import { CORE_WORKFLOW_TASKS, type WorkflowStep } from "@pipelab/workflow-runtime";
 export { discoverBrowserProfiles, inspectChromiumProfile } from "./browser-profiles";
@@ -46,15 +51,47 @@ export const constructSource: ReleaseSourceDefinition = {
           },
         ]),
   ],
-  inspect: async () => ({
-    issues: [],
-    fieldOptions: {
-      profilePath: (await discoverBrowserProfiles()).map((profile) => ({
-        label: `${profile.browser} / ${profile.profileName}`,
-        value: profile.path,
-      })),
-    },
-  }),
+  inspect: async (config) => {
+    const profiles = await listChromiumBrowserProfiles();
+    const selectedProfileValue =
+      typeof config.profilePath === "string" ? config.profilePath.trim() : "";
+    const selectedProfilePath = selectedProfileValue ? normalize(selectedProfileValue) : "";
+    const selectedProfileListed = profiles.some(
+      (profile) => normalize(profile.path) === selectedProfilePath,
+    );
+    const selectedProfileIsCustom =
+      Boolean(selectedProfilePath) &&
+      !selectedProfileListed &&
+      (await isChromiumProfileDirectory(selectedProfilePath));
+    const selectedProfileExists =
+      !selectedProfilePath || selectedProfileListed || selectedProfileIsCustom;
+    const fieldOptions = profiles.map((profile) => ({
+      label: `${profile.browser} / ${profile.profileName}`,
+      value: profile.path,
+    }));
+    if (selectedProfileIsCustom) {
+      fieldOptions.push({
+        label: `Custom / ${basename(selectedProfilePath)}`,
+        value: selectedProfilePath,
+      });
+    }
+    return {
+      issues: selectedProfileExists
+        ? []
+        : [
+            {
+              code: "construct.profile.unavailable",
+              message:
+                "The selected Chromium profile is no longer available. Choose an existing profile.",
+              severity: "error",
+              path: "profilePath",
+            },
+          ],
+      fieldOptions: {
+        profilePath: fieldOptions,
+      },
+    };
+  },
   compile: (config) => {
     const steps: WorkflowStep[] = [
       {

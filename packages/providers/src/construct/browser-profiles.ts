@@ -20,6 +20,11 @@ export type BrowserProfileCandidate = {
   reason?: string;
 };
 
+export type BrowserProfileOption = Pick<
+  BrowserProfileCandidate,
+  "browser" | "profileName" | "path"
+>;
+
 export const detectConstructAuthStatusFromResponse = (
   url: string,
   httpStatus: number,
@@ -116,7 +121,7 @@ const constructStorageUpdatedAt = async (profile: string) => {
   return value || null;
 };
 
-const chromiumRoots = () => {
+const chromiumRoots = (): Array<[string, string]> => {
   const home = homedir();
   const config = process.env.XDG_CONFIG_HOME || join(home, ".config");
   if (platform() === "win32") {
@@ -294,6 +299,37 @@ const discoverChromium = async () => {
     }
   }
   return found;
+};
+
+/** List selectable Chromium profiles from local metadata without launching a browser. */
+export const listChromiumBrowserProfiles = async (
+  roots: Array<[string, string]> = chromiumRoots(),
+): Promise<BrowserProfileOption[]> => {
+  const profiles: BrowserProfileOption[] = [];
+  for (const [browser, root] of roots) {
+    for (const profile of await chromiumProfiles(root)) {
+      const path = normalize(join(root, profile.path));
+      try {
+        await access(join(path, "Preferences"));
+      } catch {
+        continue;
+      }
+      profiles.push({ browser, profileName: profile.name, path });
+    }
+  }
+  return profiles.sort(
+    (a, b) => a.browser.localeCompare(b.browser) || a.profileName.localeCompare(b.profileName),
+  );
+};
+
+/** Check a selected Chromium profile directly, including profiles outside discovered roots. */
+export const isChromiumProfileDirectory = async (profile: string) => {
+  try {
+    await access(join(profile, "Preferences"));
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 const discoverFirefox = async (): Promise<BrowserProfileCandidate[]> => {
