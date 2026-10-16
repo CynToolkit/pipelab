@@ -22,9 +22,9 @@
       This producer cannot run beforeBuild hooks. Disable or remove these hooks before applying it.
     </Message>
     <Message v-else-if="supported" severity="info">
-      Script file and working directory are relative to the staged artifact. A script using
-      <code>__dirname</code> should be beside <code>data.json</code>. Commands run on this machine
-      after you approve them when shipping.
+      Enter one shell command. It runs from this profile’s staged input copy, where
+      <code>__dirname</code> resolves for scripts beside <code>data.json</code>. Managed Node.js and
+      pnpm are available on <code>PATH</code>.
     </Message>
 
     <p v-if="!hooks.length" class="empty-hooks">No beforeBuild hooks configured.</p>
@@ -66,55 +66,13 @@
       </header>
       <div class="hook-fields">
         <div class="release-field">
-          <label :for="`before-build-command-${hook.id}`">Command executable</label>
+          <label :for="`before-build-command-${hook.id}`">Command</label>
           <InputText
             :id="`before-build-command-${hook.id}`"
             :model-value="hook.command"
-            placeholder="node"
+            placeholder="node ./setSDKEnabled.js 0"
             :disabled="!supported"
             @update:model-value="updateHook(index, { command: $event })"
-          />
-        </div>
-        <div class="release-field">
-          <label :for="`before-build-script-${hook.id}`">Script file in artifact</label>
-          <InputText
-            :id="`before-build-script-${hook.id}`"
-            :model-value="hook.scriptFile"
-            placeholder="setSDKEnabled.js"
-            :disabled="!supported"
-            @update:model-value="updateHook(index, { scriptFile: $event })"
-          />
-        </div>
-        <div class="release-field">
-          <label :for="`before-build-arguments-${hook.id}`">Arguments (one per line)</label>
-          <Textarea
-            :id="`before-build-arguments-${hook.id}`"
-            :model-value="hook.parameters.join('\n')"
-            rows="3"
-            :disabled="!supported"
-            @update:model-value="setArguments(index, $event)"
-          />
-        </div>
-        <div class="release-field">
-          <label :for="`before-build-cwd-${hook.id}`">Working directory in artifact</label>
-          <InputText
-            :id="`before-build-cwd-${hook.id}`"
-            :model-value="hook.workingDirectory || '.'"
-            placeholder="."
-            :disabled="!supported"
-            @update:model-value="updateHook(index, { workingDirectory: $event || '.' })"
-          />
-        </div>
-        <div class="release-field">
-          <label :for="`before-build-failure-${hook.id}`">When a command fails</label>
-          <Select
-            :id="`before-build-failure-${hook.id}`"
-            :model-value="hook.failureMode || 'fail'"
-            :options="failureOptions"
-            option-label="label"
-            option-value="value"
-            :disabled="!supported"
-            @update:model-value="updateHook(index, { failureMode: $event })"
           />
         </div>
       </div>
@@ -126,8 +84,6 @@
 import { nanoid } from "nanoid";
 import Button from "primevue/button";
 import Message from "primevue/message";
-import Select from "primevue/select";
-import Textarea from "primevue/textarea";
 import ToggleSwitch from "primevue/toggleswitch";
 import InputText from "primevue/inputtext";
 import type { ReleaseBeforeBuildHook } from "@pipelab/shared";
@@ -135,29 +91,18 @@ import type { ReleaseBeforeBuildHook } from "@pipelab/shared";
 const props = defineProps<{ hooks: ReleaseBeforeBuildHook[]; supported: boolean }>();
 const emit = defineEmits<{ "update:hooks": [hooks: ReleaseBeforeBuildHook[]] }>();
 
-const failureOptions = [
-  { label: "Stop this build", value: "fail" },
-  { label: "Warn and continue", value: "warn" },
-];
-
 const commit = (hooks: ReleaseBeforeBuildHook[]) => emit("update:hooks", hooks);
 const updateHook = (index: number, changes: Partial<ReleaseBeforeBuildHook>) =>
   commit(
     props.hooks.map((hook, itemIndex) => (itemIndex === index ? { ...hook, ...changes } : hook)),
   );
-const setArguments = (index: number, value: string | undefined) =>
-  updateHook(index, { parameters: (value || "").split("\n").filter((item) => item.length > 0) });
 const addHook = () =>
   commit([
     ...props.hooks,
     {
       id: nanoid(),
       enabled: true,
-      command: "node",
-      scriptFile: "",
-      parameters: [],
-      workingDirectory: ".",
-      failureMode: "fail",
+      command: "",
     },
   ]);
 const removeHook = (index: number) =>

@@ -15,6 +15,12 @@ import { PipelabContext } from "./context";
 const services: ProviderServices = {
   context: new PipelabContext({ userDataPath: "/tmp/pipelab-workflow-task-test" }),
   executables: { node: "/node", pnpm: "/pnpm" },
+  run: {
+    id: "test-run",
+    workflowId: "test-workflow",
+    projectId: "test-project",
+    releaseVersion: "1.0.0",
+  },
   workflowCachePath: "/cache/workflow",
 };
 

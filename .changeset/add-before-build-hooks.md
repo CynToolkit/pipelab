@@ -6,4 +6,4 @@
 "@pipelab/cli": minor
 ---
 
-Add profile-scoped beforeBuild commands that run on isolated artifact copies before packaging. The UI and CLI require explicit approval before executing user-defined commands.
+Add profile-scoped beforeBuild shell commands that run on isolated artifact copies before Electron packaging, with managed Node.js and pnpm plus run-scoped `PIPELAB_` environment variables.

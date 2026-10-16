@@ -156,9 +156,7 @@ describe("generic release compiler", () => {
         {
           id: "sdk-wrapper",
           enabled: true,
-          command: "node",
-          scriptFile: "setSDKEnabled.js",
-          parameters: ["0"],
+          command: "node ./setSDKEnabled.js 0",
         },
       ],
     });
@@ -191,7 +189,7 @@ describe("generic release compiler", () => {
       artifactInputs: {
         input: { stepId: "release-hook-copy-build", artifact: "output" },
       },
-      with: { command: "node", scriptFile: "setSDKEnabled.js", parameters: ["0"] },
+      with: { command: "node ./setSDKEnabled.js 0" },
       artifacts: { output: { descriptor: sourceDescriptor } },
     });
     expect(build?.artifactInputs?.input).toEqual({

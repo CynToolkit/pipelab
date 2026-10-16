@@ -16,10 +16,6 @@ export interface ReleaseBeforeBuildHook {
   id: string;
   enabled: boolean;
   command: string;
-  scriptFile: string;
-  parameters: string[];
-  workingDirectory?: string;
-  failureMode?: "fail" | "warn";
 }
 
 export interface ArtifactConstraint {

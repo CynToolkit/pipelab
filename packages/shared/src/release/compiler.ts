@@ -119,10 +119,6 @@ export const compileReleasePlan = (
           profileName: profile?.name || producerId,
           hookId: hook.id,
           command: hook.command,
-          scriptFile: hook.scriptFile,
-          parameters: hook.parameters,
-          workingDirectory: hook.workingDirectory ?? ".",
-          failureMode: hook.failureMode ?? "fail",
         },
         artifacts: { output: { descriptor: artifact.descriptor } },
       });

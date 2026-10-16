@@ -1,14 +1,16 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { createSandbox, runCLI } from "@pipelab/test-utils";
 import {
   buildCoreReleaseRegistry,
   builtInProviders,
   createCoreFilesystemWorkflowTasks,
   extractZip,
+  PipelabContext,
   zipFolder,
+  type ProviderServices,
 } from "@pipelab/core-node";
 import {
   compileReleasePlan,
@@ -17,7 +19,7 @@ import {
   RELEASE_CONFIG_VERSION,
   type ReleaseConfig,
 } from "@pipelab/shared";
-import { createLocalHost, runWorkflow } from "@pipelab/workflow-runtime";
+import { createLocalHost, runWorkflow, type WorkflowResult } from "@pipelab/workflow-runtime";
 import { releaseBeforeBuildWorkflowTask } from "@pipelab/core-node";
 
 const constructSource = {
@@ -29,6 +31,19 @@ const godotSource = {
   provider: "@pipelab/plugin-godot/source",
   config: { path: "/game" },
 };
+
+const hookServices = (
+  workspace: string,
+  id: string,
+  workflowId: string,
+  projectId: string,
+  releaseVersion: string,
+): ProviderServices => ({
+  context: new PipelabContext({ userDataPath: join(workspace, "user-data") }),
+  executables: { node: process.execPath, pnpm: join(workspace, "pnpm.cjs") },
+  run: { id, workflowId, projectId, releaseVersion },
+  workflowCachePath: workspace,
+});
 
 const poki = (input?: Record<string, string | boolean>) => ({
   id: "poki",
@@ -60,8 +75,17 @@ describe("CLI release dry-run", () => {
     await sandbox?.remove();
   });
 
-  const runDryRun = async (config: Record<string, unknown>) => {
-    sandbox = await createSandbox(String(config.id));
+  const runDryRun = async (
+    configInput:
+      | Record<string, unknown>
+      | ((
+          sandbox: Awaited<ReturnType<typeof createSandbox>>,
+        ) => Record<string, unknown> | Promise<Record<string, unknown>>),
+  ) => {
+    sandbox = await createSandbox(
+      String(typeof configInput === "function" ? "release-workflow" : configInput.id),
+    );
+    const config = typeof configInput === "function" ? await configInput(sandbox) : configInput;
     const configPath = join(sandbox.paths.userData, "config");
     const resultPath = join(sandbox.path, "dry-run.json");
     await mkdir(join(configPath, "workflows"), { recursive: true });
@@ -611,39 +635,43 @@ describe("CLI release dry-run", () => {
   );
 
   test(
-    "dry-runs beforeBuild hooks without executing them and requires explicit CLI approval",
+    "dry-runs hooks without executing them and runs the single command in CLI without approval",
     async () => {
       const configId = "before-build-hook-cli-trust";
       const markerPath = join(
         "/tmp",
         `pipelab-before-build-hook-${randomBytes(6).toString("hex")}.marker`,
       );
-      const result = await runDryRun({
-        version: RELEASE_CONFIG_VERSION,
-        id: configId,
-        project: "main",
-        name: "Before build hook CLI trust",
-        source: { provider: "@pipelab/core/source/web-folder", config: { path: "/fixture" } },
-        builds: [
-          {
-            id: "electron-profile",
-            type: "desktop",
-            engine: "@pipelab/plugin-electron/producer",
-            enabled: true,
-            config: {},
-            targets: [{ id: "windows-x64", enabled: true, config: {} }],
-            beforeBuild: [
-              {
-                id: "write-marker",
-                enabled: true,
-                command: process.execPath,
-                scriptFile: "write-marker.js",
-                parameters: [markerPath],
-              },
-            ],
+      const result = await runDryRun(async (testSandbox) => {
+        await mkdir(testSandbox.paths.input, { recursive: true });
+        await writeFile(
+          join(testSandbox.paths.input, "write-marker.js"),
+          `require("node:fs").writeFileSync(${JSON.stringify(markerPath)}, "ran"); process.exit(2);`,
+        );
+        return {
+          version: RELEASE_CONFIG_VERSION,
+          id: configId,
+          project: "main",
+          name: "Before build hook CLI trust",
+          source: {
+            provider: "@pipelab/core/source/web-folder",
+            config: { path: testSandbox.paths.input },
           },
-        ],
-        destinations: [],
+          builds: [
+            {
+              id: "electron-profile",
+              type: "desktop",
+              engine: "@pipelab/plugin-electron/producer",
+              enabled: true,
+              config: {},
+              targets: [{ id: "windows-x64", enabled: true, config: {} }],
+              beforeBuild: [
+                { id: "write-marker", enabled: true, command: "node ./write-marker.js" },
+              ],
+            },
+          ],
+          destinations: [],
+        };
       });
 
       expect(
@@ -652,12 +680,16 @@ describe("CLI release dry-run", () => {
         ),
       ).toBe(true);
       await expect(access(markerPath)).rejects.toThrow();
+      expect(result.config.builds[0].beforeBuild[0]).toEqual({
+        id: "write-marker",
+        enabled: true,
+        command: "node ./write-marker.js",
+      });
+      expect(JSON.stringify(result.workflow)).not.toContain("PIPELAB_");
       await expect(
         runCLI(["workflow", "run", configId, "--user-data", sandbox!.paths.userData]),
-      ).rejects.toMatchObject({
-        stderr: expect.stringContaining("explicitly allow them with --allow-user-hooks"),
-      });
-      await expect(access(markerPath)).rejects.toThrow();
+      ).rejects.toMatchObject({ stderr: expect.stringContaining("exited with code 2") });
+      await expect(readFile(markerPath, "utf8")).resolves.toBe("ran");
     },
     30 * 60 * 1000,
   );
@@ -838,6 +870,8 @@ describe("Release beforeBuild hooks", () => {
         'const path = require("node:path");',
         "const requested = process.argv[2];",
         'if (requested !== "0" && requested !== "1") throw new Error("SDK flag must be 0 or 1");',
+        'const runtime = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.startsWith("PIPELAB_")));',
+        'fs.writeFileSync(path.join(__dirname, "runtime.json"), JSON.stringify({ runtime, cwd: process.cwd(), dirname: __dirname }));',
         'const file = path.join(__dirname, "data.json");',
         'const data = JSON.parse(fs.readFileSync(file, "utf8"));',
         'const entry = data.project[3].find((candidate) => candidate[0] === "DedraSDKWrapper");',
@@ -851,6 +885,7 @@ describe("Release beforeBuild hooks", () => {
       await writeFile(projectFile, "original Construct project");
       await writeFile(join(exportedFolder, "data.json"), JSON.stringify(originalData));
       await writeFile(join(exportedFolder, "setSDKEnabled.js"), script);
+      await writeFile(join(workspace, "pnpm.cjs"), 'console.log("MANAGED_PNPM");');
 
       const config: ReleaseConfig = {
         version: RELEASE_CONFIG_VERSION,
@@ -874,10 +909,7 @@ describe("Release beforeBuild hooks", () => {
               {
                 id: "set-sdk-off",
                 enabled: true,
-                command: process.execPath,
-                scriptFile: "setSDKEnabled.js",
-                parameters: ["0"],
-                workingDirectory: ".",
+                command: "node ./setSDKEnabled.js 0 && pnpm --version",
               },
             ],
           },
@@ -893,10 +925,7 @@ describe("Release beforeBuild hooks", () => {
               {
                 id: "set-sdk-on",
                 enabled: true,
-                command: process.execPath,
-                scriptFile: "setSDKEnabled.js",
-                parameters: ["1"],
-                workingDirectory: ".",
+                command: "node ./setSDKEnabled.js 1 && pnpm --version",
               },
             ],
           },
@@ -912,6 +941,16 @@ describe("Release beforeBuild hooks", () => {
       const plan = planRelease(savedConfig, registry, context);
       expect(plan.issues.filter((issue) => issue.severity === "error")).toEqual([]);
       const workflow = compileReleasePlan(savedConfig, plan, registry, context);
+      const hookSteps = workflow.steps.filter((step) => step.uses === RELEASE_BEFORE_BUILD_TASK_ID);
+      expect(hookSteps.map((step) => step.with?.command)).toEqual([
+        "node ./setSDKEnabled.js 0 && pnpm --version",
+        "node ./setSDKEnabled.js 1 && pnpm --version",
+      ]);
+      expect(
+        hookSteps.every(
+          (step) => !Object.keys(step.with || {}).some((key) => key.startsWith("PIPELAB_")),
+        ),
+      ).toBe(true);
       expect(
         workflow.steps.filter(
           (step) => step.uses === "@pipelab/plugin-construct/export-construct-project",
@@ -965,24 +1004,67 @@ describe("Release beforeBuild hooks", () => {
           return { output };
         },
       };
-      const result = await runWorkflow(workflow, {
-        host: createLocalHost(workspace),
-        variables: { workspace, buildStaging },
-        tasks,
-        onEvent: (event) => {
-          if (event.type === "step.log") logMessages.push(event.message);
-        },
-      });
+      vi.stubEnv("PATH", "");
+      for (const key of [
+        "PIPELAB_RUN_ID",
+        "PIPELAB_WORKFLOW_ID",
+        "PIPELAB_PROJECT_ID",
+        "PIPELAB_BUILD_PROFILE_ID",
+        "PIPELAB_ARTIFACT_DIR",
+        "PIPELAB_RELEASE_VERSION",
+      ]) {
+        vi.stubEnv(key, `inherited-${key}`);
+      }
+      let result: WorkflowResult;
+      try {
+        result = await runWorkflow(workflow, {
+          host: createLocalHost(workspace),
+          variables: { workspace, buildStaging },
+          tasks,
+          services: hookServices(
+            workspace,
+            "construct-sdk-run",
+            config.id,
+            config.project,
+            "1.2.3",
+          ),
+          onEvent: (event) => {
+            if (event.type === "step.log") logMessages.push(event.message);
+          },
+        });
+      } finally {
+        vi.unstubAllEnvs();
+      }
 
       expect(result.status).toBe("completed");
       expect(constructExportCount).toBe(1);
       expect(electronInputs).toHaveLength(2);
       expect(electronInputs.map((item) => item.value).sort()).toEqual([0, 1]);
+      expect(logMessages.some((message) => message.includes("MANAGED_PNPM"))).toBe(true);
       expect(new Set(electronInputs.map((item) => item.path)).size).toBe(2);
       expect(electronInputs.map((item) => item.id).sort()).toEqual([
         "sdk-off-windows-x64",
         "sdk-on-windows-x64",
       ]);
+      for (const input of electronInputs) {
+        const runtime = JSON.parse(await readFile(join(input.path, "runtime.json"), "utf8")) as {
+          runtime: Record<string, string>;
+          cwd: string;
+          dirname: string;
+        };
+        expect(runtime).toEqual({
+          runtime: {
+            PIPELAB_RUN_ID: "construct-sdk-run",
+            PIPELAB_WORKFLOW_ID: config.id,
+            PIPELAB_PROJECT_ID: config.project,
+            PIPELAB_BUILD_PROFILE_ID: input.id.startsWith("sdk-off") ? "sdk-off" : "sdk-on",
+            PIPELAB_ARTIFACT_DIR: input.path,
+            PIPELAB_RELEASE_VERSION: "1.2.3",
+          },
+          cwd: input.path,
+          dirname: input.path,
+        });
+      }
       const packagedValues = await Promise.all(
         electronInputs.map(async ({ output }) => {
           const packaged = JSON.parse(await readFile(join(output, "data.json"), "utf8")) as {
@@ -1022,22 +1104,14 @@ describe("Release beforeBuild hooks", () => {
       }
       expect(
         logMessages.some(
-          (message) => message.includes("Script file:") && message.includes("setSDKEnabled.js"),
-        ),
-      ).toBe(true);
-      expect(
-        logMessages.some(
           (message) => message.includes("Input artifact:") && message.includes(buildStaging),
-        ),
-      ).toBe(true);
-      expect(
-        logMessages.some(
-          (message) => message.includes("Working directory:") && message.includes(buildStaging),
         ),
       ).toBe(true);
       expect(JSON.parse(await readFile(join(exportedFolder, "data.json"), "utf8"))).toEqual(
         originalData,
       );
+      expect(await readFile(savedWorkflowPath, "utf8")).not.toContain("PIPELAB_");
+      expect(JSON.stringify(result)).not.toContain("PIPELAB_");
       expect(JSON.parse(await readFile(join(workspace, "data.json"), "utf8"))).toEqual(
         originalData,
       );
@@ -1067,7 +1141,7 @@ describe("Release beforeBuild hooks", () => {
         'if (process.argv[2] !== "0" && process.argv[2] !== "1") throw new Error("SDK flag must be 0 or 1");',
       );
 
-      const makeWorkflow = (id: string, scriptFile: string, parameters: string[]) => {
+      const makeWorkflow = (id: string, command: string) => {
         const config: ReleaseConfig = {
           version: RELEASE_CONFIG_VERSION,
           id,
@@ -1089,9 +1163,7 @@ describe("Release beforeBuild hooks", () => {
                 {
                   id: "run-script",
                   enabled: true,
-                  command: process.execPath,
-                  scriptFile,
-                  parameters,
+                  command,
                 },
               ],
             },
@@ -1108,7 +1180,8 @@ describe("Release beforeBuild hooks", () => {
       };
 
       let electronStarted = false;
-      const failureWorkflow = makeWorkflow("hook-fails", "setSDKEnabled.js", ["2"]);
+      await writeFile(join(input, "fail.js"), "process.exit(2);");
+      const failureWorkflow = makeWorkflow("hook-fails", "node ./fail.js");
       const tasks = {
         ...createCoreFilesystemWorkflowTasks(),
         [RELEASE_BEFORE_BUILD_TASK_ID]: releaseBeforeBuildWorkflowTask,
@@ -1122,8 +1195,9 @@ describe("Release beforeBuild hooks", () => {
           host: createLocalHost(workspace),
           variables: { workspace, buildStaging },
           tasks,
+          services: hookServices(workspace, "hook-fails-run", "hook-fails", "main", "1.0.0"),
         }),
-      ).rejects.toThrow("exited with code 1");
+      ).rejects.toThrow("exited with code 2");
       expect(electronStarted).toBe(false);
 
       const waitingScript = [
@@ -1134,12 +1208,13 @@ describe("Release beforeBuild hooks", () => {
         'setTimeout(() => fs.writeFileSync(path.join(__dirname, "completed"), "yes"), 30000);',
       ].join("\n");
       await writeFile(join(input, "wait.js"), waitingScript);
-      const cancellationWorkflow = makeWorkflow("hook-cancelled", "wait.js", []);
+      const cancellationWorkflow = makeWorkflow("hook-cancelled", "node ./wait.js");
       const cancellationController = new AbortController();
       const cancellationRun = runWorkflow(cancellationWorkflow, {
         host: createLocalHost(workspace),
         variables: { workspace, buildStaging },
         tasks,
+        services: hookServices(workspace, "hook-cancelled-run", "hook-cancelled", "main", "1.0.0"),
         signal: cancellationController.signal,
         onEvent: (event) => {
           if (event.type === "step.log" && event.message.includes("HOOK_STARTED"))

@@ -48,7 +48,6 @@ Loads a saved Release workflow by ID or unique name and executes its compiled ta
 | `--user-data <path>`  | Use a custom user-data directory.                                                                                                                             |
 | `-o, --output <path>` | Write the run result JSON; with `--dry-run`, write the prepared config and plan instead.                                                                      |
 | `--dry-run`           | Validate and prepare the workflow without executing deployment tasks.                                                                                         |
-| `--allow-user-hooks`  | Explicitly approve configured local `beforeBuild` commands for this run.                                                                                       |
 | `--fail-on-error`     | Exit nonzero if the workflow completes with errors.                                                                                                           |
 | `-v, --verbose`       | Registered with the description “Show workflow logs after completion”; the current command handler does not read this option, so it has no additional effect. |
 
@@ -58,15 +57,15 @@ Examples exercised by the CLI E2E suite:
 pipelab workflow list --user-data <user-data-path>
 pipelab workflow run "Command workflow" --user-data <user-data-path> --dry-run
 pipelab workflow run <workflow-id> --user-data <user-data-path> --dry-run --output plan.json
-pipelab workflow run <workflow-id> --user-data <user-data-path> --allow-user-hooks
+pipelab workflow run <workflow-id> --user-data <user-data-path>
 ```
 
 These forms are exercised by the release workflow E2E suite: listing by the `list` alias, resolving a saved workflow by name, and writing a dry-run plan to a result path. Workflow execution and the low-level workflow object are described in [Workflow references](/guide/workflow-references) and the [workflow runtime reference](/reference/workflow-runtime).
 
-The CLI rejects execution when enabled user-defined hooks are present unless
-`--allow-user-hooks` is supplied. Review each executable and script path before
-approving it. Dry-runs can inspect the compiled hook steps without executing
-the commands.
+Enabled Build Profile hooks run as part of a normal workflow execution. A
+dry-run can inspect their compiled command steps without executing them. See
+the [Release workflow guide](/guide/release-workflows#workflow-sections) for
+the staged working directory and run-scoped `PIPELAB_` environment variables.
 
 ### Manage workflows
 

@@ -146,7 +146,6 @@ export const executeWorkflow = async (
   options: {
     release?: { version?: string; description?: string };
     signal?: AbortSignal;
-    allowUserHooks?: boolean;
     onEvent?: (event: WorkflowEvent) => void;
     onRunCreated?: (id: string) => void | Promise<void>;
   } = {},
@@ -157,13 +156,9 @@ export const executeWorkflow = async (
   const version = options.release?.version?.trim() || "0.0.0";
   const prepared = prepareReleaseWorkflow(stored, version);
   const { config, workflow } = prepared;
-  const hasEnabledUserHooks = config.builds.some((build) =>
+  const hasEnabledBeforeBuildHooks = config.builds.some((build) =>
     build.beforeBuild?.some((hook) => hook.enabled),
   );
-  if (hasEnabledUserHooks && options.allowUserHooks !== true)
-    throw new Error(
-      "This workflow contains user-defined beforeBuild commands. Review the configured commands and explicitly allow them with --allow-user-hooks before running.",
-    );
   const { logger } = useLogger();
   const buildId = nanoid();
   const history = new BuildHistoryStorage(context);
@@ -255,13 +250,19 @@ export const executeWorkflow = async (
     const buildStagingRoot = context.getArtifactsPath(config.project, "workflow-staging", buildId);
     await Promise.all([
       mkdir(workspaceRoot, { recursive: true }),
-      ...(hasEnabledUserHooks ? [mkdir(buildStagingRoot, { recursive: true })] : []),
+      ...(hasEnabledBeforeBuildHooks ? [mkdir(buildStagingRoot, { recursive: true })] : []),
     ]);
     const node = await ensureNodeJS(context);
     const pnpm = await ensurePNPM(context);
     const services: ProviderServices = {
       context,
       executables: { node, pnpm },
+      run: {
+        id: buildId,
+        workflowId: config.id,
+        projectId: config.project,
+        releaseVersion: version,
+      },
       workflowCachePath: context.getCachePath(CacheFolder.Pipelines, config.project, buildId),
     };
     const tasks = createPipelabWorkflowTasks(
@@ -443,7 +444,6 @@ export const registerWorkflowHandlers = (context: PipelabContext) => {
     try {
       const result = await executeWorkflow(context, value.name, {
         release: value.release,
-        allowUserHooks: value.allowUserHooks,
         signal: controller.signal,
         onRunCreated: (id) => {
           runId = id;

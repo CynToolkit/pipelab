@@ -183,7 +183,6 @@ export type IpcDefinition = {
       name: string;
       destinations?: string[];
       release?: { version: string; description: string };
-      allowUserHooks?: boolean;
     },
     (
       | { type: "workflow-event"; data: WorkflowEvent }

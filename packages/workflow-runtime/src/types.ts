@@ -46,6 +46,7 @@ export interface FileSystem {
 export interface ProcessExecutionOptions {
   cwd: string;
   env?: Record<string, string | undefined>;
+  shell?: boolean | string;
   signal: AbortSignal;
   onStdout?: (chunk: string) => void;
   onStderr?: (chunk: string) => void;

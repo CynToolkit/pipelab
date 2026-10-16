@@ -11,6 +11,13 @@ export interface ProviderServices {
   context: PipelabContext;
   /** Node and pnpm executables ensured for this workflow run. */
   executables: { node: string; pnpm: string };
+  /** Runtime-only release identifiers. Never written into workflow configuration. */
+  run: {
+    id: string;
+    workflowId: string;
+    projectId: string;
+    releaseVersion: string;
+  };
   /** Per-run build cache directory. Other managed directories come from context. */
   workflowCachePath: string;
 }
@@ -38,7 +45,8 @@ export const createPipelabWorkflowTasks = <TServices = unknown>(
   return {
     ...registeredTasks,
     ...createCoreFilesystemWorkflowTasks(),
-    [RELEASE_BEFORE_BUILD_TASK_ID]: releaseBeforeBuildWorkflowTask,
+    [RELEASE_BEFORE_BUILD_TASK_ID]: (taskContext) =>
+      releaseBeforeBuildWorkflowTask({ ...taskContext, services }),
     "pipelab-cloud:upload": createPipelabCloudUploadTask(services.context),
   };
 };

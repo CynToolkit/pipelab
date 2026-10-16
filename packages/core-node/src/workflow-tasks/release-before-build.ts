@@ -1,18 +1,12 @@
-import { realpath, stat } from "node:fs/promises";
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { chmod, mkdtemp, readlink, readdir, realpath, rm, stat, writeFile } from "node:fs/promises";
+import { delimiter, dirname, isAbsolute, join, relative, sep } from "node:path";
 import { RELEASE_BEFORE_BUILD_TASK_ID } from "@pipelab/shared";
 import type { WorkflowTask } from "@pipelab/workflow-runtime";
+import type { ProviderServices } from "../workflow-tasks";
 
 const requiredString = (value: unknown, field: string): string => {
   if (typeof value !== "string" || !value.trim()) {
     throw new Error(`The beforeBuild hook ${field} must be a non-empty string.`);
-  }
-  return value;
-};
-
-const stringArguments = (value: unknown): string[] => {
-  if (!Array.isArray(value) || value.some((item) => typeof item !== "string")) {
-    throw new Error("The beforeBuild hook parameters must be an array of strings.");
   }
   return value;
 };
@@ -25,38 +19,58 @@ const isInside = (root: string, target: string): boolean => {
   );
 };
 
-const resolveArtifactPath = async (
-  root: string,
-  relativePath: unknown,
-  label: string,
-  allowCurrentDirectory = false,
-): Promise<string> => {
-  const path = requiredString(relativePath, label);
-  const normalized = path.replaceAll("\\", "/");
-  if (
-    isAbsolute(path) ||
-    normalized.includes(":") ||
-    normalized.includes("\0") ||
-    normalized.split("/").some((part) => part === ".." || part === "")
-  ) {
-    throw new Error(`The beforeBuild hook ${label} must stay inside its staged artifact.`);
+const assertNoExternalSymlinks = async (root: string): Promise<void> => {
+  const pending = [root];
+  while (pending.length) {
+    const directory = pending.pop();
+    if (!directory) continue;
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+      const entryPath = join(directory, entry.name);
+      if (entry.isSymbolicLink()) {
+        const linkTarget = await readlink(entryPath);
+        const resolvedTarget = await realpath(entryPath).catch(() => {
+          throw new Error(`The beforeBuild hook input contains a broken symlink: ${entryPath}`);
+        });
+        if (!isInside(root, resolvedTarget)) {
+          throw new Error(
+            `The beforeBuild hook input contains a symlink outside its staged copy: ${entryPath}`,
+          );
+        }
+        if (isAbsolute(linkTarget)) {
+          throw new Error(`The beforeBuild hook input contains an absolute symlink: ${entryPath}`);
+        }
+      } else if (entry.isDirectory()) pending.push(entryPath);
+    }
   }
-  if (!allowCurrentDirectory && normalized.split("/").every((part) => part === ".")) {
-    throw new Error(`The beforeBuild hook ${label} must name a file in its staged artifact.`);
-  }
-
-  const candidate = resolve(root, normalized);
-  if (!isInside(root, candidate)) {
-    throw new Error(`The beforeBuild hook ${label} must stay inside its staged artifact.`);
-  }
-  const actualPath = await realpath(candidate).catch(() => {
-    throw new Error(`The beforeBuild hook ${label} was not found in its staged artifact: ${path}`);
-  });
-  if (!isInside(root, actualPath)) {
-    throw new Error(`The beforeBuild hook ${label} resolves outside its staged artifact: ${path}`);
-  }
-  return actualPath;
 };
+
+const shellQuote = (value: string): string => `'${value.replaceAll("'", `'"'"'`)}'`;
+
+const createPnpmShim = async (
+  workspaceRoot: string,
+  nodeExecutable: string,
+  pnpmExecutable: string,
+): Promise<string> => {
+  const shimDirectory = await mkdtemp(join(workspaceRoot, "pipelab-before-build-bin-"));
+  if (process.platform === "win32") {
+    const batchEscape = (value: string) => value.replaceAll("%", "%%");
+    await writeFile(
+      join(shimDirectory, "pnpm.cmd"),
+      `@echo off\r\n"${batchEscape(nodeExecutable)}" "${batchEscape(pnpmExecutable)}" %*\r\nexit /b %errorlevel%\r\n`,
+    );
+  } else {
+    const shim = join(shimDirectory, "pnpm");
+    await writeFile(
+      shim,
+      `#!/bin/sh\nexec ${shellQuote(nodeExecutable)} ${shellQuote(pnpmExecutable)} "$@"\n`,
+    );
+    await chmod(shim, 0o755);
+  }
+  return shimDirectory;
+};
+
+const environmentVariableName = (name: string): string =>
+  Object.keys(process.env).find((key) => key.toUpperCase() === name) || name;
 
 const ensureNotAborted = (signal: AbortSignal): void => {
   if (signal.aborted) {
@@ -66,14 +80,10 @@ const ensureNotAborted = (signal: AbortSignal): void => {
   }
 };
 
-export const releaseBeforeBuildWorkflowTask: WorkflowTask = async (context) => {
+export const releaseBeforeBuildWorkflowTask: WorkflowTask<ProviderServices> = async (context) => {
   const inputArtifact = requiredString(context.inputs.input, "input artifact");
   const command = requiredString(context.inputs.command, "command");
-  const scriptFile = requiredString(context.inputs.scriptFile, "script file");
-  const parameters = stringArguments(context.inputs.parameters);
-  const workingDirectory = context.inputs.workingDirectory ?? ".";
-  const failureMode = context.inputs.failureMode === "warn" ? "warn" : "fail";
-
+  const profileId = requiredString(context.inputs.profileId, "build profile ID");
   const artifactRoot = await realpath(inputArtifact).catch(() => {
     throw new Error(`The beforeBuild hook input artifact does not exist: ${inputArtifact}`);
   });
@@ -83,64 +93,65 @@ export const releaseBeforeBuildWorkflowTask: WorkflowTask = async (context) => {
       `The beforeBuild hook input is not a directory and cannot be staged safely: ${artifactRoot}`,
     );
   }
-  const effectiveScriptPath = await resolveArtifactPath(artifactRoot, scriptFile, "script file");
-  const scriptStats = await stat(effectiveScriptPath);
-  if (!scriptStats.isFile()) {
-    throw new Error(`The beforeBuild hook script is not a file: ${effectiveScriptPath}`);
-  }
-  const effectiveWorkingDirectory = await resolveArtifactPath(
-    artifactRoot,
-    workingDirectory,
-    "working directory",
-    true,
-  );
-  const workingDirectoryStats = await stat(effectiveWorkingDirectory);
-  if (!workingDirectoryStats.isDirectory()) {
-    throw new Error(
-      `The beforeBuild hook working directory is not a directory: ${effectiveWorkingDirectory}`,
-    );
-  }
+  await assertNoExternalSymlinks(artifactRoot);
   ensureNotAborted(context.signal);
 
-  const profileName =
-    typeof context.inputs.profileName === "string" ? context.inputs.profileName : "Build Profile";
-  context.log(`Build Profile: ${profileName}`);
-  context.log(`Input artifact: ${artifactRoot}`);
-  context.log(`Script file: ${effectiveScriptPath}`);
-  context.log(`Working directory: ${effectiveWorkingDirectory}`);
-  context.log(`Running ${command} with ${parameters.length} argument(s).`);
+  const { run, executables } = context.services;
+  const runtime = {
+    PIPELAB_RUN_ID: requiredString(run.id, "run ID"),
+    PIPELAB_WORKFLOW_ID: requiredString(run.workflowId, "workflow ID"),
+    PIPELAB_PROJECT_ID: requiredString(run.projectId, "project ID"),
+    PIPELAB_BUILD_PROFILE_ID: profileId,
+    PIPELAB_ARTIFACT_DIR: artifactRoot,
+    PIPELAB_RELEASE_VERSION: requiredString(run.releaseVersion, "release version"),
+  };
+  const shimDirectory = await createPnpmShim(
+    context.workspace.root,
+    requiredString(executables.node, "managed Node executable"),
+    requiredString(executables.pnpm, "managed pnpm executable"),
+  );
+  const pathName = environmentVariableName("PATH");
+  const inheritedPath = process.env[pathName] || "";
+  const env: Record<string, string | undefined> = Object.fromEntries(
+    Object.keys(process.env)
+      .filter((key) => key.toUpperCase().startsWith("PIPELAB_"))
+      .map((key) => [key, undefined]),
+  );
+  Object.assign(env, runtime, {
+    [pathName]: [shimDirectory, dirname(executables.node), inheritedPath]
+      .filter(Boolean)
+      .join(delimiter),
+  });
+  if (process.platform === "win32") {
+    const pathextName = environmentVariableName("PATHEXT");
+    const extensions = (process.env[pathextName] || ".COM;.EXE;.BAT;.CMD")
+      .split(";")
+      .filter(Boolean);
+    if (!extensions.some((extension) => extension.toUpperCase() === ".CMD"))
+      extensions.push(".CMD");
+    env[pathextName] = extensions.join(";");
+  }
 
-  let exitCode = -1;
-  let duration = 0;
+  context.log(`Input artifact: ${artifactRoot}`);
+  context.log("Running beforeBuild command in staged input.");
   try {
-    const result = await context.processes.execute(command, [effectiveScriptPath, ...parameters], {
-      cwd: effectiveWorkingDirectory,
+    const result = await context.processes.execute(command, [], {
+      cwd: artifactRoot,
+      env,
+      shell: true,
       signal: context.signal,
       onStdout: (chunk) => context.logStream("stdout", chunk),
       onStderr: (chunk) => context.logStream("stderr", chunk),
     });
-    exitCode = result.exitCode ?? -1;
-    duration = result.duration;
     ensureNotAborted(context.signal);
-    if (exitCode !== 0 && failureMode === "fail") {
-      throw new Error(`beforeBuild hook '${scriptFile}' exited with code ${exitCode}.`);
+    if (result.exitCode !== 0) {
+      throw new Error(`beforeBuild command exited with code ${result.exitCode ?? -1}.`);
     }
-    if (exitCode !== 0)
-      context.log(
-        `Warning: beforeBuild hook '${scriptFile}' exited with code ${exitCode}; continuing.`,
-      );
-  } catch (error) {
-    if (context.signal.aborted || (error instanceof Error && error.name === "AbortError"))
-      throw error;
-    if (failureMode === "fail") throw error;
-    const message = error instanceof Error ? error.message : String(error);
-    context.logStream("stderr", message);
-    context.log(`Warning: beforeBuild hook '${scriptFile}' could not complete; continuing.`);
+    if (context.step.artifacts?.output) context.setArtifact("output", artifactRoot);
+    return { output: artifactRoot, exitCode: result.exitCode, duration: result.duration };
+  } finally {
+    await rm(shimDirectory, { recursive: true, force: true });
   }
-
-  ensureNotAborted(context.signal);
-  if (context.step.artifacts?.output) context.setArtifact("output", artifactRoot);
-  return { output: artifactRoot, exitCode, duration };
 };
 
 export { RELEASE_BEFORE_BUILD_TASK_ID };

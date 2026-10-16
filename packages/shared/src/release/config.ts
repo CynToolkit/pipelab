@@ -12,15 +12,6 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 const requiredString = (value: unknown): boolean =>
   typeof value === "string" && value.trim().length > 0;
-const safeArtifactRelativePath = (value: unknown, allowCurrentDirectory = false): boolean => {
-  if (typeof value !== "string" || !value || value.includes("\0")) return false;
-  const normalized = value.replaceAll("\\", "/");
-  if (normalized.startsWith("/") || normalized.includes(":")) return false;
-  const parts = normalized.split("/");
-  if (parts.some((part) => part === ".." || part === "")) return false;
-  return allowCurrentDirectory || parts.some((part) => part !== ".");
-};
-
 export const validateReleaseConfigShape = (config: unknown): ValidationIssue[] => {
   const issues: ValidationIssue[] = [];
   if (!config || typeof config !== "object" || Array.isArray(config)) {
@@ -190,18 +181,11 @@ export const validateReleaseConfigShape = (config: unknown): ValidationIssue[] =
           !isRecord(hook) ||
           !isSafePersistedId(hook.id) ||
           typeof hook.enabled !== "boolean" ||
-          !requiredString(hook.command) ||
-          !safeArtifactRelativePath(hook.scriptFile) ||
-          !Array.isArray(hook.parameters) ||
-          hook.parameters.some((parameter) => typeof parameter !== "string") ||
-          (hook.workingDirectory !== undefined &&
-            !safeArtifactRelativePath(hook.workingDirectory, true)) ||
-          (hook.failureMode !== undefined && !["fail", "warn"].includes(String(hook.failureMode)))
+          !requiredString(hook.command)
         ) {
           issues.push({
             code: "release.build.before-build.invalid",
-            message:
-              "Hooks require a safe ID, enabled state, executable, artifact-relative script file, string arguments, optional artifact-relative working directory, and fail or warn behavior.",
+            message: "Hooks require a safe ID, enabled state, and one non-empty command.",
             severity: "error",
             path: `${path}.beforeBuild.${hookIndex}`,
           });

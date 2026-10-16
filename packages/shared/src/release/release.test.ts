@@ -145,9 +145,7 @@ describe("release descriptors", () => {
             {
               id: "sdk-wrapper",
               enabled: true,
-              command: "node",
-              scriptFile: "setSDKEnabled.js",
-              parameters: ["0"],
+              command: "node ./setSDKEnabled.js 0",
             },
           ],
         },
@@ -162,7 +160,7 @@ describe("release descriptors", () => {
     );
   });
 
-  it("rejects unsafe and malformed Build Profile hook paths", () => {
+  it("rejects empty Build Profile hook commands and malformed hook IDs", () => {
     const config = {
       version: "3.1.0",
       id: "r",
@@ -181,11 +179,7 @@ describe("release descriptors", () => {
             {
               id: "sdk-wrapper",
               enabled: true,
-              command: "node",
-              scriptFile: "../outside.js",
-              parameters: [0],
-              workingDirectory: "../",
-              failureMode: "ignore",
+              command: " ",
             },
           ],
         },
@@ -207,9 +201,7 @@ describe("release descriptors", () => {
             {
               id: "../hook",
               enabled: true,
-              command: "node",
-              scriptFile: "setSDKEnabled.js",
-              parameters: [] as unknown[],
+              command: "node ./setSDKEnabled.js 0",
             },
           ],
         },
