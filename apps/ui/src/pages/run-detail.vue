@@ -253,7 +253,9 @@
               ><small>{{ artifactDescription(artifact) }}</small>
             </div>
             <span>{{ artifactKind(artifact) }}</span>
-            <span>{{ formatSize(artifact.size) }}</span>
+            <span v-if="artifact.size !== undefined && artifact.size > 0">
+              {{ formatSize(artifact.size) }}
+            </span>
             <span class="artifact-locations">
               <Tag v-if="'path' in artifact && artifact.path" value="Local" severity="secondary" />
               <Tag v-if="artifactCloud(artifact)" value="Cloud" severity="info" />
@@ -478,8 +480,12 @@ const artifactKind = (artifact: NonNullable<BuildHistoryEntry["artifacts"]>[numb
     ? artifact.descriptor.format || artifact.descriptor.kind
     : artifact.type;
 const openArtifact = async (path: string) => {
-  const response = await api.execute("shell:openPath", { path });
-  if (response.type === "error") error.value = response.ipcError;
+  try {
+    const response = await api.openPath(path);
+    if (response.type === "error") error.value = response.ipcError;
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : String(cause);
+  }
 };
 const downloadArtifact = async (hostedArtifactId: string) => {
   const response = await api.execute("pipelab-cloud:artifact-download-url", { hostedArtifactId });

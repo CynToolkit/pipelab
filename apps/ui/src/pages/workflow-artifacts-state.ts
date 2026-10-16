@@ -47,7 +47,7 @@ const toArtifactViewModel = (
       : {}),
     ...(artifact.descriptor?.format ? { format: artifact.descriptor.format } : {}),
     ...(kind ? { kind } : {}),
-    ...(typeof artifact.size === "number" ? { size: artifact.size } : {}),
+    ...(typeof artifact.size === "number" && artifact.size > 0 ? { size: artifact.size } : {}),
     ...(artifact.path ? { localPath: artifact.path } : {}),
     ...(artifact.cloud?.hostedArtifactId
       ? { hostedArtifactId: artifact.cloud.hostedArtifactId }

@@ -264,4 +264,19 @@ describe("parseBuildHistoryDocument", () => {
       parseBuildHistoryDocument({ version: "1.0.0", entries: [{ ...entry, ...changes }] }),
     ).toThrow();
   });
+
+  it("accepts artifact records whose size was not measured", () => {
+    const artifact = {
+      id: "artifact-1",
+      name: "build.zip",
+      path: "/tmp/build.zip",
+      type: "file",
+    };
+    const document = parseBuildHistoryDocument({
+      version: "1.0.0",
+      entries: [{ ...entry, artifacts: [artifact] }],
+    });
+
+    expect(document.entries[0]?.artifacts).toEqual([artifact]);
+  });
 });

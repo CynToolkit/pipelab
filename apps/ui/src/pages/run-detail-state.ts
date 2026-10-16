@@ -12,7 +12,6 @@ const workflowArtifacts = (
         id: `workflow-artifact-${index}`,
         name: artifact.name,
         path: artifact.path,
-        size: 0,
         type: "file" as const,
       };
     }
@@ -20,7 +19,7 @@ const workflowArtifacts = (
       id: artifact.id,
       name: artifact.artifact,
       path: artifact.path,
-      size: artifact.size ?? 0,
+      ...(typeof artifact.size === "number" && artifact.size > 0 ? { size: artifact.size } : {}),
       type: "file" as const,
       descriptor: artifact.descriptor,
       version: artifact.version,

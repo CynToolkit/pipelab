@@ -62,10 +62,26 @@ export const buildInputSelectionMode = (
 export const buildInputControlVisible = (
   options: ReleaseOutputOption[],
   inputIssues: ValidationIssue[],
-) => buildInputSelectionMode(options, inputIssues) !== "hidden";
+  selectedInput?: ReleaseOutputRef,
+) =>
+  buildInputSelectionMode(options, inputIssues) !== "hidden" ||
+  Boolean(
+    selectedInput &&
+    !options.some((option) => option.value === releaseOutputRefValue(selectedInput)),
+  );
 
 export const releaseOutputRefValue = (ref?: ReleaseOutputRef) =>
   ref ? ("source" in ref ? "source" : `${ref.buildId}:${ref.targetId}`) : "";
+
+export const compatibleBuildInputLabel = (
+  options: ReleaseOutputOption[],
+  selectedInput?: ReleaseOutputRef,
+) => {
+  if (selectedInput) {
+    return options.find((option) => option.value === releaseOutputRefValue(selectedInput))?.label;
+  }
+  return options.length === 1 ? options[0].label : undefined;
+};
 
 export const missingRequiredFieldIssues = (config: ReleaseConfig, catalog: ReleaseCatalog) => {
   const issues: ValidationIssue[] = [];
@@ -678,6 +694,26 @@ const outputLabel = (config: ReleaseConfig, catalog: ReleaseCatalog, ref: Releas
   const producer = catalog.producers.find((candidate) => candidate.id === build?.engine);
   const target = producer?.targets.find((candidate) => candidate.id === ref.targetId);
   return `${build?.name || producer?.label || build?.engine || ref.buildId} — ${target?.label || ref.targetId}`;
+};
+
+export const plannedBuildInputLabel = (
+  config: ReleaseConfig,
+  plan: ReleasePlan | undefined,
+  catalog: ReleaseCatalog,
+  buildId: string,
+) => {
+  const build = config.builds.find((candidate) => candidate.id === buildId);
+  const plannedInput = plan?.producers.find((producer) => producer.id === buildId)?.input;
+  const input =
+    build?.input ??
+    (plannedInput &&
+      ("source" in plannedInput
+        ? { source: true as const }
+        : { buildId: plannedInput.producerId, targetId: plannedInput.outputId }));
+  if (!input) return undefined;
+  if ("buildId" in input && input.buildId.startsWith("__auto__"))
+    return "Automatic conversion output";
+  return outputLabel(config, catalog, input);
 };
 
 export const planOutputOptions = (

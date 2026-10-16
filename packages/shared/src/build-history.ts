@@ -44,7 +44,7 @@ export interface Artifact {
   id: string;
   name: string;
   path: string;
-  size: number;
+  size?: number;
   type: "file" | "folder";
   descriptor?: ArtifactDescriptor;
   version?: string;
@@ -189,7 +189,6 @@ const parseArtifact = (value: unknown, path: string): void => {
     !isNonEmptyString(value.id) ||
     !isNonEmptyString(value.name) ||
     !isNonEmptyString(value.path) ||
-    !isFiniteNumber(value.size) ||
     !["file", "folder"].includes(String(value.type))
   ) {
     throw new BuildHistoryParseError(

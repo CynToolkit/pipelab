@@ -1,4 +1,4 @@
-import { Page } from "playwright";
+import type { Locator, Page } from "playwright";
 import { join } from "node:path";
 import {
   registerInstallButtonListener,
@@ -13,6 +13,67 @@ import {
 const CONSTRUCT_READY_TIMEOUT_MS = 15_000;
 const FILE_CHOOSER_TIMEOUT_MS = 5_000;
 const OPEN_RETRY_COUNT = 1;
+
+const constructExportStatus = async (page: Page) => {
+  const pageText = await page
+    .locator("body")
+    .innerText({ timeout: 2_000 })
+    .catch(() => "");
+  return pageText
+    .split(/\s*\n\s*/)
+    .filter((line) => /prepar|export|download|error|failed|progress|offline|options/i.test(line))
+    .slice(0, 4)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 240);
+};
+
+export const waitForConstructExportDownload = async (
+  page: Page,
+  timeoutMs: number,
+  diagnosticsDir: string,
+  abortSignal?: AbortSignal,
+): Promise<Locator> => {
+  const downloadButton = page.locator(".downloadExportedProject");
+  try {
+    await downloadButton.waitFor({ state: "visible", timeout: timeoutMs });
+  } catch (error) {
+    if (abortSignal?.aborted) throw createAbortError(abortSignal);
+    if (isAbortError(error) || isRendererCrash(error) || page.isClosed()) throw error;
+    const status = await constructExportStatus(page);
+    const screenshotPath = join(diagnosticsDir, `construct-export-failure-${Date.now()}.png`);
+    let screenshotDetails = "";
+    try {
+      await page.screenshot({ path: screenshotPath, fullPage: true, timeout: 5_000 });
+      screenshotDetails = ` Screenshot: ${screenshotPath}`;
+    } catch {
+      // Keep the Construct failure details if the page can no longer be captured.
+    }
+    const timeoutSeconds = Math.ceil(timeoutMs / 1_000);
+    throw new Error(
+      `Construct did not make its project download available within ${timeoutSeconds} seconds.${status ? ` Current status: ${status}.` : ""}${screenshotDetails}${error instanceof Error ? ` (${error.message})` : ""}`,
+    );
+  }
+  if (!(await downloadButton.isEnabled()))
+    throw new Error("Construct's project download is still disabled after preparing the export");
+  return downloadButton;
+};
+
+export const clickConstructDownload = async (
+  page: Page,
+  downloadButton: Locator,
+  timeoutMs: number,
+) => {
+  const downloadPromise = page.waitForEvent("download", { timeout: timeoutMs }).then(
+    (download) => ({ download }),
+    (error: unknown) => ({ error }),
+  );
+  await downloadButton.click({ timeout: timeoutMs });
+  const result = await downloadPromise;
+  if ("error" in result) throw result.error;
+  return result.download;
+};
 
 const isAbortError = (error: unknown) =>
   error instanceof Error && (error.name === "AbortError" || /aborted/i.test(error.message));
@@ -219,6 +280,7 @@ export const script = async (
   version: string | undefined,
   downloadDir: string,
   abortSignal: AbortSignal,
+  exportTimeoutMs: number,
 ) => {
   let url = "https://editor.construct.net/";
   if (version) {
@@ -402,10 +464,14 @@ export const script = async (
     throw new Error("Construct's export options Next button is disabled");
   await optionsNext.click({ timeout: 30_000 });
   log('"Next" clicked');
-  log("Waiting for Construct's export download");
-  const downloadPromise = page.waitForEvent("download", { timeout: 60_000 });
-  await page.locator(".downloadExportedProject").click({ timeout: 30_000 });
-  const download = await downloadPromise;
+  log("Waiting for Construct to finish preparing its project download");
+  const downloadButton = await waitForConstructExportDownload(
+    page,
+    exportTimeoutMs,
+    downloadDir,
+    abortSignal,
+  );
+  const download = await clickConstructDownload(page, downloadButton, exportTimeoutMs);
   await page.getByRole("button", { name: "OK" }).click();
   log('"Download" clicked');
 
