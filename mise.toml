@@ -18,7 +18,7 @@ run = "pnpm --filter @pipelab/cli start -- stop"
 env = { NODE_ENV = "development" }
 
 [tasks.local]
-description = "Start local Supabase and workers with the desktop app or standalone UI"
+description = "Start local services with the desktop app or standalone UI"
 run = '''
 #!/usr/bin/env bash
 set -euo pipefail
@@ -29,12 +29,15 @@ case "$target" in
     mise run local:setup
     mise run local:r2 ::: local:api ::: local:ui
     ;;
+  ui-no-cloud)
+    mise run local:ui:no-cloud
+    ;;
   desktop)
     mise run local:setup
     mise run local:r2 ::: local:api ::: local:app
     ;;
   *)
-    echo "Usage: mise run local [desktop|ui] (both modes start Supabase and local workers)" >&2
+    echo "Usage: mise run local [desktop|ui|ui-no-cloud] (ui-no-cloud skips Supabase and local workers)" >&2
     exit 2
     ;;
 esac
@@ -144,3 +147,18 @@ export PIPELAB_CLOUD_WORKER_URL="http://127.0.0.1:8788"
 : "${SUPABASE_PUBLISHABLE_KEY:?Could not read local Supabase publishable key}"
 pnpm exec turbo run dev:remote --filter=@pipelab/cli --filter=@pipelab/ui
 '''
+
+[tasks."local:ui:no-cloud"]
+description = "Run the standalone UI and CLI backend without Supabase or Pipelab Cloud"
+env = {
+  PIPELAB_CLOUD_WORKER_URL = "",
+  POSTHOG_API_KEY = "",
+  SUPABASE_ANON_KEY = "",
+  SUPABASE_PROJECT_ID = "",
+  SUPABASE_PUBLISHABLE_KEY = "",
+  SUPABASE_SERVICE_ROLE_KEY = "",
+  SUPABASE_URL = "",
+  VITE_PIPELAB_BILLING_ENABLED = "false",
+  VITE_PIPELAB_MODE = "",
+}
+run = "pnpm exec turbo run dev:remote --filter=@pipelab/cli --filter=@pipelab/ui"
