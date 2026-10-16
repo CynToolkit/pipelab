@@ -2,11 +2,22 @@ import type { WorkflowTask, WorkflowTaskRegistry } from "@pipelab/workflow-runti
 import type { PipelabContext } from "./context";
 import { createPipelabCloudUploadTask } from "./pipelab-cloud";
 import { createCoreFilesystemWorkflowTasks } from "./workflow-tasks/filesystem";
+import {
+  RELEASE_BEFORE_BUILD_TASK_ID,
+  releaseBeforeBuildWorkflowTask,
+} from "./workflow-tasks/release-before-build";
 
 export interface ProviderServices {
   context: PipelabContext;
   /** Node and pnpm executables ensured for this workflow run. */
   executables: { node: string; pnpm: string };
+  /** Runtime-only release identifiers. Never written into workflow configuration. */
+  run: {
+    id: string;
+    workflowId: string;
+    projectId: string;
+    releaseVersion: string;
+  };
   /** Per-run build cache directory. Other managed directories come from context. */
   workflowCachePath: string;
 }
@@ -34,9 +45,13 @@ export const createPipelabWorkflowTasks = <TServices = unknown>(
   return {
     ...registeredTasks,
     ...createCoreFilesystemWorkflowTasks(),
+    [RELEASE_BEFORE_BUILD_TASK_ID]: (taskContext) =>
+      releaseBeforeBuildWorkflowTask({ ...taskContext, services }),
     "pipelab-cloud:upload": createPipelabCloudUploadTask(services.context),
   };
 };
+
+export { releaseBeforeBuildWorkflowTask } from "./workflow-tasks/release-before-build";
 
 /** @deprecated Use ProviderServices. */
 export type PipelabPluginServices = ProviderServices;

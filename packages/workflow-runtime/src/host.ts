@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { mkdir } from "node:fs/promises";
-import { isAbsolute, resolve } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import type {
   FileSystem,
   Logger,
@@ -47,6 +47,8 @@ class LocalProcessExecutor implements ProcessExecutor {
       const child = spawn(command, args, {
         cwd: options.cwd,
         env: { ...process.env, ...options.env },
+        shell: options.shell,
+        detached: Boolean(options.shell && process.platform !== "win32"),
         stdio: ["ignore", "pipe", "pipe"],
         windowsHide: true,
       });
@@ -66,7 +68,28 @@ class LocalProcessExecutor implements ProcessExecutor {
       };
 
       const onAbort = () => {
-        child.kill();
+        if (!options.shell) {
+          child.kill();
+          return;
+        }
+        if (process.platform === "win32") {
+          if (child.pid) {
+            const systemRoot = process.env.SystemRoot || process.env.WINDIR || "C:\\Windows";
+            const killer = spawn(
+              join(systemRoot, "System32", "taskkill.exe"),
+              ["/pid", String(child.pid), "/T", "/F"],
+              { stdio: "ignore", windowsHide: true },
+            );
+            killer.once("error", () => child.kill());
+          } else child.kill();
+          return;
+        }
+        try {
+          if (child.pid) process.kill(-child.pid, "SIGTERM");
+          else child.kill();
+        } catch {
+          child.kill();
+        }
       };
 
       options.signal.addEventListener("abort", onAbort, { once: true });

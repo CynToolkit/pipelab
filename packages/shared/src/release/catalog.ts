@@ -39,6 +39,7 @@ export const buildReleaseCatalog = (
     fields: producer.fields,
     accepts: producer.accepts,
     planning: producer.planning ?? { mode: "build" },
+    supportsBeforeBuildHooks: producer.supportsBeforeBuildHooks,
     defaultConfig: producer.createDefaultConfig(),
     requiresAgentInspection: Boolean(producer.inspect),
     targets: producer.targets.map((target) => ({

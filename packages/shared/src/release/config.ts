@@ -1,4 +1,5 @@
 import {
+  LEGACY_RELEASE_CONFIG_VERSION,
   RELEASE_CONFIG_VERSION,
   type ReleaseConfig,
   type ReleaseRegistry,
@@ -11,7 +12,6 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 const requiredString = (value: unknown): boolean =>
   typeof value === "string" && value.trim().length > 0;
-
 export const validateReleaseConfigShape = (config: unknown): ValidationIssue[] => {
   const issues: ValidationIssue[] = [];
   if (!config || typeof config !== "object" || Array.isArray(config)) {
@@ -24,10 +24,10 @@ export const validateReleaseConfigShape = (config: unknown): ValidationIssue[] =
     ];
   }
   const value = config as Record<string, unknown>;
-  if (value.version !== RELEASE_CONFIG_VERSION)
+  if (value.version !== RELEASE_CONFIG_VERSION && value.version !== LEGACY_RELEASE_CONFIG_VERSION)
     issues.push({
       code: "release.config.version",
-      message: `Only release configuration version ${RELEASE_CONFIG_VERSION} is supported.`,
+      message: `Only release configuration versions ${LEGACY_RELEASE_CONFIG_VERSION} and ${RELEASE_CONFIG_VERSION} are supported.`,
       severity: "error",
       path: "version",
     });
@@ -159,6 +159,41 @@ export const validateReleaseConfigShape = (config: unknown): ValidationIssue[] =
         severity: "error",
         path: `${path}.input`,
       });
+    if (build.beforeBuild !== undefined) {
+      if (!Array.isArray(build.beforeBuild)) {
+        issues.push({
+          code: "release.build.before-build.invalid",
+          message: "beforeBuild must be an array of configured hooks.",
+          severity: "error",
+          path: `${path}.beforeBuild`,
+        });
+        continue;
+      }
+      if (build.beforeBuild.length > 0 && value.version === LEGACY_RELEASE_CONFIG_VERSION)
+        issues.push({
+          code: "release.config.before-build.version",
+          message: `Build Profile hooks require Release configuration version ${RELEASE_CONFIG_VERSION}.`,
+          severity: "error",
+          path: `${path}.beforeBuild`,
+        });
+      for (const [hookIndex, hook] of build.beforeBuild.entries()) {
+        if (
+          !isRecord(hook) ||
+          !isSafePersistedId(hook.id) ||
+          typeof hook.enabled !== "boolean" ||
+          !requiredString(hook.command)
+        ) {
+          issues.push({
+            code: "release.build.before-build.invalid",
+            message: "Hooks require a safe ID, enabled state, and one non-empty command.",
+            severity: "error",
+            path: `${path}.beforeBuild.${hookIndex}`,
+          });
+          continue;
+        }
+        addId(`${path}.beforeBuild`, hook.id, `${path}.beforeBuild.${hookIndex}.id`);
+      }
+    }
   }
   for (const [index, destination] of (Array.isArray(value.destinations)
     ? value.destinations

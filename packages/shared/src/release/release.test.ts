@@ -126,6 +126,94 @@ describe("release descriptors", () => {
     ).toEqual([]);
   });
 
+  it("requires the hook-capable Release version when a Build Profile has hooks", () => {
+    const config = {
+      version: "3.0.0",
+      id: "r",
+      project: "p",
+      name: "n",
+      source: { provider: "fake", config: {} },
+      builds: [
+        {
+          id: "electron-a",
+          type: "desktop",
+          engine: "electron",
+          enabled: true,
+          config: {},
+          targets: [{ id: "windows", enabled: true, config: {} }],
+          beforeBuild: [
+            {
+              id: "sdk-wrapper",
+              enabled: true,
+              command: "node ./setSDKEnabled.js 0",
+            },
+          ],
+        },
+      ],
+      destinations: [] as unknown[],
+    };
+
+    expect(validateReleaseConfigShape(config)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "release.config.before-build.version" }),
+      ]),
+    );
+  });
+
+  it("rejects empty Build Profile hook commands and malformed hook IDs", () => {
+    const config = {
+      version: "3.1.0",
+      id: "r",
+      project: "p",
+      name: "n",
+      source: { provider: "fake", config: {} },
+      builds: [
+        {
+          id: "electron-a",
+          type: "desktop",
+          engine: "electron",
+          enabled: true,
+          config: {},
+          targets: [{ id: "windows", enabled: true, config: {} }],
+          beforeBuild: [
+            {
+              id: "sdk-wrapper",
+              enabled: true,
+              command: " ",
+            },
+          ],
+        },
+      ],
+      destinations: [] as unknown[],
+    };
+
+    expect(validateReleaseConfigShape(config)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "release.build.before-build.invalid" }),
+      ]),
+    );
+    const invalidId = {
+      ...config,
+      builds: [
+        {
+          ...config.builds[0],
+          beforeBuild: [
+            {
+              id: "../hook",
+              enabled: true,
+              command: "node ./setSDKEnabled.js 0",
+            },
+          ],
+        },
+      ],
+    };
+    expect(validateReleaseConfigShape(invalidId)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "release.build.before-build.invalid" }),
+      ]),
+    );
+  });
+
   it("rejects duplicate owned IDs and malformed references", () => {
     const config = createReleaseConfig({
       id: "r",

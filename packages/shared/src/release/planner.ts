@@ -372,6 +372,23 @@ export const planRelease = (
       selected = resolvedInput;
     }
     if (selectedTransforms.length) selected = addAutomatic(selectedTransforms, buildId);
+    const activeHooks = build.beforeBuild?.filter((hook) => hook.enabled) ?? [];
+    if (activeHooks.length && !definition.supportsBeforeBuildHooks)
+      issues.push(
+        error(
+          "release.build.before-build.unsupported",
+          `${definition.label} does not support Build Profile beforeBuild hooks.`,
+          buildPath(buildId, ".beforeBuild"),
+        ),
+      );
+    if (activeHooks.length && selected.descriptor.container !== "directory")
+      issues.push(
+        error(
+          "release.build.before-build.input",
+          "Build Profile beforeBuild hooks require a directory input artifact that can be copied safely.",
+          buildPath(buildId, ".beforeBuild"),
+        ),
+      );
     const targetConfigs = build.targets
       .filter((target) => target.enabled)
       .map((target) => {

@@ -155,6 +155,9 @@ export const executeWorkflow = async (
   const version = options.release?.version?.trim() || "0.0.0";
   const prepared = prepareReleaseWorkflow(stored, version);
   const { config, workflow } = prepared;
+  const hasEnabledBeforeBuildHooks = config.builds.some((build) =>
+    build.beforeBuild?.some((hook) => hook.enabled),
+  );
   const { logger } = useLogger();
   const buildId = nanoid();
   const history = new BuildHistoryStorage(context);
@@ -243,12 +246,22 @@ export const executeWorkflow = async (
   try {
     await options.onRunCreated?.(buildId);
     const workspaceRoot = context.getArtifactsPath("workflow", buildId);
-    await mkdir(workspaceRoot, { recursive: true });
+    const buildStagingRoot = context.getArtifactsPath(config.project, "workflow-staging", buildId);
+    await Promise.all([
+      mkdir(workspaceRoot, { recursive: true }),
+      ...(hasEnabledBeforeBuildHooks ? [mkdir(buildStagingRoot, { recursive: true })] : []),
+    ]);
     const node = await ensureNodeJS(context);
     const pnpm = await ensurePNPM(context);
     const services: ProviderServices = {
       context,
       executables: { node, pnpm },
+      run: {
+        id: buildId,
+        workflowId: config.id,
+        projectId: config.project,
+        releaseVersion: version,
+      },
       workflowCachePath: context.getCachePath(CacheFolder.Pipelines, config.project, buildId),
     };
     const tasks = createPipelabWorkflowTasks(
@@ -263,7 +276,7 @@ export const executeWorkflow = async (
           error: (...args) => logger().error(...args),
         },
       }),
-      variables: { version, workspace: workspaceRoot },
+      variables: { version, workspace: workspaceRoot, buildStaging: buildStagingRoot },
       version,
       buildId,
       tasks,

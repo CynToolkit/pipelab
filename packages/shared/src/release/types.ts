@@ -3,7 +3,20 @@ import type { IconType, RendererProviderMetadata } from "../plugins/definitions"
 
 export type { ArtifactDescriptor, ArtifactKind } from "@pipelab/workflow-runtime";
 
-export const RELEASE_CONFIG_VERSION = "3.0.0" as const;
+export const RELEASE_CONFIG_VERSION = "3.1.0" as const;
+export const LEGACY_RELEASE_CONFIG_VERSION = "3.0.0" as const;
+
+export const RELEASE_BEFORE_BUILD_TASK_ID = "@pipelab/core/release/before-build" as const;
+
+export type ReleaseConfigVersion =
+  | typeof RELEASE_CONFIG_VERSION
+  | typeof LEGACY_RELEASE_CONFIG_VERSION;
+
+export interface ReleaseBeforeBuildHook {
+  id: string;
+  enabled: boolean;
+  command: string;
+}
 
 export interface ArtifactConstraint {
   kind?: string | string[];
@@ -54,6 +67,7 @@ export interface ReleaseBuildProfileConfig {
   input?: ReleaseOutputRef;
   config: Record<string, unknown>;
   targets: ReleaseBuildTargetConfig[];
+  beforeBuild?: ReleaseBeforeBuildHook[];
   name?: string;
 }
 
@@ -88,7 +102,7 @@ export interface ReleaseDestinationConfig {
 }
 
 export interface ReleaseConfig {
-  version: typeof RELEASE_CONFIG_VERSION;
+  version: ReleaseConfigVersion;
   id: string;
   project: string;
   name: string;
@@ -222,6 +236,7 @@ export interface ReleaseProducerDefinition {
   fields?: ReleaseFieldDefinition[];
   accepts: ArtifactConstraint;
   planning: ReleaseProducerPlanning;
+  supportsBeforeBuildHooks?: boolean;
   targets: ReleaseProducerTargetDefinition[];
   createDefaultConfig(): Record<string, unknown>;
   validate(config: ReleaseProducerConfig, context: ReleaseValidationContext): ValidationIssue[];
@@ -317,6 +332,7 @@ export interface ReleaseCatalogProducer {
   fields?: ReleaseFieldDefinition[];
   accepts: ArtifactConstraint;
   planning: ReleaseProducerPlanning;
+  supportsBeforeBuildHooks?: boolean;
   defaultConfig: Record<string, unknown>;
   targets: ReleaseCatalogTarget[];
   requiresAgentInspection?: boolean;

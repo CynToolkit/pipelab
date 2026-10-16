@@ -57,9 +57,15 @@ Examples exercised by the CLI E2E suite:
 pipelab workflow list --user-data <user-data-path>
 pipelab workflow run "Command workflow" --user-data <user-data-path> --dry-run
 pipelab workflow run <workflow-id> --user-data <user-data-path> --dry-run --output plan.json
+pipelab workflow run <workflow-id> --user-data <user-data-path>
 ```
 
 These forms are exercised by the release workflow E2E suite: listing by the `list` alias, resolving a saved workflow by name, and writing a dry-run plan to a result path. Workflow execution and the low-level workflow object are described in [Workflow references](/guide/workflow-references) and the [workflow runtime reference](/reference/workflow-runtime).
+
+Enabled Build Profile hooks run as part of a normal workflow execution. A
+dry-run can inspect their compiled command steps without executing them. See
+the [Release workflow guide](/guide/release-workflows#workflow-sections) for
+the staged working directory and run-scoped `PIPELAB_` environment variables.
 
 ### Manage workflows
 

@@ -57,6 +57,20 @@ those edits. Pending workflow changes save automatically before navigation;
 the browser also warns if you reload or close while a save is pending or has
 failed, or while Build settings remain unapplied.
 
+Electron Build Profiles also support **Before build hooks**. Add, enable,
+disable, reorder, or remove hooks in the profile settings. Hooks run in order on
+that profile's own copy of the input, once before Electron packages its targets.
+Enter one shell command, such as `node ./setSDKEnabled.js 0`. It runs with the
+staged input as its working directory, so a script beside `data.json` can use
+`__dirname` to read or write that file. Managed Node.js and pnpm are available
+on `PATH`. A nonzero exit stops that profile's build.
+
+Each hook process receives these run-scoped environment variables:
+`PIPELAB_RUN_ID`, `PIPELAB_WORKFLOW_ID`, `PIPELAB_PROJECT_ID`,
+`PIPELAB_BUILD_PROFILE_ID`, `PIPELAB_ARTIFACT_DIR`, and
+`PIPELAB_RELEASE_VERSION`. They describe the current run and staged copy; they
+are supplied at execution time and are not saved in workflow configuration.
+
 Use **Artifacts** to find outputs across runs of this workflow. Artifact
 metadata is shown only when the run provides it. Local artifacts can be opened
 and cloud artifacts downloaded when those actions are available. Each artifact
