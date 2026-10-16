@@ -22,6 +22,14 @@ POSTHOG_API_KEY=...
 
 These values enable Supabase-backed authentication, Pipelab Cloud artifact requests, and PostHog telemetry respectively. `SUPABASE_PUBLISHABLE_KEY` is the canonical browser/client key; existing local env files may temporarily use `SUPABASE_ANON_KEY`, with the publishable key taking precedence if both are set. They are optional for local development; missing cloud configuration disables the associated cloud functionality, and the CLI warns that authentication is disabled when Supabase is unavailable. Never commit real credentials. Local Supabase and Worker development is available through the `mise run local` tasks; see `mise.toml` and `supabase/README.md` for the local service setup.
 
+To run the standalone UI and CLI backend without starting local Supabase or either Wrangler Worker, use:
+
+```sh
+mise run local ui-no-cloud
+```
+
+This mode clears Supabase and Pipelab Cloud configuration for the processes it starts, so authentication, billing, telemetry, and cloud artifact requests are unavailable. Use `mise run local ui` when you need local Supabase or Pipelab Cloud features.
+
 Browser billing is disabled by default. For local-only billing acceptance, start
 the local Supabase functions with Polar sandbox configuration and set
 `VITE_PIPELAB_BILLING_ENABLED=true` for the Editor build. The automated Editor
