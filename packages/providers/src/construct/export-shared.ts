@@ -326,6 +326,15 @@ export const preparePlaywrightProfile = async (
   if (!sourceStats.isDirectory()) {
     throw new Error(`Construct browser profile "${source}" is not a directory.`);
   }
+
+  try {
+    await readdir(source);
+  } catch (error) {
+    throw new Error(
+      `Could not read Construct browser profile "${source}": ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
   const playwrightProfile = join(destination, "Default");
   await restrictManagedProfileAccess(destination);
   await restrictManagedProfileAccess(playwrightProfile);
