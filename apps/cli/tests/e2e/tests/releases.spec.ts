@@ -686,9 +686,23 @@ describe("CLI release dry-run", () => {
         command: "node ./write-marker.js",
       });
       expect(JSON.stringify(result.workflow)).not.toContain("PIPELAB_");
-      await expect(
-        runCLI(["workflow", "run", configId, "--user-data", sandbox!.paths.userData]),
-      ).rejects.toMatchObject({ stderr: expect.stringContaining("exited with code 2") });
+      const failedRun = await runCLI([
+        "workflow",
+        "run",
+        configId,
+        "--user-data",
+        sandbox!.paths.userData,
+      ]).then(
+        () => null,
+        (error: unknown) => error,
+      );
+      expect(failedRun).toMatchObject({
+        stdout: expect.stringContaining("beforeBuild command exited with code 2"),
+        stderr: expect.stringContaining("exited with code 2"),
+      });
+      expect(failedRun).toMatchObject({
+        stdout: expect.not.stringContaining("✔ Before build hook CLI trust"),
+      });
       await expect(readFile(markerPath, "utf8")).resolves.toBe("ran");
     },
     30 * 60 * 1000,
