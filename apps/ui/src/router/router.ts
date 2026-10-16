@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, RouterOptions } from "vue-router";
 import { i18n } from "../i18n";
+import { preserveDesktopCliPort } from "./preserve-desktop-cli-port";
 
 const { t } = i18n.global;
 
@@ -83,3 +84,5 @@ export const router = createRouter({
   history: createWebHistory(),
   routes,
 });
+
+router.beforeEach(preserveDesktopCliPort);

@@ -8,6 +8,7 @@ import {
   buildTargetAvailabilityReason,
   buildTargetIsAvailable,
   buildInputControlVisible,
+  compatibleBuildInputLabel,
   applyProducerInspection,
   blockerAtIndex,
   buildInputSelectionMode,
@@ -24,6 +25,7 @@ import {
   outputReferenceConsumers,
   plannerAcceptsBuildInput,
   plannerAcceptsBuildCandidate,
+  plannedBuildInputLabel,
   probeBuildInputCandidates,
   probeCompatibleBuildCandidates,
   deploymentSlotLabel,
@@ -316,6 +318,7 @@ describe("release flow model", () => {
     );
 
     expect(buildInputSelectionMode(options)).toBe("hidden");
+    expect(compatibleBuildInputLabel(options)).toBe("Source");
     expect(workflow.builds[0].input).toBeUndefined();
   });
 
@@ -434,6 +437,32 @@ describe("release flow model", () => {
     expect(build.input).toEqual({ source: true });
   });
 
+  it("keeps the selector visible when a draft engine rejects the retained input", () => {
+    const savedBuild = {
+      id: "build-b",
+      type: "desktop",
+      engine: "engine-a",
+      enabled: true,
+      input: { buildId: "build-a", targetId: "windows" },
+      config: {},
+      targets: [{ id: "windows", enabled: true, config: {} }],
+    } satisfies ReleaseBuildProfileConfig;
+    const draftBuild = switchBuildProfileEngine(catalog, savedBuild, "engine-b");
+    if (!draftBuild) throw new Error("Expected engine switch to produce a draft build");
+    const options = [
+      { value: "source", label: "Source — Project", ref: { source: true as const } },
+    ];
+
+    expect(draftBuild.engine).toBe("engine-b");
+    expect(draftBuild.input).toEqual({ buildId: "build-a", targetId: "windows" });
+    expect(buildInputControlVisible(options, [], draftBuild.input)).toBe(true);
+    expect(compatibleBuildInputLabel(options, draftBuild.input)).toBeUndefined();
+
+    selectBuildInput(draftBuild, options, "source");
+    expect(buildInputControlVisible(options, [], draftBuild.input)).toBe(false);
+    expect(compatibleBuildInputLabel(options, draftBuild.input)).toBe("Source — Project");
+  });
+
   it("accepts planner-resolved build inputs and rejects missing or invalid inputs", () => {
     const plan = {
       outputs: [],
@@ -461,6 +490,31 @@ describe("release flow model", () => {
       ),
     ).toBe(false);
     expect(plannerAcceptsBuildInput(plan, "missing-build", 0)).toBe(false);
+  });
+
+  it("shows the planner-resolved source when a build input is implicit", () => {
+    const workflow: ReleaseConfig = {
+      ...config,
+      builds: [
+        {
+          id: "build-a",
+          type: "desktop",
+          engine: "engine-a",
+          enabled: true,
+          config: {},
+          targets: [{ id: "windows", enabled: true, config: {} }],
+        },
+      ],
+    };
+    const plan = {
+      outputs: [],
+      producers: [{ id: "build-a", input: { source: true } }],
+      destinations: [],
+      issues: [],
+      graph: { nodes: [], edges: [] },
+    } as unknown as ReleasePlan;
+
+    expect(plannedBuildInputLabel(workflow, plan, catalog, "build-a")).toBe("Source — Project");
   });
 
   it("preserves the profile id and compatible settings while dropping invalid targets", () => {

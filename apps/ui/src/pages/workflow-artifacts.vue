@@ -60,7 +60,9 @@
                 <span v-if="artifact.architecture">Architecture: {{ artifact.architecture }}</span>
                 <span v-if="artifact.format">Format: {{ artifact.format }}</span>
                 <span v-if="artifact.kind">Kind: {{ artifact.kind }}</span>
-                <span v-if="artifact.size !== undefined">{{ formatSize(artifact.size) }}</span>
+                <span v-if="artifact.size !== undefined && artifact.size > 0">
+                  {{ formatSize(artifact.size) }}
+                </span>
               </div>
               <div class="artifact-provenance">
                 <span>{{ formatDate(artifact.runDate) }}</span>
@@ -198,7 +200,7 @@ const viewRun = (runId: string) => router.push(`${basePath.value}/runs/${runId}`
 
 const openArtifact = async (path: string) => {
   try {
-    const response = await api.execute("shell:openPath", { path });
+    const response = await api.openPath(path);
     if (response.type === "error") actionError.value = response.ipcError;
   } catch (cause) {
     actionError.value = cause instanceof Error ? cause.message : String(cause);

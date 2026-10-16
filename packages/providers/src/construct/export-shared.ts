@@ -347,7 +347,10 @@ export const exportc3p = async (
     log("Construct renderer crashed");
   });
 
-  page.setDefaultTimeout((newInputs.timeout as number) * 1000);
+  const configuredTimeoutSeconds = Number(newInputs.timeout ?? 120);
+  const exportTimeoutMs =
+    Math.max(1, Number.isFinite(configuredTimeoutSeconds) ? configuredTimeoutSeconds : 120) * 1000;
+  page.setDefaultTimeout(exportTimeoutMs);
 
   // this exact sequn=ence make it work
   await page.addInitScript(() => {
@@ -369,6 +372,7 @@ export const exportc3p = async (
       version as string,
       downloadDir,
       abortSignal,
+      exportTimeoutMs,
       // addonsFolder,
     );
 
