@@ -112,11 +112,13 @@ export const releaseBeforeBuildWorkflowTask: WorkflowTask<ProviderServices> = as
   );
   const pathName = environmentVariableName("PATH");
   const inheritedPath = process.env[pathName] || "";
-  const env: Record<string, string | undefined> = Object.fromEntries(
-    Object.keys(process.env)
-      .filter((key) => key.toUpperCase().startsWith("PIPELAB_"))
-      .map((key) => [key, undefined]),
-  );
+  const env: Record<string, string | undefined> = {};
+
+  for (const key of Object.keys(process.env)) {
+    if (key.toUpperCase().startsWith("PIPELAB_")) {
+      env[key] = undefined;
+    }
+  }
   Object.assign(env, runtime, {
     [pathName]: [shimDirectory, dirname(executables.node), inheritedPath]
       .filter(Boolean)
