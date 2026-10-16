@@ -6,7 +6,7 @@ import {
 } from "@pipelab/core-node";
 import type { SaveLocationWorkflow } from "@pipelab/shared";
 import { executeWorkflow } from "../../../../packages/core-node/src/handlers/workflow";
-import { Listr, ListrTaskState, type ListrTaskWrapper } from "listr2";
+import { Listr, ListrTaskState, type ListrTask, type ListrTaskWrapper } from "listr2";
 import type { WorkflowEvent } from "../../../../packages/workflow-runtime/src/index";
 import { Option } from "commander";
 import { getDefaultUserDataPath } from "../paths";
@@ -15,6 +15,54 @@ import { workflowTaskOutputLines } from "./workflow-task-output";
 
 const contextFor = (userDataPath = getDefaultUserDataPath()) =>
   new PipelabContext({ userDataPath });
+
+export const createWorkflowListr = (
+  title: string,
+  stepTasks: ListrTask[],
+  execution: Promise<unknown>,
+  onWorkflowTask: (task: ListrTaskWrapper<any, any, any>) => void = () => undefined,
+  onExecutionFailure: (error: unknown) => void = () => undefined,
+) => {
+  void execution.catch(onExecutionFailure);
+  return new Listr(
+    [
+      {
+        title,
+        task: (_ctx: unknown, task: ListrTaskWrapper<any, any, any>) => {
+          onWorkflowTask(task);
+          return task.newListr(
+            [
+              {
+                title: "Workflow steps",
+                task: (_ctx: unknown, steps: ListrTaskWrapper<any, any, any>) =>
+                  steps.newListr(stepTasks, {
+                    concurrent: true,
+                    exitOnError: false,
+                    rendererOptions: {
+                      collapseErrors: false,
+                      outputBar: 1,
+                      showErrorMessage: true,
+                    },
+                  }),
+              },
+              { title: "Workflow result", task: () => execution },
+            ],
+            {
+              concurrent: false,
+              exitOnError: true,
+              rendererOptions: { collapseErrors: false, outputBar: 1, showErrorMessage: true },
+            },
+          );
+        },
+      },
+    ],
+    {
+      concurrent: true,
+      exitOnError: true,
+      rendererOptions: { collapseErrors: false, outputBar: 1, showErrorMessage: true },
+    },
+  );
+};
 
 export const workflowRunOptions = [
   new Option("--user-data <path>", "Custom user-data directory"),
@@ -121,6 +169,7 @@ export async function runWorkflowCommand(
   const workflow = prepared.workflow;
   const completion = new Map<string, { resolve: () => void; reject: (error: Error) => void }>();
   const waiters = new Map<string, Promise<void>>();
+  const settledSteps = new Set<string>();
   const taskControls = new Map<string, ListrTaskWrapper<any, any, any>>();
   const taskStates = new Map<string, ListrTaskState>();
   const taskLogs = new Map<string, string[]>();
@@ -141,20 +190,14 @@ export async function runWorkflowCommand(
     const promise = new Promise<void>((resolve, reject) =>
       completion.set(stepId, { resolve, reject }),
     );
+    void promise.catch(() => undefined);
     waiters.set(stepId, promise);
     return promise;
   };
-  const stepGroups = [
-    {
-      id: "workflow",
-      title: flow.name,
-      steps: workflow.steps.map((step) => ({
-        id: step.id,
-        title: workflowStepTitle(step),
-      })),
-    },
-  ];
-  const stepTasks = stepGroups.flatMap((group) => group.steps);
+  const stepTasks = workflow.steps.map((step) => ({
+    id: step.id,
+    title: workflowStepTitle(step),
+  }));
   const stepTask = (step: (typeof stepTasks)[number]) => ({
     title: step.title,
     rendererOptions: { outputBar: 1, persistentOutput: false },
@@ -166,7 +209,6 @@ export async function runWorkflowCommand(
       return waitFor(step.id);
     },
   });
-  waitFor("__workflow__");
   for (const task of stepTasks) waitFor(task.id);
   const execution = executeWorkflow(context, `workflows/${entry.id}`, {
     release: { version: "", description: "" },
@@ -179,10 +221,12 @@ export async function runWorkflowCommand(
           event.message,
         );
       if (event.type === "step.completed") {
+        settledSteps.add(event.stepId);
         updateTask(event.stepId, ListrTaskState.COMPLETED);
         completion.get(event.stepId)?.resolve();
       }
       if (event.type === "step.failed") {
+        settledSteps.add(event.stepId);
         updateTask(event.stepId, ListrTaskState.FAILED, event.error.message);
         const task = taskControls.get(event.stepId);
         if (task) {
@@ -193,6 +237,7 @@ export async function runWorkflowCommand(
         completion.get(event.stepId)?.reject(new Error(event.error.message));
       }
       if (event.type === "step.skipped") {
+        settledSteps.add(event.stepId);
         updateTask(
           event.stepId,
           ListrTaskState.SKIPPED,
@@ -202,39 +247,39 @@ export async function runWorkflowCommand(
       }
     },
   });
-  const listr = new Listr(
-    [
-      { title: "Workflow", task: () => waitFor("__workflow__") },
-      ...stepGroups.map((group) =>
-        group.steps.length === 1
-          ? stepTask(group.steps[0])
-          : {
-              title: group.title,
-              task: (_ctx: unknown, task: ListrTaskWrapper<any, any, any>) =>
-                task.newListr(group.steps.map(stepTask), {
-                  concurrent: true,
-                  exitOnError: false,
-                  rendererOptions: { collapseErrors: false, outputBar: 1, showErrorMessage: true },
-                }),
-            },
-      ),
-    ],
-    {
-      concurrent: true,
-      exitOnError: false,
-      rendererOptions: { collapseErrors: false, outputBar: 1, showErrorMessage: true },
+  let workflowTaskControl: ListrTaskWrapper<any, any, any> | undefined;
+  const listr = createWorkflowListr(
+    flow.name || "Workflow",
+    stepTasks.map(stepTask),
+    execution,
+    (task) => {
+      workflowTaskControl = task;
+    },
+    (error) => {
+      if (workflowTaskControl) {
+        const message = error instanceof Error ? error.message : String(error);
+        workflowTaskControl.task.message$ = {
+          error: workflowTaskOutputLines(message)[0] || "Workflow failed",
+        };
+        workflowTaskControl.task.state$ = ListrTaskState.FAILED;
+      }
+      for (const step of stepTasks) {
+        if (settledSteps.has(step.id)) continue;
+        updateTask(
+          step.id,
+          ListrTaskState.SKIPPED,
+          "Not started because workflow execution failed",
+        );
+        settledSteps.add(step.id);
+        completion.get(step.id)?.resolve();
+      }
     },
   );
   const listRun = listr.run();
-  execution.then(
-    () => completion.get("__workflow__")?.resolve(),
-    (error: unknown) => {
-      for (const waiter of completion.values())
-        waiter.reject(error instanceof Error ? error : new Error(String(error)));
-    },
-  );
-  const result = await execution;
-  completion.get("__workflow__")?.resolve();
+  const result = await execution.catch(async (error: unknown) => {
+    await listRun.catch(() => undefined);
+    throw error;
+  });
   await listRun;
   if (options.output) {
     const { writeFile } = await import("node:fs/promises");
