@@ -34,17 +34,10 @@ const uiProcess = uiAlreadyRunning
       windowsVerbatimArguments: false,
       detached: process.platform !== "win32",
     });
-const child = spawn(command, ["run", "start", "--", ...forgeArgs], {
-  cwd: desktopDir,
-  env: { ...process.env, PIPELAB_E2E: "1" },
-  shell: process.platform === "win32",
-  stdio: ["pipe", "pipe", "pipe"],
-  windowsVerbatimArguments: false,
-  detached: process.platform !== "win32",
-});
 
 let output = "";
 let settled = false;
+let timer;
 
 const appendOutput = (chunk) => {
   output += chunk.toString();
@@ -88,6 +81,23 @@ const waitForUi = uiAlreadyRunning
       check();
     });
 
+try {
+  await waitForUi;
+} catch (error) {
+  stopProcessTree(uiProcess);
+  console.error(output);
+  throw error;
+}
+
+const child = spawn(command, ["run", "start", "--", ...forgeArgs], {
+  cwd: desktopDir,
+  env: { ...process.env, PIPELAB_E2E: "1" },
+  shell: process.platform === "win32",
+  stdio: ["pipe", "pipe", "pipe"],
+  windowsVerbatimArguments: false,
+  detached: process.platform !== "win32",
+});
+
 const finish = (error) => {
   if (settled) return;
   settled = true;
@@ -102,7 +112,7 @@ const finish = (error) => {
   setImmediate(() => process.exit(process.exitCode));
 };
 
-const timer = setTimeout(() => {
+timer = setTimeout(() => {
   finish(new Error(`Electron smoke test timed out after ${timeoutMs}ms`));
 }, timeoutMs);
 
@@ -120,5 +130,3 @@ child.once("close", (code) => {
   if (settled) return;
   finish(new Error(`Electron exited before the renderer loaded (code ${code})`));
 });
-
-waitForUi.catch((error) => finish(error));

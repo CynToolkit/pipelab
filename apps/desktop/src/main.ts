@@ -253,9 +253,12 @@ function createWindow(): void {
               if (artifactRows.length !== artifactCount) {
                 throw new Error("Expected " + artifactCount + " Desktop artifacts, found " + artifactRows.length);
               }
-              if (!document.querySelector('.artifact-row button[aria-label^="Open "]')) {
+              const openButton = document.querySelector('.artifact-row button[aria-label^="Open "]');
+              const artifactPath = openButton?.getAttribute("data-artifact-path");
+              if (!artifactPath) {
                 throw new Error("No local artifact can be opened from Desktop");
               }
+              await window.pipelab.showItemInFolder(artifactPath);
               return "history-verified";
             })()`
             : "document.readyState === 'complete' && document.body && document.body.innerHTML.trim().length > 0",
