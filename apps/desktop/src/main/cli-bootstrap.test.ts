@@ -96,6 +96,7 @@ async function startFixture(
   readyTimeoutMs?: number,
   onSpawn?: (child: ChildProcess) => void,
   handshakeTimeoutMs = 1000,
+  onStartupFailure?: (child: ChildProcess) => Promise<void> | void,
 ) {
   const started = await startAuthenticatedCliProcess({
     executable: process.execPath,
@@ -108,6 +109,7 @@ async function startFixture(
       children.add(child);
       onSpawn?.(child);
     },
+    ...(onStartupFailure === undefined ? {} : { onStartupFailure }),
   });
   children.add(started.child);
   return started;
@@ -161,6 +163,34 @@ describe("authenticated Desktop CLI startup", () => {
       /could not prove it belongs to this Desktop launch/,
     );
     assert.ok(child?.killed);
+  });
+
+  it("awaits caller process-tree cleanup before terminating a failed startup", async () => {
+    let child: ChildProcess | undefined;
+    let beginCleanup!: () => void;
+    let releaseCleanup!: () => void;
+    const cleanupStarted = new Promise<void>((resolve) => (beginCleanup = resolve));
+    const cleanupGate = new Promise<void>((resolve) => (releaseCleanup = resolve));
+    const startup = startFixture(
+      "forged",
+      2000,
+      (process) => (child = process),
+      1000,
+      async (process) => {
+        beginCleanup();
+        await cleanupGate;
+        process.kill();
+      },
+    );
+
+    try {
+      await cleanupStarted;
+      assert.equal(child?.killed, false);
+    } finally {
+      releaseCleanup();
+    }
+    await assert.rejects(startup, /could not prove it belongs to this Desktop launch/);
+    assert.equal(child?.killed, true);
   });
 
   it("rejects a validly signed response from a stale session", async () => {

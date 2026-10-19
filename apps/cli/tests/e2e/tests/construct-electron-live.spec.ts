@@ -23,15 +23,26 @@ const profilePath = process.env.CONSTRUCT_CI_PROFILE_PATH;
 const runNumber = Number(process.env.CONSTRUCT_CI_RUN_NUMBER || 0);
 const required = process.env.CONSTRUCT_CI_REQUIRED === "true";
 const platformMetadata = new Set([".ds_store", "desktop.ini", "thumbs.db", "ehthumbs.db"]);
-const isPlatformMetadata = (entry: string): boolean => platformMetadata.has(entry.toLowerCase());
+
+async function isPlatformMetadataFile(path: string, entry: string): Promise<boolean> {
+  if (!platformMetadata.has(entry.toLowerCase())) return false;
+  return (await lstat(join(path, entry))).isFile();
+}
 
 async function directoryChildDigests(path: string): Promise<Record<string, string>> {
+  const entries = (await readdir(path)).sort();
+  const includedEntries = await Promise.all(
+    entries.map(async (entry) => ({
+      entry,
+      include: !(await isPlatformMetadataFile(path, entry)),
+    })),
+  );
   return Object.fromEntries(
     await Promise.all(
-      (await readdir(path))
-        .filter((entry) => !isPlatformMetadata(entry))
+      includedEntries
+        .filter(({ include }) => include)
         .map(
-          async (entry): Promise<[string, string]> => [
+          async ({ entry }): Promise<[string, string]> => [
             entry,
             await artifactDigest(join(path, entry)),
           ],
@@ -65,7 +76,14 @@ async function artifactDigest(path: string, ancestors = new Set<string>()): Prom
       throw new Error(`Artifact symlink cycle detected at ${path}`);
     }
     const childAncestors = new Set(ancestors).add(resolvedPath);
-    for (const entry of (await readdir(path)).filter((name) => !isPlatformMetadata(name)).sort()) {
+    const entries = (await readdir(path)).sort();
+    const includedEntries = await Promise.all(
+      entries.map(async (entry) => ({
+        entry,
+        include: !(await isPlatformMetadataFile(path, entry)),
+      })),
+    );
+    for (const { entry } of includedEntries.filter(({ include }) => include)) {
       hash.update(entry);
       hash.update(await artifactDigest(join(path, entry), childAncestors));
     }
@@ -80,11 +98,14 @@ describe("authenticated local Construct to Electron CI acceptance", () => {
     "hashes valid symlinks and rejects dangling artifact symlinks",
     async () => {
       const fixture = await mkdtemp(join(tmpdir(), "pipelab-artifact-symlink-"));
+      const outsideTargetDirectory = await mkdtemp(join(tmpdir(), "pipelab-artifact-target-"));
       try {
         const target = join(fixture, "target");
+        const outsideTarget = join(outsideTargetDirectory, "payload");
         const link = join(fixture, "link");
         const missingLink = join(fixture, "missing-link");
         await writeFile(target, "packaged artifact");
+        await writeFile(outsideTarget, "metadata-named symlink payload");
         await symlink("target", link);
         await symlink("missing", missingLink);
 
@@ -97,10 +118,17 @@ describe("authenticated local Construct to Electron CI acceptance", () => {
           code: "ENOENT",
           message: expect.stringContaining('points to unavailable target "missing"'),
         });
+        await rm(missingLink);
+        const metadataLink = join(fixture, "desktop.ini");
+        await symlink(outsideTarget, metadataLink);
+        const fixtureDigest = await artifactDigest(fixture);
+        await writeFile(outsideTarget, "changed metadata-named symlink payload");
+        expect(await artifactDigest(fixture)).not.toBe(fixtureDigest);
         await symlink(".", join(fixture, "cycle"));
         await expect(artifactDigest(fixture)).rejects.toThrow("Artifact symlink cycle detected");
       } finally {
         await rm(fixture, { recursive: true, force: true });
+        await rm(outsideTargetDirectory, { recursive: true, force: true });
       }
     },
   );
@@ -116,6 +144,15 @@ describe("authenticated local Construct to Electron CI acceptance", () => {
 
       await writeFile(metadata, "updated Finder metadata");
       expect(await artifactDigest(fixture)).toBe(digest);
+
+      const metadataDirectory = join(fixture, "desktop.ini");
+      const nestedArtifact = join(metadataDirectory, "payload.bin");
+      await mkdir(metadataDirectory);
+      await writeFile(nestedArtifact, "nested artifact");
+      const digestWithMetadataNamedDirectory = await artifactDigest(fixture);
+      await writeFile(nestedArtifact, "changed nested artifact");
+      expect(await artifactDigest(fixture)).not.toBe(digestWithMetadataNamedDirectory);
+
       await writeFile(artifact, "modified release artifact");
       expect(await artifactDigest(fixture)).not.toBe(digest);
     } finally {

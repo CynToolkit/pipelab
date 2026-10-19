@@ -45,6 +45,7 @@ interface StartAuthenticatedCliOptions {
   readyTimeoutMs?: number;
   handshakeTimeoutMs?: number;
   onSpawn?: (child: ChildProcess) => void;
+  onStartupFailure?: (child: ChildProcess) => Promise<void> | void;
 }
 
 export interface AuthenticatedCliProcess {
@@ -420,6 +421,15 @@ export async function startAuthenticatedCliProcess(
 
     return { child, port: ready.port, sessionId: credentials.sessionId };
   } catch (error) {
+    try {
+      await options.onStartupFailure?.(child);
+    } catch (cleanupError) {
+      child.kill();
+      throw new AggregateError(
+        [error, cleanupError],
+        "The CLI failed startup verification and its process tree could not be cleaned up.",
+      );
+    }
     child.kill();
     throw error;
   } finally {
