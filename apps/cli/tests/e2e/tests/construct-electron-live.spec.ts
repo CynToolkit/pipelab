@@ -23,14 +23,19 @@ const profilePath = process.env.CONSTRUCT_CI_PROFILE_PATH;
 const runNumber = Number(process.env.CONSTRUCT_CI_RUN_NUMBER || 0);
 const required = process.env.CONSTRUCT_CI_REQUIRED === "true";
 
-async function artifactDigest(path: string): Promise<string> {
+async function artifactDigest(path: string, ancestors = new Set<string>()): Promise<string> {
   const metadata = await lstat(path);
   const hash = createHash("sha256");
   if (metadata.isSymbolicLink()) {
     const target = await readlink(path);
-    await realpath(path);
+    const resolvedPath = await realpath(path);
+    if (ancestors.has(resolvedPath)) {
+      throw new Error(`Artifact symlink cycle detected at ${path}`);
+    }
+    const resolvedAncestors = new Set(ancestors).add(resolvedPath);
     hash.update("symlink\0");
     hash.update(target);
+    hash.update(await artifactDigest(resolvedPath, resolvedAncestors));
   } else if (metadata.isFile()) {
     hash.update(await readFile(path));
   } else if (metadata.isDirectory()) {
@@ -60,6 +65,8 @@ describe("authenticated local Construct to Electron CI acceptance", () => {
         const digest = await artifactDigest(link);
         expect(digest).toMatch(/^[a-f0-9]{64}$/);
         expect(await artifactDigest(link)).toBe(digest);
+        await writeFile(target, "updated artifact");
+        expect(await artifactDigest(link)).not.toBe(digest);
         await expect(artifactDigest(missingLink)).rejects.toMatchObject({ code: "ENOENT" });
       } finally {
         await rm(fixture, { recursive: true, force: true });
