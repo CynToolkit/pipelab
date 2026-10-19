@@ -37,8 +37,9 @@ describe("provider dependency direction", () => {
   });
 
   it("the host implements the structural provider context", () => {
-    const context: ProviderHostContext = new PipelabContext({ userDataPath: "/tmp/provider-host" });
-    expect(context.getCachePath("pacote")).toBe("/tmp/provider-host/cache/pacote");
+    const userDataPath = "/tmp/provider-host";
+    const context: ProviderHostContext = new PipelabContext({ userDataPath });
+    expect(context.getCachePath("pacote")).toBe(join(userDataPath, "cache", "pacote"));
     expect(context.ensureNodeJS).toBeTypeOf("function");
     expect(context.ensurePNPM).toBeTypeOf("function");
     expect(context.resolveBundledAsset).toBeTypeOf("function");
