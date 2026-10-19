@@ -85,7 +85,7 @@ describe("getLocalCliRunner", () => {
       process.env.npm_node_execpath || "node.exe",
     );
 
-    assert.equal(executable, "node.exe");
+    assert.equal(executable, process.env.npm_node_execpath || "node.exe");
     assert.equal(args[0], "--import");
     assert.equal(
       args[1],
