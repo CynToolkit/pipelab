@@ -157,7 +157,7 @@ describe("getLocalCliRunner", () => {
   it("stops a CLI descendant after the wrapper has exited", async () => {
     const script = [
       'import { spawn } from "node:child_process";',
-      'const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });',
+      `const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { detached: ${process.platform === "win32"}, stdio: "ignore" });`,
       "child.unref();",
       "process.stdout.write(String(child.pid));",
     ].join("\n");
