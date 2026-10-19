@@ -23,6 +23,19 @@ const profilePath = process.env.CONSTRUCT_CI_PROFILE_PATH;
 const runNumber = Number(process.env.CONSTRUCT_CI_RUN_NUMBER || 0);
 const required = process.env.CONSTRUCT_CI_REQUIRED === "true";
 
+async function directoryChildDigests(path: string): Promise<Record<string, string>> {
+  return Object.fromEntries(
+    await Promise.all(
+      (await readdir(path)).map(
+        async (entry): Promise<[string, string]> => [
+          entry,
+          await artifactDigest(join(path, entry)),
+        ],
+      ),
+    ),
+  );
+}
+
 async function artifactDigest(path: string, ancestors = new Set<string>()): Promise<string> {
   const metadata = await lstat(path);
   const hash = createHash("sha256");
@@ -180,6 +193,9 @@ describe("authenticated local Construct to Electron CI acceptance", () => {
             artifact: artifact.artifact,
             path: artifact.path,
             digest: await artifactDigest(artifact.path),
+            ...(artifact.artifact === "output"
+              ? { children: await directoryChildDigests(artifact.path) }
+              : {}),
           };
         }),
       );
@@ -210,9 +226,18 @@ describe("authenticated local Construct to Electron CI acceptance", () => {
         );
         for (const artifact of baseline.artifactManifest) {
           const digest = await artifactDigest(artifact.path);
+          const liveChildren = artifact.children
+            ? await directoryChildDigests(artifact.path)
+            : undefined;
+          const changedChildren =
+            artifact.children && liveChildren
+              ? Object.keys({ ...liveChildren, ...artifact.children }).filter(
+                  (name) => liveChildren[name] !== artifact.children?.[name],
+                )
+              : [];
           expect(
             digest,
-            `Artifact from run ${baseline.id} changed after the next Ship: ${artifact.path}`,
+            `Artifact from run ${baseline.id} changed after the next Ship: ${artifact.path}; changed children: ${changedChildren.join(", ") || "unknown"}`,
           ).toBe(artifact.digest);
         }
       }

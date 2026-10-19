@@ -86,6 +86,8 @@ export const startServer = async (): Promise<number> => {
       process.platform,
       process.execPath,
     ));
+    console.info(`[Server] Local CLI executable: ${executable}`);
+    console.info(`[Server] Local CLI arguments: ${args.join(" ")}`);
   } else {
     console.info(`[Server] Starting CLI server from: ${entryPoint}`);
   }
