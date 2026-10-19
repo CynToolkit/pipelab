@@ -1145,11 +1145,18 @@ describe("Release beforeBuild hooks", () => {
         });
         expect(electron?.needs).toContain(hook?.id);
       }
-      expect(
-        logMessages.some(
-          (message) => message.includes("Input artifact:") && message.includes(buildStaging),
-        ),
-      ).toBe(true);
+      const normalizedLogMessages = logMessages.map((message) =>
+        message.replaceAll("\\", "/").toLowerCase(),
+      );
+      for (const profileId of ["sdk-off", "sdk-on"]) {
+        expect(
+          normalizedLogMessages.some(
+            (message) =>
+              message.includes("input artifact:") &&
+              message.includes(`/workflow-staging/${profileId}`),
+          ),
+        ).toBe(true);
+      }
       expect(JSON.parse(await readFile(join(exportedFolder, "data.json"), "utf8"))).toEqual(
         originalData,
       );
