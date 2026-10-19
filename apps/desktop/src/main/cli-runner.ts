@@ -1,3 +1,4 @@
+import { createRequire } from "node:module";
 import { join } from "node:path";
 
 export const getLocalCliRunnerArgs = (
@@ -5,7 +6,7 @@ export const getLocalCliRunnerArgs = (
   entryPoint: string,
 ): string[] => {
   const tsxCliPath = projectRoot
-    ? join(projectRoot, "node_modules", "tsx", "dist", "cli.mjs")
+    ? createRequire(join(projectRoot, "apps", "desktop", "package.json")).resolve("tsx/cli")
     : "tsx";
   return [tsxCliPath, entryPoint, "serve"];
 };

@@ -17,6 +17,11 @@
       "types": "./src/index.ts",
       "import": "./src/index.ts",
       "default": "./src/index.ts"
+    },
+    "./task-ids": {
+      "types": "./src/tasks/task-ids.d.ts",
+      "import": "./src/tasks/task-ids.ts",
+      "default": "./src/tasks/task-ids.ts"
     }
   },
   "scripts": {

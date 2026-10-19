@@ -28,7 +28,15 @@ async function artifactDigest(path: string, ancestors = new Set<string>()): Prom
   const hash = createHash("sha256");
   if (metadata.isSymbolicLink()) {
     const target = await readlink(path);
-    const resolvedPath = await realpath(path);
+    let resolvedPath: string;
+    try {
+      resolvedPath = await realpath(path);
+    } catch (error) {
+      if (error instanceof Error) {
+        error.message = `Artifact symlink "${path}" points to unavailable target "${target}": ${error.message}`;
+      }
+      throw error;
+    }
     hash.update("symlink\0");
     hash.update(target);
     hash.update(await artifactDigest(resolvedPath, ancestors));
@@ -68,7 +76,10 @@ describe("authenticated local Construct to Electron CI acceptance", () => {
         expect(await artifactDigest(link)).toBe(digest);
         await writeFile(target, "updated artifact");
         expect(await artifactDigest(link)).not.toBe(digest);
-        await expect(artifactDigest(missingLink)).rejects.toMatchObject({ code: "ENOENT" });
+        await expect(artifactDigest(missingLink)).rejects.toMatchObject({
+          code: "ENOENT",
+          message: expect.stringContaining('points to unavailable target "missing"'),
+        });
         await symlink(".", join(fixture, "cycle"));
         await expect(artifactDigest(fixture)).rejects.toThrow("Artifact symlink cycle detected");
       } finally {
@@ -159,6 +170,9 @@ describe("authenticated local Construct to Electron CI acceptance", () => {
       const currentRun = runs[0];
       if (!currentRun) throw new Error("Successful run was not written to history.");
       expect(currentRun.artifacts.length).toBeGreaterThan(0);
+      console.log(
+        `CI Construct Ship recorded ${currentRun.id}: ${Date.now() - startedAt}ms, ${currentRun.artifacts.length} artifacts`,
+      );
       const artifactManifest = await Promise.all(
         currentRun.artifacts.map(async (artifact) => {
           await access(artifact.path);
@@ -195,9 +209,6 @@ describe("authenticated local Construct to Electron CI acceptance", () => {
           expect(await artifactDigest(artifact.path)).toBe(artifact.digest);
         }
       }
-      console.log(
-        `CI Construct Ship ${currentRun.id}: ${Date.now() - startedAt}ms, ${currentRun.artifacts.length} artifacts`,
-      );
     },
     30 * 60 * 1000,
   );
