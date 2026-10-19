@@ -119,7 +119,24 @@ export const forge = async (
       hasElectronVersion &&
       semver.lt(semver.coerce(completeConfiguration.electronVersion) || "0.0.0", "28.0.0");
 
-    const pkgJSON = JSON.parse(pkgJSONContent);
+    const pkgJSON = JSON.parse(pkgJSONContent) as Record<string, unknown>;
+    const dependencySection = (field: "dependencies" | "devDependencies") => {
+      const section = pkgJSON[field];
+      if (section === undefined) {
+        const created: Record<string, string> = {};
+        pkgJSON[field] = created;
+        return created;
+      }
+      if (
+        typeof section !== "object" ||
+        section === null ||
+        Array.isArray(section) ||
+        !Object.values(section).every((value) => typeof value === "string")
+      ) {
+        throw new Error(`Electron template package.json has an invalid ${field} section`);
+      }
+      return section as Record<string, string>;
+    };
     log("Setting name to", sanitizedName);
     pkgJSON.name = sanitizedName;
     log("Setting productName to", completeConfiguration.name);
@@ -141,52 +158,43 @@ export const forge = async (
       pkgJSON.type = "module";
     }
 
-    await writeFile(pkgJSONPath, JSON.stringify(pkgJSON, null, 2));
-
-    log("Installing packages");
-    const { all: installAll } = await runPnpm(destinationFolder, {
-      args: ["install", "--prefer-offline"],
-      signal: abortSignal,
-      context,
-    });
-    if (installAll) log(installAll);
-
-    console.log("done install");
-
-    // install user-defined custom packages
-    if (
-      Array.isArray(completeConfiguration.customPackages) &&
-      completeConfiguration.customPackages.length > 0
-    ) {
-      log(`Installing custom packages: ${completeConfiguration.customPackages.join(", ")}`);
-      const { all: customAll } = await runPnpm(destinationFolder, {
-        args: ["install", ...completeConfiguration.customPackages, "--prefer-offline"],
-        signal: abortSignal,
-        context,
-      });
-      if (customAll) log(customAll);
-    }
-
-    // override electron version
+    // Resolve every fixed dependency before pnpm runs so its install can link the
+    // complete template in one pass. Custom package specs are added by the same
+    // pnpm invocation below, which also resolves the existing manifest.
     if (completeConfiguration.electronVersion && completeConfiguration.electronVersion !== "") {
-      log(`Installing electron@${completeConfiguration.electronVersion}`);
-      const { all: electronAll } = await runPnpm(destinationFolder, {
-        args: ["install", `electron@${completeConfiguration.electronVersion}`, "--prefer-offline"],
-        signal: abortSignal,
-        context,
-      });
-      if (electronAll) log(electronAll);
+      dependencySection("devDependencies").electron = completeConfiguration.electronVersion;
     }
 
     if (isCJSOnly) {
-      log(`Installing execa@8`);
-      const { all: execaAll } = await runPnpm(destinationFolder, {
-        args: ["install", `execa@8`, "--prefer-offline"],
+      dependencySection("dependencies").execa = "8";
+      dependencySection("devDependencies").esbuild = "0.24.0";
+    }
+    await writeFile(pkgJSONPath, JSON.stringify(pkgJSON, null, 2));
+
+    const customPackages = Array.isArray(completeConfiguration.customPackages)
+      ? completeConfiguration.customPackages
+      : [];
+    const installArgs = customPackages.length
+      ? ["add", ...customPackages, "--prefer-offline"]
+      : ["install", "--prefer-offline"];
+    log(
+      customPackages.length
+        ? `Installing Electron dependencies and custom packages in one pnpm invocation: ${customPackages.join(", ")}`
+        : "Installing Electron dependencies in one pnpm invocation",
+    );
+    const installStartedAt = Date.now();
+    try {
+      const { all } = await runPnpm(destinationFolder, {
+        args: installArgs,
         signal: abortSignal,
         context,
       });
-      if (execaAll) log(execaAll);
+      if (all) log(all);
+    } finally {
+      log(`Electron dependency installation completed in ${Date.now() - installStartedAt}ms`);
     }
+
+    console.log("done install");
 
     console.log("completeConfiguration.icon", completeConfiguration.icon);
 
@@ -207,13 +215,6 @@ export const forge = async (
 
     if (isCJSOnly) {
       log(`Installing native esbuild for transpilation...`);
-      const { all: esbuildAll } = await runPnpm(destinationFolder, {
-        args: ["install", "-D", "esbuild@0.24.0", "--prefer-offline"],
-        signal: abortSignal,
-        context,
-      });
-      if (esbuildAll) log(esbuildAll);
-
       const esbuildPath = pathToFileURL(
         join(destinationFolder, "node_modules", "esbuild", "lib", "main.js"),
       ).href;
