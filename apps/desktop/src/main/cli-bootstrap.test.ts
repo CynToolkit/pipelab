@@ -1,6 +1,6 @@
 import { afterEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { spawn, type ChildProcess } from "node:child_process";
+import { ChildProcess, spawn } from "node:child_process";
 import { access, mkdtemp, rm } from "node:fs/promises";
 import http from "node:http";
 import { tmpdir } from "node:os";
@@ -195,6 +195,19 @@ describe("authenticated Desktop CLI startup", () => {
 });
 
 describe("authenticated CLI process exit monitoring", () => {
+  it("reports process exit without waiting for stdio closure", () => {
+    const child = new ChildProcess();
+    let exit: { code: number | null; signal: NodeJS.Signals | null } | undefined;
+    let closed = false;
+    child.once("close", () => (closed = true));
+
+    monitorCliProcessExit(child, (code, signal) => (exit = { code, signal }));
+    child.emit("exit", 23, null);
+
+    assert.deepEqual(exit, { code: 23, signal: null });
+    assert.equal(closed, false);
+  });
+
   it("observes process exit independently from descendant and stdio closure", async () => {
     const tempDir = await mkdtemp(join(tmpdir(), "pipelab-cli-exit-"));
     const descendantReadyPath = join(tempDir, "descendant-ready");
@@ -272,10 +285,25 @@ describe("authenticated CLI process exit monitoring", () => {
         ),
         false,
       );
-      if (process.platform !== "win32") assert.equal(closed, false);
-
-      await waitForPath(descendantDonePath, "Descendant did not finish");
-      if (!closed) await closedPromise;
+      if (process.platform === "win32") {
+        // Windows runner process cleanup may terminate descendants with their parent,
+        // so only the parent exit callback is portable on this platform.
+        if (!closed) {
+          await Promise.race([
+            closedPromise,
+            new Promise<never>((_, reject) =>
+              setTimeout(
+                () => reject(new Error("CLI stdio did not close after process exit")),
+                2000,
+              ),
+            ),
+          ]);
+        }
+      } else {
+        assert.equal(closed, false);
+        await waitForPath(descendantDonePath, "Descendant did not finish");
+        if (!closed) await closedPromise;
+      }
     } finally {
       await rm(tempDir, { recursive: true, force: true });
     }
