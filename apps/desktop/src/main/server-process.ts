@@ -10,7 +10,7 @@ import {
   getDefaultUserDataPath,
 } from "@pipelab/core-node/desktop";
 import { monitorCliProcessExit, startAuthenticatedCliProcess } from "./cli-bootstrap";
-import { getLocalCliRunnerArgs } from "./cli-runner";
+import { getLocalCliRunner } from "./cli-runner";
 
 let serverProcess: ChildProcess | null = null;
 let serverPort: number | null = null;
@@ -74,12 +74,18 @@ export const startServer = async (): Promise<number> => {
   const { entryPoint, isLocal, packageDir } = await fetchPipelabCli(cliVersion, { context });
 
   let args = [entryPoint, "serve"];
+  let executable = process.execPath;
 
   if (isLocal && entryPoint.endsWith(".ts")) {
     console.info(`[Server] Local CLI detected at ${packageDir}, starting with tsx`);
     // A single CLI process keeps its authenticated, OS-assigned port stable.
     // The UI still uses Vite HMR; restart Desktop after changing CLI source.
-    args = getLocalCliRunnerArgs(projectRoot, entryPoint);
+    ({ executable, args } = getLocalCliRunner(
+      projectRoot,
+      entryPoint,
+      process.platform,
+      process.execPath,
+    ));
   } else {
     console.info(`[Server] Starting CLI server from: ${entryPoint}`);
   }
@@ -95,7 +101,7 @@ export const startServer = async (): Promise<number> => {
   args = [...args, "--port", "0", "--host", "127.0.0.1", "--user-data", userDataPath];
 
   const started = await startAuthenticatedCliProcess({
-    executable: process.execPath,
+    executable,
     args,
     env: childEnv,
     desktopVersion: app.getVersion(),
