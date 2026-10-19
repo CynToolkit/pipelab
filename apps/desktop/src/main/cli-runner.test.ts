@@ -23,5 +23,26 @@ describe("getLocalCliRunner", () => {
   it("uses the installed Node runtime for the local CLI on Windows", () => {
     const result = getLocalCliRunner(undefined, "apps/cli/src/index.ts", "win32", "electron.exe");
     assert.equal(result.executable, "node.exe");
+    assert.deepEqual(result.args, ["--import", "tsx", "apps/cli/src/index.ts", "serve"]);
+  });
+
+  it("uses the resolved tsx loader with Node directly on Windows", () => {
+    const projectRoot = resolve(process.cwd(), "../..");
+    const entryPoint = join(projectRoot, "apps", "cli", "src", "index.ts");
+    const { executable, args } = getLocalCliRunner(
+      projectRoot,
+      entryPoint,
+      "win32",
+      "electron.exe",
+    );
+
+    assert.equal(executable, "node.exe");
+    assert.equal(args[0], "--import");
+    assert.equal(
+      args[1],
+      createRequire(join(projectRoot, "apps", "desktop", "package.json")).resolve("tsx"),
+    );
+    assert.equal(args[2], entryPoint);
+    assert.equal(args[3], "serve");
   });
 });

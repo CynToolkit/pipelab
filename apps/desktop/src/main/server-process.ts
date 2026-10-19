@@ -90,13 +90,17 @@ export const startServer = async (): Promise<number> => {
     console.info(`[Server] Starting CLI server from: ${entryPoint}`);
   }
 
-  const childEnv = {
+  const childEnv: NodeJS.ProcessEnv = {
     ...process.env,
-    ELECTRON_RUN_AS_NODE: "1",
     NODE_ENV: is.dev ? "development" : "production",
     PORT: "0",
     IS_SERVER: "true",
   };
+  if (executable === process.execPath) {
+    childEnv.ELECTRON_RUN_AS_NODE = "1";
+  } else {
+    delete childEnv.ELECTRON_RUN_AS_NODE;
+  }
   // Keep the server's CLI context on the same profile the Desktop resolves above.
   args = [...args, "--port", "0", "--host", "127.0.0.1", "--user-data", userDataPath];
 

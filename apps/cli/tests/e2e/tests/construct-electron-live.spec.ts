@@ -183,6 +183,9 @@ describe("authenticated local Construct to Electron CI acceptance", () => {
           };
         }),
       );
+      console.log(
+        `CI Construct artifact manifest for ${currentRun.id}: ${JSON.stringify(artifactManifest)}`,
+      );
 
       for (const run of runs) {
         expect(run.artifacts.length).toBeGreaterThan(0);
@@ -206,7 +209,11 @@ describe("authenticated local Construct to Electron CI acceptance", () => {
           baseline.artifactManifest.map((artifact) => artifact.path).sort(),
         );
         for (const artifact of baseline.artifactManifest) {
-          expect(await artifactDigest(artifact.path)).toBe(artifact.digest);
+          const digest = await artifactDigest(artifact.path);
+          expect(
+            digest,
+            `Artifact from run ${baseline.id} changed after the next Ship: ${artifact.path}`,
+          ).toBe(artifact.digest);
         }
       }
     },
