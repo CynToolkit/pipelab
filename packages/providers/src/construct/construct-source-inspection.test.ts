@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { normalize } from "node:path";
 
 const { discoverBrowserProfiles, isChromiumProfileDirectory, listChromiumBrowserProfiles } =
   vi.hoisted(() => ({
@@ -142,11 +143,12 @@ describe("Construct source inspection", () => {
   it("retains an existing custom profile outside the discovered browser roots", async () => {
     listChromiumBrowserProfiles.mockResolvedValue([]);
     isChromiumProfileDirectory.mockResolvedValue(true);
+    const customProfilePath = normalize("/opt/pipelab/construct-profile");
 
     const inspect = constructSource.inspect;
     if (!inspect) throw new Error("Expected Construct source inspection");
     const result = await inspect(
-      { profilePath: "/opt/pipelab/construct-profile" },
+      { profilePath: customProfilePath },
       {
         host: { platform: "linux", architecture: "x64" },
       },
@@ -155,8 +157,8 @@ describe("Construct source inspection", () => {
     expect(result.issues).toEqual([]);
     expect(result.fieldOptions?.profilePath).toContainEqual({
       label: "Custom / construct-profile",
-      value: "/opt/pipelab/construct-profile",
+      value: customProfilePath,
     });
-    expect(isChromiumProfileDirectory).toHaveBeenCalledWith("/opt/pipelab/construct-profile");
+    expect(isChromiumProfileDirectory).toHaveBeenCalledWith(customProfilePath);
   });
 });
