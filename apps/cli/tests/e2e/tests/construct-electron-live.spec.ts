@@ -29,19 +29,20 @@ async function artifactDigest(path: string, ancestors = new Set<string>()): Prom
   if (metadata.isSymbolicLink()) {
     const target = await readlink(path);
     const resolvedPath = await realpath(path);
-    if (ancestors.has(resolvedPath)) {
-      throw new Error(`Artifact symlink cycle detected at ${path}`);
-    }
-    const resolvedAncestors = new Set(ancestors).add(resolvedPath);
     hash.update("symlink\0");
     hash.update(target);
-    hash.update(await artifactDigest(resolvedPath, resolvedAncestors));
+    hash.update(await artifactDigest(resolvedPath, ancestors));
   } else if (metadata.isFile()) {
     hash.update(await readFile(path));
   } else if (metadata.isDirectory()) {
+    const resolvedPath = await realpath(path);
+    if (ancestors.has(resolvedPath)) {
+      throw new Error(`Artifact symlink cycle detected at ${path}`);
+    }
+    const childAncestors = new Set(ancestors).add(resolvedPath);
     for (const entry of (await readdir(path)).sort()) {
       hash.update(entry);
-      hash.update(await artifactDigest(join(path, entry)));
+      hash.update(await artifactDigest(join(path, entry), childAncestors));
     }
   } else {
     throw new Error(`Unsupported artifact type at ${path}`);
@@ -68,6 +69,8 @@ describe("authenticated local Construct to Electron CI acceptance", () => {
         await writeFile(target, "updated artifact");
         expect(await artifactDigest(link)).not.toBe(digest);
         await expect(artifactDigest(missingLink)).rejects.toMatchObject({ code: "ENOENT" });
+        await symlink(".", join(fixture, "cycle"));
+        await expect(artifactDigest(fixture)).rejects.toThrow("Artifact symlink cycle detected");
       } finally {
         await rm(fixture, { recursive: true, force: true });
       }
