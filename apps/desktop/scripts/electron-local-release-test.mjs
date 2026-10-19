@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 const desktopDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const uiDir = path.join(desktopDir, "..", "ui");
 const command = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-const timeoutMs = 120_000;
+const timeoutMs = 240_000;
 const forgeArgs = process.platform === "linux" ? ["--headless", "--no-sandbox"] : ["--headless"];
 if (!process.env.PIPELAB_E2E_HISTORY_PATH || !process.env.PIPELAB_E2E_EXPECTED_RUNS) {
   throw new Error("Set PIPELAB_E2E_HISTORY_PATH and PIPELAB_E2E_EXPECTED_RUNS for acceptance.");

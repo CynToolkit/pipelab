@@ -6,7 +6,7 @@ import { desktopBootstrapProtocolVersion } from "@pipelab/constants";
 
 const BOOTSTRAP_PATH = "/__pipelab/desktop-bootstrap";
 const READY_PREFIX = "PIPELAB_DESKTOP_READY:";
-const READY_TIMEOUT_MS = 60_000;
+const READY_TIMEOUT_MS = 120_000;
 const HANDSHAKE_TIMEOUT_MS = 5_000;
 const MAX_READY_BYTES = 2048;
 const MAX_IDENTITY_BYTES = 8192;

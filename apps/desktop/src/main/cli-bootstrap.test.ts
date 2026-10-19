@@ -68,7 +68,7 @@ if (mode === "no-ready") {
         port: address.port,
         sessionId: process.env.PIPELAB_DESKTOP_SESSION_ID,
       }) + "\n");
-    if (mode === "delayed-ready") setTimeout(announceReady, 21_000);
+    if (mode === "delayed-ready") setTimeout(announceReady, 65_000);
     else announceReady();
   });
   process.on("SIGTERM", () => server.close(() => process.exit(0)));
@@ -126,7 +126,7 @@ describe("authenticated Desktop CLI startup", () => {
     assert.match(started.sessionId, /^[0-9a-f-]{36}$/i);
   });
 
-  it("allows a cold local CLI that takes longer than 20 seconds to become ready", async () => {
+  it("allows a cold local CLI that takes longer than 60 seconds to become ready", async () => {
     const started = await startFixture("delayed-ready");
     assert.ok(started.port > 0 && started.port <= 65535);
   });
