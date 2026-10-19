@@ -49,6 +49,7 @@ export const forge = async (
   const { node } = paths;
   const destinationFolder = await context.createTempFolder("electron-forge-");
   log(`Staging build in ${destinationFolder}`);
+  let dependencyInstallError: unknown;
 
   try {
     const shimDir = join(destinationFolder, ".bin");
@@ -115,9 +116,25 @@ export const forge = async (
     const hasElectronVersion =
       completeConfiguration.electronVersion !== undefined &&
       completeConfiguration.electronVersion !== "";
-    const isCJSOnly =
+    const configuredCJSOnly =
       hasElectronVersion &&
       semver.lt(semver.coerce(completeConfiguration.electronVersion) || "0.0.0", "28.0.0");
+    const customPackages = Array.isArray(completeConfiguration.customPackages)
+      ? completeConfiguration.customPackages
+      : [];
+    const customElectronSpecs = customPackages.filter(
+      (packageSpec) => packageSpec === "electron" || packageSpec.startsWith("electron@"),
+    );
+    const customElectronSpec = customElectronSpecs.at(-1);
+    const customElectronMayBeLegacy = customElectronSpecs.some((packageSpec) => {
+      const versionRange = packageSpec.startsWith("electron@")
+        ? packageSpec.slice("electron@".length)
+        : undefined;
+      const minimumVersion = versionRange ? semver.minVersion(versionRange) : null;
+      return !minimumVersion || semver.lt(minimumVersion, "28.0.0");
+    });
+    const installLegacySupport = configuredCJSOnly || customElectronMayBeLegacy;
+    let isCJSOnly = configuredCJSOnly;
 
     const pkgJSON = JSON.parse(pkgJSONContent) as Record<string, unknown>;
     const dependencySection = (field: "dependencies" | "devDependencies") => {
@@ -150,11 +167,9 @@ export const forge = async (
       "utf8",
     );
 
-    if (isCJSOnly) {
-      log("Setting type to", "commonjs");
+    if (installLegacySupport) {
       pkgJSON.type = "commonjs";
     } else {
-      log("Setting type to", "module");
       pkgJSON.type = "module";
     }
 
@@ -165,21 +180,18 @@ export const forge = async (
       dependencySection("devDependencies").electron = completeConfiguration.electronVersion;
     }
 
-    if (isCJSOnly) {
+    if (installLegacySupport) {
       dependencySection("dependencies").execa = "8";
       dependencySection("devDependencies").esbuild = "0.24.0";
     }
     await writeFile(pkgJSONPath, JSON.stringify(pkgJSON, null, 2));
 
-    const customPackages = Array.isArray(completeConfiguration.customPackages)
-      ? completeConfiguration.customPackages
-      : [];
     const installArgs = customPackages.length
       ? ["add", ...customPackages, "--prefer-offline"]
       : ["install", "--prefer-offline"];
     log(
       customPackages.length
-        ? `Installing Electron dependencies and custom packages in one pnpm invocation: ${customPackages.join(", ")}`
+        ? "Installing Electron dependencies and custom packages in one pnpm invocation"
         : "Installing Electron dependencies in one pnpm invocation",
     );
     const installStartedAt = Date.now();
@@ -190,8 +202,52 @@ export const forge = async (
         context,
       });
       if (all) log(all);
-    } finally {
-      log(`Electron dependency installation completed in ${Date.now() - installStartedAt}ms`);
+    } catch (error) {
+      dependencyInstallError = error;
+      const wasCanceled =
+        abortSignal.aborted ||
+        (error instanceof Error && (error.name === "AbortError" || error.name === "CancelError")) ||
+        (typeof error === "object" &&
+          error !== null &&
+          "isCanceled" in error &&
+          error.isCanceled === true);
+      log(
+        `Electron dependency installation ${wasCanceled ? "canceled" : "failed"} after ${Date.now() - installStartedAt}ms`,
+      );
+      throw error;
+    }
+    log(`Electron dependency installation completed in ${Date.now() - installStartedAt}ms`);
+
+    if (customElectronSpec !== undefined) {
+      const installedElectron = JSON.parse(
+        await readFile(join(destinationFolder, "node_modules", "electron", "package.json"), "utf8"),
+      ) as { version?: unknown };
+      if (
+        typeof installedElectron.version !== "string" ||
+        !semver.valid(installedElectron.version)
+      ) {
+        throw new Error("The installed Electron package does not declare a valid version");
+      }
+      completeConfiguration.electronVersion = installedElectron.version;
+      isCJSOnly = semver.lt(installedElectron.version, "28.0.0");
+
+      const installedManifest = JSON.parse(await readFile(pkgJSONPath, "utf8")) as Record<
+        string,
+        unknown
+      >;
+      installedManifest.type = isCJSOnly ? "commonjs" : "module";
+      await writeFile(pkgJSONPath, JSON.stringify(installedManifest, null, 2));
+      await writeFile(
+        join(destinationFolder, "config.cjs"),
+        `module.exports = ${JSON.stringify(completeConfiguration, undefined, 2)}`,
+        "utf8",
+      );
+      log(
+        `Using resolved Electron ${installedElectron.version} with ${isCJSOnly ? "CommonJS" : "ES module"} build behavior`,
+      );
+    }
+    if (customElectronSpec === undefined) {
+      log("Setting type to", isCJSOnly ? "commonjs" : "module");
     }
 
     console.log("done install");
@@ -377,7 +433,11 @@ export const forge = async (
           log("Request error");
         }
       }
-      log(e instanceof Error ? `${e.message}\n${e.stack}` : String(e));
+      if (e === dependencyInstallError) {
+        log("Electron build stopped after dependency installation failed");
+      } else {
+        log(e instanceof Error ? `${e.message}\n${e.stack}` : String(e));
+      }
       throw e;
     }
   } finally {

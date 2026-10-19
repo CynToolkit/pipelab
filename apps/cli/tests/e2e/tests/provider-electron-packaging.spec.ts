@@ -18,8 +18,11 @@ describe("Electron provider host integration", () => {
     }
   });
 
-  test.skipIf(process.platform !== "linux")(
-    "packages isolated legacy Electron targets through one composed dependency install",
+  test.skipIf(
+    !["linux", "win32", "darwin"].includes(process.platform) ||
+      !["x64", "arm64"].includes(process.arch),
+  )(
+    "packages a host Electron artifact and compatible Linux targets through isolated installs",
     async () => {
       sandbox = await createSandbox("electron-e2e");
       // 1. Setup a dummy project to package
@@ -41,10 +44,19 @@ describe("Electron provider host integration", () => {
       const node = await context.ensureNodeJS();
       services.executables.node = node;
 
-      const targets = [
-        { id: "linux-x64-first", name: "my-app-first" },
-        { id: "linux-x64-second", name: "my-app-second" },
-      ] as const;
+      const electronPlatform = process.platform as "linux" | "win32" | "darwin";
+      const architecture = process.arch as "x64" | "arm64";
+      const artifactPlatform =
+        electronPlatform === "win32"
+          ? "windows"
+          : electronPlatform === "darwin"
+            ? "macos"
+            : "linux";
+      const isLinuxMultiTarget = electronPlatform === "linux";
+      const targets = [{ id: `host-${architecture}-first`, name: "my-app-first" }];
+      if (isLinuxMultiTarget) {
+        targets.push({ id: `host-${architecture}-second`, name: "my-app-second" });
+      }
       const workspacePath = join(sandbox.path, "workspace");
       await mkdir(workspacePath, { recursive: true });
       const workflow = {
@@ -55,10 +67,10 @@ describe("Electron provider host integration", () => {
           ...(index > 0 ? { needs: [targets[index - 1]!.id] } : {}),
           with: {
             "input-folder": projectToPackage,
-            platform: "linux",
-            arch: "x64",
+            platform: electronPlatform,
+            arch: architecture,
             name: target.name,
-            electronVersion: "27.3.11",
+            electronVersion: isLinuxMultiTarget ? "27.3.11" : "",
             customPackages: ["is-number@7.0.0"],
           },
           artifacts: {
@@ -66,8 +78,8 @@ describe("Electron provider host integration", () => {
               descriptor: {
                 kind: "application",
                 technology: "electron",
-                platform: "linux",
-                architecture: "x64",
+                platform: artifactPlatform,
+                architecture,
                 container: "directory",
               },
             },
@@ -98,14 +110,16 @@ describe("Electron provider host integration", () => {
         expect(step.status).toBe("completed");
         const output = step.outputs.output as string;
         outputs.add(output);
-        expect(output).toContain(`${target.name}-linux-x64`);
+        expect(output).toContain(target.name);
         await expect(access(output)).resolves.not.toThrow();
 
-        const binaryPath = join(output, getBinName(target.name, "linux"));
+        const binaryPath = join(output, getBinName(target.name, electronPlatform));
         await expect(access(binaryPath)).resolves.not.toThrow();
-        const binary = await readFile(binaryPath);
-        expect(binary.subarray(0, 4)).toEqual(Buffer.from([0x7f, 0x45, 0x4c, 0x46]));
-        expect(binary.readUInt16LE(18)).toBe(62);
+        if (electronPlatform === "linux") {
+          const binary = await readFile(binaryPath);
+          expect(binary.subarray(0, 4)).toEqual(Buffer.from([0x7f, 0x45, 0x4c, 0x46]));
+          expect(binary.readUInt16LE(18)).toBe(architecture === "arm64" ? 183 : 62);
+        }
         const artifact = result.artifacts.find(
           (entry) => "descriptor" in entry && entry.stepId === target.id,
         );
@@ -130,7 +144,7 @@ describe("Electron provider host integration", () => {
         pnpmMs: installDurations.reduce((sum, duration) => sum + duration, 0),
         packageReuse: logText.split("\n").filter((line) => /reused|downloaded|added/i.test(line)),
       });
-      expect(outputs.size).toBe(2);
+      expect(outputs.size).toBe(targets.length);
       console.log("ELECTRON_BENCHMARK", JSON.stringify(measurements));
     },
     30 * 60 * 1000,
