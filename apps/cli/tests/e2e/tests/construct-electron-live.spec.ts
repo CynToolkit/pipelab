@@ -22,16 +22,20 @@ import { runCLI } from "@pipelab/test-utils";
 const profilePath = process.env.CONSTRUCT_CI_PROFILE_PATH;
 const runNumber = Number(process.env.CONSTRUCT_CI_RUN_NUMBER || 0);
 const required = process.env.CONSTRUCT_CI_REQUIRED === "true";
+const platformMetadata = new Set([".ds_store", "desktop.ini", "thumbs.db", "ehthumbs.db"]);
+const isPlatformMetadata = (entry: string): boolean => platformMetadata.has(entry.toLowerCase());
 
 async function directoryChildDigests(path: string): Promise<Record<string, string>> {
   return Object.fromEntries(
     await Promise.all(
-      (await readdir(path)).map(
-        async (entry): Promise<[string, string]> => [
-          entry,
-          await artifactDigest(join(path, entry)),
-        ],
-      ),
+      (await readdir(path))
+        .filter((entry) => !isPlatformMetadata(entry))
+        .map(
+          async (entry): Promise<[string, string]> => [
+            entry,
+            await artifactDigest(join(path, entry)),
+          ],
+        ),
     ),
   );
 }
@@ -61,7 +65,7 @@ async function artifactDigest(path: string, ancestors = new Set<string>()): Prom
       throw new Error(`Artifact symlink cycle detected at ${path}`);
     }
     const childAncestors = new Set(ancestors).add(resolvedPath);
-    for (const entry of (await readdir(path)).sort()) {
+    for (const entry of (await readdir(path)).filter((name) => !isPlatformMetadata(name)).sort()) {
       hash.update(entry);
       hash.update(await artifactDigest(join(path, entry), childAncestors));
     }
@@ -100,6 +104,24 @@ describe("authenticated local Construct to Electron CI acceptance", () => {
       }
     },
   );
+
+  test("ignores platform display metadata while hashing artifact directories", async () => {
+    const fixture = await mkdtemp(join(tmpdir(), "pipelab-artifact-metadata-"));
+    try {
+      const artifact = join(fixture, "release.zip");
+      const metadata = join(fixture, ".DS_Store");
+      await writeFile(artifact, "real release artifact");
+      await writeFile(metadata, "initial Finder metadata");
+      const digest = await artifactDigest(fixture);
+
+      await writeFile(metadata, "updated Finder metadata");
+      expect(await artifactDigest(fixture)).toBe(digest);
+      await writeFile(artifact, "modified release artifact");
+      expect(await artifactDigest(fixture)).not.toBe(digest);
+    } finally {
+      await rm(fixture, { recursive: true, force: true });
+    }
+  });
 
   test.skipIf(!profilePath && !required)(
     "reopens a saved workflow, ships locally, and preserves prior artifacts",
@@ -189,11 +211,12 @@ describe("authenticated local Construct to Electron CI acceptance", () => {
       const artifactManifest = await Promise.all(
         currentRun.artifacts.map(async (artifact) => {
           await access(artifact.path);
+          const artifactStat = await lstat(artifact.path);
           return {
             artifact: artifact.artifact,
             path: artifact.path,
             digest: await artifactDigest(artifact.path),
-            ...(artifact.artifact === "output"
+            ...(artifactStat.isDirectory()
               ? { children: await directoryChildDigests(artifact.path) }
               : {}),
           };

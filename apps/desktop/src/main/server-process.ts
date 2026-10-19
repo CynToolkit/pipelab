@@ -88,6 +88,7 @@ export const startServer = async (): Promise<number> => {
     ));
     console.info(`[Server] Local CLI executable: ${executable}`);
     console.info(`[Server] Local CLI arguments: ${args.join(" ")}`);
+    console.info(`[Server] Local CLI working directory: ${projectRoot ?? process.cwd()}`);
   } else {
     console.info(`[Server] Starting CLI server from: ${entryPoint}`);
   }
@@ -109,6 +110,7 @@ export const startServer = async (): Promise<number> => {
   const started = await startAuthenticatedCliProcess({
     executable,
     args,
+    ...(isLocal && projectRoot ? { cwd: projectRoot } : {}),
     env: childEnv,
     desktopVersion: app.getVersion(),
     onSpawn: (child) => {

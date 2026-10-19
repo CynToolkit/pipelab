@@ -40,6 +40,7 @@ interface StartAuthenticatedCliOptions {
   executable: string;
   args: string[];
   env: NodeJS.ProcessEnv;
+  cwd?: string;
   desktopVersion: string;
   readyTimeoutMs?: number;
   handshakeTimeoutMs?: number;
@@ -376,6 +377,7 @@ export async function startAuthenticatedCliProcess(
 ): Promise<AuthenticatedCliProcess> {
   const credentials = createCredentials();
   const child = spawn(options.executable, options.args, {
+    ...(options.cwd ? { cwd: options.cwd } : {}),
     env: {
       ...options.env,
       [BOOTSTRAP_SECRET_ENV]: credentials.secret.toString("base64url"),

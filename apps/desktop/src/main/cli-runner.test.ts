@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { randomUUID } from "node:crypto";
+import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { mkdtemp, rm } from "node:fs/promises";
@@ -7,7 +7,50 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { describe, it } from "node:test";
+import { startAuthenticatedCliProcess } from "./cli-bootstrap";
 import { getLocalCliRunner } from "./cli-runner";
+
+async function waitForExit(child: ChildProcess, timeoutMs: number): Promise<boolean> {
+  if (child.exitCode !== null || child.signalCode !== null) return true;
+  return new Promise((resolveExit) => {
+    const timer = setTimeout(() => {
+      child.removeListener("exit", onExit);
+      resolveExit(false);
+    }, timeoutMs);
+    const onExit = () => {
+      clearTimeout(timer);
+      resolveExit(true);
+    };
+    child.once("exit", onExit);
+  });
+}
+
+async function stopWindowsProcessTree(child: ChildProcess): Promise<void> {
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  child.kill();
+  if (await waitForExit(child, 5_000)) return;
+  if (child.pid === undefined) throw new Error("Windows CLI child has no process ID to terminate.");
+
+  await new Promise<void>((resolveTaskkill) => {
+    const taskkill = spawn("taskkill.exe", ["/pid", String(child.pid), "/t", "/f"], {
+      stdio: "ignore",
+    });
+    const timer = setTimeout(() => {
+      taskkill.kill();
+      resolveTaskkill();
+    }, 5_000);
+    const finish = () => {
+      clearTimeout(timer);
+      resolveTaskkill();
+    };
+    taskkill.once("error", finish);
+    taskkill.once("close", finish);
+  });
+
+  if (!(await waitForExit(child, 5_000))) {
+    throw new Error("Windows CLI process tree did not exit after taskkill.");
+  }
+}
 
 describe("getLocalCliRunner", () => {
   it("resolves tsx's JavaScript entry point from Desktop instead of the platform shim", () => {
@@ -66,59 +109,33 @@ describe("getLocalCliRunner", () => {
         process.execPath,
       );
       const userDataPath = await mkdtemp(join(tmpdir(), "pipelab-desktop-cli-runner-"));
-      const sessionId = randomUUID();
-      const secret = Buffer.alloc(32, 1).toString("base64url");
-      const child = spawn(
-        executable,
-        [...args, "--port", "0", "--host", "127.0.0.1", "--user-data", userDataPath],
-        {
+      let child: ChildProcess | undefined;
+      try {
+        const started = await startAuthenticatedCliProcess({
+          executable,
+          args: [...args, "--port", "0", "--host", "127.0.0.1", "--user-data", userDataPath],
           cwd: projectRoot,
           env: {
             ...process.env,
             ELECTRON_RUN_AS_NODE: undefined,
             IS_SERVER: "true",
             NODE_ENV: "development",
-            PIPELAB_DESKTOP_BOOTSTRAP_SECRET: secret,
-            PIPELAB_DESKTOP_SESSION_ID: sessionId,
             PORT: "0",
           },
-          stdio: ["ignore", "pipe", "pipe"],
-        },
-      );
-
-      let output = "";
-      let timer: NodeJS.Timeout | undefined;
-      try {
-        await new Promise<void>((resolveReady, rejectReady) => {
-          const finish = (error?: Error) => {
-            if (timer) clearTimeout(timer);
-            if (error) rejectReady(error);
-            else resolveReady();
-          };
-          timer = setTimeout(
-            () => finish(new Error(`Windows CLI did not announce readiness. Output: ${output}`)),
-            30_000,
-          );
-          child.stdout.on("data", (chunk: Buffer | string) => {
-            output += chunk.toString();
-            if (output.includes(`PIPELAB_DESKTOP_READY:`)) finish();
-          });
-          child.stderr.on("data", (chunk: Buffer | string) => {
-            output += chunk.toString();
-          });
-          child.once("error", (error) => finish(error));
-          child.once("exit", (code) =>
-            finish(new Error(`Windows CLI exited before readiness (${code}). Output: ${output}`)),
-          );
+          desktopVersion: "2.0.0-beta.33",
+          readyTimeoutMs: 30_000,
+          onSpawn: (process) => {
+            child = process;
+          },
         });
-        assert.match(output, new RegExp(sessionId));
+        assert.ok(started.port > 0 && started.port <= 65535);
+        assert.ok(child?.pid !== undefined);
       } finally {
-        child.kill();
-        await new Promise<void>((resolveClose) => {
-          if (child.exitCode !== null || child.signalCode !== null) resolveClose();
-          else child.once("close", () => resolveClose());
-        });
-        await rm(userDataPath, { recursive: true, force: true });
+        try {
+          if (child) await stopWindowsProcessTree(child);
+        } finally {
+          await rm(userDataPath, { recursive: true, force: true });
+        }
       }
     },
   );
