@@ -70,7 +70,7 @@ describe("getLocalCliRunner", () => {
 
   it("uses the installed Node runtime for the local CLI on Windows", () => {
     const result = getLocalCliRunner(undefined, "apps/cli/src/index.ts", "win32", "electron.exe");
-    assert.equal(result.executable, "node.exe");
+    assert.equal(result.executable, process.env.npm_node_execpath || "node.exe");
     assert.deepEqual(result.args, ["--import", "tsx", "apps/cli/src/index.ts", "serve"]);
   });
 
@@ -82,6 +82,7 @@ describe("getLocalCliRunner", () => {
       entryPoint,
       "win32",
       "electron.exe",
+      process.env.npm_node_execpath || "node.exe",
     );
 
     assert.equal(executable, "node.exe");
@@ -107,6 +108,7 @@ describe("getLocalCliRunner", () => {
         entryPoint,
         process.platform,
         process.execPath,
+        process.env.npm_node_execpath || "node.exe",
       );
       const userDataPath = await mkdtemp(join(tmpdir(), "pipelab-desktop-cli-runner-"));
       let child: ChildProcess | undefined;
