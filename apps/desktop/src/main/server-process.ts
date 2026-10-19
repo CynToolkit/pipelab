@@ -1,5 +1,5 @@
 import type { ChildProcess } from "node:child_process";
-import { app } from "electron";
+import { app, BrowserWindow, dialog } from "electron";
 import { is } from "@electron-toolkit/utils";
 import http from "node:http";
 import { uiDevPort, getUiDevServerFatalError } from "@pipelab/constants";
@@ -9,11 +9,18 @@ import {
   PipelabContext,
   getDefaultUserDataPath,
 } from "@pipelab/core-node/desktop";
-import { monitorCliProcessExit, startAuthenticatedCliProcess } from "./cli-bootstrap";
+import {
+  monitorCliProcessExit,
+  startAuthenticatedCliProcess,
+  stopCliProcessTree,
+} from "./cli-bootstrap";
 import { getLocalCliRunner } from "./cli-runner";
 
 let serverProcess: ChildProcess | null = null;
 let serverPort: number | null = null;
+let serverPid: number | null = null;
+let stoppingServerProcess: ChildProcess | null = null;
+let cleanupPendingProcess: ChildProcess | null = null;
 
 const isUp = (
   port: number,
@@ -113,21 +120,41 @@ export const startServer = async (): Promise<number> => {
     ...(isLocal && projectRoot ? { cwd: projectRoot } : {}),
     env: childEnv,
     desktopVersion: app.getVersion(),
+    onStartupFailure: (child, authenticatedPid) => stopCliProcessTree(child, authenticatedPid),
     onSpawn: (child) => {
       serverProcess = child;
       child.on("error", (error) => console.error("ERROR: CLI server process failed:", error));
       monitorCliProcessExit(child, (code) => {
-        if (serverProcess === child && serverPort !== null) {
+        if (
+          serverProcess === child &&
+          serverPort !== null &&
+          stoppingServerProcess !== child &&
+          cleanupPendingProcess !== child
+        ) {
           console.error(
-            `The authenticated CLI process exited with code ${code ?? "unknown"}. Closing Desktop to prevent reconnecting to an unverified local process; restart Desktop to try again.`,
+            `The authenticated CLI process exited with code ${code ?? "unknown"}. Cleaning up its process tree before Desktop closes.`,
           );
-          serverPort = null;
-          app.exit(1);
+          void stopServer()
+            .then(() => app.exit(1))
+            .catch((error: unknown) => {
+              console.error("Failed to stop the CLI process tree after an unexpected exit:", error);
+              dialog.showErrorBox(
+                "CLI Shutdown Error",
+                "The local CLI launcher exited, but Desktop could not confirm that its server process stopped. Close the Pipelab CLI process, then retry shutting down Desktop.",
+              );
+              if (BrowserWindow.getAllWindows().length === 0) {
+                app.emit("activate");
+              }
+            });
         }
       });
       child.on("close", (code) => {
         console.info(`CLI server process exited with code ${code}`);
-        if (serverProcess === child) {
+        if (
+          serverProcess === child &&
+          stoppingServerProcess !== child &&
+          cleanupPendingProcess !== child
+        ) {
           serverProcess = null;
           serverPort = null;
         }
@@ -140,16 +167,29 @@ export const startServer = async (): Promise<number> => {
     );
   }
   serverPort = started.port;
+  serverPid = started.serverPid;
 
   console.info(`[Server] Authenticated CLI server is ready on loopback port ${started.port}`);
   return started.port;
 };
 
-export const stopServer = () => {
-  if (serverProcess) {
-    const child = serverProcess;
-    serverProcess = null;
-    serverPort = null;
-    child.kill();
+export const stopServer = async () => {
+  const child = serverProcess;
+  if (child) {
+    stoppingServerProcess = child;
+    try {
+      await stopCliProcessTree(child, serverPid ?? undefined);
+      if (serverProcess === child) {
+        serverProcess = null;
+        serverPort = null;
+        serverPid = null;
+      }
+      if (cleanupPendingProcess === child) cleanupPendingProcess = null;
+    } catch (error) {
+      cleanupPendingProcess = child;
+      throw error;
+    } finally {
+      if (stoppingServerProcess === child) stoppingServerProcess = null;
+    }
   }
 };

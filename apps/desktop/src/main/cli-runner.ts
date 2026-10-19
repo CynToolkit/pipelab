@@ -1,6 +1,5 @@
 import { createRequire } from "node:module";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
 
 export const getLocalCliRunner = (
   projectRoot: string | undefined,
@@ -13,16 +12,12 @@ export const getLocalCliRunner = (
     ? createRequire(join(projectRoot, "apps", "desktop", "package.json"))
     : undefined;
   const tsxCliPath = requireFromDesktop?.resolve("tsx/cli") ?? "tsx";
-  const tsxLoaderPath = requireFromDesktop
-    ? pathToFileURL(requireFromDesktop.resolve("tsx")).href
-    : "tsx";
   const useDirectNodeLoader = platform === "win32";
   return {
     // Windows Electron does not reliably run as Node for a local TypeScript CLI.
-    // Use Node's loader directly there to avoid tsx/cli spawning another process.
+    // Invoke tsx's JavaScript entry point with Node; Electron's Node mode and the
+    // loader-only form both fail to reach CLI readiness under the Desktop host.
     executable: useDirectNodeLoader ? nodeExecutable : electronExecutable,
-    args: useDirectNodeLoader
-      ? ["--import", tsxLoaderPath, entryPoint, "serve"]
-      : [tsxCliPath, entryPoint, "serve"],
+    args: [tsxCliPath, entryPoint, "serve"],
   };
 };

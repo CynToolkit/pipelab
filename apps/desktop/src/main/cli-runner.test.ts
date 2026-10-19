@@ -6,67 +6,27 @@ import { once } from "node:events";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
 import { describe, it } from "node:test";
-import { startAuthenticatedCliProcess } from "./cli-bootstrap";
+import { startAuthenticatedCliProcess, stopCliProcessTree } from "./cli-bootstrap";
 import { getLocalCliRunner } from "./cli-runner";
 
-async function waitForExit(child: ChildProcess, timeoutMs: number): Promise<boolean> {
-  if (child.exitCode !== null || child.signalCode !== null) return true;
-  return new Promise((resolveExit) => {
-    const finish = (exited: boolean) => {
-      child.removeListener("exit", onExit);
-      clearTimeout(timer);
-      resolveExit(exited);
-    };
-    const timer = setTimeout(() => finish(false), timeoutMs);
-    const onExit = () => {
-      finish(true);
-    };
-    child.once("exit", onExit);
-    if (child.exitCode !== null || child.signalCode !== null) finish(true);
-  });
-}
-
-async function stopWindowsProcessTree(child: ChildProcess): Promise<void> {
-  if (child.exitCode !== null || child.signalCode !== null) return;
-  if (child.pid === undefined) {
-    child.kill();
-    if (!(await waitForExit(child, 5_000))) {
-      throw new Error("Windows CLI child has no process ID and did not exit after termination.");
+async function stopRecordedProcess(pid: number): Promise<void> {
+  if (process.platform !== "win32") {
+    try {
+      process.kill(pid, "SIGKILL");
+    } catch (error) {
+      if (isProcessMissing(error)) return;
+      throw error;
     }
-    return;
+    const deadline = Date.now() + 5_000;
+    while (Date.now() < deadline) {
+      if (!(await isProcessRunning(pid))) return;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    throw new Error(`Descendant process ${pid} did not exit within 5 seconds.`);
   }
 
-  const treeStopped = await new Promise<boolean>((resolveTaskkill) => {
-    const taskkill = spawn("taskkill.exe", ["/pid", String(child.pid), "/t", "/f"], {
-      stdio: "ignore",
-    });
-    const timer = setTimeout(() => {
-      taskkill.kill();
-      resolveTaskkill(false);
-    }, 5_000);
-    const finish = (success: boolean) => {
-      clearTimeout(timer);
-      resolveTaskkill(success);
-    };
-    taskkill.once("error", () => finish(false));
-    taskkill.once("close", (code) => finish(code === 0));
-  });
-
-  if (treeStopped && (await waitForExit(child, 5_000))) return;
-
-  child.kill();
-  if (!(await waitForExit(child, 5_000))) {
-    throw new Error("Windows CLI process tree did not exit within 10 seconds of cleanup.");
-  }
-  if (!treeStopped) {
-    throw new Error("taskkill.exe could not confirm termination of the Windows CLI process tree.");
-  }
-}
-
-async function stopWindowsProcess(pid: number): Promise<void> {
-  if (!(await isWindowsProcessRunning(pid))) return;
+  if (!(await isProcessRunning(pid))) return;
   const taskkillSucceeded = await new Promise<boolean>((resolveTaskkill) => {
     const taskkill = spawn("taskkill.exe", ["/pid", String(pid), "/t", "/f"], {
       stdio: "ignore",
@@ -83,7 +43,7 @@ async function stopWindowsProcess(pid: number): Promise<void> {
     taskkill.once("close", (code) => finish(code === 0));
   });
 
-  if (!taskkillSucceeded || (await isWindowsProcessRunning(pid))) {
+  if (!taskkillSucceeded || (await isProcessRunning(pid))) {
     try {
       process.kill(pid);
     } catch (error) {
@@ -93,7 +53,7 @@ async function stopWindowsProcess(pid: number): Promise<void> {
 
   const deadline = Date.now() + 5_000;
   while (Date.now() < deadline) {
-    if (!(await isWindowsProcessRunning(pid))) return;
+    if (!(await isProcessRunning(pid))) return;
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   throw new Error(`Windows descendant process ${pid} did not exit within 5 seconds.`);
@@ -122,10 +82,10 @@ describe("getLocalCliRunner", () => {
   it("uses the installed Node runtime for the local CLI on Windows", () => {
     const result = getLocalCliRunner(undefined, "apps/cli/src/index.ts", "win32", "electron.exe");
     assert.equal(result.executable, process.env.npm_node_execpath || "node.exe");
-    assert.deepEqual(result.args, ["--import", "tsx", "apps/cli/src/index.ts", "serve"]);
+    assert.deepEqual(result.args, ["tsx", "apps/cli/src/index.ts", "serve"]);
   });
 
-  it("uses the resolved tsx loader with Node directly on Windows", () => {
+  it("uses tsx's JavaScript CLI entry point with Node directly on Windows", () => {
     const projectRoot = resolve(process.cwd(), "../..");
     const entryPoint = join(projectRoot, "apps", "cli", "src", "index.ts");
     const { executable, args } = getLocalCliRunner(
@@ -137,68 +97,103 @@ describe("getLocalCliRunner", () => {
     );
 
     assert.equal(executable, process.env.npm_node_execpath || "node.exe");
-    assert.equal(args[0], "--import");
     assert.equal(
-      args[1],
-      pathToFileURL(
-        createRequire(join(projectRoot, "apps", "desktop", "package.json")).resolve("tsx"),
-      ).href,
+      args[0],
+      createRequire(join(projectRoot, "apps", "desktop", "package.json")).resolve("tsx/cli"),
     );
-    assert.equal(args[2], entryPoint);
-    assert.equal(args[3], "serve");
+    assert.equal(args[1], entryPoint);
+    assert.equal(args[2], "serve");
   });
 
-  it(
-    "stops a Windows CLI process tree within a bounded cleanup window",
-    { skip: process.platform !== "win32" },
-    async () => {
-      const script = [
-        'import { spawn } from "node:child_process";',
-        'const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });',
-        "process.stdout.write(String(child.pid));",
-        "setInterval(() => {}, 1000);",
-      ].join("\n");
-      const parent = spawn(process.execPath, ["-e", script], {
-        stdio: ["ignore", "pipe", "ignore"],
-      });
-      let descendantPid: number | undefined;
+  it("stops a CLI process tree within a bounded cleanup window", async () => {
+    const script = [
+      'import { spawn } from "node:child_process";',
+      'const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });',
+      "process.stdout.write(String(child.pid));",
+      "setInterval(() => {}, 1000);",
+    ].join("\n");
+    const parent = spawn(process.execPath, ["-e", script], {
+      detached: process.platform !== "win32",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    let descendantPid: number | undefined;
 
+    try {
+      if (!parent.stdout) throw new Error("Windows process tree fixture has no output stream.");
+      const startWaiting = Date.now();
+      parent.stdout.setEncoding("utf8");
+      let startTimer!: NodeJS.Timeout;
+      let pidChunk: unknown;
       try {
-        if (!parent.stdout) throw new Error("Windows process tree fixture has no output stream.");
-        const startWaiting = Date.now();
-        parent.stdout.setEncoding("utf8");
-        let startTimer!: NodeJS.Timeout;
-        let pidChunk: unknown;
-        try {
-          [pidChunk] = await Promise.race([
-            once(parent.stdout, "data"),
-            new Promise<never>((_resolve, reject) => {
-              startTimer = setTimeout(
-                () => reject(new Error("Windows process tree fixture did not start.")),
-                5000,
-              );
-            }),
-          ]);
-        } finally {
-          clearTimeout(startTimer);
-        }
-        descendantPid = Number(String(pidChunk));
-        assert.ok(Number.isSafeInteger(descendantPid) && descendantPid > 0);
-
-        await stopWindowsProcessTree(parent);
-        assert.ok(Date.now() - startWaiting < 10_000);
-        assert.equal(await isWindowsProcessRunning(descendantPid), false);
+        [pidChunk] = await Promise.race([
+          once(parent.stdout, "data"),
+          new Promise<never>((_resolve, reject) => {
+            startTimer = setTimeout(
+              () => reject(new Error("Windows process tree fixture did not start.")),
+              5000,
+            );
+          }),
+        ]);
       } finally {
-        try {
-          if (parent.exitCode === null && parent.signalCode === null) {
-            await stopWindowsProcessTree(parent);
-          }
-        } finally {
-          if (descendantPid !== undefined) await stopWindowsProcess(descendantPid);
-        }
+        clearTimeout(startTimer);
       }
-    },
-  );
+      descendantPid = Number(String(pidChunk));
+      assert.ok(Number.isSafeInteger(descendantPid) && descendantPid > 0);
+
+      await stopCliProcessTree(parent);
+      assert.ok(Date.now() - startWaiting < 10_000);
+      assert.equal(await isProcessRunning(descendantPid), false);
+    } finally {
+      try {
+        if (parent.exitCode === null && parent.signalCode === null) {
+          await stopCliProcessTree(parent);
+        }
+      } finally {
+        if (descendantPid !== undefined) await stopRecordedProcess(descendantPid);
+      }
+    }
+  });
+
+  it("stops a CLI descendant after the wrapper has exited", async () => {
+    const script = [
+      'import { spawn } from "node:child_process";',
+      'const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });',
+      "child.unref();",
+      "process.stdout.write(String(child.pid));",
+    ].join("\n");
+    const parent = spawn(process.execPath, ["-e", script], {
+      detached: process.platform !== "win32",
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    let descendantPid: number | undefined;
+    try {
+      const [pidChunk] = await once(parent.stdout, "data");
+      descendantPid = Number(String(pidChunk));
+      assert.ok(Number.isSafeInteger(descendantPid) && descendantPid > 0);
+      if (parent.exitCode === null && parent.signalCode === null) await once(parent, "close");
+      assert.notEqual(parent.exitCode, null);
+      assert.equal(await isProcessRunning(descendantPid), true);
+
+      if (process.platform === "win32") {
+        await assert.rejects(
+          stopCliProcessTree(parent, descendantPid),
+          /cannot safely stop that process by PID/,
+        );
+        await stopRecordedProcess(descendantPid);
+        await stopCliProcessTree(parent, descendantPid);
+      } else {
+        await stopCliProcessTree(parent, descendantPid);
+        const deadline = Date.now() + 5_000;
+        while (await isProcessRunning(descendantPid)) {
+          if (Date.now() >= deadline) throw new Error("Descendant process did not stop.");
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+        await stopCliProcessTree(parent, descendantPid);
+      }
+    } finally {
+      if (descendantPid !== undefined) await stopRecordedProcess(descendantPid);
+    }
+  });
 
   it(
     "starts the local TypeScript CLI on Windows",
@@ -234,7 +229,7 @@ describe("getLocalCliRunner", () => {
             child = process;
           },
           onStartupFailure: async (process) => {
-            await stopWindowsProcessTree(process);
+            await stopCliProcessTree(process);
             processTreeStopped = true;
           },
         });
@@ -242,7 +237,7 @@ describe("getLocalCliRunner", () => {
         assert.ok(child?.pid !== undefined);
       } finally {
         try {
-          if (child && !processTreeStopped) await stopWindowsProcessTree(child);
+          if (child && !processTreeStopped) await stopCliProcessTree(child);
         } finally {
           await rm(userDataPath, { recursive: true, force: true });
         }
@@ -251,7 +246,7 @@ describe("getLocalCliRunner", () => {
   );
 });
 
-async function isWindowsProcessRunning(pid: number): Promise<boolean> {
+async function isProcessRunning(pid: number): Promise<boolean> {
   try {
     process.kill(pid, 0);
     return true;

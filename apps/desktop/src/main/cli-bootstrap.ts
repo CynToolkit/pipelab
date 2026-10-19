@@ -45,13 +45,14 @@ interface StartAuthenticatedCliOptions {
   readyTimeoutMs?: number;
   handshakeTimeoutMs?: number;
   onSpawn?: (child: ChildProcess) => void;
-  onStartupFailure?: (child: ChildProcess) => Promise<void> | void;
+  onStartupFailure?: (child: ChildProcess, serverPid?: number) => Promise<void> | void;
 }
 
 export interface AuthenticatedCliProcess {
   child: ChildProcess;
   port: number;
   sessionId: string;
+  serverPid: number;
 }
 
 /** Observe process exit immediately, even if a descendant still holds stdio open. */
@@ -60,6 +61,103 @@ export function monitorCliProcessExit(
   onExit: (code: number | null, signal: NodeJS.Signals | null) => void,
 ): void {
   child.once("exit", onExit);
+}
+
+async function waitForChildExit(child: ChildProcess, timeoutMs: number): Promise<boolean> {
+  if (child.exitCode !== null || child.signalCode !== null) return true;
+  return new Promise((resolve) => {
+    const finish = (exited: boolean) => {
+      clearTimeout(timer);
+      child.removeListener("exit", onExit);
+      resolve(exited);
+    };
+    const timer = setTimeout(() => finish(false), timeoutMs);
+    const onExit = () => finish(true);
+    child.once("exit", onExit);
+    if (child.exitCode !== null || child.signalCode !== null) finish(true);
+  });
+}
+
+function isProcessRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ESRCH") {
+      return false;
+    }
+    return true;
+  }
+}
+
+/** Stop the CLI and any child it created before Desktop exits or abandons startup. */
+export async function stopCliProcessTree(child: ChildProcess, serverPid?: number): Promise<void> {
+  const childExited = child.exitCode !== null || child.signalCode !== null;
+  if (childExited && child.pid === undefined) return;
+
+  let treeTerminationConfirmed = true;
+  if (process.platform === "win32" && child.pid !== undefined) {
+    if (childExited) {
+      const serverStopped =
+        serverPid === child.pid || (serverPid !== undefined && !isProcessRunning(serverPid));
+      if (serverStopped && !isProcessRunning(child.pid)) return;
+      throw new Error(
+        "The CLI launcher exited while its server may still be running. Desktop cannot safely stop that process by PID; close the Pipelab CLI process, then retry.",
+      );
+    }
+
+    const stopWindowsTree = async (pid: number): Promise<boolean> =>
+      new Promise((resolve) => {
+        const taskkill = spawn("taskkill.exe", ["/pid", String(pid), "/t", "/f"], {
+          stdio: "ignore",
+        });
+        const timer = setTimeout(() => {
+          taskkill.kill();
+          resolve(false);
+        }, 5_000);
+        const finish = (success: boolean) => {
+          clearTimeout(timer);
+          resolve(success);
+        };
+        taskkill.once("error", () => finish(false));
+        taskkill.once("close", (code) => finish(code === 0));
+      });
+
+    const treeStopped = await stopWindowsTree(child.pid);
+    if (!treeStopped) {
+      treeTerminationConfirmed = false;
+      if (!childExited) child.kill();
+    }
+  } else if (child.pid !== undefined) {
+    try {
+      process.kill(-child.pid, "SIGTERM");
+    } catch (error) {
+      if (!error || typeof error !== "object" || !("code" in error) || error.code !== "ESRCH") {
+        treeTerminationConfirmed = false;
+      }
+      if (!childExited) child.kill();
+    }
+  } else {
+    child.kill();
+  }
+
+  if (childExited) {
+    if (!treeTerminationConfirmed) {
+      throw new Error("Could not confirm termination of the CLI process tree.");
+    }
+    return;
+  }
+
+  if (await waitForChildExit(child, 5_000)) {
+    if (!treeTerminationConfirmed) {
+      throw new Error("Could not confirm termination of the CLI process tree.");
+    }
+    return;
+  }
+  child.kill();
+  if (!(await waitForChildExit(child, 5_000))) {
+    throw new Error("The CLI process did not stop within 10 seconds of cleanup.");
+  }
 }
 
 const createCredentials = (): BootstrapCredentials => ({
@@ -379,6 +477,7 @@ export async function startAuthenticatedCliProcess(
   const credentials = createCredentials();
   const child = spawn(options.executable, options.args, {
     ...(options.cwd ? { cwd: options.cwd } : {}),
+    detached: process.platform !== "win32",
     env: {
       ...options.env,
       [BOOTSTRAP_SECRET_ENV]: credentials.secret.toString("base64url"),
@@ -387,6 +486,7 @@ export async function startAuthenticatedCliProcess(
     stdio: ["inherit", "pipe", "inherit"],
   });
   options.onSpawn?.(child);
+  let authenticatedServerPid: number | undefined;
 
   try {
     const ready = await waitForReadyMessage(
@@ -413,16 +513,22 @@ export async function startAuthenticatedCliProcess(
       desktopVersion: options.desktopVersion,
       childPid: child.pid,
     });
+    authenticatedServerPid = response.pid;
     if (child.exitCode !== null || child.signalCode !== null) {
       throw new Error(
         "The CLI server exited during startup verification. Restart Desktop and try again.",
       );
     }
 
-    return { child, port: ready.port, sessionId: credentials.sessionId };
+    return {
+      child,
+      port: ready.port,
+      sessionId: credentials.sessionId,
+      serverPid: response.pid,
+    };
   } catch (error) {
     try {
-      await options.onStartupFailure?.(child);
+      await options.onStartupFailure?.(child, authenticatedServerPid);
     } catch (cleanupError) {
       child.kill();
       throw new AggregateError(

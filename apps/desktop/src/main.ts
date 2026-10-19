@@ -6,6 +6,7 @@ import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import { startServer, stopServer } from "./main/server-process";
 import { uiDevPort, getProtocolName, getAppBundleId } from "@pipelab/constants";
 import { registerIpcHandlers } from "./main/ipc-handlers";
+import { installUpdateAfterServerStops } from "./main/update-shutdown";
 import { getDefaultUserDataPath, fetchLatestDesktopRelease } from "@pipelab/core-node/desktop";
 import started from "electron-squirrel-startup";
 import { PostHog } from "posthog-node";
@@ -155,6 +156,48 @@ if (process.platform === "win32" && process.env.TEST !== "true" && app.isPackage
 }
 
 let mainWindow: BrowserWindow | undefined;
+let shutdownPromise: Promise<void> | undefined;
+let installingUpdate = false;
+
+function stopServerOnce(): Promise<void> {
+  if (!shutdownPromise) {
+    shutdownPromise = stopServer().finally(() => {
+      shutdownPromise = undefined;
+    });
+  }
+  return shutdownPromise;
+}
+
+function handleShutdownFailure(error: unknown): void {
+  console.error("Failed to stop the CLI process tree:", error);
+  dialog.showErrorBox(
+    "Shutdown Error",
+    "Pipelab could not confirm that its local CLI process stopped. The application will stay open so cleanup can be retried.",
+  );
+  void restoreWindowAfterFailedShutdown().catch((restoreError: unknown) =>
+    console.error("Failed to restore the Desktop window after shutdown error:", restoreError),
+  );
+}
+
+async function relaunchAfterServerStops(): Promise<void> {
+  try {
+    await stopServerOnce();
+    app.relaunch();
+    app.exit(0);
+  } catch (error) {
+    handleShutdownFailure(error);
+    throw error;
+  }
+}
+
+async function installDownloadedUpdate(): Promise<void> {
+  await installUpdateAfterServerStops({
+    stopServer: stopServerOnce,
+    quitAndInstall: () => autoUpdater.quitAndInstall(),
+    setInstalling: (installing) => (installingUpdate = installing),
+    onFailure: handleShutdownFailure,
+  });
+}
 
 function createWindow(): void {
   const displays = screen.getAllDisplays();
@@ -304,8 +347,12 @@ function createWindow(): void {
     }
   });
 
-  mainWindow.on("close", function () {
-    app.exit(0);
+  mainWindow.on("close", (event) => {
+    if (installingUpdate) return;
+    event.preventDefault();
+    void stopServerOnce()
+      .then(() => app.exit(0))
+      .catch(handleShutdownFailure);
   });
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -319,6 +366,15 @@ function createWindow(): void {
     }
     return { action: "deny" };
   });
+}
+
+async function restoreWindowAfterFailedShutdown(): Promise<void> {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  const cliPort = await startServer();
+  const uiUrl = is.dev
+    ? `http://127.0.0.1:${uiDevPort}/?cliPort=${cliPort}`
+    : `http://127.0.0.1:${cliPort}`;
+  await mainWindow?.loadURL(uiUrl);
 }
 
 const protocolName = getProtocolName(app.getVersion());
@@ -473,11 +529,12 @@ app.whenReady().then(async () => {
           };
 
           dialog.showMessageBox(dialogOpts).then((returnValue) => {
-            if (returnValue.response === 0) autoUpdater.quitAndInstall();
+            if (returnValue.response === 0) void installDownloadedUpdate();
           });
         });
 
         autoUpdater.on("error", (message) => {
+          installingUpdate = false;
           console.error("[Update] AutoUpdater encountered an error:", message);
           // Fallback to manual update indicator if an update is actually available
           const manualInfo = resolveManualDownloadUrl(latestRelease);
@@ -519,7 +576,7 @@ app.whenReady().then(async () => {
 
   const appBundleId = getAppBundleId(app.getVersion());
   electronApp.setAppUserModelId(appBundleId);
-  registerIpcHandlers();
+  registerIpcHandlers(relaunchAfterServerStops);
   createWindow();
 
   // Start the background server (this might include downloading the CLI on first run)
@@ -566,13 +623,16 @@ app.whenReady().then(async () => {
 
 app.on("window-all-closed", async () => {
   if (process.platform !== "darwin") {
-    stopServer();
-    app.quit();
+    void stopServerOnce()
+      .then(() => app.quit())
+      .catch(handleShutdownFailure);
   }
 });
 
-app.on("before-quit", async (event) => {
+app.on("before-quit", (event) => {
+  if (installingUpdate) return;
   event.preventDefault();
-  stopServer();
-  app.exit(0);
+  void stopServerOnce()
+    .then(() => app.exit(0))
+    .catch(handleShutdownFailure);
 });

@@ -54,7 +54,7 @@ if (mode === "no-ready") {
       const payload = JSON.stringify(identity);
       const proof = createHmac("sha256", proofSecret).update(payload).digest("base64url");
       response.writeHead(200, { "Content-Type": "application/json" });
-      response.end(JSON.stringify({ ...identity, proof }));
+    response.end(JSON.stringify({ ...identity, proof }));
     });
   });
   server.listen(0, "127.0.0.1", () => {
@@ -96,7 +96,7 @@ async function startFixture(
   readyTimeoutMs?: number,
   onSpawn?: (child: ChildProcess) => void,
   handshakeTimeoutMs = 1000,
-  onStartupFailure?: (child: ChildProcess) => Promise<void> | void,
+  onStartupFailure?: (child: ChildProcess, serverPid?: number) => Promise<void> | void,
 ) {
   const started = await startAuthenticatedCliProcess({
     executable: process.execPath,
@@ -167,6 +167,7 @@ describe("authenticated Desktop CLI startup", () => {
 
   it("awaits caller process-tree cleanup before terminating a failed startup", async () => {
     let child: ChildProcess | undefined;
+    let cleanupServerPid: number | undefined;
     let beginCleanup!: () => void;
     let releaseCleanup!: () => void;
     const cleanupStarted = new Promise<void>((resolve) => (beginCleanup = resolve));
@@ -176,7 +177,8 @@ describe("authenticated Desktop CLI startup", () => {
       2000,
       (process) => (child = process),
       1000,
-      async (process) => {
+      async (process, serverPid) => {
+        cleanupServerPid = serverPid;
         beginCleanup();
         await cleanupGate;
         process.kill();
@@ -191,6 +193,7 @@ describe("authenticated Desktop CLI startup", () => {
     }
     await assert.rejects(startup, /could not prove it belongs to this Desktop launch/);
     assert.equal(child?.killed, true);
+    assert.equal(cleanupServerPid, undefined);
   });
 
   it("rejects a validly signed response from a stale session", async () => {

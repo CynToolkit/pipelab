@@ -2,7 +2,7 @@ import { ipcMain, dialog, BrowserWindow, shell, app } from "electron";
 import { isPathBlacklisted } from "@pipelab/plugin-core";
 import { showExistingItemInFolder } from "./show-existing-item";
 
-export const registerIpcHandlers = () => {
+export const registerIpcHandlers = (relaunch: () => Promise<void>) => {
   console.log("[Main] Registering IPC handlers");
 
   const OPEN_DIALOG_CHANNEL = "dialog:showOpenDialog";
@@ -64,8 +64,5 @@ export const registerIpcHandlers = () => {
     return isPathBlacklisted(pathToCheck);
   });
 
-  ipcMain.handle("app:relaunch", () => {
-    app.relaunch();
-    app.exit(0);
-  });
+  ipcMain.handle("app:relaunch", () => relaunch());
 };
