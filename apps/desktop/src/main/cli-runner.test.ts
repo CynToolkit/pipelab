@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { describe, it } from "node:test";
 import { getLocalCliRunner } from "./cli-runner";
 
@@ -40,7 +41,9 @@ describe("getLocalCliRunner", () => {
     assert.equal(args[0], "--import");
     assert.equal(
       args[1],
-      createRequire(join(projectRoot, "apps", "desktop", "package.json")).resolve("tsx"),
+      pathToFileURL(
+        createRequire(join(projectRoot, "apps", "desktop", "package.json")).resolve("tsx"),
+      ).href,
     );
     assert.equal(args[2], entryPoint);
     assert.equal(args[3], "serve");

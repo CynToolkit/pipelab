@@ -125,6 +125,12 @@ jobs:
           PIPELAB_E2E_EXPECTED_RUNS: "1"
         run: pnpm --filter @pipelab/app test:local-release-e2e
 
+      - name: Refresh disposable Construct profile before the second Ship
+        env:
+          CONSTRUCT_CI_USERNAME: ${{ secrets.CONSTRUCT_CI_USERNAME }}
+          CONSTRUCT_CI_PASSWORD: ${{ secrets.CONSTRUCT_CI_PASSWORD }}
+        run: node packages/providers/scripts/prepare-construct-ci-profile.mjs
+
       - name: Run a new Ship after Desktop restart and verify saved history
         env:
           CONSTRUCT_CI_RUN_NUMBER: "2"
