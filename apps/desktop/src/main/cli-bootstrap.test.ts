@@ -1,7 +1,10 @@
 import { afterEach, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, type ChildProcess } from "node:child_process";
+import { access, mkdtemp, rm } from "node:fs/promises";
 import http from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { websocketPort } from "@pipelab/constants";
 import { monitorCliProcessExit, startAuthenticatedCliProcess } from "./cli-bootstrap";
 
@@ -192,43 +195,89 @@ describe("authenticated Desktop CLI startup", () => {
 });
 
 describe("authenticated CLI process exit monitoring", () => {
-  it("observes process exit before descendants release inherited stdout", async () => {
+  it("observes process exit independently from descendant and stdio closure", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "pipelab-cli-exit-"));
+    const descendantReadyPath = join(tempDir, "descendant-ready");
+    const descendantDonePath = join(tempDir, "descendant-done");
+    const descendantScript = `
+      import { writeFileSync } from "node:fs";
+      writeFileSync(process.env.PIPELAB_DESCENDANT_READY, "ready");
+      process.send?.("ready");
+      setTimeout(() => {
+        try { writeFileSync(process.env.PIPELAB_DESCENDANT_DONE, "done"); } catch {}
+        process.exit(0);
+      }, 800);
+    `;
     const child = spawn(
       process.execPath,
       [
         "--input-type=module",
         "-e",
         `import { spawn } from "node:child_process";
-         spawn(process.execPath, ["-e", "setTimeout(() => process.exit(0), 600)"], { stdio: ["ignore", 1, "ignore"] });
-         setTimeout(() => process.exit(23), 25);`,
+         const descendant = spawn(process.execPath, ["--input-type=module", "-e", ${JSON.stringify(descendantScript)}], { stdio: ["ignore", 1, "ignore", "ipc"] });
+         descendant.on("message", () => setTimeout(() => process.exit(23), 25));`,
       ],
-      { stdio: ["ignore", "pipe", "ignore"] },
+      {
+        stdio: ["ignore", "pipe", "ignore"],
+        env: {
+          ...process.env,
+          PIPELAB_DESCENDANT_READY: descendantReadyPath,
+          PIPELAB_DESCENDANT_DONE: descendantDonePath,
+        },
+      },
     );
+    children.add(child);
     let closed = false;
+    let resolveClosed!: () => void;
+    const closedPromise = new Promise<void>((resolve) => {
+      resolveClosed = resolve;
+    });
     const exited = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(
       (resolve, reject) => {
         monitorCliProcessExit(child, (code, signal) => resolve({ code, signal }));
         child.once("error", reject);
         child.once("close", () => {
           closed = true;
+          resolveClosed();
         });
       },
     );
-    const exit = await Promise.race([
-      exited,
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("CLI exit monitoring waited for stdio closure")), 2000),
-      ),
-    ]);
+    const waitForPath = async (path: string, message: string) => {
+      const deadline = Date.now() + 2000;
+      while (Date.now() < deadline) {
+        try {
+          await access(path);
+          return;
+        } catch {
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+      }
+      throw new Error(message);
+    };
 
-    assert.equal(exit.code, 23);
-    assert.equal(closed, false);
-    await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error("Descendant did not release stdout")), 2000);
-      child.once("close", () => {
-        clearTimeout(timer);
-        resolve();
-      });
-    });
+    try {
+      await waitForPath(descendantReadyPath, "Descendant did not start");
+      const exit = await Promise.race([
+        exited,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("CLI exit monitoring waited for stdio closure")), 2000),
+        ),
+      ]);
+
+      assert.equal(exit.code, 23);
+      assert.equal(
+        await access(descendantDonePath).then(
+          () => true,
+          () => false,
+        ),
+        false,
+      );
+      if (process.platform !== "win32") assert.equal(closed, false);
+
+      await waitForPath(descendantDonePath, "Descendant did not finish");
+      if (!closed) await closedPromise;
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
   });
 });
