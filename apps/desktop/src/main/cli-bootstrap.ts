@@ -284,8 +284,10 @@ function waitForReadyMessage(
       settled = true;
       const remainingOutput = buffer;
       cleanup();
-      if (error) reject(error);
-      else if (message) {
+      if (error) {
+        if (remainingOutput.trim()) console.info(`[CLI] ${remainingOutput.trimEnd()}`);
+        reject(error);
+      } else if (message) {
         if (remainingOutput.trim()) console.info(`[CLI] ${remainingOutput.trimEnd()}`);
         channel.on("data", (chunk: Buffer | string) => {
           const line = chunk.toString().trimEnd();

@@ -1,4 +1,4 @@
-import { afterEach, describe, it } from "node:test";
+import { afterEach, describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 import { ChildProcess, spawn } from "node:child_process";
 import { access, mkdtemp, rm } from "node:fs/promises";
@@ -17,6 +17,9 @@ import { createHmac, randomBytes } from "node:crypto";
 const mode = process.env.PIPELAB_BOOTSTRAP_FIXTURE_MODE || "valid";
 if (mode === "exit") process.exit(23);
 if (mode === "no-ready") {
+  setInterval(() => {}, 1000);
+} else if (mode === "partial-output-no-ready") {
+  process.stdout.write("CLI startup stalled before readiness");
   setInterval(() => {}, 1000);
 } else {
   const server = http.createServer((request, response) => {
@@ -218,10 +221,26 @@ describe("authenticated Desktop CLI startup", () => {
     await assert.rejects(startFixture("no-ready", 50), /did not become ready/);
   });
 
+  it("reports partial CLI output when readiness times out", async () => {
+    const startupLogs: string[] = [];
+    const info = mock.method(console, "info", (...args: unknown[]) => {
+      startupLogs.push(args.map(String).join(" "));
+    });
+    try {
+      await assert.rejects(startFixture("partial-output-no-ready", 2000), /did not become ready/);
+      assert.ok(
+        startupLogs.some((line) => line.includes("CLI startup stalled before readiness")),
+        "partial startup output should be logged before the CLI process is cleaned up",
+      );
+    } finally {
+      info.mock.restore();
+    }
+  });
+
   it("rejects interrupted and stalled identity responses within the handshake deadline", async () => {
     await assert.rejects(startFixture("interrupted-identity"), /local startup handshake/);
     await assert.rejects(
-      startFixture("hanging-identity", 2000, undefined, 100),
+      startFixture("hanging-identity", 10_000, undefined, 100),
       /handshake did not finish within/,
     );
   });

@@ -32,6 +32,10 @@ if (isDev) {
 
 const isProduction = !isDev && process.env.TEST !== "true";
 
+if (process.env.PIPELAB_DESKTOP_BOOTSTRAP_SECRET) {
+  console.info("[CLI] Authenticated Desktop CLI entry loaded.");
+}
+
 let posthog: PostHog | undefined;
 if (isProduction && process.env.POSTHOG_API_KEY) {
   posthog = new PostHog(process.env.POSTHOG_API_KEY, {
@@ -83,6 +87,7 @@ program
     try {
       options.userData = options.userData || getDefaultUserDataPath();
       const desktopBootstrap = readDesktopBootstrapEnvironment();
+      if (desktopBootstrap) console.info("[CLI] Authenticated Desktop server command started.");
       await serveCommand({ ...options, desktopBootstrap }, version, __dirname);
     } catch (e) {
       console.error(e);
