@@ -1,6 +1,19 @@
-import { access, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import {
+  access,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readlink,
+  readdir,
+  realpath,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";
+import { tmpdir } from "node:os";
 import { describe, expect, test } from "vitest";
 import { BuildHistoryStorage, PipelabContext } from "@pipelab/core-node";
 import { RELEASE_CONFIG_VERSION } from "@pipelab/shared";
@@ -11,9 +24,14 @@ const runNumber = Number(process.env.CONSTRUCT_CI_RUN_NUMBER || 0);
 const required = process.env.CONSTRUCT_CI_REQUIRED === "true";
 
 async function artifactDigest(path: string): Promise<string> {
-  const metadata = await stat(path);
+  const metadata = await lstat(path);
   const hash = createHash("sha256");
-  if (metadata.isFile()) {
+  if (metadata.isSymbolicLink()) {
+    const target = await readlink(path);
+    await realpath(path);
+    hash.update("symlink\0");
+    hash.update(target);
+  } else if (metadata.isFile()) {
     hash.update(await readFile(path));
   } else if (metadata.isDirectory()) {
     for (const entry of (await readdir(path)).sort()) {
@@ -27,6 +45,28 @@ async function artifactDigest(path: string): Promise<string> {
 }
 
 describe("authenticated local Construct to Electron CI acceptance", () => {
+  test.skipIf(process.platform === "win32")(
+    "hashes valid symlinks and rejects dangling artifact symlinks",
+    async () => {
+      const fixture = await mkdtemp(join(tmpdir(), "pipelab-artifact-symlink-"));
+      try {
+        const target = join(fixture, "target");
+        const link = join(fixture, "link");
+        const missingLink = join(fixture, "missing-link");
+        await writeFile(target, "packaged artifact");
+        await symlink("target", link);
+        await symlink("missing", missingLink);
+
+        const digest = await artifactDigest(link);
+        expect(digest).toMatch(/^[a-f0-9]{64}$/);
+        expect(await artifactDigest(link)).toBe(digest);
+        await expect(artifactDigest(missingLink)).rejects.toMatchObject({ code: "ENOENT" });
+      } finally {
+        await rm(fixture, { recursive: true, force: true });
+      }
+    },
+  );
+
   test.skipIf(!profilePath && !required)(
     "reopens a saved workflow, ships locally, and preserves prior artifacts",
     async () => {

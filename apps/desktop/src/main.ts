@@ -218,7 +218,14 @@ function createWindow(): void {
                   if (value) return value;
                   await new Promise((resolve) => setTimeout(resolve, 200));
                 }
-                throw new Error("Timed out waiting for Desktop " + label);
+                const pageState = {
+                  path: window.location.pathname,
+                  title: document.title,
+                  body: document.body?.innerText.slice(0, 1_200) || "<empty body>",
+                };
+                throw new Error(
+                  "Timed out waiting for Desktop " + label + " (" + JSON.stringify(pageState) + ")",
+                );
               };
               const rows = await waitFor(() => {
                 const error = document.querySelector('[role="alert"]');

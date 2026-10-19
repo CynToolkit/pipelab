@@ -43,7 +43,11 @@ try {
   }, login);
   await page.reload({ waitUntil: "domcontentloaded", timeout: 60_000 });
   await page.waitForFunction(
-    async (expectedUserId) => (await localforage.getItem("login-data"))?.userID === expectedUserId,
+    async (expectedUserId) => {
+      const store = globalThis.localforage;
+      if (!store) return false;
+      return (await store.getItem("login-data"))?.userID === expectedUserId;
+    },
     login.userID,
     { timeout: 30_000 },
   );
