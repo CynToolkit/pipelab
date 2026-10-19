@@ -3,6 +3,7 @@ import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
 import { once } from "node:events";
+import { readFileSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -142,6 +143,7 @@ describe("getLocalCliRunner", () => {
 
       await stopCliProcessTree(parent);
       assert.ok(Date.now() - startWaiting < 10_000);
+      await waitForProcessExit(descendantPid);
       assert.equal(await isProcessRunning(descendantPid), false);
     } finally {
       try {
@@ -183,11 +185,7 @@ describe("getLocalCliRunner", () => {
         await stopCliProcessTree(parent, descendantPid);
       } else {
         await stopCliProcessTree(parent, descendantPid);
-        const deadline = Date.now() + 5_000;
-        while (await isProcessRunning(descendantPid)) {
-          if (Date.now() >= deadline) throw new Error("Descendant process did not stop.");
-          await new Promise((resolve) => setTimeout(resolve, 50));
-        }
+        await waitForProcessExit(descendantPid);
         await stopCliProcessTree(parent, descendantPid);
       }
     } finally {
@@ -249,9 +247,23 @@ describe("getLocalCliRunner", () => {
 async function isProcessRunning(pid: number): Promise<boolean> {
   try {
     process.kill(pid, 0);
+    if (process.platform === "linux") {
+      const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
+      const state = stat.slice(stat.lastIndexOf(")") + 2, stat.lastIndexOf(")") + 3);
+      if (state === "Z" || state === "X") return false;
+    }
     return true;
   } catch (error) {
     if (isProcessMissing(error)) return false;
     throw error;
+  }
+}
+
+async function waitForProcessExit(pid: number, timeoutMs = 5000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (await isProcessRunning(pid)) {
+    if (Date.now() >= deadline)
+      throw new Error(`Process ${pid} did not exit within ${timeoutMs} ms.`);
+    await new Promise((resolve) => setTimeout(resolve, 50));
   }
 }
