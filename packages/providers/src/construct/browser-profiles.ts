@@ -1,6 +1,6 @@
 import { access, mkdtemp, readdir, readFile, rm, stat } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { homedir, platform } from "node:os";
+import { homedir, platform, tmpdir } from "node:os";
 import { delimiter, join, normalize } from "node:path";
 import { chromium } from "playwright";
 import { preparePlaywrightProfile } from "./export-shared.js";
@@ -235,7 +235,7 @@ const inspectChromiumProfileForBrowser = async (profile: string, browser: string
   } catch {
     return { addonCount: null, authStatus: "unknown" as const };
   }
-  const temp = await mkdtemp(join(process.env.TMPDIR || "/tmp", "pipelab-profile-"));
+  const temp = await mkdtemp(join(tmpdir(), "pipelab-profile-"));
   try {
     await preparePlaywrightProfile(profile, temp, () => {});
     const context = await chromium.launchPersistentContext(temp, {

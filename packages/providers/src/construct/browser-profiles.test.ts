@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   chromiumProfiles,
@@ -8,7 +9,7 @@ import {
 } from "./browser-profiles";
 
 test("discovers a nested Chromium profile as its own exact selection", async () => {
-  const root = await mkdtemp(join("/tmp", "construct-nested-profile-"));
+  const root = await mkdtemp(join(tmpdir(), "construct-nested-profile-"));
   const userData = join(root, "PipelabConstruct");
   const profile = join(userData, "Default");
   try {
@@ -35,7 +36,7 @@ test("discovers a nested Chromium profile as its own exact selection", async () 
 });
 
 test("lists selectable Chromium profiles from local metadata only", async () => {
-  const root = await mkdtemp(join("/tmp", "construct-profile-options-"));
+  const root = await mkdtemp(join(tmpdir(), "construct-profile-options-"));
   const profile = join(root, "Default");
   try {
     await mkdir(profile, { recursive: true });

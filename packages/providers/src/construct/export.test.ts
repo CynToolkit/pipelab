@@ -1,5 +1,6 @@
 import { expect, test, vi } from "vitest";
 import { mkdir, mkdtemp, readFile, rm, stat as getStat, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import lockfile from "proper-lockfile";
 import { acquireManagedProfileLock, preparePlaywrightProfile } from "./export-shared";
@@ -7,16 +8,17 @@ import { fetchPackage, type ProviderHostContext } from "@pipelab/plugin-core";
 import dns from "node:dns/promises";
 
 test("copies the complete Construct profile and removes stale browser locks", async () => {
-  const root = await mkdtemp(join("/tmp", "construct-profile-copy-"));
+  const root = await mkdtemp(join(tmpdir(), "construct-profile-copy-"));
   const source = join(root, "source");
   const destination = join(root, "destination");
   const database = join(source, "IndexedDB", "https_editor.construct.net_0.indexeddb.leveldb");
-  await mkdir(database, { recursive: true });
-  await writeFile(join(source, "Preferences"), "profile metadata");
-  await writeFile(join(database, "addon-record"), "pipelab");
-  await writeFile(join(database, "LOCK"), "");
 
   try {
+    await mkdir(database, { recursive: true });
+    await writeFile(join(source, "Preferences"), "profile metadata");
+    await writeFile(join(database, "addon-record"), "pipelab");
+    await writeFile(join(database, "LOCK"), "");
+
     await preparePlaywrightProfile(source, destination);
 
     if (process.platform !== "win32") {
@@ -185,18 +187,19 @@ test("uses an installed exact Playwright package without resolving npm metadata"
 });
 
 test("copies only the exact Chromium profile directory selected by the user", async () => {
-  const root = await mkdtemp(join("/tmp", "construct-user-data-copy-"));
+  const root = await mkdtemp(join(tmpdir(), "construct-user-data-copy-"));
   const source = join(root, "source");
   const destination = join(root, "destination");
-  await mkdir(join(source, "Default", "IndexedDB"), { recursive: true });
-  await mkdir(join(source, "IndexedDB"), { recursive: true });
-  await writeFile(join(source, "Local State"), "{}");
-  await writeFile(join(source, "Preferences"), "stale root profile");
-  await writeFile(join(source, "IndexedDB", "stale-addon-marker"), "stale");
-  await writeFile(join(source, "Default", "Preferences"), "active profile");
-  await writeFile(join(source, "Default", "IndexedDB", "installed-addon-marker"), "pipelabv2");
 
   try {
+    await mkdir(join(source, "Default", "IndexedDB"), { recursive: true });
+    await mkdir(join(source, "IndexedDB"), { recursive: true });
+    await writeFile(join(source, "Local State"), "{}");
+    await writeFile(join(source, "Preferences"), "stale root profile");
+    await writeFile(join(source, "IndexedDB", "stale-addon-marker"), "stale");
+    await writeFile(join(source, "Default", "Preferences"), "active profile");
+    await writeFile(join(source, "Default", "IndexedDB", "installed-addon-marker"), "pipelabv2");
+
     await preparePlaywrightProfile(source, destination);
 
     await expect(
