@@ -11,23 +11,6 @@
     "url": "https://github.com/CynToolkit/pipelab.git",
     "directory": "apps/desktop"
   },
-  "main": ".vite/build/main.js",
-  "scripts": {
-    "format": "oxfmt .",
-    "lint": "oxlint .",
-    "test": "node --test scripts/run-forge-deployed.test.mjs && node --import tsx --test src/main/cli-bootstrap.test.ts",
-    "smoke:electron:manual": "node scripts/electron-smoke-test.mjs",
-    "typecheck": "tsc --noEmit -p tsconfig.json --composite false",
-    "start": "electron-forge start",
-    "start:args": "electron-forge start -- --project ./tests/e2e/fixtures/folder-to-electron.json --action run",
-    "dev": "cross-env NODE_OPTIONS=--enable-source-maps electron-forge start",
-    "package": "cross-env DEBUG='electron-osx-sign*,electron-forge:*' node scripts/run-forge-deployed.mjs package",
-    "package:forge": "electron-forge package",
-    "make": "node scripts/run-forge-deployed.mjs make",
-    "make:forge": "electron-forge make",
-    "publish": "electron-forge publish",
-    "make-dev-prerelease": "pnpm version prerelease --preid=dev"
-  },
   "files": [
     "assets/build",
     "src",
@@ -40,6 +23,24 @@
     "vite.preload.config.mts",
     "vite.renderer.config.mts"
   ],
+  "main": ".vite/build/main.js",
+  "scripts": {
+    "format": "oxfmt .",
+    "lint": "oxlint .",
+    "test": "node --test scripts/run-forge-deployed.test.mjs && node --import tsx --test src/main/cli-bootstrap.test.ts src/main/ipc-handlers.test.ts",
+    "smoke:electron:manual": "node scripts/electron-smoke-test.mjs",
+    "test:local-release-e2e": "node scripts/electron-local-release-test.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json --composite false",
+    "start": "electron-forge start",
+    "start:args": "electron-forge start -- --project ./tests/e2e/fixtures/folder-to-electron.json --action run",
+    "dev": "cross-env NODE_OPTIONS=--enable-source-maps electron-forge start",
+    "package": "cross-env DEBUG='electron-osx-sign*,electron-forge:*' node scripts/run-forge-deployed.mjs package",
+    "package:forge": "electron-forge package",
+    "make": "node scripts/run-forge-deployed.mjs make",
+    "make:forge": "electron-forge make",
+    "publish": "electron-forge publish",
+    "make-dev-prerelease": "pnpm version prerelease --preid=dev"
+  },
   "dependencies": {
     "electron-squirrel-startup": "1.0.1",
     "posthog-node": "5.30.6"

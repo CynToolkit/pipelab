@@ -14,6 +14,8 @@ import semver from "semver";
 
 const isProduction = app.isPackaged && process.env.TEST !== "true";
 const isE2ESmokeTest = process.env.PIPELAB_E2E === "1";
+const e2eHistoryPath = process.env.PIPELAB_E2E_HISTORY_PATH;
+const e2eExpectedRunCount = Number(process.env.PIPELAB_E2E_EXPECTED_RUNS || 0);
 
 let posthog: PostHog | undefined;
 if (isProduction) {
@@ -198,13 +200,74 @@ function createWindow(): void {
     if (isE2ESmokeTest) {
       void mainWindow.webContents
         .executeJavaScript(
-          "document.readyState === 'complete' && document.body && document.body.innerHTML.trim().length > 0",
+          e2eHistoryPath
+            ? `(async () => {
+              const route = ${JSON.stringify(e2eHistoryPath)};
+              const expectedRuns = ${e2eExpectedRunCount};
+              if (!route || !Number.isInteger(expectedRuns) || expectedRuns < 1) {
+                throw new Error("Invalid Desktop history acceptance parameters");
+              }
+              if (window.location.pathname !== route) {
+                window.location.assign(route);
+                return "navigating";
+              }
+              const waitFor = async (read, label) => {
+                const deadline = Date.now() + 45_000;
+                while (Date.now() < deadline) {
+                  const value = read();
+                  if (value) return value;
+                  await new Promise((resolve) => setTimeout(resolve, 200));
+                }
+                throw new Error("Timed out waiting for Desktop " + label);
+              };
+              const rows = await waitFor(() => {
+                const error = document.querySelector('[role="alert"]');
+                if (error) throw new Error(error.textContent || "Could not load workflow runs");
+                const list = document.querySelector('[aria-label="Workflow runs"]');
+                const items = list?.querySelectorAll('[role="listitem"]');
+                return items?.length === expectedRuns ? items : null;
+              }, "workflow history");
+              rows[0].click();
+              const summary = await waitFor(
+                () => document.querySelector(".run-page .run-summary"),
+                "run details",
+              );
+              const status = document.querySelector(".run-page header .status-mark")?.getAttribute("aria-label");
+              if (status !== "completed") throw new Error("Unexpected run status: " + (status || "missing"));
+              const artifactCountText = Array.from(summary.querySelectorAll("span"))
+                .map((span) => span.textContent || "")
+                .find((value) => /\\d+\\s+artifacts/.test(value));
+              const artifactCount = Number(artifactCountText?.match(/(\\d+)\\s+artifacts/)?.[1] || 0);
+              if (artifactCount < 1) throw new Error("The completed Desktop run has no artifacts");
+              const artifactsTab = Array.from(document.querySelectorAll(".detail-tabs button"))
+                .find((button) => button.textContent?.includes("Artifacts"));
+              if (!artifactsTab) throw new Error("The Desktop Artifacts tab is missing");
+              artifactsTab.click();
+              const artifactRows = await waitFor(
+                () => {
+                  const rows = document.querySelectorAll(".artifact-list .artifact-row");
+                  return rows.length ? rows : null;
+                },
+                "artifact list",
+              );
+              if (artifactRows.length !== artifactCount) {
+                throw new Error("Expected " + artifactCount + " Desktop artifacts, found " + artifactRows.length);
+              }
+              if (!document.querySelector('.artifact-row button[aria-label^="Open "]')) {
+                throw new Error("No local artifact can be opened from Desktop");
+              }
+              return "history-verified";
+            })()`
+            : "document.readyState === 'complete' && document.body && document.body.innerHTML.trim().length > 0",
         )
-        .then((loaded) => {
-          if (!loaded) {
+        .then((result) => {
+          if (result === "navigating") return;
+          if (result !== true && result !== "history-verified") {
             throw new Error("Renderer loaded an empty document");
           }
-          console.info("[E2E] renderer-loaded");
+          console.info(
+            e2eHistoryPath ? "[E2E] workflow-history-verified" : "[E2E] renderer-loaded",
+          );
           app.exit(0);
         })
         .catch((error) => {

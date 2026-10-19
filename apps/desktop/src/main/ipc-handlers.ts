@@ -1,5 +1,6 @@
 import { ipcMain, dialog, BrowserWindow, shell, app } from "electron";
 import { isPathBlacklisted } from "@pipelab/plugin-core";
+import { showExistingItemInFolder } from "./show-existing-item";
 
 export const registerIpcHandlers = () => {
   console.log("[Main] Registering IPC handlers");
@@ -40,8 +41,8 @@ export const registerIpcHandlers = () => {
     }
   });
 
-  ipcMain.handle("shell:showItemInFolder", (event, path) => {
-    shell.showItemInFolder(path);
+  ipcMain.handle("shell:showItemInFolder", async (event, path: string) => {
+    await showExistingItemInFolder(path, shell.showItemInFolder);
   });
 
   ipcMain.handle("window:show", (event) => {

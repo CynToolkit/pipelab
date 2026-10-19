@@ -92,7 +92,8 @@ export const startServer = async (): Promise<number> => {
     PORT: "0",
     IS_SERVER: "true",
   };
-  args = [...args, "--port", "0", "--host", "127.0.0.1"];
+  // Keep the server's CLI context on the same profile the Desktop resolves above.
+  args = [...args, "--port", "0", "--host", "127.0.0.1", "--user-data", userDataPath];
 
   const started = await startAuthenticatedCliProcess({
     executable: process.execPath,

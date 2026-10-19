@@ -75,6 +75,24 @@ pnpm --filter @pipelab/ui typecheck
 
 Root `pnpm test`, `pnpm lint`, `pnpm typecheck`, and `pnpm build` delegate to Turbo. Turbo task ordering and outputs are defined in `turbo.json`; use workspace scripts rather than inventing a build order. CLI end-to-end, workflow, and provider tests run in the CLI host under `apps/cli/tests/e2e`. UI behavior belongs in UI tests. The Electron startup smoke is manual-only and is not a feature-test harness.
 
+### Cross-platform local release CI
+
+The pull request CI matrix runs credential-free local release, run-history,
+artifact IPC, and Construct profile validation tests on Linux, Windows, and
+macOS. It does not launch Electron; the minimal startup smoke remains
+manual-only. Authenticated Construct-to-Electron acceptance runs only on
+trusted pushes to `develop`, `main`, or the dedicated
+`acceptance/local-construct-electron` branch, after the platform test matrix
+passes. Pull requests never receive the Construct test-account secrets.
+It requires the `CONSTRUCT_CI_USERNAME` and `CONSTRUCT_CI_PASSWORD` GitHub
+Actions secrets for a dedicated test account. CI creates a temporary Chromium
+profile by signing in through the Construct editor, ships twice across Desktop
+cold starts, and checks the reopened run history and artifacts. The profile
+is removed with the hosted runner. Never copy a developer's browser profile
+into CI. Trusted pushes fail clearly if either secret is missing, so the live
+acceptance cannot silently pass without running. Pull request tests remain
+credential-free.
+
 The UI dev server also allows assets from the resolved workspace `node_modules`
 directory. When a Git worktree shares dependencies through a symlink, icon fonts
 remain available through the normal UI dev command.

@@ -1,6 +1,7 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
+import { tmpdir } from "node:os";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { createSandbox, runCLI } from "@pipelab/test-utils";
 import {
@@ -667,7 +668,7 @@ describe("CLI release dry-run", () => {
     async () => {
       const configId = "before-build-hook-cli-trust";
       const markerPath = join(
-        "/tmp",
+        tmpdir(),
         `pipelab-before-build-hook-${randomBytes(6).toString("hex")}.marker`,
       );
       const result = await runDryRun(async (testSandbox) => {

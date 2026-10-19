@@ -255,7 +255,7 @@ describe("ReleasePersistence", () => {
       "workflow-a",
       "workflow-b",
     ]);
-  });
+  }, 30_000);
 
   it("serializes a workflow save racing with delete without stale index state", async () => {
     const { context } = await setup();

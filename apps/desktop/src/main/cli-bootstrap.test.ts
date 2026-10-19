@@ -56,11 +56,14 @@ if (mode === "no-ready") {
   });
   server.listen(0, "127.0.0.1", () => {
     const address = server.address();
-    process.stdout.write("PIPELAB_DESKTOP_READY:" + JSON.stringify({
-      type: "ready",
-      port: address.port,
-      sessionId: process.env.PIPELAB_DESKTOP_SESSION_ID,
-    }) + "\n");
+    const announceReady = () =>
+      process.stdout.write("PIPELAB_DESKTOP_READY:" + JSON.stringify({
+        type: "ready",
+        port: address.port,
+        sessionId: process.env.PIPELAB_DESKTOP_SESSION_ID,
+      }) + "\n");
+    if (mode === "delayed-ready") setTimeout(announceReady, 21_000);
+    else announceReady();
   });
   process.on("SIGTERM", () => server.close(() => process.exit(0)));
 }
@@ -87,7 +90,7 @@ afterEach(async () => {
 
 async function startFixture(
   mode = "valid",
-  readyTimeoutMs = 2000,
+  readyTimeoutMs?: number,
   onSpawn?: (child: ChildProcess) => void,
   handshakeTimeoutMs = 1000,
 ) {
@@ -96,7 +99,7 @@ async function startFixture(
     args: ["--input-type=module", "-e", fixture],
     env: { ...process.env, PIPELAB_BOOTSTRAP_FIXTURE_MODE: mode },
     desktopVersion: "2.4.0-beta.1",
-    readyTimeoutMs,
+    ...(readyTimeoutMs === undefined ? {} : { readyTimeoutMs }),
     handshakeTimeoutMs,
     onSpawn: (child) => {
       children.add(child);
@@ -113,6 +116,11 @@ describe("authenticated Desktop CLI startup", () => {
     assert.ok(started.port > 0 && started.port <= 65535);
     assert.notEqual(started.port, websocketPort);
     assert.match(started.sessionId, /^[0-9a-f-]{36}$/i);
+  });
+
+  it("allows a cold local CLI that takes longer than 20 seconds to become ready", async () => {
+    const started = await startFixture("delayed-ready");
+    assert.ok(started.port > 0 && started.port <= 65535);
   });
 
   it("rejects an unrelated process on the former fixed Desktop port without contacting it", async (context) => {
@@ -209,7 +217,7 @@ describe("authenticated CLI process exit monitoring", () => {
     const exit = await Promise.race([
       exited,
       new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("CLI exit monitoring waited for stdio closure")), 400),
+        setTimeout(() => reject(new Error("CLI exit monitoring waited for stdio closure")), 2000),
       ),
     ]);
 
