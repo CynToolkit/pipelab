@@ -123,7 +123,7 @@ describe("Electron provider host integration", () => {
         const artifact = result.artifacts.find(
           (entry) => "descriptor" in entry && entry.stepId === target.id,
         );
-        expect(artifact?.descriptor.architecture).toBe("x64");
+        expect(artifact?.descriptor.architecture).toBe(architecture);
         expect(artifact?.path).toBe(output);
       }
       const logText = events.join("\n");
@@ -135,8 +135,8 @@ describe("Electron provider host integration", () => {
           /Installing Electron dependencies and custom packages in one pnpm invocation/g,
         ),
       ];
-      expect(installStarts).toHaveLength(2);
-      expect(installDurations).toHaveLength(2);
+      expect(installStarts).toHaveLength(targets.length);
+      expect(installDurations).toHaveLength(targets.length);
       measurements.push({
         targets: targets.map(({ id }) => id),
         wallMs: Date.now() - startedAt,
