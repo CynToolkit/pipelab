@@ -191,6 +191,20 @@ function createWindow(): void {
     mainWindow.webContents.openDevTools();
   }
 
+  if (isE2ESmokeTest) {
+    mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
+      console.info(`[E2E] renderer-console level=${level} ${sourceId}:${line} ${message}`);
+    });
+    mainWindow.webContents.on("did-fail-load", (_event, code, description, url, isMainFrame) => {
+      console.error(
+        `[E2E] renderer-load-error code=${code} mainFrame=${isMainFrame} url=${url} ${description}`,
+      );
+    });
+    mainWindow.webContents.on("render-process-gone", (_event, details) => {
+      console.error(`[E2E] renderer-process-gone ${JSON.stringify(details)}`);
+    });
+  }
+
   mainWindow.webContents.on("did-finish-load", () => {
     if (pendingUrl) {
       mainWindow?.webContents.send("protocol-url", pendingUrl);
@@ -208,7 +222,10 @@ function createWindow(): void {
                 throw new Error("Invalid Desktop history acceptance parameters");
               }
               if (window.location.pathname !== route) {
-                window.location.assign(route);
+                const target = new URL(route, window.location.href);
+                const cliPort = new URLSearchParams(window.location.search).get("cliPort");
+                if (cliPort) target.searchParams.set("cliPort", cliPort);
+                window.location.assign(target.href);
                 return "navigating";
               }
               const waitFor = async (read, label) => {

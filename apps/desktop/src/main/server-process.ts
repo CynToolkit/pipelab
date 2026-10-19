@@ -1,5 +1,4 @@
 import type { ChildProcess } from "node:child_process";
-import { join } from "node:path";
 import { app } from "electron";
 import { is } from "@electron-toolkit/utils";
 import http from "node:http";
@@ -11,6 +10,7 @@ import {
   getDefaultUserDataPath,
 } from "@pipelab/core-node/desktop";
 import { monitorCliProcessExit, startAuthenticatedCliProcess } from "./cli-bootstrap";
+import { getLocalCliRunnerArgs } from "./cli-runner";
 
 let serverProcess: ChildProcess | null = null;
 let serverPort: number | null = null;
@@ -77,10 +77,9 @@ export const startServer = async (): Promise<number> => {
 
   if (isLocal && entryPoint.endsWith(".ts")) {
     console.info(`[Server] Local CLI detected at ${packageDir}, starting with tsx`);
-    const tsxPath = projectRoot ? join(projectRoot, "node_modules", ".bin", "tsx") : "tsx";
     // A single CLI process keeps its authenticated, OS-assigned port stable.
     // The UI still uses Vite HMR; restart Desktop after changing CLI source.
-    args = [tsxPath, entryPoint, "serve"];
+    args = getLocalCliRunnerArgs(projectRoot, entryPoint);
   } else {
     console.info(`[Server] Starting CLI server from: ${entryPoint}`);
   }

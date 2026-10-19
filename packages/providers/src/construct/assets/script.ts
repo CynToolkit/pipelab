@@ -540,6 +540,7 @@ export const script = async (
   await page.getByRole("menuitem", { name: "Export" }).click();
   logElapsed(log, "Construct Export menu click after", actionStartedAt);
   log('"Export" clicked');
+<<<<<<< HEAD
   logElapsed(log, "Construct export menu selection after", exportMenuStartedAt);
   const exportPlatformStartedAt = Date.now();
   actionStartedAt = Date.now();
@@ -554,10 +555,16 @@ export const script = async (
   } catch (error) {
     if (abortSignal.aborted) throw createAbortError(abortSignal);
     if (isAbortError(error) || isRendererCrash(error) || page.isClosed()) throw error;
-    const pageText = await page
-      .locator("body")
-      .innerText({ timeout: 2_000 })
-      .catch(() => "");
+    const [pageText, exportItems] = await Promise.all([
+      page
+        .locator("body")
+        .innerText({ timeout: 2_000 })
+        .catch(() => ""),
+      page
+        .locator("ui-iconviewitem")
+        .allInnerTexts()
+        .catch((): string[] => []),
+    ]);
     const context = pageText.replace(/\s+/g, " ").trim().slice(0, 500);
     const screenshotPath = join(downloadDir, `construct-export-option-failure-${Date.now()}.png`);
     let screenshotDetails = "";
@@ -568,10 +575,32 @@ export const script = async (
       // Keep the selection failure details if the page can no longer be captured.
     }
     throw new Error(
-      `Could not select Construct's Web (HTML5) export option after opening the Export menu.${context ? ` Page says: ${context}.` : ""}${screenshotDetails}${error instanceof Error ? ` (${error.message})` : ""}`,
+      `Could not select Construct's Web (HTML5) export option after opening the Export menu.${exportItems.length ? ` Options: ${JSON.stringify(exportItems)}.` : ""}${context ? ` Page says: ${context}.` : ""}${screenshotDetails}${error instanceof Error ? ` (${error.message})` : ""}`,
     );
   }
   logElapsed(log, "Construct Web platform click after", actionStartedAt);
+=======
+  const webExportItem = page.locator("ui-iconviewitem").filter({ hasText: "Web (HTML5)" });
+  try {
+    await webExportItem.waitFor({ state: "visible", timeout: 30_000 });
+    await webExportItem.locator("ui-icon").click();
+  } catch (error) {
+    const [pageText, exportItems] = await Promise.all([
+      page
+        .locator("body")
+        .innerText({ timeout: 2_000 })
+        .catch(() => ""),
+      page
+        .locator("ui-iconviewitem")
+        .allInnerTexts()
+        .catch((): string[] => []),
+    ]);
+    const context = pageText.replace(/\s+/g, " ").trim().slice(0, 500);
+    throw new Error(
+      `Construct's Web (HTML5) export option was unavailable; options: ${JSON.stringify(exportItems)}${context ? `; page says: ${context}` : ""}${error instanceof Error ? ` (${error.message})` : ""}`,
+    );
+  }
+>>>>>>> 3be73ac (fix: diagnose cross-platform local release acceptance)
   log('"Web" clicked');
 
   const platformDialog = page.locator("#exportSelectPlatformDialog");
