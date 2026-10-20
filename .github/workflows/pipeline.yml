@@ -109,6 +109,13 @@ jobs:
           NODE_ENV: development
         run: pnpm --filter @pipelab/cli test:construct-live
 
+      - name: Verify Windows CLI startup with Desktop app data
+        if: runner.os == 'Windows'
+        env:
+          NODE_ENV: development
+          PIPELAB_TEST_USER_DATA_PATH: ${{ env.PIPELAB_CI_USER_DATA }}
+        run: pnpm --filter @pipelab/app exec node --import tsx --test --test-name-pattern="starts the local TypeScript CLI on Windows" src/main/cli-runner.test.ts
+
       - name: Cold-start Desktop and verify the first run (Linux)
         if: runner.os == 'Linux'
         env:

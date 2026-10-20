@@ -206,7 +206,9 @@ describe("getLocalCliRunner", () => {
         process.execPath,
         process.env.npm_node_execpath || "node.exe",
       );
-      const userDataPath = await mkdtemp(join(tmpdir(), "pipelab-desktop-cli-runner-"));
+      const configuredUserDataPath = process.env.PIPELAB_TEST_USER_DATA_PATH;
+      const userDataPath =
+        configuredUserDataPath ?? (await mkdtemp(join(tmpdir(), "pipelab-desktop-cli-runner-")));
       let child: ChildProcess | undefined;
       let processTreeStopped = false;
       try {
@@ -237,7 +239,9 @@ describe("getLocalCliRunner", () => {
         try {
           if (child && !processTreeStopped) await stopCliProcessTree(child);
         } finally {
-          await rm(userDataPath, { recursive: true, force: true });
+          if (!configuredUserDataPath) {
+            await rm(userDataPath, { recursive: true, force: true });
+          }
         }
       }
     },

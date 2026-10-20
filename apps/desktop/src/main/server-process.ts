@@ -123,6 +123,10 @@ export const startServer = async (): Promise<number> => {
     onStartupFailure: (child, authenticatedPid) => stopCliProcessTree(child, authenticatedPid),
     onSpawn: (child) => {
       serverProcess = child;
+      console.info(`[Server] CLI child spawned (pid: ${child.pid ?? "unknown"})`);
+      console.info(
+        `[Server] CLI launch environment: NODE_OPTIONS=${childEnv.NODE_OPTIONS ? "set" : "unset"}, ELECTRON_RUN_AS_NODE=${childEnv.ELECTRON_RUN_AS_NODE ?? "unset"}, npm_node_execpath=${process.env.npm_node_execpath ? "set" : "unset"}`,
+      );
       child.on("error", (error) => console.error("ERROR: CLI server process failed:", error));
       monitorCliProcessExit(child, (code) => {
         if (
