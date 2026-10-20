@@ -1,4 +1,5 @@
 import type { ChildProcess } from "node:child_process";
+import { tmpdir } from "node:os";
 import { app, BrowserWindow, dialog } from "electron";
 import { is } from "@electron-toolkit/utils";
 import http from "node:http";
@@ -110,6 +111,15 @@ export const startServer = async (): Promise<number> => {
     childEnv.ELECTRON_RUN_AS_NODE = "1";
   } else {
     delete childEnv.ELECTRON_RUN_AS_NODE;
+  }
+  if (process.platform === "win32" && isLocal) {
+    const runtimeEnvKeys = Object.keys(childEnv)
+      .filter((key) => /^(?:ELECTRON_|NODE_|npm_node_execpath$)/i.test(key))
+      .sort()
+      .join(",");
+    console.info(
+      `[Server] Windows CLI host: parent=${process.execPath}, cwd=${process.cwd()}, temp=${tmpdir()}, environment keys=${runtimeEnvKeys || "none"}`,
+    );
   }
   // Keep the server's CLI context on the same profile the Desktop resolves above.
   args = [...args, "--port", "0", "--host", "127.0.0.1", "--user-data", userDataPath];

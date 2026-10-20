@@ -212,6 +212,15 @@ describe("getLocalCliRunner", () => {
       let child: ChildProcess | undefined;
       let processTreeStopped = false;
       try {
+        if (process.platform === "win32") {
+          const runtimeEnvKeys = Object.keys(process.env)
+            .filter((key) => /^(?:ELECTRON_|NODE_|npm_node_execpath$)/i.test(key))
+            .sort()
+            .join(",");
+          console.info(
+            `[Test] Windows CLI host: parent=${process.execPath}, cwd=${process.cwd()}, temp=${tmpdir()}, environment keys=${runtimeEnvKeys || "none"}`,
+          );
+        }
         const started = await startAuthenticatedCliProcess({
           executable,
           args: [...args, "--port", "0", "--host", "127.0.0.1", "--user-data", userDataPath],
