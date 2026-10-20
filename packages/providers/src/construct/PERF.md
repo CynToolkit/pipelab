@@ -10,6 +10,11 @@ reached **Next in 10.027 and 8.361 seconds** (9.194-second median). The target
 is met on the repeat; selecting the explicit `latest` editor remains slower at
 16.533 seconds, including under low pre-run CPU pressure.
 
+Three full warm exports completed in a mean of **15.981 seconds** from workflow
+task entry through successful ZIP artifact registration. They included
+Construct's internal export preparation and download; see the full-export
+measurements below.
+
 ## Measurement
 
 Setup time is measured from the start of the
@@ -689,3 +694,26 @@ A second explicit-`latest` run at lower pre-run pressure
 seconds**. Profile refresh took 134 ms; project open took 9.542 seconds and
 the export-options sequence took 5.210 seconds. This confirms the slower
 latest-editor path is not explained by the observed CPU pressure alone.
+
+## Full warm export
+
+Three runs completed the Construct source task through ZIP artifact
+registration, using the same warmed project-scoped profile, the matching
+`r397` editor, and full Chromium in headless mode. Full duration is measured
+from `runWorkflowTask` invocation through its successful return. It includes
+setup through **Next**, Construct's export preparation and ZIP download, and
+artifact registration; it excludes subsequent workflow steps such as archive
+extraction.
+
+| Run | Pre-run CPU pressure (`some avg10`) | Setup through **Next** | Full source task |
+| --- | ---: | ---: | ---: |
+| 1 | 4.43% | 10.374 s | 13.597 s |
+| 2 | 34.27% | 10.258 s | 13.357 s |
+| 3 | 41.88% | 10.574 s | 20.989 s |
+| **Mean** | — | **10.402 s** | **15.981 s** |
+
+The third run took longer after **Next** than the first two. The first run
+started under lower CPU pressure; the later two started under elevated
+pressure. These are local observations, not a controlled benchmark. The
+full-export mean is specific to this small fixture and should not be treated
+as a universal project export duration.

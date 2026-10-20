@@ -25,11 +25,23 @@ const services: ConstructWorkflowTaskServices = {
   executables: { node: process.execPath, pnpm: "pnpm" },
   run: { projectId: benchmarkProjectId },
 };
+const artifacts = {
+  zipFile: {
+    descriptor: {
+      kind: "files" as const,
+      technology: "construct",
+      container: "archive" as const,
+      format: "zip" as const,
+    },
+  },
+};
 
 const fixture = resolve("packages/providers/src/construct/tests/e2e/fixtures/c3-export/test.c3p");
 const workspacePath = await mkdtemp(join(tmpdir(), "pipelab-construct-benchmark-"));
+const measureFullExport = process.env.CONSTRUCT_BENCHMARK_FULL_EXPORT === "true";
 let setupMs: number | undefined;
 let metricEmitted = false;
+let workflowCompleted = false;
 const stopAtNext = "construct-benchmark-stop-at-next";
 const profileScope = (value: string) => createHash("sha256").update(value).digest("hex");
 const unseededProfilePath = context.getCachePath(
@@ -87,7 +99,7 @@ const logger = {
     ) {
       console.log(`CONSTRUCT_DIAGNOSTIC=${redact(line).slice(0, 500)}`);
     }
-    if (line === '"Next" clicked') throw new Error(stopAtNext);
+    if (line === '"Next" clicked' && !measureFullExport) throw new Error(stopAtNext);
   },
   warn(...args: unknown[]) {
     const line = args
@@ -105,6 +117,7 @@ const logger = {
 
 try {
   try {
+    const workflowStartedAt = Date.now();
     await runWorkflowTask(constructExportWorkflowTaskFactory(services), {
       workspacePath,
       inputs: {
@@ -115,18 +128,30 @@ try {
         headless: true,
         version: process.env.CONSTRUCT_VERSION,
       },
+      artifacts,
       services,
       host: { logger },
     });
+    workflowCompleted = true;
+    if (measureFullExport) {
+      console.log(`CONSTRUCT_FULL_EXPORT_MS=${Date.now() - workflowStartedAt}`);
+    }
   } catch (error) {
-    // The workflow is intentionally interrupted immediately after Next.
-    if (!(error instanceof Error) || error.message !== stopAtNext) {
+    // Setup-only runs intentionally stop after Next; full runs continue to ZIP completion.
+    if (measureFullExport || !(error instanceof Error) || error.message !== stopAtNext) {
       const message = error instanceof Error ? error.message : String(error);
       console.log(`CONSTRUCT_BENCHMARK_ERROR=${redact(message).slice(0, 500)}`);
     }
   }
 
-  if (setupMs === undefined) {
+  if (measureFullExport && !workflowCompleted) {
+    console.log(
+      setupMs === undefined
+        ? "CONSTRUCT_BENCHMARK=FAILED_BEFORE_NEXT"
+        : "CONSTRUCT_BENCHMARK=FAILED_AFTER_NEXT",
+    );
+    process.exitCode = 1;
+  } else if (setupMs === undefined) {
     console.log("CONSTRUCT_BENCHMARK=FAILED_BEFORE_NEXT");
     process.exitCode = 1;
   } else if (!metricEmitted) {
