@@ -647,8 +647,11 @@ export async function startAuthenticatedCliProcess(
       [BOOTSTRAP_SECRET_ENV]: credentials.secret.toString("base64url"),
       [BOOTSTRAP_SESSION_ENV]: credentials.sessionId,
     },
-    stdio: ["inherit", "pipe", "inherit"],
+    // The local server is noninteractive; avoid inheriting Electron's stdin
+    // handle on Windows, and keep stderr visible for startup diagnostics.
+    stdio: ["ignore", "pipe", "pipe"],
   });
+  child.stderr?.pipe(process.stderr);
   options.onSpawn?.(child);
   let authenticatedServerPid: number | undefined;
   let launcherCreationTime: string | undefined;
