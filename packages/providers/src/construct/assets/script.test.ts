@@ -1,6 +1,29 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Locator, Page } from "playwright";
-import { clickConstructDownload, waitForConstructExportDownload } from "./script";
+import {
+  clickConstructDownload,
+  navigateToConstruct,
+  waitForConstructExportDownload,
+} from "./script";
+
+describe("Construct editor navigation", () => {
+  it("returns at DOM content readiness and records the navigation duration", async () => {
+    const url = "https://editor.construct.net/";
+    const page = {
+      goto: vi.fn().mockResolvedValue(null),
+      url: vi.fn().mockReturnValue(url),
+    } as unknown as Page;
+    const log = vi.fn();
+
+    await navigateToConstruct(page, url, log);
+
+    expect(page.goto).toHaveBeenCalledWith(url, { waitUntil: "domcontentloaded" });
+    expect(log).toHaveBeenCalledWith(
+      "Construct document ready after",
+      expect.stringMatching(/^\d+ ms$/),
+    );
+  });
+});
 
 describe("Construct export download readiness", () => {
   it("waits for the configured export timeout", async () => {

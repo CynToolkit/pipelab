@@ -133,6 +133,20 @@ export async function fetchPackage(
     resolvedVersionOrRange = "latest";
   }
 
+  const exactVersion = semver.valid(resolvedVersionOrRange);
+  if (exactVersion) {
+    const packageDir = join(baseDir, exactVersion);
+    const isInstalled = options.installDeps
+      ? isPackageComplete(packageDir) && isDependenciesInstalledSync(packageDir)
+      : isPackageComplete(packageDir);
+    if (isInstalled) {
+      console.debug(
+        `[Fetcher] ${packageName}@${exactVersion}: Exact-version cache hit (fetchPackage took ${Date.now() - start}ms)`,
+      );
+      return { packageDir, resolvedVersion: exactVersion };
+    }
+  }
+
   console.debug(`[Fetcher] Resolving ${packageName}@${resolvedVersionOrRange || "latest"}...`);
   const resolveStart = Date.now();
 

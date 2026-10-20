@@ -10,12 +10,14 @@ import {
 } from "@pipelab/plugin-core";
 import { script } from "./assets/script.js";
 import * as v from "valibot";
-import { BrowserContext } from "playwright";
-import { dirname, join, delimiter } from "node:path";
-import { mkdir, readdir, stat, copyFile, chmod, rm, mkdtemp } from "node:fs/promises";
+import type { BrowserContext, Video } from "playwright";
+import { createHash } from "node:crypto";
+import { dirname, join, delimiter, resolve } from "node:path";
+import { mkdir, readdir, stat, copyFile, chmod, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { homedir } from "node:os";
 import { createRequire } from "node:module";
+import lockfile from "proper-lockfile";
 import {
   formatRendererCrash,
   readLinuxMemorySnapshot,
@@ -56,12 +58,12 @@ export const sharedParams = {
     required: false,
   }),
   headless: {
-    description: "Whether to show the browser while export",
+    description: "Run without showing the browser; disable this to watch the export",
     required: false,
     control: {
       type: "boolean",
     },
-    value: false,
+    value: true,
     label: "Start headless",
   },
   timeout: createNumberParam(120, {
@@ -131,6 +133,15 @@ async function resilientCopy(src: string, dest: string, log: any) {
     if (s.isDirectory()) {
       await mkdir(dest, { recursive: true });
       const entries = await readdir(src, { withFileTypes: true });
+      const sourceEntries = new Map(entries.map((entry) => [entry.name, entry]));
+      const destinationEntries = await readdir(dest, { withFileTypes: true }).catch(() => []);
+      for (const entry of destinationEntries) {
+        if (transientProfileEntries.has(entry.name)) continue;
+        const sourceEntry = sourceEntries.get(entry.name);
+        if (!sourceEntry || sourceEntry.isDirectory() !== entry.isDirectory()) {
+          await rm(join(dest, entry.name), { recursive: true, force: true }).catch(() => {});
+        }
+      }
       for (const entry of entries) {
         if (transientProfileEntries.has(entry.name)) {
           log(`  Skipping transient Chromium profile data: ${entry.name}`);
@@ -172,7 +183,8 @@ const removeProfileLocks = async (root: string): Promise<void> => {
 };
 
 /**
- * Copies a browser profile into a fresh Playwright user-data directory.
+ * Syncs browser state into a Playwright user-data directory while leaving
+ * skipped cache directories in the existing destination untouched.
  *
  * Construct stores addon metadata alongside the IndexedDB LevelDB files. Copying
  * only the individual LevelDB folders loses that metadata, so Chromium opens an
@@ -195,184 +207,219 @@ export interface ConstructExportExecutionContext {
   paths: { thirdparty: string; node: string };
   abortSignal: AbortSignal;
   context: Parameters<typeof fetchPackage>[2]["context"];
+  projectId: string;
 }
+
+const profileScope = (value: string) => createHash("sha256").update(value).digest("hex");
 
 export const exportc3p = async (
   file: string,
-  { cwd, log, inputs, paths, abortSignal, context: ctx }: ConstructExportExecutionContext,
+  {
+    cwd,
+    log,
+    inputs,
+    paths,
+    abortSignal,
+    context: ctx,
+    projectId,
+  }: ConstructExportExecutionContext,
 ): Promise<{ folder: string; parentFolder: string; zipFile: string }> => {
+  const logElapsed = (label: string, startedAt: number) => {
+    log(label, `${Date.now() - startedAt} ms`);
+  };
   let browserContext: BrowserContext | undefined = undefined;
-  let browser: any | undefined = undefined;
-  let customProfile: string | undefined = undefined;
+  let managedProfileLock: (() => Promise<void>) | undefined;
+  let video: Video | null | undefined;
+  let pageCrashed = false;
 
   const cleanup = async () => {
-    await browserContext?.close().catch(() => {});
-    await browser?.close().catch(() => {});
-    if (customProfile) {
-      await rm(customProfile, { recursive: true, force: true }).catch(() => {});
-    }
+    const contextToClose = browserContext;
+    const releaseProfileLock = managedProfileLock;
+    browserContext = undefined;
+    managedProfileLock = undefined;
+    await contextToClose?.close().catch(() => {});
+    await releaseProfileLock?.().catch(() => {});
   };
 
   const onAbort = () => {
     console.error("aborted");
-    cleanup();
+    void browserContext?.close().catch(() => {});
   };
   const newInputs = inputs as Inputs;
 
   abortSignal.addEventListener("abort", onAbort);
 
-  // const { addonsFolder } = newInputs
+  try {
+    // const { addonsFolder } = newInputs
 
-  const { thirdparty, node } = paths;
+    const { thirdparty, node } = paths;
 
-  const browserName: "chromium" | "firefox" | "webkit" = "chromium";
+    const browserName = "chromium";
 
-  const { packageDir: playwrightPkgPath } = await fetchPackage("playwright-core", "1.62.1", {
-    installDeps: true,
-    context: ctx,
-  });
-  const playwrightCli = join(playwrightPkgPath, "cli.js");
-  const browsersPath =
-    process.env.PLAYWRIGHT_BROWSERS_PATH || join(thirdparty, "playwright-browsers");
+    const packageResolutionStartedAt = Date.now();
+    const { packageDir: playwrightPkgPath } = await fetchPackage("playwright-core", "1.62.1", {
+      installDeps: true,
+      context: ctx,
+    });
+    logElapsed("Playwright package resolved after", packageResolutionStartedAt);
+    const playwrightCli = join(playwrightPkgPath, "cli.js");
+    const browsersPath =
+      process.env.PLAYWRIGHT_BROWSERS_PATH || join(thirdparty, "playwright-browsers");
 
-  process.env.PLAYWRIGHT_BROWSERS_PATH = browsersPath;
+    process.env.PLAYWRIGHT_BROWSERS_PATH = browsersPath;
 
-  const chromeBinary = join(browsersPath, "chromium-1234", "chrome-linux", "chrome");
-  if (existsSync(chromeBinary)) {
-    log("Browser already exists at", browsersPath, "- skipping download");
-  } else {
-    log("Downloading browser to", browsersPath);
-    await runWithLiveLogs(
-      node,
-      [playwrightCli, "install", browserName],
-      {
-        env: {
-          ...process.env,
-          PLAYWRIGHT_BROWSERS_PATH: browsersPath,
-          PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
+    // Resolve through Playwright so its revision and platform-specific directory
+    // stay aligned with the installed playwright-core package.
+    // Electron's Vite main-process bundle is CommonJS, so use an absolute anchor
+    // for createRequire instead of relying on import.meta.url.
+    const require = createRequire(join(process.cwd(), "package.json"));
+    const playwrightModule = require(join(playwrightPkgPath, "index.js"));
+    const playwright = playwrightModule.default || playwrightModule;
+    const browserInstance = playwright[browserName];
+    const browserExecutable = browserInstance.executablePath();
+
+    const browserBinaryStartedAt = Date.now();
+    if (existsSync(browserExecutable)) {
+      log("Browser already exists at", browsersPath, "- skipping download");
+    } else {
+      log("Downloading browser to", browsersPath);
+      await runWithLiveLogs(
+        node,
+        [playwrightCli, "install", browserName, "--no-shell"],
+        {
+          env: {
+            ...process.env,
+            PLAYWRIGHT_BROWSERS_PATH: browsersPath,
+            PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
+          },
+          cancelSignal: abortSignal,
         },
-        cancelSignal: abortSignal,
-      },
-      log,
-      {
-        onStdout(data) {
-          log(data);
+        log,
+        {
+          onStdout(data) {
+            log(data);
+          },
+          onStderr(data) {
+            log(data);
+          },
         },
-        onStderr(data) {
-          log(data);
-        },
-      },
-    );
-  }
-
-  // Electron's Vite main-process bundle is CommonJS, where import.meta.url is
-  // undefined. Use an absolute anchor that works in both ESM and CommonJS.
-  const require = createRequire(join(process.cwd(), "package.json"));
-  const playwrightModule = require(join(playwrightPkgPath, "index.js"));
-  const playwright = playwrightModule.default || playwrightModule;
-
-  const downloadDir = join(cwd, "playwright");
-  await mkdir(downloadDir, { recursive: true });
-
-  log("Browser downloaded to", downloadDir);
-
-  log("Exporting construct project");
-
-  console.log("newInputs", newInputs);
-
-  const browserInstance = playwright[browserName];
-
-  let version = newInputs.version;
-  // if version is full digit, prepend "r", otherwise, use as is
-  if (version && /^\d+$/.test(version as string)) {
-    version = `r${version}`;
-  }
-  const headless = newInputs.headless;
-  const recordVideo = shouldRecordPlaywrightVideo(process.env.NODE_ENV, isCI)
-    ? { dir: downloadDir }
-    : undefined;
-
-  // if (newInputs.customBrowser && !newInputs.customProfile) {
-  //   throw new Error('You must specify a custom profile when using a custom browser')
-  // }
-
-  // if (!newInputs.customBrowser && newInputs.customProfile) {
-  //   throw new Error('You must specify a custom browser when using a custom profile')
-  // }
-
-  // if (newInputs.customBrowser && newInputs.customProfile) {
-  // Use a fresh temp directory every run so there is no stale LevelDB data
-  // from a previous Playwright session that could corrupt the copied profile.
-  customProfile = await mkdtemp(join(tmpdir(), "pipelab-playwright-"));
-
-  if (newInputs.customProfile) {
-    log("Setting up Playwright profile from custom Chrome profile...");
-    log(`  - Target playwright-profile folder: ${customProfile}`);
-
-    const indexedDbPathSource = join(newInputs.customProfile, "IndexedDB");
-    log(`  - Source IndexedDB folder: ${indexedDbPathSource}`);
-    if (!existsSync(indexedDbPathSource)) {
-      log(
-        `  [WARNING] Source IndexedDB directory does not exist: "${indexedDbPathSource}". Verify your custom profile path.`,
       );
     }
-    await preparePlaywrightProfile(newInputs.customProfile, customProfile, log);
+    logElapsed("Construct browser binary ready after", browserBinaryStartedAt);
 
-    browserContext = await browserInstance.launchPersistentContext(customProfile, {
-      headless: headless as boolean,
+    const downloadDir = join(cwd, "playwright");
+    await mkdir(downloadDir, { recursive: true });
+
+    log("Browser downloaded to", downloadDir);
+
+    log("Exporting construct project");
+
+    let version = typeof newInputs.version === "string" ? newInputs.version.trim() : "";
+    if (version.toLowerCase() === "latest") version = "";
+    if (/^\d+$/.test(version)) version = `r${version}`;
+    const headless = newInputs.headless ?? true;
+    const browserChannel = "chromium";
+    const recordVideo = shouldRecordPlaywrightVideo(process.env.NODE_ENV, isCI)
+      ? { dir: downloadDir }
+      : undefined;
+
+    const browserSetupStartedAt = Date.now();
+    const profileSetupStartedAt = Date.now();
+    const username = typeof newInputs.username === "string" ? newInputs.username.trim() : "";
+    const seedProfile =
+      typeof newInputs.customProfile === "string" ? newInputs.customProfile.trim() : "";
+    const profileIdentity = [projectId, username, seedProfile ? resolve(seedProfile) : ""].join(
+      "\0",
+    );
+    const managedProfile = ctx.getCachePath(
+      "pipelines",
+      "construct",
+      "profiles",
+      profileScope(profileIdentity),
+    );
+    await mkdir(managedProfile, { recursive: true, mode: 0o700 });
+    await chmod(managedProfile, 0o700).catch(() => {});
+    managedProfileLock = await lockfile.lock(managedProfile, {
+      stale: 60_000,
+      update: 20_000,
+      retries: { retries: 120, minTimeout: 250, maxTimeout: 1_000, factor: 1 },
+    });
+    if (abortSignal.aborted) {
+      await cleanup();
+      throw abortSignal.reason instanceof Error
+        ? abortSignal.reason
+        : new Error("Construct export cancelled");
+    }
+
+    if (seedProfile) {
+      const managedProfileInitialized = existsSync(join(managedProfile, "Default", "Preferences"));
+      log(
+        managedProfileInitialized
+          ? "Refreshing the project-scoped Construct profile from the selected Chromium profile"
+          : "Seeding the project-scoped Construct profile from the selected Chromium profile",
+      );
+      const indexedDbPathSource = join(seedProfile, "IndexedDB");
+      if (!existsSync(indexedDbPathSource)) {
+        log(`  [WARNING] Source IndexedDB directory does not exist: "${indexedDbPathSource}".`);
+      }
+      await preparePlaywrightProfile(seedProfile, managedProfile, log);
+    }
+    logElapsed("Construct managed profile ready after", profileSetupStartedAt);
+
+    log("Using project-scoped Construct profile from Pipelab cache");
+    browserContext = await browserInstance.launchPersistentContext(managedProfile, {
+      headless,
+      channel: browserChannel,
       locale: "en-US",
       recordVideo,
     });
-  } else {
-    browser = await browserInstance.launch({
-      headless: headless as boolean,
+
+    if (!browserContext) {
+      throw new Error("Failed to initialize browser context");
+    }
+    if (abortSignal.aborted) {
+      await cleanup();
+      throw abortSignal.reason instanceof Error
+        ? abortSignal.reason
+        : new Error("Construct export cancelled");
+    }
+    log("Using Playwright Chromium channel", browserChannel, "headless", headless);
+
+    const page = await browserContext.newPage();
+    video = page.video();
+    page.on("crash", () => {
+      pageCrashed = true;
+      log("Construct renderer crashed");
     });
 
-    browserContext = await browser.newContext({
-      locale: "en-US",
-      recordVideo,
+    const configuredTimeoutSeconds = Number(newInputs.timeout ?? 120);
+    const exportTimeoutMs =
+      Math.max(1, Number.isFinite(configuredTimeoutSeconds) ? configuredTimeoutSeconds : 120) *
+      1000;
+    page.setDefaultTimeout(exportTimeoutMs);
+
+    // this exact sequn=ence make it work
+    await page.addInitScript(() => {
+      // @ts-expect-error dds
+      delete self.showOpenFilePicker;
     });
-    await browserContext?.clearPermissions();
-  }
+    page.on("filechooser", (worker) => {
+      console.log("filechooser created: " + worker.page.name);
+    });
+    logElapsed("Construct browser initialized after", browserSetupStartedAt);
+    // ---------------------------------
 
-  if (!browserContext) {
-    throw new Error("Failed to initialize browser context");
-  }
-
-  const page = await browserContext.newPage();
-  const video = page.video();
-  let pageCrashed = false;
-  page.on("crash", () => {
-    pageCrashed = true;
-    log("Construct renderer crashed");
-  });
-
-  const configuredTimeoutSeconds = Number(newInputs.timeout ?? 120);
-  const exportTimeoutMs =
-    Math.max(1, Number.isFinite(configuredTimeoutSeconds) ? configuredTimeoutSeconds : 120) * 1000;
-  page.setDefaultTimeout(exportTimeoutMs);
-
-  // this exact sequn=ence make it work
-  await page.addInitScript(() => {
-    // @ts-expect-error dds
-    delete self.showOpenFilePicker;
-  });
-  page.on("filechooser", (worker) => {
-    console.log("filechooser created: " + worker.page.name);
-  });
-  // ---------------------------------
-
-  try {
     const result = await script(
       page,
       log,
       file,
       newInputs.username as string,
       newInputs.password as string,
-      version as string,
+      version,
       downloadDir,
       abortSignal,
       exportTimeoutMs,
+      Boolean(seedProfile),
       // addonsFolder,
     );
 

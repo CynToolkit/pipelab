@@ -1,7 +1,9 @@
-import { expect, test } from "vitest";
+import { expect, test, vi } from "vitest";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { preparePlaywrightProfile } from "./export-shared";
+import { fetchPackage, type ProviderHostContext } from "@pipelab/plugin-core";
+import dns from "node:dns/promises";
 
 test("copies the complete Construct profile and removes stale browser locks", async () => {
   const root = await mkdtemp(join("/tmp", "construct-profile-copy-"));
@@ -43,6 +45,50 @@ test("copies the complete Construct profile and removes stale browser locks", as
       ),
     ).rejects.toThrow();
   } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("uses an installed exact Playwright package without resolving npm metadata", async () => {
+  const root = await mkdtemp(join("/tmp", "construct-package-cache-"));
+  const packageName = "playwright-core";
+  const packageDir = join(root, "packages", packageName, "1.62.1");
+  const dnsLookup = vi
+    .spyOn(dns, "lookup")
+    .mockRejectedValue(new Error("network should not be used"));
+  const context: ProviderHostContext = {
+    releaseTag: "latest",
+    getPackagesPath: (...segments) => join(root, "packages", ...segments),
+    getThirdPartyPath: (...segments) => join(root, "third-party", ...segments),
+    getTempPath: (...segments) => join(root, "temp", ...segments),
+    createTempFolder: async (prefix = "temp-") => {
+      const path = join(root, "temp", prefix);
+      await mkdir(path, { recursive: true });
+      return path;
+    },
+    getCachePath: (folder = "pacote", ...segments) => join(root, "cache", folder, ...segments),
+    getPnpmPath: (...segments) => join(root, "pnpm", ...segments),
+    getNodePath: (version = "") => join(root, "node", version),
+    getConnectionsPath: () => join(root, "connections"),
+    ensureNodeJS: async () => process.execPath,
+    ensurePNPM: async () => "pnpm",
+    resolveBundledAsset: async (name) => name,
+  };
+
+  try {
+    await mkdir(join(packageDir, "node_modules", "installed-dependency"), { recursive: true });
+    await writeFile(
+      join(packageDir, "package.json"),
+      JSON.stringify({ name: packageName, version: "1.62.1" }),
+    );
+
+    const result = await fetchPackage(packageName, "1.62.1", { context, installDeps: true });
+
+    expect(result.packageDir).toBe(packageDir);
+    expect(result.resolvedVersion).toBe("1.62.1");
+    expect(dnsLookup).not.toHaveBeenCalled();
+  } finally {
+    dnsLookup.mockRestore();
     await rm(root, { recursive: true, force: true });
   }
 });

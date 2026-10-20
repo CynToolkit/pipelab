@@ -14,6 +14,48 @@ const CONSTRUCT_READY_TIMEOUT_MS = 15_000;
 const FILE_CHOOSER_TIMEOUT_MS = 5_000;
 const OPEN_RETRY_COUNT = 1;
 
+const logElapsed = (log: typeof console.log, label: string, startedAt: number) => {
+  log(label, `${Date.now() - startedAt} ms`);
+};
+
+type ConstructLoginData = { userID: string | number; token: string };
+type ConstructLoginResult =
+  | { loginData: ConstructLoginData; startedAt: number }
+  | { error: unknown; startedAt: number };
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const requestConstructLogin = async (
+  username: string,
+  password: string,
+): Promise<ConstructLoginData> => {
+  const formData = new FormData();
+  formData.append("username", username);
+  formData.append("password", password);
+  formData.append("productType", "games");
+
+  const response = await fetch("https://account.construct.net/login.json", {
+    method: "POST",
+    body: formData,
+  });
+  const payload: unknown = await response.json();
+  const request = isRecord(payload) && isRecord(payload.request) ? payload.request : undefined;
+  if (!request || request.status !== "ok") {
+    throw new Error(
+      typeof request?.errorMessage === "string" ? request.errorMessage : "Invalid credentials",
+    );
+  }
+
+  const login = isRecord(payload) && isRecord(payload.response) ? payload.response : undefined;
+  const userID = login?.userID;
+  const token = login?.token;
+  if ((typeof userID !== "string" && typeof userID !== "number") || typeof token !== "string") {
+    throw new Error("Construct account API returned an invalid login response");
+  }
+  return { userID, token };
+};
+
 const constructExportStatus = async (page: Page) => {
   const pageText = await page
     .locator("body")
@@ -75,6 +117,14 @@ export const clickConstructDownload = async (
   return result.download;
 };
 
+export const navigateToConstruct = async (page: Page, url: string, log: typeof console.log) => {
+  log("Navigating to URL", url);
+  const navigationStartedAt = Date.now();
+  await page.goto(url, { waitUntil: "domcontentloaded" });
+  log("Construct document ready after", `${Date.now() - navigationStartedAt} ms`);
+  log("after navigating, current URL:", page.url());
+};
+
 const isAbortError = (error: unknown) =>
   error instanceof Error && (error.name === "AbortError" || /aborted/i.test(error.message));
 
@@ -125,6 +175,7 @@ const getOpenButton = async (page: Page) => {
 };
 
 const waitForConstructReady = async (page: Page, signal: AbortSignal, log: typeof console.log) => {
+  const startedAt = Date.now();
   const deadline = Date.now() + CONSTRUCT_READY_TIMEOUT_MS;
   while (Date.now() < deadline) {
     throwIfAborted(signal);
@@ -143,7 +194,7 @@ const waitForConstructReady = async (page: Page, signal: AbortSignal, log: typeo
       throw new Error("Construct displayed its startup error screen");
     }
     if (await getOpenButton(page)) {
-      log("Construct project picker is ready");
+      logElapsed(log, "Construct project picker ready after", startedAt);
       return;
     }
     await delayWithAbort(Math.min(250, Math.max(1, deadline - Date.now())), signal);
@@ -214,30 +265,32 @@ export const openConstructProjectFile = async (
     throwIfAborted(signal);
     try {
       await waitForConstructReady(page, signal, log);
-      let fileChooser;
-      const openButton = await getOpenButton(page);
-      if (openButton) {
-        log('Clicking Construct "Open" button');
-        fileChooser = await waitForFileChooserAfter(page, signal, () =>
-          openButton.click({ timeout: 5_000 }),
-        );
-      }
+      const chooserStartedAt = Date.now();
+      let fileChooser = await waitForFileChooserAfter(page, signal, () =>
+        page.keyboard.press("ControlOrMeta+O"),
+      );
 
       if (!fileChooser) {
-        log("Open button did not produce a file chooser; trying Ctrl+O");
-        fileChooser = await waitForFileChooserAfter(page, signal, () =>
-          page.keyboard.press("ControlOrMeta+O"),
-        );
+        const openButton = await getOpenButton(page);
+        if (openButton) {
+          log('Ctrl+O did not produce a file chooser; trying Construct "Open" button');
+          fileChooser = await waitForFileChooserAfter(page, signal, () =>
+            openButton.click({ timeout: 5_000 }),
+          );
+        }
       }
 
       if (fileChooser) {
+        logElapsed(log, "Construct project file chooser opened after", chooserStartedAt);
         log("filechooser");
+        const fileSelectionStartedAt = Date.now();
         await fileChooser.setFiles([filePath]);
+        logElapsed(log, "Construct project file selected after", fileSelectionStartedAt);
         throwIfAborted(signal);
         log("Set file");
         return;
       }
-      lastError = new Error("Construct did not open a file chooser from its Open button or Ctrl+O");
+      lastError = new Error("Construct did not open a file chooser from Ctrl+O or its Open button");
     } catch (error) {
       if (isAbortError(error) || isRendererCrash(error)) throw error;
       lastError = error;
@@ -250,7 +303,9 @@ export const openConstructProjectFile = async (
     }
     if (attempt < OPEN_RETRY_COUNT) {
       log(`Construct file picker did not open; reloading once and retrying (${String(lastError)})`);
-      await page.reload({ waitUntil: "load", timeout: 15_000 });
+      const reloadStartedAt = Date.now();
+      await page.reload({ waitUntil: "domcontentloaded", timeout: 15_000 });
+      logElapsed(log, "Construct recovery reload ready after", reloadStartedAt);
       continue;
     }
   }
@@ -281,62 +336,61 @@ export const script = async (
   downloadDir: string,
   abortSignal: AbortSignal,
   exportTimeoutMs: number,
+  hasCustomProfile = false,
 ) => {
   let url = "https://editor.construct.net/";
   if (version) {
     url += version;
   }
-  log("Navigating to URL", url);
-  await page.goto(url, { waitUntil: "load" });
-  log("after navigating, current URL:", page.url());
+
+  const apiStartedAt = Date.now();
+  const apiLogin: Promise<ConstructLoginResult> | undefined =
+    username && password && !hasCustomProfile
+      ? requestConstructLogin(username, password).then(
+          (loginData) => ({ loginData, startedAt: apiStartedAt }),
+          (error: unknown) => ({ error, startedAt: apiStartedAt }),
+        )
+      : undefined;
+  await navigateToConstruct(page, url, log);
 
   if (username && password) {
+    const authenticationStartedAt = Date.now();
     // Wait for localforage to be available before checking existing auth state.
     await page.waitForFunction(() => typeof localforage !== "undefined", { timeout: 30000 });
 
-    // If a custom profile was used, the IndexedDB may already contain a valid
-    // login session — skip the API call if credentials are already present.
-    const alreadyLoggedIn = await page.evaluate(async () => {
+    const authState = await page.evaluate(async () => {
       const data = await localforage.getItem("login-data");
-      return data != null;
+      return data as { userID?: string | number; token?: string } | null;
     });
 
-    if (alreadyLoggedIn) {
+    if (authState) {
       log("Already authenticated via copied profile, skipping login");
     } else {
-      log("Directly authenticating via Construct 3 account API...");
-      const formData = new FormData();
-      formData.append("username", username);
-      formData.append("password", password);
-      formData.append("productType", "games");
-
-      const res = await fetch("https://account.construct.net/login.json", {
-        method: "POST",
-        body: formData,
-      });
-      const json = (await res.json()) as any;
-      if (json.request.status !== "ok") {
-        throw new Error(json.request.errorMessage || "Invalid credentials");
+      let loginData: ConstructLoginData;
+      if (apiLogin) {
+        const result = await apiLogin;
+        logElapsed(log, "Construct API authentication after", result.startedAt);
+        if ("error" in result) throw result.error;
+        loginData = result.loginData;
+      } else {
+        const fallbackApiStartedAt = Date.now();
+        loginData = await requestConstructLogin(username, password);
+        logElapsed(log, "Construct API authentication after", fallbackApiStartedAt);
       }
 
-      const { userID, token } = json.response;
-      log("API login successful, injecting credentials into browser context...");
-      log("Current URL before injection:", page.url());
+      log("Injecting Construct account session into the editor...");
 
-      // Inject credentials using the editor's own localforage instance
-      await page.evaluate(
-        async ({ userID, token }) => {
-          await localforage.setItem("login-data", { userID, token });
-        },
-        { userID, token },
-      );
-      log("Credentials injected successfully.");
+      await page.evaluate(async (data) => {
+        await localforage.setItem("login-data", data);
+      }, loginData);
+      log("Construct account session injected into the editor");
 
-      // Reload to pick up the new login state
       log("Reloading page to apply login state...");
-      await page.reload();
-      log("Page reloaded.");
+      const reloadStartedAt = Date.now();
+      await page.reload({ waitUntil: "domcontentloaded" });
+      logElapsed(log, "Construct auth reload ready after", reloadStartedAt);
     }
+    logElapsed(log, "Construct authentication setup after", authenticationStartedAt);
   }
 
   registerWelcomeToConstructListener(page, log);
@@ -348,15 +402,18 @@ export const script = async (
   registerSaveLoginExpiredistener(page, log);
 
   log("after event");
+  const projectOpenStartedAt = Date.now();
   await openConstructProjectFile(page, filePath, abortSignal, log, downloadDir);
 
   const progressDialog = page.locator("#progressDialog");
   const progessBar = progressDialog.locator(".progressBar");
 
   log("Waiting for progress dialog");
+  const projectLoadStart = Date.now();
   await progressDialog.waitFor({
     timeout: 0,
   });
+  logElapsed(log, "Construct project loading dialog appeared after", projectLoadStart);
   log("Got loading progress dialog");
 
   const progressInterval = setInterval(async () => {
@@ -372,11 +429,13 @@ export const script = async (
   }, 500);
 
   log("Waiting for progress dialog to disapear");
+  const projectReadyStart = Date.now();
   await progressDialog.waitFor({
     state: "detached",
     timeout: 0,
   });
-  log("Got progress dialog to disapear");
+  logElapsed(log, "Construct project loading dialog dismissed after", projectReadyStart);
+  logElapsed(log, "Construct project opened after", projectOpenStartedAt);
   clearInterval(progressInterval);
 
   const missingAddonsDialog = page.locator("#missingAddonsDialog");
@@ -385,21 +444,35 @@ export const script = async (
     throw new Error(`Construct reports a missing addon${details ? `: ${details}` : ""}`);
   }
 
+  const exportOptionsStartedAt = Date.now();
+  const exportMenuStartedAt = Date.now();
+  let actionStartedAt = Date.now();
   await page.getByRole("button", { name: "Menu" }).click();
+  logElapsed(log, "Construct menu button click after", actionStartedAt);
+  actionStartedAt = Date.now();
   await page.getByRole("menuitem", { name: "Project" }).click();
+  logElapsed(log, "Construct Project menu click after", actionStartedAt);
+  actionStartedAt = Date.now();
   await page.getByRole("menuitem", { name: "Export" }).click();
+  logElapsed(log, "Construct Export menu click after", actionStartedAt);
   log('"Export" clicked');
+  logElapsed(log, "Construct export menu selection after", exportMenuStartedAt);
+  const exportPlatformStartedAt = Date.now();
+  actionStartedAt = Date.now();
   await page
     .locator("ui-iconviewitem")
     .filter({ hasText: "Web (HTML5)" })
     .locator("ui-icon")
     .click();
+  logElapsed(log, "Construct Web platform click after", actionStartedAt);
   log('"Web" clicked');
 
   const platformDialog = page.locator("#exportSelectPlatformDialog");
   log("Waiting for Construct's export platform dialog");
+  const platformDialogStartedAt = Date.now();
   try {
     await platformDialog.waitFor({ state: "visible", timeout: 30_000 });
+    logElapsed(log, "Construct platform dialog ready after", platformDialogStartedAt);
   } catch (error) {
     const pageText = await page
       .locator("body")
@@ -413,22 +486,32 @@ export const script = async (
 
   const platformNext = platformDialog.getByRole("button", { name: "Next" });
   try {
+    const platformNextStartedAt = Date.now();
     await platformNext.waitFor({ state: "visible", timeout: 30_000 });
     if (!(await platformNext.isEnabled())) {
       throw new Error("the Next button is disabled");
     }
     await platformNext.click({ timeout: 30_000 });
+    logElapsed(log, "Construct platform Next click after", platformNextStartedAt);
   } catch (error) {
     throw new Error(
       `Construct's export platform dialog did not become ready${error instanceof Error ? `: ${error.message}` : ""}`,
     );
   }
+  logElapsed(log, "Construct export platform selection after", exportPlatformStartedAt);
   log("Export platform selected");
 
+  const standardOptionsStartedAt = Date.now();
   const standardOptionsDialog = page.locator("#exportStandardOptionsDialog");
   log("Waiting for Construct's standard export options");
+  const standardOptionsDialogStartedAt = Date.now();
   try {
     await standardOptionsDialog.waitFor({ state: "visible", timeout: 30_000 });
+    logElapsed(
+      log,
+      "Construct standard options dialog ready after",
+      standardOptionsDialogStartedAt,
+    );
   } catch (error) {
     const pageText = await page
       .locator("body")
@@ -442,12 +525,14 @@ export const script = async (
 
   const offlineSupport = standardOptionsDialog.getByLabel("Offline support");
   log("Waiting for the Offline support option");
+  const offlineSupportStartedAt = Date.now();
   try {
     await offlineSupport.waitFor({ state: "visible", timeout: 10_000 });
     if (!(await offlineSupport.isEnabled())) {
       throw new Error("the Offline support option is disabled");
     }
     if (await offlineSupport.isChecked()) await offlineSupport.uncheck({ timeout: 10_000 });
+    logElapsed(log, "Construct offline option ready after", offlineSupportStartedAt);
   } catch (error) {
     const dialogText = await standardOptionsDialog.innerText({ timeout: 2_000 }).catch(() => "");
     const context = dialogText.replace(/\s+/g, " ").trim().slice(0, 500);
@@ -459,10 +544,14 @@ export const script = async (
 
   const optionsNext = standardOptionsDialog.getByRole("button", { name: "Next" });
   log("Waiting for Construct's export options Next button");
+  const optionsNextStartedAt = Date.now();
   await optionsNext.waitFor({ state: "visible", timeout: 30_000 });
   if (!(await optionsNext.isEnabled()))
     throw new Error("Construct's export options Next button is disabled");
   await optionsNext.click({ timeout: 30_000 });
+  logElapsed(log, "Construct final Next click after", optionsNextStartedAt);
+  logElapsed(log, "Construct standard export options selection after", standardOptionsStartedAt);
+  logElapsed(log, "Construct Web export options selected after", exportOptionsStartedAt);
   log('"Next" clicked');
   log("Waiting for Construct to finish preparing its project download");
   const downloadButton = await waitForConstructExportDownload(

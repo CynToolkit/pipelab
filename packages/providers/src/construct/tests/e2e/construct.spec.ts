@@ -33,6 +33,7 @@ const makeSandbox = async () => {
 const taskServices = {
   context: { getThirdPartyPath: () => "/tmp/pipelab-thirdparty" },
   executables: { node: process.execPath, pnpm: "pnpm" },
+  run: { projectId: "construct-test-project" },
 } as unknown as ConstructWorkflowTaskServices;
 
 afterEach(async () => {
@@ -68,6 +69,33 @@ describe("Construct native workflow task", () => {
     expect(result.artifacts).toHaveLength(1);
     expect(result.artifacts[0]).toMatchObject({ artifact: "zipFile", path: "/output/project.zip" });
     expect(result.logs).toContain("Construct export complete");
+  });
+
+  it("logs setup time when Construct reaches Next", async () => {
+    const { root, file } = await makeSandbox();
+    exportMock.mockImplementation(async (_file, execution) => {
+      execution.log('"Next" clicked');
+      return {
+        folder: "/output/project.zip",
+        parentFolder: "/output",
+        zipFile: "/output/project.zip",
+      };
+    });
+
+    const result = await runWorkflowTask(constructExportWorkflowTaskFactory(taskServices), {
+      workspacePath: root,
+      inputs: { file },
+      artifacts: artifactDefinitions,
+      services: taskServices,
+    });
+    const durationIndex = result.logs.findIndex((log) =>
+      log.startsWith("Construct setup elapsed "),
+    );
+    const nextIndex = result.logs.indexOf('"Next" clicked');
+
+    expect(durationIndex).toBeGreaterThanOrEqual(0);
+    expect(result.logs[durationIndex]).toMatch(/^Construct setup elapsed \d+ ms$/);
+    expect(durationIndex).toBeLessThan(nextIndex);
   });
 
   it("surfaces export failures through workflow-runtime", async () => {
