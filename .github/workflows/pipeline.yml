@@ -2,9 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [develop, main, acceptance/local-construct-electron]
   pull_request:
-    branches: [develop, main]
   workflow_dispatch:
     inputs:
       run_authenticated_local_ship:
