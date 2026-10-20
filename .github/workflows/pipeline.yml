@@ -5,6 +5,13 @@ on:
     branches: [develop, main, acceptance/local-construct-electron]
   pull_request:
     branches: [develop, main]
+  workflow_dispatch:
+    inputs:
+      run_authenticated_local_ship:
+        description: Run disposable-profile Construct to Electron acceptance on all three platforms
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -51,7 +58,7 @@ jobs:
 
   authenticated-local-release:
     name: Authenticated local Ship / ${{ matrix.os }}
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/develop' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/acceptance/local-construct-electron')
+    if: github.event_name == 'workflow_dispatch' && inputs.run_authenticated_local_ship
     needs: local-release-platforms
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
