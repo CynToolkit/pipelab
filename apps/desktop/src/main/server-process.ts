@@ -20,6 +20,8 @@ import { getLocalCliRunner } from "./cli-runner";
 let serverProcess: ChildProcess | null = null;
 let serverPort: number | null = null;
 let serverPid: number | null = null;
+let serverCreationTime: string | undefined;
+let launcherCreationTime: string | undefined;
 let stoppingServerProcess: ChildProcess | null = null;
 let cleanupPendingProcess: ChildProcess | null = null;
 
@@ -130,7 +132,8 @@ export const startServer = async (): Promise<number> => {
     ...(isLocal && projectRoot ? { cwd: projectRoot } : {}),
     env: childEnv,
     desktopVersion: app.getVersion(),
-    onStartupFailure: (child, authenticatedPid) => stopCliProcessTree(child, authenticatedPid),
+    onStartupFailure: (child, authenticatedPid, authenticatedCreationTime, launcherCreation) =>
+      stopCliProcessTree(child, authenticatedPid, authenticatedCreationTime, launcherCreation),
     onSpawn: (child) => {
       serverProcess = child;
       console.info(`[Server] CLI child spawned (pid: ${child.pid ?? "unknown"})`);
@@ -182,6 +185,8 @@ export const startServer = async (): Promise<number> => {
   }
   serverPort = started.port;
   serverPid = started.serverPid;
+  serverCreationTime = started.serverCreationTime;
+  launcherCreationTime = started.launcherCreationTime;
 
   console.info(`[Server] Authenticated CLI server is ready on loopback port ${started.port}`);
   return started.port;
@@ -192,11 +197,18 @@ export const stopServer = async () => {
   if (child) {
     stoppingServerProcess = child;
     try {
-      await stopCliProcessTree(child, serverPid ?? undefined);
+      await stopCliProcessTree(
+        child,
+        serverPid ?? undefined,
+        serverCreationTime,
+        launcherCreationTime,
+      );
       if (serverProcess === child) {
         serverProcess = null;
         serverPort = null;
         serverPid = null;
+        serverCreationTime = undefined;
+        launcherCreationTime = undefined;
       }
       if (cleanupPendingProcess === child) cleanupPendingProcess = null;
     } catch (error) {

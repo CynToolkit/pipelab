@@ -8,7 +8,11 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { describe, it } from "node:test";
-import { startAuthenticatedCliProcess, stopCliProcessTree } from "./cli-bootstrap";
+import {
+  getWindowsProcessCreationTime,
+  startAuthenticatedCliProcess,
+  stopCliProcessTree,
+} from "./cli-bootstrap";
 import { getLocalCliRunner } from "./cli-runner";
 
 async function stopRecordedProcess(pid: number): Promise<void> {
@@ -118,6 +122,8 @@ describe("getLocalCliRunner", () => {
       stdio: ["ignore", "pipe", "ignore"],
     });
     let descendantPid: number | undefined;
+    let launcherCreationTime: string | undefined;
+    let descendantCreationTime: string | undefined;
 
     try {
       if (!parent.stdout) throw new Error("Windows process tree fixture has no output stream.");
@@ -140,21 +146,60 @@ describe("getLocalCliRunner", () => {
       }
       descendantPid = Number(String(pidChunk));
       assert.ok(Number.isSafeInteger(descendantPid) && descendantPid > 0);
+      if (process.platform === "win32") {
+        if (parent.pid === undefined) throw new Error("Windows process tree fixture has no PID.");
+        [launcherCreationTime, descendantCreationTime] = await Promise.all([
+          getWindowsProcessCreationTime(parent.pid),
+          getWindowsProcessCreationTime(descendantPid),
+        ]);
+      }
 
-      await stopCliProcessTree(parent);
+      await stopCliProcessTree(parent, descendantPid, descendantCreationTime, launcherCreationTime);
       assert.ok(Date.now() - startWaiting < 10_000);
       await waitForProcessExit(descendantPid);
       assert.equal(await isProcessRunning(descendantPid), false);
     } finally {
       try {
         if (parent.exitCode === null && parent.signalCode === null) {
-          await stopCliProcessTree(parent);
+          await stopCliProcessTree(
+            parent,
+            descendantPid,
+            descendantCreationTime,
+            launcherCreationTime,
+          );
         }
       } finally {
         if (descendantPid !== undefined) await stopRecordedProcess(descendantPid);
       }
     }
   });
+
+  it(
+    "reports a Windows same-PID cleanup failure even when the server PID is known",
+    { skip: process.platform !== "win32" },
+    async () => {
+      const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+        stdio: "ignore",
+      });
+      try {
+        assert.ok(child.pid !== undefined);
+        const creationTime = await getWindowsProcessCreationTime(child.pid);
+        const staleCreationTime = (BigInt(creationTime) + 10_000n).toString();
+
+        await assert.rejects(
+          stopCliProcessTree(child, child.pid, creationTime, staleCreationTime),
+          /Could not confirm termination of the Windows CLI process tree/,
+        );
+        await waitForProcessExit(child.pid);
+        assert.equal(await isProcessRunning(child.pid), false);
+      } finally {
+        if (child.pid !== undefined && (await isProcessRunning(child.pid))) {
+          child.kill();
+          await waitForProcessExit(child.pid);
+        }
+      }
+    },
+  );
 
   it("stops a CLI descendant after the wrapper has exited", async () => {
     const script = [
@@ -168,23 +213,24 @@ describe("getLocalCliRunner", () => {
       stdio: ["ignore", "pipe", "ignore"],
     });
     let descendantPid: number | undefined;
+    let descendantCreationTime: string | undefined;
     try {
       const [pidChunk] = await once(parent.stdout, "data");
       descendantPid = Number(String(pidChunk));
       assert.ok(Number.isSafeInteger(descendantPid) && descendantPid > 0);
+      if (process.platform === "win32") {
+        descendantCreationTime = await getWindowsProcessCreationTime(descendantPid);
+      }
       if (parent.exitCode === null && parent.signalCode === null) await once(parent, "close");
       assert.notEqual(parent.exitCode, null);
       assert.equal(await isProcessRunning(descendantPid), true);
 
       if (process.platform === "win32") {
-        await assert.rejects(
-          stopCliProcessTree(parent, descendantPid),
-          /cannot safely stop that process by PID/,
-        );
-        await stopRecordedProcess(descendantPid);
-        await stopCliProcessTree(parent, descendantPid);
+        await stopCliProcessTree(parent, descendantPid, descendantCreationTime);
+        await waitForProcessExit(descendantPid);
+        assert.equal(await isProcessRunning(descendantPid), false);
       } else {
-        await stopCliProcessTree(parent, descendantPid);
+        await stopCliProcessTree(parent, descendantPid, descendantCreationTime);
         await waitForProcessExit(descendantPid);
         await stopCliProcessTree(parent, descendantPid);
       }
@@ -192,6 +238,36 @@ describe("getLocalCliRunner", () => {
       if (descendantPid !== undefined) await stopRecordedProcess(descendantPid);
     }
   });
+
+  it(
+    "escalates process-group cleanup when the CLI server ignores SIGTERM",
+    { skip: process.platform === "win32" },
+    async () => {
+      const script = [
+        'import { spawn } from "node:child_process";',
+        'const child = spawn(process.execPath, ["-e", `process.on("SIGTERM", () => {}); process.stdout.write("READY"); setInterval(() => {}, 1000)`], { stdio: ["ignore", "pipe", "ignore"] });',
+        'child.stdout.once("data", () => { child.stdout.destroy(); child.unref(); process.stdout.write(String(child.pid)); });',
+      ].join("\n");
+      const parent = spawn(process.execPath, ["-e", script], {
+        detached: true,
+        stdio: ["ignore", "pipe", "ignore"],
+      });
+      let descendantPid: number | undefined;
+      try {
+        const [pidChunk] = await once(parent.stdout, "data");
+        descendantPid = Number(String(pidChunk));
+        assert.ok(Number.isSafeInteger(descendantPid) && descendantPid > 0);
+        if (parent.exitCode === null && parent.signalCode === null) await once(parent, "close");
+        assert.equal(await isProcessRunning(descendantPid), true);
+
+        await stopCliProcessTree(parent, descendantPid);
+        await waitForProcessExit(descendantPid);
+        assert.equal(await isProcessRunning(descendantPid), false);
+      } finally {
+        if (descendantPid !== undefined) await stopRecordedProcess(descendantPid);
+      }
+    },
+  );
 
   it(
     "starts the local TypeScript CLI on Windows",
@@ -211,6 +287,9 @@ describe("getLocalCliRunner", () => {
         configuredUserDataPath ?? (await mkdtemp(join(tmpdir(), "pipelab-desktop-cli-runner-")));
       let child: ChildProcess | undefined;
       let processTreeStopped = false;
+      let serverPid: number | undefined;
+      let serverCreationTime: string | undefined;
+      let launcherCreationTime: string | undefined;
       try {
         if (process.platform === "win32") {
           const runtimeEnvKeys = Object.keys(process.env)
@@ -237,16 +316,31 @@ describe("getLocalCliRunner", () => {
           onSpawn: (process) => {
             child = process;
           },
-          onStartupFailure: async (process) => {
-            await stopCliProcessTree(process);
+          onStartupFailure: async (
+            process,
+            authenticatedPid,
+            authenticatedCreationTime,
+            launcherCreation,
+          ) => {
+            await stopCliProcessTree(
+              process,
+              authenticatedPid,
+              authenticatedCreationTime,
+              launcherCreation,
+            );
             processTreeStopped = true;
           },
         });
         assert.ok(started.port > 0 && started.port <= 65535);
         assert.ok(child?.pid !== undefined);
+        serverPid = started.serverPid;
+        serverCreationTime = started.serverCreationTime;
+        launcherCreationTime = started.launcherCreationTime;
       } finally {
         try {
-          if (child && !processTreeStopped) await stopCliProcessTree(child);
+          if (child && !processTreeStopped) {
+            await stopCliProcessTree(child, serverPid, serverCreationTime, launcherCreationTime);
+          }
         } finally {
           if (!configuredUserDataPath) {
             await rm(userDataPath, { recursive: true, force: true });
