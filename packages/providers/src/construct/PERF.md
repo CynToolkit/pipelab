@@ -1,19 +1,67 @@
-# Construct setup baseline
+# Construct export performance
 
 The baseline for Pipelab's Construct setup is **28.6 seconds median**. The
 target is under 10 seconds. Setup ends when Pipelab clicks Construct's **Next**
 button; Construct's internal export preparation and download happen after that
 point and are excluded from this metric.
 
-With the warmed project-matched editor as the default, two low-pressure runs
-reached **Next in 10.027 and 8.361 seconds** (9.194-second median). The target
-is met on the repeat; selecting the explicit `latest` editor remains slower at
-16.533 seconds, including under low pre-run CPU pressure.
+The latest five-run warm benchmark averaged **26.576 seconds for the full
+export** and **20.458 seconds through Next** under elevated host CPU pressure.
+All five exports completed and their ZIPs passed inspection. This repeat did
+not meet the 10-second setup target. Earlier faster samples below remain
+historical observations, not a guarantee for every warm export.
 
-Three full warm exports completed in a mean of **15.981 seconds** from workflow
-task entry through successful ZIP artifact registration. They included
-Construct's internal export preparation and download; see the full-export
-measurements below.
+## Reviewed implementation: five full warm exports
+
+Measured on 2026-10-20 at commit
+`3198bcbc2db969291ea77adca5d97759729a39e0`, using Node **v24.19.0** and
+`NODE_ENV=production`. The task used Playwright's full Chromium with
+`channel: "chromium"`, `headless: true`, and no Xvfb or video. The existing
+dedicated seed and managed profile were reused; source-profile refresh still
+ran on every export. A blank version input selected the fixture's saved
+Construct release, `r397`.
+
+One warm-up completed in 25.812 seconds (21.552 seconds through Next), then
+exactly five exports were measured sequentially. The warm-up is excluded from
+the statistics, and no measured samples were discarded or replaced.
+
+| Run | CPU pressure before (`some avg10`) | CPU pressure after | Setup through **Next** | Full source task |
+| --- | ---: | ---: | ---: | ---: |
+| 1 | 51.79% | 81.45% | 19.582 s | 25.000 s |
+| 2 | 62.44% | 82.50% | 17.528 s | 23.518 s |
+| 3 | 69.98% | 84.16% | 21.111 s | 30.270 s |
+| 4 | 86.23% | 85.35% | 31.139 s | 35.902 s |
+| 5 | 38.46% | 72.72% | 12.929 s | 18.188 s |
+| **Mean** | — | — | **20.458 s** | **26.576 s** |
+| **Median** | — | — | **19.582 s** | **25.000 s** |
+| **Range** | — | — | **12.929–31.139 s** | **18.188–35.902 s** |
+
+Full duration uses a monotonic timer around `runWorkflowTask`, ending after
+the task returns with its registered ZIP artifact, including browser cleanup.
+Construct's internal export preparation and ZIP download are included;
+subsequent archive extraction is excluded. After stopping the timer, the
+harness checks that the registered file is a nonempty readable ZIP containing
+root `index.html`. Every measured ZIP was **389,254 bytes**, with a readable
+1,442-byte `index.html`. There were no failed warm-up or measured runs.
+
+The input was the existing small `test.c3p` fixture (54,288 bytes compressed),
+not a large user project or personal Chrome profile. CPU pressure was elevated
+throughout the series; `avg10` is a 10-second rolling pressure average. No
+local tests or builds ran concurrently, but background host load was not
+controlled. The earlier three-run mean of 15.981 seconds used Node 26 and
+different load conditions, so the difference cannot be attributed to the
+review fixes. These samples do not establish a universal warm export time.
+
+With the repository's Node 24 toolchain selected, one full invocation is:
+
+```sh
+doppler run --project pipelab --config dev \
+  --only-secrets CONSTRUCT_USERNAME,CONSTRUCT_PASSWORD --silent -- \
+  env -u CI -u DISPLAY -u CONSTRUCT_VERSION -u CONSTRUCT_PROFILE_PATH \
+  NODE_ENV=production CONSTRUCT_BENCHMARK_FULL_EXPORT=true \
+  CONSTRUCT_BENCHMARK_SEED_FROM_CACHE=true \
+  pnpm exec tsx packages/providers/.construct-benchmark.ts
+```
 
 ## Measurement
 
@@ -40,7 +88,7 @@ Four runs from one saved local release workflow's development history on
 - The under-10-second target was not met in these baseline runs.
 
 For context, the corresponding full source-step durations were 23.459 s,
-64.739 s, 42.912 s, and 27.841 s (35.4 s median). These include work after the
+64.739 s, 42.912 s, and 27.841 s (39.738 s mean; 35.4 s median). These include work after the
 **Next** click and are not the setup baseline. The Construct source step
 completed in each sample; some containing workflows failed in later steps. The
 provider's 120-second default timeout is a ceiling, not an observed baseline.
@@ -695,11 +743,13 @@ seconds**. Profile refresh took 134 ms; project open took 9.542 seconds and
 the export-options sequence took 5.210 seconds. This confirms the slower
 latest-editor path is not explained by the observed CPU pressure alone.
 
-## Full warm export
+## Earlier full warm export (Node 26)
 
 Three runs completed the Construct source task through ZIP artifact
 registration, using the same warmed project-scoped profile, the matching
-`r397` editor, and full Chromium in headless mode. Full duration is measured
+`r397` editor, Node v26.7.0, and full Chromium in headless mode. This earlier
+series checked task completion and artifact registration; the later harness
+also inspects the ZIP contents. Full duration is measured
 from `runWorkflowTask` invocation through its successful return. It includes
 setup through **Next**, Construct's export preparation and ZIP download, and
 artifact registration; it excludes subsequent workflow steps such as archive

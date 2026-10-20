@@ -25,5 +25,5 @@ If required profile data cannot be refreshed, the export stops instead of
 using stale session or addon data. The selected profile must contain a valid
 Construct session when the task has no credentials to renew it.
 
-See [PERF.md](./PERF.md) for the measured local setup-time baseline and its
-conditions.
+See [PERF.md](./PERF.md) for the local setup and full-export measurements and
+their conditions.
