@@ -5,11 +5,70 @@ target is under 10 seconds. Setup ends when Pipelab clicks Construct's **Next**
 button; Construct's internal export preparation and download happen after that
 point and are excluded from this metric.
 
-The latest five-run warm benchmark averaged **26.576 seconds for the full
-export** and **20.458 seconds through Next** under elevated host CPU pressure.
-All five exports completed and their ZIPs passed inspection. This repeat did
-not meet the 10-second setup target. Earlier faster samples below remain
-historical observations, not a guarantee for every warm export.
+The latest five-run warm benchmark at `ec126fea` averaged **10.921 seconds
+for the full export** and **8.021 seconds through Next**. All five ZIPs passed
+inspection. These measurements use the existing F6 implementation; none of the
+30 subsequent optimization ideas demonstrated a consistent several-second gain.
+Host load differs from earlier measurements, so the lower observed time cannot
+be attributed to a new optimization.
+
+## Latest baseline and optimization investigation
+
+Measured on 2026-10-20 using Node 24.19.0, full Chromium
+151.0.7922.34, headless mode, the same small r397 fixture and dedicated warm
+profile. Source-profile refresh ran inside every measured task. One warm-up
+(7.414 s setup / 9.704 s full) was excluded, followed by exactly five measured
+exports; no measured samples were discarded.
+
+| Run | Setup through Next | Full source task | CPU pressure before → after (`some avg10`) |
+| --- | ---: | ---: | ---: |
+| 1 | 8.871 s | 11.183 s | 30.89% → 42.44% |
+| 2 | 8.073 s | 10.578 s | 38.06% → 46.06% |
+| 3 | 7.623 s | 10.249 s | 41.34% → 44.00% |
+| 4 | 7.657 s | 10.260 s | 39.29% → 47.35% |
+| 5 | 7.880 s | 12.333 s | 42.58% → 54.92% |
+| **Mean** | **8.021 s** | **10.921 s** | — |
+| **Median** | **7.880 s** | **10.578 s** | — |
+
+Full time includes Construct's internal export, ZIP download, artifact
+registration and browser cleanup; archive inspection and extraction are
+excluded. Every ZIP was readable, 389,254 bytes, with root `index.html`.
+These results do not establish a load-independent guarantee or performance for
+large projects.
+
+Thirty distinct candidates were screened in ten rounds of three:
+
+| Round | Candidates | Outcome |
+| --- | --- | --- |
+| 1 | Offline cached URL; remove dialog pollers; smaller viewport | Offline failed; no confirmed speedup; removing dialog handling is diagnostic only. |
+| 2 | Canonical offline URL; SwiftShader; CSS animations disabled | Offline failed; no several-second improvement. |
+| 3 | Suppress restored tabs; lower canvas scale; disable GPU | No gain; repeated GPU trials were slower than controls. |
+| 4 | Skip final dialog/page close; newer Chromium; block tracking | No confirmed gain; newer browser failed export. |
+| 5 | One raster thread; single-threaded V8; renderer process limit | No confirmed gain; V8 retested below. |
+| 6 | Synchronous processing; skip WebGPU probe; disable WebGL | No confirmed gain. |
+| 7 | One Construct worker; native animation toggle; default workspace | Differences remained within noise. |
+| 8 | Disable JS optimization; disable Wasm tiering; eager JS compilation | Retested with separate warm caches below. |
+| 9 | Skip Start Page; simplified UI; mobile UI | No gain; mobile UI failed export. |
+| 10 | Disable ZIP workers; one hardware-thread hint; disable UI effects | Applied overrides verified; no gain. Initial unapplied ZIP/hardware samples excluded. |
+
+[V8 rejects compiled-code caches when compiler flags differ](https://github.com/v8/v8/blob/main/src/snapshot/code-serializer.cc). Compiler candidates
+therefore received separate cloned profiles, two successful warm-ups each,
+and three measured exports each, interleaved with controls in reversed order.
+Source-profile refresh still ran every time. All 15 measured exports produced
+verified ZIPs. Identical project CPU telemetry was enabled for this comparison.
+
+| Compiler mode | Mean setup | Mean full task | Full-task difference from control |
+| --- | ---: | ---: | ---: |
+| Control | 8.230 s | 10.792 s | — |
+| Eager compilation | 8.077 s | 10.755 s | −0.037 s |
+| JS optimization disabled | 7.970 s | 10.220 s | −0.572 s |
+| Wasm tiering disabled | 8.467 s | 10.952 s | +0.160 s |
+| Single-threaded V8 | 8.142 s | 10.692 s | −0.100 s |
+
+None meets the requested several-second improvement. No experimental provider
+behavior was retained. CPU pressure varied throughout; these small differences
+are insufficient evidence for adoption. The baseline remains the unchanged F6
+implementation. The earlier elevated-load measurements are retained below.
 
 ## Reviewed implementation: five full warm exports
 
