@@ -3,6 +3,18 @@ import type { WorkflowTask } from "@pipelab/workflow-runtime";
 import StreamZip from "node-stream-zip";
 import { exportc3p, type ConstructExportExecutionContext } from "./export-shared.js";
 
+export const formatSavedConstructVersion = (savedWithRelease: unknown): string | undefined => {
+  if (typeof savedWithRelease !== "number" || !Number.isSafeInteger(savedWithRelease)) {
+    return undefined;
+  }
+
+  const release = Math.floor(savedWithRelease / 100);
+  if (release <= 0) return undefined;
+
+  const patch = savedWithRelease % 100;
+  return `r${release}${patch > 0 ? `-${patch}` : ""}`;
+};
+
 const getSavedConstructVersion = async (file: string): Promise<string | undefined> => {
   // Construct archives created on Windows can contain backslashes in entry
   // names; we only read the fixed root project.c3proj entry and never extract.
@@ -16,14 +28,7 @@ const getSavedConstructVersion = async (file: string): Promise<string | undefine
       return undefined;
     }
 
-    const savedWithRelease = project.savedWithRelease;
-    if (typeof savedWithRelease !== "number" || !Number.isSafeInteger(savedWithRelease)) {
-      return undefined;
-    }
-
-    const release =
-      savedWithRelease >= 10_000 ? Math.floor(savedWithRelease / 100) : savedWithRelease;
-    return release > 0 ? `r${release}` : undefined;
+    return formatSavedConstructVersion(project.savedWithRelease);
   } catch {
     return undefined;
   } finally {

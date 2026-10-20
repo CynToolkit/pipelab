@@ -601,23 +601,23 @@ The source-profile refresh path was then exercised by using the existing
 benchmark profile as a stand-in source. On a warm latest-editor repeat, profile
 setup took **147 ms**, the profile occupied **8,699,904 bytes**, and setup
 reached **Next in 16.715 seconds**. The pre-run CPU pressure was 6.59% over 10
-minutes. Switching that managed profile to `r397` reached **Next in 12.508
+seconds. Switching that managed profile to `r397` reached **Next in 12.508
 seconds** on the first run and **15.162 seconds** on a repeat. The repeat was
-followed by CPU pressure at 49.51% over 10 minutes, so it is not a controlled
+followed by CPU pressure at 49.51% over 10 seconds, so it is not a controlled
 comparison with the first run. The sync itself took 209–240 ms in the two
 `r397` trials. The profile copy preserved the managed cache directories.
 
 An earlier first run through this copied-profile path took **38.371 seconds**
-while post-run CPU pressure was 59.61% over 10 minutes. It is retained as a
+while post-run CPU pressure was 59.61% over 10 seconds. It is retained as a
 contended diagnostic and is not representative timing evidence. None of these
 latest-editor or version-switch trials reached the 10-second target.
 
 After both editor-version caches were present, three more warm `r397` runs
 used the same source-profile refresh path. The first two reached **Next in
 9.619 and 9.849 seconds** with CPU pressure at 13.19% and 11.20% over 10
-minutes before each run. Profile refresh took 177 and 194 ms. A third repeat
+seconds before each run. Profile refresh took 177 and 194 ms. A third repeat
 took **18.239 seconds**; CPU pressure immediately afterward was 63.97% over 10
-minutes. The managed profile was about **10 MB** after caching both versions.
+seconds. The managed profile was about **10 MB** after caching both versions.
 The source was a previously managed benchmark profile, not a user's Chrome
 profile, so the copy timing is representative of the sync code but not of a
 large personal browser profile.
@@ -627,7 +627,7 @@ It spent 12.872 seconds with the project-loading dialog open, then 2.690
 seconds on the Construct menu button, 2.016 seconds selecting the Project menu,
 and 4.023 seconds selecting Web. The platform and standard-options dialogs
 became ready in under half a second. CPU pressure immediately afterward was
-79.84% over 10 minutes; this run does not isolate Construct's normal UI cost.
+79.84% over 10 seconds; this run does not isolate Construct's normal UI cost.
 
 A further warm latest-editor run using the per-run profile refresh reached
 **Next in 19.743 seconds**. Profile refresh took 164 ms, project open took

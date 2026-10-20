@@ -1,7 +1,8 @@
 import { expect, test, vi } from "vitest";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { preparePlaywrightProfile } from "./export-shared";
+import lockfile from "proper-lockfile";
+import { acquireManagedProfileLock, preparePlaywrightProfile } from "./export-shared";
 import { fetchPackage, type ProviderHostContext } from "@pipelab/plugin-core";
 import dns from "node:dns/promises";
 
@@ -44,6 +45,77 @@ test("copies the complete Construct profile and removes stale browser locks", as
         ),
       ),
     ).rejects.toThrow();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("aborting a profile lock wait does not leave a late lock behind", async () => {
+  const root = await mkdtemp(join("/tmp", "construct-profile-lock-"));
+  const profile = join(root, "profile");
+  await mkdir(profile, { recursive: true });
+  const releaseHolder = await lockfile.lock(profile, { retries: 0 });
+  let holderReleased = false;
+
+  try {
+    const abortController = new AbortController();
+    const waitingForLock = acquireManagedProfileLock(profile, abortController.signal);
+    await new Promise<void>((resolveDelay) => setTimeout(resolveDelay, 25));
+    abortController.abort(new Error("Construct export cancelled"));
+    await expect(waitingForLock).rejects.toThrow("Construct export cancelled");
+
+    await releaseHolder();
+    holderReleased = true;
+    const releaseAfterCancellation = await acquireManagedProfileLock(
+      profile,
+      new AbortController().signal,
+    );
+    await releaseAfterCancellation();
+  } finally {
+    if (!holderReleased) await releaseHolder().catch(() => {});
+    await rm(root, { recursive: true, force: true });
+  }
+}, 5_000);
+
+test("cancelling profile refresh stops the remaining recursive copy", async () => {
+  const root = await mkdtemp(join("/tmp", "construct-profile-copy-abort-"));
+  const source = join(root, "source");
+  const destination = join(root, "destination");
+  const controller = new AbortController();
+
+  try {
+    await mkdir(join(source, "Cache"), { recursive: true });
+    await writeFile(join(source, "Cache", "cached-response"), "transient");
+    await writeFile(join(source, "Preferences"), "selected profile");
+
+    await expect(
+      preparePlaywrightProfile(
+        source,
+        destination,
+        () => controller.abort(new Error("Construct export cancelled")),
+        controller.signal,
+      ),
+    ).rejects.toThrow("Construct export cancelled");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a missing selected-profile Preferences file rejects before changing managed profile data", async () => {
+  const root = await mkdtemp(join("/tmp", "construct-profile-copy-required-"));
+  const source = join(root, "source");
+  const destination = join(root, "destination");
+  const oldPreferences = join(destination, "Default", "Preferences");
+
+  try {
+    await mkdir(source, { recursive: true });
+    await mkdir(join(destination, "Default"), { recursive: true });
+    await writeFile(oldPreferences, "previous profile data");
+
+    await expect(preparePlaywrightProfile(source, destination)).rejects.toThrow(
+      "readable regular Preferences file",
+    );
+    await expect(readFile(oldPreferences, "utf8")).resolves.toBe("previous profile data");
   } finally {
     await rm(root, { recursive: true, force: true });
   }

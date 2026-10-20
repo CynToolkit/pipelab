@@ -1,8 +1,11 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { homedir, tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { performance } from "node:perf_hooks";
 import { execa } from "execa";
+import StreamZip from "node-stream-zip";
 import { runWorkflowTask } from "@pipelab/test-utils";
 import type { ConstructWorkflowTaskServices } from "./src/construct/export-c3p.js";
 import { constructExportWorkflowTaskFactory } from "./src/construct/export-c3p.js";
@@ -66,8 +69,58 @@ const profilePath = context.getCachePath(
   "profiles",
   profileScope(profileIdentity),
 );
+const managedProfileExistedBefore = existsSync(profilePath);
 const redact = (line: string) =>
   line.replaceAll(username, "[REDACTED]").replaceAll(password, "[REDACTED]");
+const readCpuPressureAvg10 = async (): Promise<string | undefined> => {
+  if (process.platform !== "linux") return undefined;
+  try {
+    const lines = (await readFile("/proc/pressure/cpu", "utf8")).split(/\r?\n/);
+    const somePressure = lines.find((line) => line.startsWith("some "));
+    return somePressure?.match(/(?:^|\s)avg10=([\d.]+)/)?.[1];
+  } catch {
+    return undefined;
+  }
+};
+const logCpuPressure = (phase: "BEFORE" | "AFTER", avg10: string | undefined): void => {
+  if (process.platform !== "linux") return;
+  console.log(`CONSTRUCT_CPU_PRESSURE_SOME_AVG10_${phase}=${avg10 ?? "unavailable"}`);
+};
+const verifyRegisteredZip = async (zipPath: string) => {
+  const zipStat = await stat(zipPath).catch(() => undefined);
+  if (!zipStat?.isFile() || zipStat.size <= 0) {
+    throw new Error("Registered Construct ZIP is missing or empty");
+  }
+
+  let archive: InstanceType<typeof StreamZip.async>;
+  try {
+    archive = new StreamZip.async({ file: zipPath });
+  } catch {
+    throw new Error("Registered Construct ZIP is unreadable");
+  }
+
+  try {
+    let indexEntry: Awaited<ReturnType<typeof archive.entry>>;
+    try {
+      indexEntry = await archive.entry("index.html");
+    } catch {
+      throw new Error("Registered Construct ZIP is unreadable");
+    }
+    if (!indexEntry || indexEntry.isDirectory) {
+      throw new Error("Registered Construct ZIP does not contain root index.html");
+    }
+
+    let indexContent: Buffer;
+    try {
+      indexContent = await archive.entryData(indexEntry);
+    } catch {
+      throw new Error("Registered Construct ZIP index.html is unreadable");
+    }
+    return { zipBytes: zipStat.size, indexHtmlBytes: indexContent.byteLength };
+  } finally {
+    await archive.close().catch(() => {});
+  }
+};
 const logger = {
   info(...args: unknown[]) {
     const line = args.map(String).join(" ");
@@ -115,10 +168,16 @@ const logger = {
   },
 };
 
+console.log(`CONSTRUCT_BENCHMARK_NODE_VERSION=${process.version}`);
+console.log(`CONSTRUCT_MANAGED_PROFILE_EXISTED_BEFORE=${managedProfileExistedBefore}`);
+
 try {
+  let cpuPressureAfterLogged = false;
   try {
-    const workflowStartedAt = Date.now();
-    await runWorkflowTask(constructExportWorkflowTaskFactory(services), {
+    const cpuPressureBefore = await readCpuPressureAvg10();
+    logCpuPressure("BEFORE", cpuPressureBefore);
+    const workflowStartedAt = performance.now();
+    const workflowResult = await runWorkflowTask(constructExportWorkflowTaskFactory(services), {
       workspacePath,
       inputs: {
         file: fixture,
@@ -132,11 +191,27 @@ try {
       services,
       host: { logger },
     });
-    workflowCompleted = true;
+    // Stop the task timer as soon as the registered workflow task returns.
+    // ZIP inspection below is deliberately outside the measured duration.
+    const fullExportMs = Math.round(performance.now() - workflowStartedAt);
+    logCpuPressure("AFTER", await readCpuPressureAvg10());
+    cpuPressureAfterLogged = true;
     if (measureFullExport) {
-      console.log(`CONSTRUCT_FULL_EXPORT_MS=${Date.now() - workflowStartedAt}`);
+      const registeredZip = workflowResult.artifacts.find(
+        (artifact) => artifact.artifact === "zipFile",
+      );
+      if (!registeredZip) throw new Error("Construct export did not register a ZIP artifact");
+      const zip = await verifyRegisteredZip(registeredZip.path);
+      console.log(`CONSTRUCT_FULL_EXPORT_MS=${fullExportMs}`);
+      console.log(`CONSTRUCT_REGISTERED_ZIP_BYTES=${zip.zipBytes}`);
+      console.log(`CONSTRUCT_REGISTERED_ZIP_INDEX_HTML_BYTES=${zip.indexHtmlBytes}`);
+      console.log("CONSTRUCT_REGISTERED_ZIP_VERIFIED=true");
     }
+    workflowCompleted = true;
   } catch (error) {
+    if (!cpuPressureAfterLogged) {
+      logCpuPressure("AFTER", await readCpuPressureAvg10());
+    }
     // Setup-only runs intentionally stop after Next; full runs continue to ZIP completion.
     if (measureFullExport || !(error instanceof Error) || error.message !== stopAtNext) {
       const message = error instanceof Error ? error.message : String(error);

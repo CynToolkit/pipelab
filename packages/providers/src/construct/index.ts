@@ -26,9 +26,17 @@ export const constructSource: ReleaseSourceDefinition = {
       required: true,
       deferUntilEditor: true,
     },
+    {
+      key: "version",
+      type: "text",
+      label: "Construct version",
+      description:
+        "Leave blank to use the release saved with the project. Enter latest or a release such as r397 to override it.",
+      required: false,
+    },
   ],
   output: { kind: "application", platform: "web", container: "directory" },
-  createDefaultConfig: () => ({ path: "", profilePath: "" }),
+  createDefaultConfig: () => ({ path: "", profilePath: "", version: "" }),
   validate: (config) => [
     ...(typeof config.path === "string" && config.path
       ? []
@@ -97,7 +105,11 @@ export const constructSource: ReleaseSourceDefinition = {
       {
         id: "construct-source-export",
         uses: "@pipelab/plugin-construct/export-construct-project",
-        with: { file: String(config.path || ""), customProfile: String(config.profilePath || "") },
+        with: {
+          file: String(config.path || ""),
+          customProfile: String(config.profilePath || ""),
+          version: String(config.version || ""),
+        },
         artifacts: {
           zipFile: {
             descriptor: {

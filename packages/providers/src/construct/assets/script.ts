@@ -12,6 +12,7 @@ import {
 
 const CONSTRUCT_READY_TIMEOUT_MS = 15_000;
 const FILE_CHOOSER_TIMEOUT_MS = 5_000;
+const CONSTRUCT_API_TIMEOUT_MS = 30_000;
 const OPEN_RETRY_COUNT = 1;
 
 const logElapsed = (log: typeof console.log, label: string, startedAt: number) => {
@@ -26,10 +27,17 @@ type ConstructLoginResult =
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
-const requestConstructLogin = async (
+export const requestConstructLogin = async (
   username: string,
   password: string,
+  abortSignal: AbortSignal,
+  timeoutMs = CONSTRUCT_API_TIMEOUT_MS,
 ): Promise<ConstructLoginData> => {
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    throw new Error("Construct account request timeout must be a positive number");
+  }
+
+  throwIfAborted(abortSignal);
   const formData = new FormData();
   formData.append("username", username);
   formData.append("password", password);
@@ -38,6 +46,7 @@ const requestConstructLogin = async (
   const response = await fetch("https://account.construct.net/login.json", {
     method: "POST",
     body: formData,
+    signal: AbortSignal.any([abortSignal, AbortSignal.timeout(timeoutMs)]),
   });
   const payload: unknown = await response.json();
   const request = isRecord(payload) && isRecord(payload.request) ? payload.request : undefined;
@@ -50,10 +59,49 @@ const requestConstructLogin = async (
   const login = isRecord(payload) && isRecord(payload.response) ? payload.response : undefined;
   const userID = login?.userID;
   const token = login?.token;
-  if ((typeof userID !== "string" && typeof userID !== "number") || typeof token !== "string") {
+  if (
+    (typeof userID !== "string" && typeof userID !== "number") ||
+    typeof token !== "string" ||
+    token.length === 0
+  ) {
     throw new Error("Construct account API returned an invalid login response");
   }
   return { userID, token };
+};
+
+const isConstructLoginData = (value: unknown): value is ConstructLoginData =>
+  isRecord(value) &&
+  (typeof value.userID === "string" || typeof value.userID === "number") &&
+  typeof value.token === "string" &&
+  value.token.length > 0;
+
+export const getConstructLoginData = async (
+  authState: unknown,
+  apiLogin: Promise<ConstructLoginResult> | undefined,
+  username: string,
+  password: string,
+  abortSignal: AbortSignal,
+  log: typeof console.log,
+): Promise<ConstructLoginData | undefined> => {
+  throwIfAborted(abortSignal);
+
+  if (apiLogin) {
+    const result = await apiLogin;
+    throwIfAborted(abortSignal);
+    logElapsed(log, "Construct API authentication after", result.startedAt);
+    if ("error" in result) throw result.error;
+    return result.loginData;
+  }
+
+  if (isConstructLoginData(authState)) {
+    log("Already authenticated via copied profile, skipping login");
+    return undefined;
+  }
+
+  const fallbackApiStartedAt = Date.now();
+  const loginData = await requestConstructLogin(username, password, abortSignal);
+  logElapsed(log, "Construct API authentication after", fallbackApiStartedAt);
+  return loginData;
 };
 
 const constructExportStatus = async (page: Page) => {
@@ -143,6 +191,68 @@ const createAbortError = (signal: AbortSignal) => {
 
 const throwIfAborted = (signal: AbortSignal) => {
   if (signal.aborted) throw createAbortError(signal);
+};
+
+const waitForLocatorWithAbort = async (
+  locator: Locator,
+  options: { state?: "attached" | "detached" | "visible" | "hidden"; timeout: number },
+  signal: AbortSignal,
+) => {
+  throwIfAborted(signal);
+  let onAbort: (() => void) | undefined;
+  const aborted = new Promise<never>((_resolve, reject) => {
+    onAbort = () => reject(createAbortError(signal));
+    signal.addEventListener("abort", onAbort, { once: true });
+    if (signal.aborted) onAbort();
+  });
+
+  try {
+    await Promise.race([locator.waitFor(options), aborted]);
+    throwIfAborted(signal);
+  } finally {
+    if (onAbort) signal.removeEventListener("abort", onAbort);
+  }
+};
+
+export const waitForConstructProjectLoad = async (
+  page: Page,
+  timeoutMs: number,
+  abortSignal: AbortSignal,
+  log: typeof console.log,
+) => {
+  const progressDialog = page.locator("#progressDialog");
+  const progressBar = progressDialog.locator(".progressBar");
+
+  log("Waiting for progress dialog");
+  const projectLoadStartedAt = Date.now();
+  await waitForLocatorWithAbort(progressDialog, { timeout: timeoutMs }, abortSignal);
+  logElapsed(log, "Construct project loading dialog appeared after", projectLoadStartedAt);
+  log("Got loading progress dialog");
+
+  const progressInterval = setInterval(async () => {
+    try {
+      const text = await progressBar.getAttribute("value", { timeout: 100 });
+      if (text === null) return;
+      const textAsNumber = parseFloat(text);
+      const finalText = Number.isNaN(textAsNumber) ? 0 : textAsNumber;
+      log("progress", `${finalText * 100}%`);
+    } catch {
+      clearInterval(progressInterval);
+    }
+  }, 500);
+
+  log("Waiting for progress dialog to disapear");
+  const projectReadyStartedAt = Date.now();
+  try {
+    await waitForLocatorWithAbort(
+      progressDialog,
+      { state: "detached", timeout: timeoutMs },
+      abortSignal,
+    );
+    logElapsed(log, "Construct project loading dialog dismissed after", projectReadyStartedAt);
+  } finally {
+    clearInterval(progressInterval);
+  }
 };
 
 const delayWithAbort = async (duration: number, signal: AbortSignal) => {
@@ -338,6 +448,7 @@ export const script = async (
   exportTimeoutMs: number,
   hasCustomProfile = false,
 ) => {
+  throwIfAborted(abortSignal);
   let url = "https://editor.construct.net/";
   if (version) {
     url += version;
@@ -346,12 +457,13 @@ export const script = async (
   const apiStartedAt = Date.now();
   const apiLogin: Promise<ConstructLoginResult> | undefined =
     username && password && !hasCustomProfile
-      ? requestConstructLogin(username, password).then(
+      ? requestConstructLogin(username, password, abortSignal).then(
           (loginData) => ({ loginData, startedAt: apiStartedAt }),
           (error: unknown) => ({ error, startedAt: apiStartedAt }),
         )
       : undefined;
   await navigateToConstruct(page, url, log);
+  throwIfAborted(abortSignal);
 
   if (username && password) {
     const authenticationStartedAt = Date.now();
@@ -360,24 +472,19 @@ export const script = async (
 
     const authState = await page.evaluate(async () => {
       const data = await localforage.getItem("login-data");
-      return data as { userID?: string | number; token?: string } | null;
+      return data as unknown;
     });
 
-    if (authState) {
-      log("Already authenticated via copied profile, skipping login");
-    } else {
-      let loginData: ConstructLoginData;
-      if (apiLogin) {
-        const result = await apiLogin;
-        logElapsed(log, "Construct API authentication after", result.startedAt);
-        if ("error" in result) throw result.error;
-        loginData = result.loginData;
-      } else {
-        const fallbackApiStartedAt = Date.now();
-        loginData = await requestConstructLogin(username, password);
-        logElapsed(log, "Construct API authentication after", fallbackApiStartedAt);
-      }
+    const loginData = await getConstructLoginData(
+      authState,
+      apiLogin,
+      username,
+      password,
+      abortSignal,
+      log,
+    );
 
+    if (loginData) {
       log("Injecting Construct account session into the editor...");
 
       await page.evaluate(async (data) => {
@@ -404,39 +511,8 @@ export const script = async (
   log("after event");
   const projectOpenStartedAt = Date.now();
   await openConstructProjectFile(page, filePath, abortSignal, log, downloadDir);
-
-  const progressDialog = page.locator("#progressDialog");
-  const progessBar = progressDialog.locator(".progressBar");
-
-  log("Waiting for progress dialog");
-  const projectLoadStart = Date.now();
-  await progressDialog.waitFor({
-    timeout: 0,
-  });
-  logElapsed(log, "Construct project loading dialog appeared after", projectLoadStart);
-  log("Got loading progress dialog");
-
-  const progressInterval = setInterval(async () => {
-    try {
-      const text = await progessBar.getAttribute("value", { timeout: 100 });
-      if (text === null) return;
-      const textAsNumber = parseFloat(text);
-      const finalText = Number.isNaN(textAsNumber) ? 0 : textAsNumber;
-      log("progress", `${finalText * 100}%`);
-    } catch {
-      clearInterval(progressInterval);
-    }
-  }, 500);
-
-  log("Waiting for progress dialog to disapear");
-  const projectReadyStart = Date.now();
-  await progressDialog.waitFor({
-    state: "detached",
-    timeout: 0,
-  });
-  logElapsed(log, "Construct project loading dialog dismissed after", projectReadyStart);
+  await waitForConstructProjectLoad(page, exportTimeoutMs, abortSignal, log);
   logElapsed(log, "Construct project opened after", projectOpenStartedAt);
-  clearInterval(progressInterval);
 
   const missingAddonsDialog = page.locator("#missingAddonsDialog");
   if (await missingAddonsDialog.isVisible()) {

@@ -14,6 +14,9 @@ Add **Construct project** as the source, then choose:
 
 The source compiles to an export action followed by an unzip action. Its final artifact is an application for **web**, stored as a **directory**. Use that artifact as input to a compatible producer or destination.
 
+Exports run in Chromium's full headless mode by default and do not require
+Xvfb. Native Workflow tasks can set `headless: false` for visual debugging.
+
 ## Requirements and failures
 
 Choose a compatible local Chromium profile that can access the Construct editor and project. Pipelab refreshes its managed profile from the selected profile before each run, while keeping the managed browser and Construct cache in place. This picks up current login state and installed Construct addons without requiring a profile reset. The managed profile is scoped to the Pipelab project and selected browser profile; changing Construct versions for that project reuses the same profile. Pipelab does not modify the selected browser profile. Same-profile exports run one at a time.
@@ -22,9 +25,18 @@ When **Construct version** is blank, Pipelab reads `savedWithRelease` from
 `project.c3proj` inside the selected `.c3p` file and opens that Construct
 release. If the project has no saved release metadata, Pipelab uses the current
 editor. Enter `latest` to use the current editor or provide a release such as
-`r397` to override the project version for that run.
+`r397` or the patch release `r432-2` to override the project version for that
+run. Saved patch releases are preserved when the version is blank.
 
-If the selected browser profile itself is signed out of Construct, Pipelab cannot create a valid session from that profile. Sign in there once; the refreshed session is copied automatically on the next run. Existing custom profile directories outside the usual browser locations remain selectable when they contain a Chromium `Preferences` file. Profile selection reads browser metadata without launching a browser or scanning profile storage. During export, Pipelab waits up to the configured timeout (120 seconds by default) for Construct to prepare the project download. If the download is not ready in time, the run error includes Construct's visible status and a screenshot path when it can capture one. Browser launch, sign-in, timeout, export, and archive extraction failures appear in the run logs. The provider does not declare a host-platform allowlist, so exact OS coverage is not guaranteed here.
+If required profile data cannot be refreshed, Pipelab stops the export rather
+than using an older copy. Cancelling a queued export or an export refreshing
+its profile stops it before browser launch.
+
+If the selected browser profile is signed out of Construct or its session has
+expired, it must contain a valid login session before a profile-only export can
+run. Pipelab copies renewed login state automatically on the next run.
+
+Existing custom profile directories outside the usual browser locations remain selectable when they contain a Chromium `Preferences` file. Profile selection reads browser metadata without launching a browser or scanning profile storage. Project loading and download preparation have bounded waits (120 seconds by default). If the download is not ready in time, the run error includes Construct's visible status and a screenshot path when it can capture one. Browser launch, sign-in, timeout, export, and archive extraction failures appear in the run logs. The provider does not declare a host-platform allowlist, so exact OS coverage is not guaranteed here.
 
 Pipelab's currently registered Construct integration does not provide the
 in-editor addon or Discord/Steam Rich Presence actions described by older

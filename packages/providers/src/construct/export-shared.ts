@@ -11,9 +11,10 @@ import {
 import { script } from "./assets/script.js";
 import * as v from "valibot";
 import type { BrowserContext, Video } from "playwright";
+import type { Dirent } from "node:fs";
 import { createHash } from "node:crypto";
-import { dirname, join, delimiter, resolve } from "node:path";
-import { mkdir, readdir, stat, copyFile, chmod, rm } from "node:fs/promises";
+import { dirname, join, delimiter, resolve, sep } from "node:path";
+import { mkdir, readdir, stat, copyFile, chmod, rm, open } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { createRequire } from "node:module";
@@ -48,7 +49,7 @@ export const sharedParams = {
   }),
   password: createPasswordParam("", {
     description:
-      "Your Construct password. Will only be used locally to automate the export on Construct website via a local browser. Will not be sent to any server.",
+      "Your Construct password. The local export process sends it directly to Construct's account service to sign in.",
     required: false,
     label: "Password",
   }),
@@ -127,30 +128,121 @@ const transientProfileEntries = new Set([
   "Last Tabs",
 ]);
 
-async function resilientCopy(src: string, dest: string, log: any) {
+const abortError = (signal: AbortSignal) =>
+  signal.reason instanceof Error ? signal.reason : new Error("Construct export cancelled");
+
+const throwIfAborted = (signal?: AbortSignal) => {
+  if (signal?.aborted) throw abortError(signal);
+};
+
+const waitForAbortableDelay = (duration: number, signal: AbortSignal) =>
+  new Promise<void>((resolveDelay, rejectDelay) => {
+    if (signal.aborted) {
+      rejectDelay(abortError(signal));
+      return;
+    }
+
+    let timer: ReturnType<typeof setTimeout>;
+    const cleanup = () => {
+      clearTimeout(timer);
+      signal.removeEventListener("abort", onAbort);
+    };
+    const onAbort = () => {
+      cleanup();
+      rejectDelay(abortError(signal));
+    };
+    timer = setTimeout(() => {
+      cleanup();
+      resolveDelay();
+    }, duration);
+    signal.addEventListener("abort", onAbort, { once: true });
+    if (signal.aborted) onAbort();
+  });
+
+const isProfileSyncRequired = (relativePath: string): boolean => {
+  const segments = relativePath.split(sep).filter(Boolean);
+  if (segments.length === 0) return true;
+
+  const [first, second] = segments;
+  if (first === "Default") return isProfileSyncRequired(segments.slice(1).join(sep));
+  if (first === "Preferences" || first === "Extensions" || first === "Local Storage") {
+    return true;
+  }
+  if (first === "IndexedDB") {
+    return segments.length === 1 || /construct\.net/i.test(second ?? "");
+  }
+  return false;
+};
+
+const formatProfileSyncError = (path: string, error: unknown) => {
+  const detail = error instanceof Error ? error.message : String(error);
+  return new Error(`Failed to sync required Construct profile data at "${path}": ${detail}`);
+};
+
+const validateProfilePreferences = async (source: string): Promise<void> => {
+  const path = join(source, "Preferences");
+  try {
+    const metadata = await stat(path);
+    if (!metadata.isFile()) throw new Error("Preferences is not a regular file");
+    const file = await open(path, "r");
+    await file.close();
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Selected Chromium profile needs a readable regular Preferences file at "${path}": ${detail}`,
+    );
+  }
+};
+
+async function resilientCopy(
+  src: string,
+  dest: string,
+  relativePath: string,
+  log: (...args: unknown[]) => void,
+  abortSignal?: AbortSignal,
+): Promise<void> {
+  throwIfAborted(abortSignal);
+  const required = isProfileSyncRequired(relativePath);
+
   try {
     const s = await stat(src);
     if (s.isDirectory()) {
       await mkdir(dest, { recursive: true });
       const entries = await readdir(src, { withFileTypes: true });
       const sourceEntries = new Map(entries.map((entry) => [entry.name, entry]));
-      const destinationEntries = await readdir(dest, { withFileTypes: true }).catch(() => []);
+      const destinationEntries = await readdir(dest, { withFileTypes: true }).catch(
+        (error: unknown): Dirent[] => {
+          if (required) throw formatProfileSyncError(dest, error);
+          return [];
+        },
+      );
       for (const entry of destinationEntries) {
+        throwIfAborted(abortSignal);
         if (transientProfileEntries.has(entry.name)) continue;
         const sourceEntry = sourceEntries.get(entry.name);
         if (!sourceEntry || sourceEntry.isDirectory() !== entry.isDirectory()) {
-          await rm(join(dest, entry.name), { recursive: true, force: true }).catch(() => {});
+          const staleRelativePath = [relativePath, entry.name].filter(Boolean).join(sep);
+          await rm(join(dest, entry.name), { recursive: true, force: true }).catch(
+            (error: unknown) => {
+              if (isProfileSyncRequired(staleRelativePath)) {
+                throw formatProfileSyncError(join(dest, entry.name), error);
+              }
+            },
+          );
         }
       }
       for (const entry of entries) {
+        throwIfAborted(abortSignal);
         if (transientProfileEntries.has(entry.name)) {
           log(`  Skipping transient Chromium profile data: ${entry.name}`);
           continue;
         }
         const srcPath = join(src, entry.name);
         const destPath = join(dest, entry.name);
-        await resilientCopy(srcPath, destPath, log);
+        const childRelativePath = [relativePath, entry.name].filter(Boolean).join(sep);
+        await resilientCopy(srcPath, destPath, childRelativePath, log, abortSignal);
       }
+      throwIfAborted(abortSignal);
     } else {
       try {
         await copyFile(src, dest);
@@ -161,23 +253,43 @@ async function resilientCopy(src: string, dest: string, log: any) {
           // ignore chmod errors
         }
       } catch (err) {
+        if (required) throw formatProfileSyncError(src, err);
         log(`    [WARNING] Failed to copy file ${src}: ${err}`);
       }
     }
   } catch (err) {
+    if (abortSignal?.aborted) throw abortError(abortSignal);
+    if (required) throw formatProfileSyncError(src, err);
     log(`  [WARNING] Failed to access ${src}: ${err}`);
   }
 }
 
 const profileLockNames = new Set(["LOCK", "SingletonCookie", "SingletonLock", "SingletonSocket"]);
 
-const removeProfileLocks = async (root: string): Promise<void> => {
-  for (const entry of await readdir(root, { withFileTypes: true })) {
+const removeProfileLocks = async (
+  root: string,
+  relativePath = "",
+  abortSignal?: AbortSignal,
+): Promise<void> => {
+  throwIfAborted(abortSignal);
+  let entries: Dirent[];
+  try {
+    entries = await readdir(root, { withFileTypes: true });
+  } catch (error) {
+    if (isProfileSyncRequired(relativePath)) throw formatProfileSyncError(root, error);
+    return;
+  }
+
+  for (const entry of entries) {
+    throwIfAborted(abortSignal);
     const path = join(root, entry.name);
+    const childRelativePath = [relativePath, entry.name].filter(Boolean).join(sep);
     if (entry.isDirectory()) {
-      await removeProfileLocks(path).catch(() => {});
+      await removeProfileLocks(path, childRelativePath, abortSignal);
     } else if (profileLockNames.has(entry.name)) {
-      await rm(path, { force: true }).catch(() => {});
+      await rm(path, { force: true }).catch((error: unknown) => {
+        if (isProfileSyncRequired(childRelativePath)) throw formatProfileSyncError(path, error);
+      });
     }
   }
 };
@@ -193,11 +305,44 @@ const removeProfileLocks = async (root: string): Promise<void> => {
 export const preparePlaywrightProfile = async (
   source: string,
   destination: string,
-  log: (...args: any[]) => void = () => {},
+  log: (...args: unknown[]) => void = () => {},
+  abortSignal?: AbortSignal,
 ) => {
+  throwIfAborted(abortSignal);
+  await validateProfilePreferences(source);
   const playwrightProfile = join(destination, "Default");
-  await resilientCopy(source, playwrightProfile, log);
-  await removeProfileLocks(playwrightProfile);
+  await resilientCopy(source, playwrightProfile, "", log, abortSignal);
+  throwIfAborted(abortSignal);
+  await removeProfileLocks(playwrightProfile, "", abortSignal);
+  throwIfAborted(abortSignal);
+};
+
+const isLockConflict = (error: unknown): boolean =>
+  error instanceof Error && "code" in error && error.code === "ELOCKED";
+
+export const acquireManagedProfileLock = async (
+  profilePath: string,
+  abortSignal: AbortSignal,
+): Promise<() => Promise<void>> => {
+  for (;;) {
+    throwIfAborted(abortSignal);
+    try {
+      const release = await lockfile.lock(profilePath, {
+        stale: 60_000,
+        update: 20_000,
+        retries: 0,
+      });
+      if (abortSignal.aborted) {
+        await release().catch(() => {});
+        throw abortError(abortSignal);
+      }
+      return release;
+    } catch (error) {
+      if (abortSignal.aborted) throw abortError(abortSignal);
+      if (!isLockConflict(error)) throw error;
+      await waitForAbortableDelay(250, abortSignal);
+    }
+  }
 };
 
 export interface ConstructExportExecutionContext {
@@ -250,6 +395,7 @@ export const exportc3p = async (
   abortSignal.addEventListener("abort", onAbort);
 
   try {
+    throwIfAborted(abortSignal);
     // const { addonsFolder } = newInputs
 
     const { thirdparty, node } = paths;
@@ -261,6 +407,7 @@ export const exportc3p = async (
       installDeps: true,
       context: ctx,
     });
+    throwIfAborted(abortSignal);
     logElapsed("Playwright package resolved after", packageResolutionStartedAt);
     const playwrightCli = join(playwrightPkgPath, "cli.js");
     const browsersPath =
@@ -305,6 +452,7 @@ export const exportc3p = async (
         },
       );
     }
+    throwIfAborted(abortSignal);
     logElapsed("Construct browser binary ready after", browserBinaryStartedAt);
 
     const downloadDir = join(cwd, "playwright");
@@ -339,17 +487,7 @@ export const exportc3p = async (
     );
     await mkdir(managedProfile, { recursive: true, mode: 0o700 });
     await chmod(managedProfile, 0o700).catch(() => {});
-    managedProfileLock = await lockfile.lock(managedProfile, {
-      stale: 60_000,
-      update: 20_000,
-      retries: { retries: 120, minTimeout: 250, maxTimeout: 1_000, factor: 1 },
-    });
-    if (abortSignal.aborted) {
-      await cleanup();
-      throw abortSignal.reason instanceof Error
-        ? abortSignal.reason
-        : new Error("Construct export cancelled");
-    }
+    managedProfileLock = await acquireManagedProfileLock(managedProfile, abortSignal);
 
     if (seedProfile) {
       const managedProfileInitialized = existsSync(join(managedProfile, "Default", "Preferences"));
@@ -362,8 +500,9 @@ export const exportc3p = async (
       if (!existsSync(indexedDbPathSource)) {
         log(`  [WARNING] Source IndexedDB directory does not exist: "${indexedDbPathSource}".`);
       }
-      await preparePlaywrightProfile(seedProfile, managedProfile, log);
+      await preparePlaywrightProfile(seedProfile, managedProfile, log, abortSignal);
     }
+    throwIfAborted(abortSignal);
     logElapsed("Construct managed profile ready after", profileSetupStartedAt);
 
     log("Using project-scoped Construct profile from Pipelab cache");
@@ -379,9 +518,7 @@ export const exportc3p = async (
     }
     if (abortSignal.aborted) {
       await cleanup();
-      throw abortSignal.reason instanceof Error
-        ? abortSignal.reason
-        : new Error("Construct export cancelled");
+      throw abortError(abortSignal);
     }
     log("Using Playwright Chromium channel", browserChannel, "headless", headless);
 
