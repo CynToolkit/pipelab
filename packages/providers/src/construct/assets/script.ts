@@ -522,19 +522,12 @@ export const script = async (
 
   const exportOptionsStartedAt = Date.now();
   const exportMenuStartedAt = Date.now();
-  let actionStartedAt = Date.now();
-  await page.getByRole("button", { name: "Menu" }).click();
-  logElapsed(log, "Construct menu button click after", actionStartedAt);
-  actionStartedAt = Date.now();
-  await page.getByRole("menuitem", { name: "Project" }).click();
-  logElapsed(log, "Construct Project menu click after", actionStartedAt);
-  actionStartedAt = Date.now();
-  await page.getByRole("menuitem", { name: "Export" }).click();
-  logElapsed(log, "Construct Export menu click after", actionStartedAt);
-  log('"Export" clicked');
+  // Construct's export shortcut avoids three menu interactions before the dialog.
+  await page.keyboard.press("F6");
+  log('"Export" shortcut pressed');
   logElapsed(log, "Construct export menu selection after", exportMenuStartedAt);
   const exportPlatformStartedAt = Date.now();
-  actionStartedAt = Date.now();
+  const actionStartedAt = Date.now();
   await page
     .locator("ui-iconviewitem")
     .filter({ hasText: "Web (HTML5)" })

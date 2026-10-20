@@ -767,3 +767,64 @@ started under lower CPU pressure; the later two started under elevated
 pressure. These are local observations, not a controlled benchmark. The
 full-export mean is specific to this small fixture and should not be treated
 as a universal project export duration.
+
+
+## Export shortcut investigation
+
+A follow-up on 2026-10-20 replaced Menu → Project → Export with Construct's
+F6 export shortcut. Profile refresh, project loading, Web (HTML5) selection,
+export options and download verification remain part of every export. No
+extra-tab or profile chmod optimization was included.
+
+Two interleaved full runs per implementation used the existing warm profile,
+same r397 fixture, Node 24.19.0, full Chromium headless, and the reproduction
+command above. Every run verified a 389,254-byte ZIP containing a readable
+root index.html. Host CPU pressure varied substantially.
+
+| Invocation order | Opener | CPU pressure before → after | Setup | Full export | Opener dispatch |
+| --- | --- | --- | ---: | ---: | ---: |
+| 1 | Menu | 16.79 → 90.25 | 24.939 s | 36.398 s | 6.813 s |
+| 2 | F6 | 56.40 → 69.18 | 13.288 s | 17.040 s | 0.009 s |
+| 3 | Menu | 30.75 → 58.27 | 10.703 s | 14.009 s | 0.551 s |
+| 4 | F6 | 69.02 → 84.86 | 23.058 s | 25.829 s | 0.028 s |
+
+These full samples do not prove an overall speedup: the menu setup mean was
+17.821 s and the F6 setup mean was 18.173 s. The full means were 25.204 s and
+21.435 s respectively, but project loading, internal export preparation and
+host contention also varied. Do not attribute that full-time difference to F6.
+
+A separate same-session comparison isolated opening the export dialog after
+one project load, including waiting for the platform dialog to become visible.
+Each opener was followed by Cancel; order alternated between pairs. The
+instrumented run's setup/full durations include these extra interactions and
+are not ordinary-export measurements.
+
+| Pair | Order | Menu opener | F6 opener | Saving |
+| --- | --- | ---: | ---: | ---: |
+| 1 | Menu, F6 | 844 ms | 44 ms | 800 ms |
+| 2 | F6, Menu | 469 ms | 54 ms | 415 ms |
+| 3 | Menu, F6 | 461 ms | 35 ms | 426 ms |
+| 4 | F6, Menu | 551 ms | 55 ms | 496 ms |
+
+Mean isolated saving was **534.25 ms**, with all four F6 samples below all
+four menu samples. CPU pressure was 29.56 before and 53.67 after. F6 avoids
+the menu path that took multiple seconds in the contended full sample, but
+these results do **not** establish a consistent several-second saving or a
+reliable sub-10-second setup.
+
+A separate project-load diagnostic measured 5.713 s opening the project,
+including 4.420 s with the loading dialog visible. Renderer TaskDuration grew
+by 5.044 s; ScriptDuration grew by 0.747 s. The longest observed finished
+script/image/font/stylesheet request during that phase took 445 ms. A CPU
+profile showed 3.332 s under the generic `(program)` bucket and no individual
+JavaScript function accounting for multiple seconds. These diagnostics do not
+identify a safe project-loading optimization. Instrumentation was removed.
+The diagnostic setup time of 9.833 s is not evidence of the shortcut's effect.
+
+Safe raw logs from this investigation are at
+`/tmp/construct-seconds-baseline.log`,
+`/tmp/construct-seconds-baseline-02.log`,
+`/tmp/construct-seconds-f6-01.log`, `/tmp/construct-seconds-f6-02.log`,
+`/tmp/construct-seconds-openers-paired.log`,
+`/tmp/construct-seconds-project-diagnostic.log`, and
+`/tmp/construct-seconds-cpu-diagnostic.log` on the benchmark host.
