@@ -126,6 +126,20 @@ test("a missing selected-profile Preferences file rejects before changing manage
   }
 });
 
+test("rejects a missing Construct profile with an actionable error", async () => {
+  const root = await mkdtemp(join("/tmp", "construct-profile-missing-"));
+  const source = join(root, "missing-profile");
+  const destination = join(root, "destination");
+
+  try {
+    await expect(preparePlaywrightProfile(source, destination)).rejects.toThrow(
+      /Could not access Construct browser profile .*ENOENT/,
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("uses an installed exact Playwright package without resolving npm metadata", async () => {
   const root = await mkdtemp(join("/tmp", "construct-package-cache-"));
   const packageName = "playwright-core";
