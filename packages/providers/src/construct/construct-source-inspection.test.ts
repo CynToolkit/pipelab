@@ -58,6 +58,25 @@ describe("Construct source inspection", () => {
     }
   });
 
+  it.each([
+    ["username", "construct-user@example.test", undefined],
+    ["password", undefined, "construct-password-secret"],
+  ])("rejects a configured Construct %s without its pair", (_credential, username, password) => {
+    vi.stubEnv("CONSTRUCT_USERNAME", username);
+    vi.stubEnv("CONSTRUCT_PASSWORD", password);
+
+    try {
+      expect(() =>
+        constructSource.compile(
+          { path: "/project.c3p", profilePath: "/tmp/profile", version: "" },
+          { host: { platform: "linux", architecture: "x64" } },
+        ),
+      ).toThrow("Set both CONSTRUCT_USERNAME and CONSTRUCT_PASSWORD, or unset both");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("lists local Chromium profiles without running full browser inspection", async () => {
     const profile = {
       browser: "Chromium",

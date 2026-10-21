@@ -1,5 +1,5 @@
 import { expect, test, vi } from "vitest";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat as getStat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import lockfile from "proper-lockfile";
 import { acquireManagedProfileLock, preparePlaywrightProfile } from "./export-shared";
@@ -18,6 +18,11 @@ test("copies the complete Construct profile and removes stale browser locks", as
 
   try {
     await preparePlaywrightProfile(source, destination);
+
+    if (process.platform !== "win32") {
+      expect((await getStat(destination)).mode & 0o777).toBe(0o700);
+      expect((await getStat(join(destination, "Default"))).mode & 0o777).toBe(0o700);
+    }
 
     expect(await readFile(join(destination, "Default", "Preferences"), "utf8")).toBe(
       "profile metadata",

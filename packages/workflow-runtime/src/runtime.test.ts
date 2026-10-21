@@ -118,6 +118,74 @@ describe("artifact-aware workflow runtime", () => {
     expect(persistedOutput).toContain("[REDACTED]");
   });
 
+  it("preserves artifact paths in returned results while redacting them from events", async () => {
+    const artifactRoot = "/workspace/construct-profile";
+    const token = "construct-session-token";
+    const events: unknown[] = [];
+
+    const result = await runWorkflow(
+      {
+        version: 1,
+        steps: [
+          {
+            id: "export",
+            uses: "test:export",
+            with: {
+              root: "${{ env.CONSTRUCT_ROOT }}",
+              token: "${{ env.CONSTRUCT_TOKEN }}",
+            },
+            artifacts: {
+              output: {
+                descriptor: { kind: "application", platform: "web", container: "directory" },
+              },
+            },
+          },
+        ],
+      },
+      {
+        host,
+        env: { CONSTRUCT_ROOT: artifactRoot, CONSTRUCT_TOKEN: token },
+        tasks: {
+          "test:export": async ({ inputs, setArtifact }) => {
+            setArtifact("output", `${String(inputs.root)}/export`);
+            return { token: inputs.token };
+          },
+        },
+        onEvent: (event) => events.push(event),
+      },
+    );
+
+    expect(result.artifacts[0]?.path).toBe(`${artifactRoot}/export`);
+    expect(result.steps.export?.artifacts[0]?.path).toBe(`${artifactRoot}/export`);
+    expect(result.outputs.export?.token).toBe("[REDACTED]");
+    expect(JSON.stringify(events)).not.toContain(artifactRoot);
+    expect(JSON.stringify(events)).not.toContain(token);
+  });
+
+  it("resolves references with large amounts of surrounding whitespace", async () => {
+    const paddedReference = `\${{${" ".repeat(10_000)}env.VALUE${" ".repeat(10_000)}}}`;
+    let resolvedValue: unknown;
+    const result = await runWorkflow(
+      {
+        version: 1,
+        steps: [{ id: "resolve", uses: "test:resolve", with: { value: paddedReference } }],
+      },
+      {
+        host,
+        env: { VALUE: "resolved" },
+        tasks: {
+          "test:resolve": async ({ inputs }) => {
+            resolvedValue = inputs.value;
+            return { value: inputs.value };
+          },
+        },
+      },
+    );
+
+    expect(resolvedValue).toBe("resolved");
+    expect(result.outputs.resolve?.value).toBe("[REDACTED]");
+  });
+
   it("names a missing environment variable without exposing a value", async () => {
     await expect(
       runWorkflow(

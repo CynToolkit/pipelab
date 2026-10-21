@@ -194,6 +194,12 @@ const validateProfilePreferences = async (source: string): Promise<void> => {
   }
 };
 
+const restrictManagedProfileAccess = async (path: string): Promise<void> => {
+  if (process.platform === "win32") return;
+  await mkdir(path, { recursive: true, mode: 0o700 });
+  await chmod(path, 0o700);
+};
+
 async function resilientCopy(
   src: string,
   dest: string,
@@ -207,7 +213,7 @@ async function resilientCopy(
   try {
     const s = await stat(src);
     if (s.isDirectory()) {
-      await mkdir(dest, { recursive: true });
+      await mkdir(dest, { recursive: true, mode: 0o700 });
       const entries = await readdir(src, { withFileTypes: true });
       const sourceEntries = new Map(entries.map((entry) => [entry.name, entry]));
       const destinationEntries = await readdir(dest, { withFileTypes: true }).catch(
@@ -247,8 +253,8 @@ async function resilientCopy(
       try {
         await copyFile(src, dest);
         try {
-          // Remove read-only attribute on the copied file so Playwright can use it
-          await chmod(dest, 0o666);
+          // Keep copied browser data private while allowing Playwright to update it.
+          await chmod(dest, 0o600);
         } catch {
           // ignore chmod errors
         }
@@ -309,8 +315,10 @@ export const preparePlaywrightProfile = async (
   abortSignal?: AbortSignal,
 ) => {
   throwIfAborted(abortSignal);
-  await validateProfilePreferences(source);
   const playwrightProfile = join(destination, "Default");
+  await restrictManagedProfileAccess(destination);
+  await restrictManagedProfileAccess(playwrightProfile);
+  await validateProfilePreferences(source);
   await resilientCopy(source, playwrightProfile, "", log, abortSignal);
   throwIfAborted(abortSignal);
   await removeProfileLocks(playwrightProfile, "", abortSignal);

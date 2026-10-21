@@ -6,9 +6,9 @@ Pipelab can export a Construct project for use as a web application. The Release
 
 Add **Construct project** as the source, then choose:
 
-| Field             | Requirement          | Default / behavior                                                                                 |
-| ----------------- | -------------------- | -------------------------------------------------------------------------------------------------- |
-| Project file      | Required `.c3p` file | Empty                                                                                              |
+| Field             | Requirement          | Default / behavior                                                                                |
+| ----------------- | -------------------- | ------------------------------------------------------------------------------------------------- |
+| Project file      | Required `.c3p` file | Empty                                                                                             |
 | Browser profile   | Required             | A local Chromium profile used to seed Pipelab's managed profile                                   |
 | Construct version | Optional             | Blank uses the saved release when present; enter `latest` or a release such as `r397` to override |
 
@@ -20,6 +20,10 @@ Xvfb. Native Workflow tasks can set `headless: false` for visual debugging.
 ## Requirements and failures
 
 Choose a compatible local Chromium profile that can access the Construct editor and project. Pipelab refreshes its managed profile from the selected profile before each run, while keeping the managed browser and Construct cache in place. This picks up current login state and installed Construct addons without requiring a profile reset. The managed profile is scoped to the Pipelab project and selected browser profile; changing Construct versions for that project reuses the same profile. Pipelab does not modify the selected browser profile. Same-profile exports run one at a time.
+
+The managed profile remains in Pipelab's local cache between runs and can
+include site data from the selected Chromium profile beyond Construct. On POSIX
+systems, its managed profile directories are restricted to the current user.
 
 When **Construct version** is blank, Pipelab reads `savedWithRelease` from
 `project.c3proj` inside the selected `.c3p` file and opens that Construct
@@ -36,15 +40,16 @@ If the selected browser profile is signed out of Construct or its session has
 expired, a profile-only export requires a valid login session. Pipelab does not
 modify the selected browser profile.
 
-For CLI runs, Pipelab uses `CONSTRUCT_USERNAME` and `CONSTRUCT_PASSWORD` from
-the process environment as Construct task inputs when either variable is
-configured. Keep the values in a secret manager such as Doppler; the workflow
-stores only runtime references. When configured, Pipelab requests a fresh
-session from Construct's account service and injects it into the managed
-profile, including when a selected profile has a stale login record. When
-neither variable is set, exports use the selected profile's saved session. A
+For CLI runs, set both `CONSTRUCT_USERNAME` and `CONSTRUCT_PASSWORD` in the
+process environment to provide Construct task inputs. Keep the values in a
+secret manager such as Doppler; the workflow stores only runtime references.
+When both are configured, Pipelab requests a fresh session from Construct's
+account service and injects it into the managed profile, including when a
+selected profile has a stale login record. When neither variable is set,
+exports use the selected profile's saved session. Setting only one variable
+fails before export starts, instead of falling back to the saved session. A
 missing referenced variable is reported by name, with its value redacted from
-run logs and results.
+run logs and result values; artifact paths remain intact for reopening output.
 If Construct reports that the project exceeds the Free edition limits, the
 export stops with a plan-specific error before waiting for standard export
 options.

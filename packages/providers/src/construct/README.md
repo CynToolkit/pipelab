@@ -20,10 +20,17 @@ to the Pipelab project and selected browser profile. Pipelab refreshes browser
 state from the selected profile on every run while keeping its cached Construct
 assets. Login state and editor cache persist across runs and Construct versions.
 Same-profile exports are serialized.
+The managed copy stays in Pipelab's local cache between runs and can include
+site data from the selected Chromium profile beyond Construct. On POSIX systems,
+the managed profile directories are restricted to the current user.
 Cancellation stops a queued export or profile refresh before browser launch.
 If required profile data cannot be refreshed, the export stops instead of
 using stale session or addon data. The selected profile must contain a valid
 Construct session when the task has no credentials to renew it.
+
+Set both `CONSTRUCT_USERNAME` and `CONSTRUCT_PASSWORD` to renew a Construct
+session from the account service. If neither is set, the selected profile's
+saved session is used. Setting only one fails before export starts.
 
 The export automation opens Construct's export dialog through Menu → Project →
 Export, then selects Web (HTML5) and the standard export options.

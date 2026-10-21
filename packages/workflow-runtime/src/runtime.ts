@@ -67,7 +67,20 @@ const getPath = (value: Record<string, unknown>, path: string): unknown => {
   return current;
 };
 
-const referencePattern = /\$\{\{\s*([^{}]+?)\s*\}\}/g;
+const referencePattern = /\$\{\{([^{}]+)\}\}/g;
+
+const isWorkflowArtifactWithPath = (value: Record<string, unknown>): boolean =>
+  typeof value.path === "string" &&
+  (typeof value.name === "string" ||
+    (typeof value.id === "string" &&
+      typeof value.stepId === "string" &&
+      typeof value.artifact === "string"));
+
+const isWorkflowArtifactListOwner = (value: Record<string, unknown>): boolean =>
+  (typeof value.status === "string" && Array.isArray(value.artifacts) && isRecord(value.steps)) ||
+  (typeof value.id === "string" &&
+    typeof value.uses === "string" &&
+    Array.isArray(value.artifacts));
 
 const collectEnvironmentValues = (
   workflow: Workflow,
@@ -97,11 +110,11 @@ const collectEnvironmentValues = (
   return [...values].sort((left, right) => right.length - left.length);
 };
 
-const redactValue = <T>(value: T, secrets: readonly string[]): T => {
+const redactValue = <T>(value: T, secrets: readonly string[], preserveArtifactPaths = false): T => {
   const redactString = (text: string) =>
     secrets.reduce((result, secret) => result.split(secret).join("[REDACTED]"), text);
   const seen = new WeakMap<object, unknown>();
-  const visit = (current: unknown): unknown => {
+  const visit = (current: unknown, artifactListItem = false): unknown => {
     if (typeof current === "string") return redactString(current);
     if (typeof current !== "object" || current === null) return current;
     const previous = seen.get(current);
@@ -109,15 +122,24 @@ const redactValue = <T>(value: T, secrets: readonly string[]): T => {
     if (Array.isArray(current)) {
       const result: unknown[] = [];
       seen.set(current, result);
-      current.forEach((item) => result.push(visit(item)));
+      current.forEach((item) => result.push(visit(item, artifactListItem)));
       return result;
     }
     if (!isRecord(current)) return current;
     const prototype = Object.getPrototypeOf(current);
     if (prototype !== Object.prototype && prototype !== null) return current;
+    const preservePath =
+      preserveArtifactPaths && artifactListItem && isWorkflowArtifactWithPath(current);
     const result: Record<string, unknown> = Object.create(prototype);
     seen.set(current, result);
-    for (const [key, item] of Object.entries(current)) result[key] = visit(item);
+    for (const [key, item] of Object.entries(current)) {
+      result[key] =
+        preservePath && key === "path"
+          ? item
+          : key === "artifacts" && Array.isArray(item) && isWorkflowArtifactListOwner(current)
+            ? visit(item, true)
+            : visit(item);
+    }
     return result;
   };
   return visit(value) as T;
@@ -169,8 +191,8 @@ const resolveValue = (
   }
   if (typeof value !== "string") return value;
 
-  const exact = /^\$\{\{\s*([^{}]+?)\s*\}\}$/.exec(value);
-  if (exact) return resolveReference(exact[1], variables, outputs, env);
+  const exact = /^\$\{\{([^{}]+)\}\}$/.exec(value);
+  if (exact) return resolveReference(exact[1].trim(), variables, outputs, env);
 
   return value.replace(referencePattern, (_match, reference: string) =>
     formatLogValue(resolveReference(reference.trim(), variables, outputs, env)),
@@ -657,7 +679,7 @@ export const runWorkflow = async <TServices = unknown>(
         .filter((delivery): delivery is NonNullable<typeof delivery> => Boolean(delivery)),
       steps,
     };
-    const safeResult = redactObject(result);
+    const safeResult = redactValue(result, secrets, true);
     emit({ type: "workflow.completed", result: safeResult, duration: Date.now() - startedAt });
     return safeResult;
   } catch (error) {

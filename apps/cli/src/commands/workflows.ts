@@ -200,7 +200,7 @@ export async function runWorkflowCommand(
     }
   };
   const workflowTimer = process.stdout.isTTY
-    ? setInterval(() => updateWorkflowTitle(), 0)
+    ? setInterval(() => updateWorkflowTitle(), 100)
     : undefined;
   const workflowLogs: Array<{ stepTitle: string; message: string }> = [];
   const updateTask = (stepId: string, state: ListrTaskState) => {
@@ -230,7 +230,7 @@ export async function runWorkflowCommand(
     if (process.stdout.isTTY) {
       taskTimers.set(
         stepId,
-        setInterval(() => updateTaskTitle(stepId, performance.now() - startedAt), 0),
+        setInterval(() => updateTaskTitle(stepId, performance.now() - startedAt), 100),
       );
     }
   };

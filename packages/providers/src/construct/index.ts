@@ -101,14 +101,19 @@ export const constructSource: ReleaseSourceDefinition = {
     };
   },
   compile: (config) => {
-    const credentials =
-      Object.hasOwn(process.env, "CONSTRUCT_USERNAME") ||
-      Object.hasOwn(process.env, "CONSTRUCT_PASSWORD")
-        ? {
-            username: "${{ env.CONSTRUCT_USERNAME }}",
-            password: "${{ env.CONSTRUCT_PASSWORD }}",
-          }
-        : {};
+    const hasUsername = Object.hasOwn(process.env, "CONSTRUCT_USERNAME");
+    const hasPassword = Object.hasOwn(process.env, "CONSTRUCT_PASSWORD");
+    if (hasUsername !== hasPassword) {
+      throw new Error(
+        "Set both CONSTRUCT_USERNAME and CONSTRUCT_PASSWORD, or unset both to use the selected browser profile's saved session.",
+      );
+    }
+    const credentials = hasUsername
+      ? {
+          username: "${{ env.CONSTRUCT_USERNAME }}",
+          password: "${{ env.CONSTRUCT_PASSWORD }}",
+        }
+      : {};
     const steps: WorkflowStep[] = [
       {
         id: "construct-source-export",
