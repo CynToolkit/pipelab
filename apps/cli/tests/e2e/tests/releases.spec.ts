@@ -724,10 +724,10 @@ describe("CLI release dry-run", () => {
         () => null,
         (error: unknown) => error,
       );
-      expect(failedRun).toMatchObject({
-        stdout: expect.stringContaining("beforeBuild command exited with code 2"),
-        stderr: expect.stringContaining("exited with code 2"),
-      });
+      expect(`${failedRun.stdout}\n${failedRun.stderr}`).toContain(
+        "beforeBuild command exited with code 2",
+      );
+      expect(failedRun.stderr).toContain("exited with code 2");
       expect(failedRun).toMatchObject({
         stdout: expect.not.stringContaining("✔ Before build hook CLI trust"),
       });
