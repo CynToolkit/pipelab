@@ -18,7 +18,4 @@ For **Package app with configuration**, enable the checkbox directly. For a Rele
 
 ## Release workflow producer
 
-The Electron producer accepts a web application directory and declares Windows x64, Linux x64, and macOS arm64 desktop targets. Enable one or more targets in the producer profile. These are declared output targets; local toolchain and host constraints can affect whether a particular build can be made. The provider does not promise universal cross-compilation.
-
-The provider does not promise universal cross-compilation; host toolchains and
-platform constraints determine which selected target can be built.
+The Electron producer accepts a web application directory and declares Windows x64 and ARM64, Linux x64 and ARM64, and macOS ARM64 desktop targets. Windows and Linux bundles can be packaged from a supported Linux x64 host. A macOS bundle may be packaged unsigned, but signing and notarization require a macOS host. Native modules and other host tool requirements can affect cross-target builds.

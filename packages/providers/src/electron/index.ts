@@ -31,14 +31,16 @@ const electronProducer: ReleaseProducerDefinition = {
   planning: { mode: "build" },
   supportsBeforeBuildHooks: true,
   accepts: { kind: "application", platform: "web", container: "directory" },
-  targets: ["windows-x64", "linux-x64", "macos-arm64"].map((id) => ({
-    id,
-    label: id,
-    buildType: "desktop",
-    output: electronTargetDescriptor(id),
-    createDefaultConfig: () => ({}),
-    isAvailable: () => ({ available: true }),
-  })),
+  targets: ["windows-x64", "windows-arm64", "linux-x64", "linux-arm64", "macos-arm64"].map(
+    (id) => ({
+      id,
+      label: id,
+      buildType: "desktop",
+      output: electronTargetDescriptor(id),
+      createDefaultConfig: () => ({}),
+      isAvailable: () => ({ available: true }),
+    }),
+  ),
   createDefaultConfig: () => ({}),
   validate: () => [],
   compile: (input, config) => ({

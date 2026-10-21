@@ -10,7 +10,11 @@ import type { PipelabContext } from "@pipelab/plugin-core";
  * @param version The version of butler to install.
  * @returns A Promise that resolves to the path of the butler executable.
  */
-export const ensureButler = async (context: PipelabContext, version = "LATEST") => {
+export const ensureButler = async (
+  context: PipelabContext,
+  version = "LATEST",
+  log: (...args: unknown[]) => void = () => undefined,
+) => {
   const thirdpartyDir = context.getThirdPartyPath();
   const butlerDir = join(thirdpartyDir, "butler", version);
   const isWindows = process.platform === "win32";
@@ -21,7 +25,7 @@ export const ensureButler = async (context: PipelabContext, version = "LATEST") 
     await access(finalButlerPath, constants.X_OK);
     return finalButlerPath;
   } catch (e) {
-    console.log(`Butler not found at ${finalButlerPath}, installing...`);
+    log(`Butler not found at ${finalButlerPath}, installing...`);
   }
 
   const localOs = process.platform;
@@ -48,10 +52,10 @@ export const ensureButler = async (context: PipelabContext, version = "LATEST") 
   const tempDir = await context.createTempFolder("butler-setup-");
   const archivePath = join(tempDir, "butler.zip");
 
-  console.log(`Downloading butler from ${downloadUrl}...`);
+  log(`Downloading butler from ${downloadUrl}...`);
   await downloadFile(downloadUrl, archivePath);
 
-  console.log(`Extracting butler to ${butlerDir}...`);
+  log(`Extracting butler to ${butlerDir}...`);
   await mkdir(butlerDir, { recursive: true });
   await extractZip(archivePath, butlerDir);
 

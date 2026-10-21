@@ -14,8 +14,6 @@ export const outFolderName = (binName: string, platform: string, arch: string) =
   let platformName = "";
   let archName = "";
 
-  console.log("platform", platform);
-
   if (platform === "linux") {
     platformName = "linux";
   } else if (platform === "win32") {
