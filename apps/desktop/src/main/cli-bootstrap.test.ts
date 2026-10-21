@@ -1,7 +1,10 @@
-import { afterEach, describe, it } from "node:test";
+import { afterEach, describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
-import { spawn, type ChildProcess } from "node:child_process";
+import { ChildProcess, spawn } from "node:child_process";
+import { access, mkdtemp, rm } from "node:fs/promises";
 import http from "node:http";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { websocketPort } from "@pipelab/constants";
 import { monitorCliProcessExit, startAuthenticatedCliProcess } from "./cli-bootstrap";
 
@@ -14,6 +17,9 @@ import { createHmac, randomBytes } from "node:crypto";
 const mode = process.env.PIPELAB_BOOTSTRAP_FIXTURE_MODE || "valid";
 if (mode === "exit") process.exit(23);
 if (mode === "no-ready") {
+  setInterval(() => {}, 1000);
+} else if (mode === "partial-output-no-ready") {
+  process.stdout.write("CLI startup stalled before readiness");
   setInterval(() => {}, 1000);
 } else {
   const server = http.createServer((request, response) => {
@@ -51,16 +57,19 @@ if (mode === "no-ready") {
       const payload = JSON.stringify(identity);
       const proof = createHmac("sha256", proofSecret).update(payload).digest("base64url");
       response.writeHead(200, { "Content-Type": "application/json" });
-      response.end(JSON.stringify({ ...identity, proof }));
+    response.end(JSON.stringify({ ...identity, proof }));
     });
   });
   server.listen(0, "127.0.0.1", () => {
     const address = server.address();
-    process.stdout.write("PIPELAB_DESKTOP_READY:" + JSON.stringify({
-      type: "ready",
-      port: address.port,
-      sessionId: process.env.PIPELAB_DESKTOP_SESSION_ID,
-    }) + "\n");
+    const announceReady = () =>
+      process.stdout.write("PIPELAB_DESKTOP_READY:" + JSON.stringify({
+        type: "ready",
+        port: address.port,
+        sessionId: process.env.PIPELAB_DESKTOP_SESSION_ID,
+      }) + "\n");
+    if (mode === "delayed-ready") setTimeout(announceReady, 65_000);
+    else announceReady();
   });
   process.on("SIGTERM", () => server.close(() => process.exit(0)));
 }
@@ -87,21 +96,23 @@ afterEach(async () => {
 
 async function startFixture(
   mode = "valid",
-  readyTimeoutMs = 2000,
+  readyTimeoutMs?: number,
   onSpawn?: (child: ChildProcess) => void,
   handshakeTimeoutMs = 1000,
+  onStartupFailure?: (child: ChildProcess, serverPid?: number) => Promise<void> | void,
 ) {
   const started = await startAuthenticatedCliProcess({
     executable: process.execPath,
     args: ["--input-type=module", "-e", fixture],
     env: { ...process.env, PIPELAB_BOOTSTRAP_FIXTURE_MODE: mode },
     desktopVersion: "2.4.0-beta.1",
-    readyTimeoutMs,
+    ...(readyTimeoutMs === undefined ? {} : { readyTimeoutMs }),
     handshakeTimeoutMs,
     onSpawn: (child) => {
       children.add(child);
       onSpawn?.(child);
     },
+    ...(onStartupFailure === undefined ? {} : { onStartupFailure }),
   });
   children.add(started.child);
   return started;
@@ -113,6 +124,11 @@ describe("authenticated Desktop CLI startup", () => {
     assert.ok(started.port > 0 && started.port <= 65535);
     assert.notEqual(started.port, websocketPort);
     assert.match(started.sessionId, /^[0-9a-f-]{36}$/i);
+  });
+
+  it("allows a cold local CLI that takes longer than 60 seconds to become ready", async () => {
+    const started = await startFixture("delayed-ready");
+    assert.ok(started.port > 0 && started.port <= 65535);
   });
 
   it("rejects an unrelated process on the former fixed Desktop port without contacting it", async (context) => {
@@ -152,6 +168,37 @@ describe("authenticated Desktop CLI startup", () => {
     assert.ok(child?.killed);
   });
 
+  it("awaits caller process-tree cleanup before terminating a failed startup", async () => {
+    let child: ChildProcess | undefined;
+    let cleanupServerPid: number | undefined;
+    let beginCleanup!: () => void;
+    let releaseCleanup!: () => void;
+    const cleanupStarted = new Promise<void>((resolve) => (beginCleanup = resolve));
+    const cleanupGate = new Promise<void>((resolve) => (releaseCleanup = resolve));
+    const startup = startFixture(
+      "forged",
+      2000,
+      (process) => (child = process),
+      1000,
+      async (process, serverPid) => {
+        cleanupServerPid = serverPid;
+        beginCleanup();
+        await cleanupGate;
+        process.kill();
+      },
+    );
+
+    try {
+      await cleanupStarted;
+      assert.equal(child?.killed, false);
+    } finally {
+      releaseCleanup();
+    }
+    await assert.rejects(startup, /could not prove it belongs to this Desktop launch/);
+    assert.equal(child?.killed, true);
+    assert.equal(cleanupServerPid, undefined);
+  });
+
   it("rejects a validly signed response from a stale session", async () => {
     await assert.rejects(startFixture("stale-session"), /stale Desktop session/);
   });
@@ -174,53 +221,143 @@ describe("authenticated Desktop CLI startup", () => {
     await assert.rejects(startFixture("no-ready", 50), /did not become ready/);
   });
 
+  it("reports partial CLI output when readiness times out", async () => {
+    const startupLogs: string[] = [];
+    const info = mock.method(console, "info", (...args: unknown[]) => {
+      startupLogs.push(args.map(String).join(" "));
+    });
+    try {
+      await assert.rejects(startFixture("partial-output-no-ready", 2000), /did not become ready/);
+      assert.ok(
+        startupLogs.some((line) => line.includes("CLI startup stalled before readiness")),
+        "partial startup output should be logged before the CLI process is cleaned up",
+      );
+    } finally {
+      info.mock.restore();
+    }
+  });
+
   it("rejects interrupted and stalled identity responses within the handshake deadline", async () => {
     await assert.rejects(startFixture("interrupted-identity"), /local startup handshake/);
     await assert.rejects(
-      startFixture("hanging-identity", 2000, undefined, 100),
+      startFixture("hanging-identity", 10_000, undefined, 100),
       /handshake did not finish within/,
     );
   });
 });
 
 describe("authenticated CLI process exit monitoring", () => {
-  it("observes process exit before descendants release inherited stdout", async () => {
+  it("reports process exit without waiting for stdio closure", () => {
+    const child = new ChildProcess();
+    let exit: { code: number | null; signal: NodeJS.Signals | null } | undefined;
+    let closed = false;
+    child.once("close", () => (closed = true));
+
+    monitorCliProcessExit(child, (code, signal) => (exit = { code, signal }));
+    child.emit("exit", 23, null);
+
+    assert.deepEqual(exit, { code: 23, signal: null });
+    assert.equal(closed, false);
+  });
+
+  it("observes process exit independently from descendant and stdio closure", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "pipelab-cli-exit-"));
+    const descendantReadyPath = join(tempDir, "descendant-ready");
+    const descendantDonePath = join(tempDir, "descendant-done");
+    const descendantScript = `
+      import { writeFileSync } from "node:fs";
+      writeFileSync(process.env.PIPELAB_DESCENDANT_READY, "ready");
+      process.send?.("ready");
+      setTimeout(() => {
+        try { writeFileSync(process.env.PIPELAB_DESCENDANT_DONE, "done"); } catch {}
+        process.exit(0);
+      }, 800);
+    `;
     const child = spawn(
       process.execPath,
       [
         "--input-type=module",
         "-e",
         `import { spawn } from "node:child_process";
-         spawn(process.execPath, ["-e", "setTimeout(() => process.exit(0), 600)"], { stdio: ["ignore", 1, "ignore"] });
-         setTimeout(() => process.exit(23), 25);`,
+         const descendant = spawn(process.execPath, ["--input-type=module", "-e", ${JSON.stringify(descendantScript)}], { stdio: ["ignore", 1, "ignore", "ipc"] });
+         descendant.on("message", () => setTimeout(() => process.exit(23), 25));`,
       ],
-      { stdio: ["ignore", "pipe", "ignore"] },
+      {
+        stdio: ["ignore", "pipe", "ignore"],
+        env: {
+          ...process.env,
+          PIPELAB_DESCENDANT_READY: descendantReadyPath,
+          PIPELAB_DESCENDANT_DONE: descendantDonePath,
+        },
+      },
     );
+    children.add(child);
     let closed = false;
+    let resolveClosed!: () => void;
+    const closedPromise = new Promise<void>((resolve) => {
+      resolveClosed = resolve;
+    });
     const exited = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(
       (resolve, reject) => {
         monitorCliProcessExit(child, (code, signal) => resolve({ code, signal }));
         child.once("error", reject);
         child.once("close", () => {
           closed = true;
+          resolveClosed();
         });
       },
     );
-    const exit = await Promise.race([
-      exited,
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("CLI exit monitoring waited for stdio closure")), 400),
-      ),
-    ]);
+    const waitForPath = async (path: string, message: string) => {
+      const deadline = Date.now() + 2000;
+      while (Date.now() < deadline) {
+        try {
+          await access(path);
+          return;
+        } catch {
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+      }
+      throw new Error(message);
+    };
 
-    assert.equal(exit.code, 23);
-    assert.equal(closed, false);
-    await new Promise<void>((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error("Descendant did not release stdout")), 2000);
-      child.once("close", () => {
-        clearTimeout(timer);
-        resolve();
-      });
-    });
+    try {
+      await waitForPath(descendantReadyPath, "Descendant did not start");
+      const exit = await Promise.race([
+        exited,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("CLI exit monitoring waited for stdio closure")), 2000),
+        ),
+      ]);
+
+      assert.equal(exit.code, 23);
+      assert.equal(
+        await access(descendantDonePath).then(
+          () => true,
+          () => false,
+        ),
+        false,
+      );
+      if (process.platform === "win32") {
+        // Windows runner process cleanup may terminate descendants with their parent,
+        // so only the parent exit callback is portable on this platform.
+        if (!closed) {
+          await Promise.race([
+            closedPromise,
+            new Promise<never>((_, reject) =>
+              setTimeout(
+                () => reject(new Error("CLI stdio did not close after process exit")),
+                2000,
+              ),
+            ),
+          ]);
+        }
+      } else {
+        assert.equal(closed, false);
+        await waitForPath(descendantDonePath, "Descendant did not finish");
+        if (!closed) await closedPromise;
+      }
+    } finally {
+      await rm(tempDir, { recursive: true, force: true });
+    }
   });
 });

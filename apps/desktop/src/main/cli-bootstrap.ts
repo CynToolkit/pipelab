@@ -1,12 +1,13 @@
 import { createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { spawn, type ChildProcess } from "node:child_process";
+import { readdirSync, readFileSync } from "node:fs";
 import http from "node:http";
 import semver from "semver";
 import { desktopBootstrapProtocolVersion } from "@pipelab/constants";
 
 const BOOTSTRAP_PATH = "/__pipelab/desktop-bootstrap";
 const READY_PREFIX = "PIPELAB_DESKTOP_READY:";
-const READY_TIMEOUT_MS = 20_000;
+const READY_TIMEOUT_MS = 120_000;
 const HANDSHAKE_TIMEOUT_MS = 5_000;
 const MAX_READY_BYTES = 2048;
 const MAX_IDENTITY_BYTES = 8192;
@@ -40,16 +41,26 @@ interface StartAuthenticatedCliOptions {
   executable: string;
   args: string[];
   env: NodeJS.ProcessEnv;
+  cwd?: string;
   desktopVersion: string;
   readyTimeoutMs?: number;
   handshakeTimeoutMs?: number;
   onSpawn?: (child: ChildProcess) => void;
+  onStartupFailure?: (
+    child: ChildProcess,
+    serverPid?: number,
+    serverCreationTime?: string,
+    launcherCreationTime?: string,
+  ) => Promise<void> | void;
 }
 
 export interface AuthenticatedCliProcess {
   child: ChildProcess;
   port: number;
   sessionId: string;
+  serverPid: number;
+  serverCreationTime?: string;
+  launcherCreationTime?: string;
 }
 
 /** Observe process exit immediately, even if a descendant still holds stdio open. */
@@ -58,6 +69,257 @@ export function monitorCliProcessExit(
   onExit: (code: number | null, signal: NodeJS.Signals | null) => void,
 ): void {
   child.once("exit", onExit);
+}
+
+async function waitForChildExit(child: ChildProcess, timeoutMs: number): Promise<boolean> {
+  if (child.exitCode !== null || child.signalCode !== null) return true;
+  return new Promise((resolve) => {
+    const finish = (exited: boolean) => {
+      clearTimeout(timer);
+      child.removeListener("exit", onExit);
+      resolve(exited);
+    };
+    const timer = setTimeout(() => finish(false), timeoutMs);
+    const onExit = () => finish(true);
+    child.once("exit", onExit);
+    if (child.exitCode !== null || child.signalCode !== null) finish(true);
+  });
+}
+
+function isProcessRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    if (process.platform === "linux") {
+      const stat = readFileSync(`/proc/${pid}/stat`, "utf8");
+      const state = stat.slice(stat.lastIndexOf(")") + 2, stat.lastIndexOf(")") + 3);
+      if (state === "Z" || state === "X") return false;
+    }
+    return true;
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "ESRCH") {
+      return false;
+    }
+    return true;
+  }
+}
+
+function isProcessGroupRunning(groupId: number): boolean {
+  try {
+    process.kill(-groupId, 0);
+  } catch (error) {
+    return !(error && typeof error === "object" && "code" in error && error.code === "ESRCH");
+  }
+
+  if (process.platform !== "linux") return true;
+
+  try {
+    for (const entry of readdirSync("/proc")) {
+      if (!/^\d+$/.test(entry)) continue;
+      try {
+        const stat = readFileSync(`/proc/${entry}/stat`, "utf8");
+        const fields = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
+        const state = fields[0];
+        const processGroup = Number(fields[2]);
+        if (processGroup === groupId && state !== "Z" && state !== "X") return true;
+      } catch {
+        // The process may exit between listing /proc and reading its stat file.
+      }
+    }
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+async function waitForProcessExit(pid: number, timeoutMs: number): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (isProcessRunning(pid)) {
+    if (Date.now() >= deadline) return false;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return true;
+}
+
+async function waitForProcessGroupExit(groupId: number, timeoutMs: number): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (isProcessGroupRunning(groupId)) {
+    if (Date.now() >= deadline) return false;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return true;
+}
+
+export async function getWindowsProcessCreationTime(pid: number): Promise<string> {
+  const script = `$p = Get-Process -Id ${pid} -ErrorAction SilentlyContinue; if ($null -eq $p) { exit 3 }; [Console]::Out.Write($p.StartTime.ToUniversalTime().Ticks.ToString())`;
+  return new Promise((resolve, reject) => {
+    const powershell = spawn(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-Command", script],
+      { stdio: ["ignore", "pipe", "ignore"] },
+    );
+    let output = "";
+    const timer = setTimeout(() => {
+      powershell.kill();
+      finish(new Error("Timed out verifying the Windows CLI process identity."));
+    }, 5_000);
+    const finish = (error?: Error, value?: string) => {
+      clearTimeout(timer);
+      if (error) reject(error);
+      else resolve(value!);
+    };
+    powershell.stdout?.setEncoding("utf8");
+    powershell.stdout?.on("data", (chunk: string) => {
+      output += chunk;
+    });
+    powershell.once("error", () =>
+      finish(new Error("Could not verify the Windows CLI process identity.")),
+    );
+    powershell.once("close", (code) => {
+      const creationTime = output.trim();
+      if (code === 0 && /^\d+$/.test(creationTime)) finish(undefined, creationTime);
+      else finish(new Error("Could not verify the Windows CLI process identity."));
+    });
+  });
+}
+
+async function stopWindowsProcessTree(pid: number, expectedCreationTime: string): Promise<boolean> {
+  const script = [
+    "$ErrorActionPreference = 'Stop'",
+    `$rootId = ${pid}`,
+    `$expectedTicks = '${expectedCreationTime}'`,
+    "$all = @(Get-CimInstance Win32_Process)",
+    "$rootRow = $all | Where-Object { $_.ProcessId -eq $rootId } | Select-Object -First 1",
+    "if ($null -eq $rootRow) { exit 3 }",
+    "$root = Get-Process -Id $rootId -ErrorAction Stop",
+    "$rootStartTicks = $root.StartTime.ToUniversalTime().Ticks; $rootStartKey = [long]($rootStartTicks - ($rootStartTicks % 10000))",
+    "$expectedRawTicks = [long]$expectedTicks; $expectedKey = [long]($expectedRawTicks - ($expectedRawTicks % 10000)); if ($rootStartKey -ne $expectedKey) { exit 4 }",
+    "$ids = New-Object 'System.Collections.Generic.HashSet[int]'",
+    "$null = $ids.Add($rootId)",
+    "$births = @{}; foreach ($row in $all) { $births[[int]$row.ProcessId] = $row.CreationDate.ToUniversalTime().Ticks }",
+    "$changed = $true",
+    "while ($changed) { $changed = $false; foreach ($row in $all) { $parentId = [int]$row.ParentProcessId; if ($ids.Contains($parentId) -and $births.ContainsKey($parentId) -and $row.CreationDate.ToUniversalTime().Ticks -gt $births[$parentId] -and $ids.Add([int]$row.ProcessId)) { $changed = $true } } }",
+    "$targets = @()",
+    "foreach ($row in $all) { if ($ids.Contains([int]$row.ProcessId)) { $proc = Get-Process -Id $row.ProcessId -ErrorAction SilentlyContinue; if ($null -ne $proc) { $startTicks = $proc.StartTime.ToUniversalTime().Ticks; $startKey = [long]($startTicks - ($startTicks % 10000)); $rowTicks = $row.CreationDate.ToUniversalTime().Ticks; $rowKey = [long]($rowTicks - ($rowTicks % 10000)); if ($startKey -eq $rowKey) { $targets += $proc } } } }",
+    "if (-not ($targets | Where-Object { $_.Id -eq $rootId })) { exit 4 }",
+    "$targets | Where-Object { $_.Id -ne $rootId } | ForEach-Object { $_.Kill() }",
+    "$root.Kill()",
+    "$stopped = $true; foreach ($proc in $targets) { if (-not $proc.WaitForExit(5000)) { $stopped = $false } }; if (-not $stopped) { exit 5 }",
+  ].join("; ");
+
+  return new Promise((resolve) => {
+    const powershell = spawn(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-Command", script],
+      { stdio: "ignore" },
+    );
+    let settled = false;
+    const finish = (success: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve(success);
+    };
+    const timer = setTimeout(() => {
+      powershell.kill();
+      finish(false);
+    }, 10_000);
+    powershell.once("error", () => finish(false));
+    powershell.once("close", (code) => {
+      if (code === 0) finish(true);
+      else if (code === 3) finish(!isProcessRunning(pid));
+      else finish(false);
+    });
+  });
+}
+
+/** Stop the CLI and any child it created before Desktop exits or abandons startup. */
+export async function stopCliProcessTree(
+  child: ChildProcess,
+  serverPid?: number,
+  serverCreationTime?: string,
+  launcherCreationTime?: string,
+): Promise<void> {
+  if (process.platform === "win32") {
+    const launcherPid = child.pid;
+    const launcherWasRunning =
+      launcherPid !== undefined && child.exitCode === null && child.signalCode === null;
+    let treeStopped = true;
+
+    if (launcherWasRunning && launcherPid !== undefined) {
+      if (!launcherCreationTime) {
+        child.kill();
+        throw new Error("Could not safely verify the Windows CLI launcher before cleanup.");
+      }
+      treeStopped = await stopWindowsProcessTree(launcherPid, launcherCreationTime);
+      if (!treeStopped) child.kill();
+    }
+
+    if (serverPid !== undefined && serverPid !== launcherPid && isProcessRunning(serverPid)) {
+      if (!serverCreationTime) {
+        throw new Error(
+          "Could not safely verify the authenticated Windows CLI server before cleanup.",
+        );
+      }
+      const serverStopped = await stopWindowsProcessTree(serverPid, serverCreationTime);
+      if (!serverStopped) {
+        throw new Error(
+          "Could not safely terminate the authenticated Windows CLI server process tree.",
+        );
+      }
+    }
+
+    if (!treeStopped) {
+      throw new Error("Could not confirm termination of the Windows CLI process tree.");
+    }
+
+    if (launcherPid !== undefined && !(await waitForChildExit(child, 5_000))) {
+      child.kill();
+      if (!(await waitForChildExit(child, 5_000))) {
+        throw new Error("The Windows CLI launcher did not stop within 10 seconds of cleanup.");
+      }
+    }
+
+    if (!launcherWasRunning && serverPid === undefined) {
+      throw new Error("Could not identify the Windows CLI server process for cleanup.");
+    }
+    return;
+  }
+
+  if (child.pid !== undefined) {
+    try {
+      process.kill(-child.pid, "SIGTERM");
+    } catch (error) {
+      if (!error || typeof error !== "object" || !("code" in error) || error.code !== "ESRCH") {
+        throw error;
+      }
+    }
+  } else {
+    child.kill();
+  }
+
+  const groupId = child.pid;
+  if (groupId !== undefined && !(await waitForProcessGroupExit(groupId, 5_000))) {
+    try {
+      process.kill(-groupId, "SIGKILL");
+    } catch (error) {
+      if (!error || typeof error !== "object" || !("code" in error) || error.code !== "ESRCH") {
+        throw error;
+      }
+    }
+    if (!(await waitForProcessGroupExit(groupId, 5_000))) {
+      throw new Error("The CLI process group did not stop within 10 seconds of cleanup.");
+    }
+  }
+
+  if (!(await waitForChildExit(child, 5_000))) {
+    child.kill();
+    if (!(await waitForChildExit(child, 5_000))) {
+      throw new Error("The CLI launcher did not stop within 10 seconds of cleanup.");
+    }
+  }
+  if (serverPid !== undefined && !(await waitForProcessExit(serverPid, 5_000))) {
+    throw new Error("The authenticated CLI server did not stop after process-group cleanup.");
+  }
 }
 
 const createCredentials = (): BootstrapCredentials => ({
@@ -184,8 +446,10 @@ function waitForReadyMessage(
       settled = true;
       const remainingOutput = buffer;
       cleanup();
-      if (error) reject(error);
-      else if (message) {
+      if (error) {
+        if (remainingOutput.trim()) console.info(`[CLI] ${remainingOutput.trimEnd()}`);
+        reject(error);
+      } else if (message) {
         if (remainingOutput.trim()) console.info(`[CLI] ${remainingOutput.trimEnd()}`);
         channel.on("data", (chunk: Buffer | string) => {
           const line = chunk.toString().trimEnd();
@@ -376,21 +640,32 @@ export async function startAuthenticatedCliProcess(
 ): Promise<AuthenticatedCliProcess> {
   const credentials = createCredentials();
   const child = spawn(options.executable, options.args, {
+    ...(options.cwd ? { cwd: options.cwd } : {}),
+    detached: process.platform !== "win32",
     env: {
       ...options.env,
       [BOOTSTRAP_SECRET_ENV]: credentials.secret.toString("base64url"),
       [BOOTSTRAP_SESSION_ENV]: credentials.sessionId,
     },
-    stdio: ["inherit", "pipe", "inherit"],
+    // The local server is noninteractive; avoid inheriting Electron's stdin
+    // handle on Windows, and keep stderr visible for startup diagnostics.
+    stdio: ["ignore", "pipe", "pipe"],
   });
+  child.stderr?.pipe(process.stderr);
   options.onSpawn?.(child);
+  let authenticatedServerPid: number | undefined;
+  let launcherCreationTime: string | undefined;
+  let serverCreationTime: string | undefined;
 
   try {
-    const ready = await waitForReadyMessage(
-      child,
-      credentials.sessionId,
-      options.readyTimeoutMs ?? READY_TIMEOUT_MS,
-    );
+    const [ready] = await Promise.all([
+      waitForReadyMessage(child, credentials.sessionId, options.readyTimeoutMs ?? READY_TIMEOUT_MS),
+      process.platform === "win32" && child.pid !== undefined
+        ? getWindowsProcessCreationTime(child.pid).then((creationTime) => {
+            launcherCreationTime = creationTime;
+          })
+        : Promise.resolve(),
+    ]);
     if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) {
       throw new Error(
         "The CLI server exited before startup verification. Restart Desktop and try again.",
@@ -410,14 +685,42 @@ export async function startAuthenticatedCliProcess(
       desktopVersion: options.desktopVersion,
       childPid: child.pid,
     });
+    authenticatedServerPid = response.pid;
+    if (process.platform === "win32") {
+      serverCreationTime =
+        response.pid === child.pid
+          ? launcherCreationTime
+          : await getWindowsProcessCreationTime(response.pid);
+    }
     if (child.exitCode !== null || child.signalCode !== null) {
       throw new Error(
         "The CLI server exited during startup verification. Restart Desktop and try again.",
       );
     }
 
-    return { child, port: ready.port, sessionId: credentials.sessionId };
+    return {
+      child,
+      port: ready.port,
+      sessionId: credentials.sessionId,
+      serverPid: response.pid,
+      ...(serverCreationTime ? { serverCreationTime } : {}),
+      ...(launcherCreationTime ? { launcherCreationTime } : {}),
+    };
   } catch (error) {
+    try {
+      await options.onStartupFailure?.(
+        child,
+        authenticatedServerPid,
+        serverCreationTime,
+        launcherCreationTime,
+      );
+    } catch (cleanupError) {
+      child.kill();
+      throw new AggregateError(
+        [error, cleanupError],
+        "The CLI failed startup verification and its process tree could not be cleaned up.",
+      );
+    }
     child.kill();
     throw error;
   } finally {

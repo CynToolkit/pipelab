@@ -392,7 +392,7 @@ export const forge = async (
               abortSignal,
             });
           }
-          await cp(outDir, join(cwd, "out"), { recursive: true });
+          await cp(outDir, join(cwd, "out"), { recursive: true, verbatimSymlinks: true });
         } finally {
           process.noAsar = originalNoAsar;
         }

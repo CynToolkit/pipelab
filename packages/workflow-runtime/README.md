@@ -53,4 +53,6 @@ already running in that batch finish first, so independent branches remain
 parallel; this policy stops later work without serializing ready steps.
 
 `CORE_WORKFLOW_TASKS` exports the stable IDs used by Pipelab hosts when
-registering generic filesystem, archive, and passthrough workflow tasks.
+registering generic filesystem, archive, and passthrough workflow tasks. Import
+them from `@pipelab/workflow-runtime/task-ids`; this entry is browser-safe and
+does not load the Node.js process host.

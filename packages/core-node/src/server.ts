@@ -150,6 +150,9 @@ export async function serveCommand(options: ServeOptions, version: string, cliDi
   }
 
   // Start the server EARLY so the UI can connect and receive progress updates
+  if (options.desktopBootstrap) {
+    console.info("[Server] Binding authenticated Desktop server listener.");
+  }
   await webSocketServer.start(Number(options.port), server, security);
 
   const address = server.address();

@@ -9,7 +9,8 @@ import type {
   ReleaseRegistry,
 } from "./types";
 import { isSafePersistedId } from "../persisted-id";
-import { CORE_WORKFLOW_TASKS, type Workflow, type WorkflowStep } from "@pipelab/workflow-runtime";
+import type { Workflow, WorkflowStep } from "@pipelab/workflow-runtime";
+import { CORE_WORKFLOW_TASKS } from "@pipelab/workflow-runtime/task-ids";
 
 const provider = <T extends { id: string }>(providers: T[], id: string, kind: string): T => {
   const result = providers.find((candidate) => candidate.id === id);

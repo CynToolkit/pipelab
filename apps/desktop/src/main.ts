@@ -6,6 +6,7 @@ import { electronApp, optimizer, is } from "@electron-toolkit/utils";
 import { startServer, stopServer } from "./main/server-process";
 import { uiDevPort, getProtocolName, getAppBundleId } from "@pipelab/constants";
 import { registerIpcHandlers } from "./main/ipc-handlers";
+import { installUpdateAfterServerStops } from "./main/update-shutdown";
 import { getDefaultUserDataPath, fetchLatestDesktopRelease } from "@pipelab/core-node/desktop";
 import started from "electron-squirrel-startup";
 import { PostHog } from "posthog-node";
@@ -14,6 +15,8 @@ import semver from "semver";
 
 const isProduction = app.isPackaged && process.env.TEST !== "true";
 const isE2ESmokeTest = process.env.PIPELAB_E2E === "1";
+const e2eHistoryPath = process.env.PIPELAB_E2E_HISTORY_PATH;
+const e2eExpectedRunCount = Number(process.env.PIPELAB_E2E_EXPECTED_RUNS || 0);
 
 let posthog: PostHog | undefined;
 if (isProduction) {
@@ -153,6 +156,48 @@ if (process.platform === "win32" && process.env.TEST !== "true" && app.isPackage
 }
 
 let mainWindow: BrowserWindow | undefined;
+let shutdownPromise: Promise<void> | undefined;
+let installingUpdate = false;
+
+function stopServerOnce(): Promise<void> {
+  if (!shutdownPromise) {
+    shutdownPromise = stopServer().finally(() => {
+      shutdownPromise = undefined;
+    });
+  }
+  return shutdownPromise;
+}
+
+function handleShutdownFailure(error: unknown): void {
+  console.error("Failed to stop the CLI process tree:", error);
+  dialog.showErrorBox(
+    "Shutdown Error",
+    "Pipelab could not confirm that its local CLI process stopped. The application will stay open so cleanup can be retried.",
+  );
+  void restoreWindowAfterFailedShutdown().catch((restoreError: unknown) =>
+    console.error("Failed to restore the Desktop window after shutdown error:", restoreError),
+  );
+}
+
+async function relaunchAfterServerStops(): Promise<void> {
+  try {
+    await stopServerOnce();
+    app.relaunch();
+    app.exit(0);
+  } catch (error) {
+    handleShutdownFailure(error);
+    throw error;
+  }
+}
+
+async function installDownloadedUpdate(): Promise<void> {
+  await installUpdateAfterServerStops({
+    stopServer: stopServerOnce,
+    quitAndInstall: () => autoUpdater.quitAndInstall(),
+    setInstalling: (installing) => (installingUpdate = installing),
+    onFailure: handleShutdownFailure,
+  });
+}
 
 function createWindow(): void {
   const displays = screen.getAllDisplays();
@@ -189,6 +234,20 @@ function createWindow(): void {
     mainWindow.webContents.openDevTools();
   }
 
+  if (isE2ESmokeTest) {
+    mainWindow.webContents.on("console-message", (_event, level, message, line, sourceId) => {
+      console.info(`[E2E] renderer-console level=${level} ${sourceId}:${line} ${message}`);
+    });
+    mainWindow.webContents.on("did-fail-load", (_event, code, description, url, isMainFrame) => {
+      console.error(
+        `[E2E] renderer-load-error code=${code} mainFrame=${isMainFrame} url=${url} ${description}`,
+      );
+    });
+    mainWindow.webContents.on("render-process-gone", (_event, details) => {
+      console.error(`[E2E] renderer-process-gone ${JSON.stringify(details)}`);
+    });
+  }
+
   mainWindow.webContents.on("did-finish-load", () => {
     if (pendingUrl) {
       mainWindow?.webContents.send("protocol-url", pendingUrl);
@@ -198,13 +257,87 @@ function createWindow(): void {
     if (isE2ESmokeTest) {
       void mainWindow.webContents
         .executeJavaScript(
-          "document.readyState === 'complete' && document.body && document.body.innerHTML.trim().length > 0",
+          e2eHistoryPath
+            ? `(async () => {
+              const route = ${JSON.stringify(e2eHistoryPath)};
+              const expectedRuns = ${e2eExpectedRunCount};
+              if (!route || !Number.isInteger(expectedRuns) || expectedRuns < 1) {
+                throw new Error("Invalid Desktop history acceptance parameters");
+              }
+              if (window.location.pathname !== route) {
+                const target = new URL(route, window.location.href);
+                const cliPort = new URLSearchParams(window.location.search).get("cliPort");
+                if (cliPort) target.searchParams.set("cliPort", cliPort);
+                window.location.assign(target.href);
+                return "navigating";
+              }
+              const waitFor = async (read, label) => {
+                const deadline = Date.now() + 45_000;
+                while (Date.now() < deadline) {
+                  const value = read();
+                  if (value) return value;
+                  await new Promise((resolve) => setTimeout(resolve, 200));
+                }
+                const pageState = {
+                  path: window.location.pathname,
+                  title: document.title,
+                  body: document.body?.innerText.slice(0, 1_200) || "<empty body>",
+                };
+                throw new Error(
+                  "Timed out waiting for Desktop " + label + " (" + JSON.stringify(pageState) + ")",
+                );
+              };
+              const rows = await waitFor(() => {
+                const error = document.querySelector('[role="alert"]');
+                if (error) throw new Error(error.textContent || "Could not load workflow runs");
+                const list = document.querySelector('[aria-label="Workflow runs"]');
+                const items = list?.querySelectorAll('[role="listitem"]');
+                return items?.length === expectedRuns ? items : null;
+              }, "workflow history");
+              rows[0].click();
+              const summary = await waitFor(
+                () => document.querySelector(".run-page .run-summary"),
+                "run details",
+              );
+              const status = document.querySelector(".run-page header .status-mark")?.getAttribute("aria-label");
+              if (status !== "completed") throw new Error("Unexpected run status: " + (status || "missing"));
+              const artifactCountText = Array.from(summary.querySelectorAll("span"))
+                .map((span) => span.textContent || "")
+                .find((value) => /\\d+\\s+artifacts/.test(value));
+              const artifactCount = Number(artifactCountText?.match(/(\\d+)\\s+artifacts/)?.[1] || 0);
+              if (artifactCount < 1) throw new Error("The completed Desktop run has no artifacts");
+              const artifactsTab = Array.from(document.querySelectorAll(".detail-tabs button"))
+                .find((button) => button.textContent?.includes("Artifacts"));
+              if (!artifactsTab) throw new Error("The Desktop Artifacts tab is missing");
+              artifactsTab.click();
+              const artifactRows = await waitFor(
+                () => {
+                  const rows = document.querySelectorAll(".artifact-list .artifact-row");
+                  return rows.length ? rows : null;
+                },
+                "artifact list",
+              );
+              if (artifactRows.length !== artifactCount) {
+                throw new Error("Expected " + artifactCount + " Desktop artifacts, found " + artifactRows.length);
+              }
+              const openButton = document.querySelector('.artifact-row button[aria-label^="Open "]');
+              const artifactPath = openButton?.getAttribute("data-artifact-path");
+              if (!artifactPath) {
+                throw new Error("No local artifact can be opened from Desktop");
+              }
+              await window.pipelab.showItemInFolder(artifactPath);
+              return "history-verified";
+            })()`
+            : "document.readyState === 'complete' && document.body && document.body.innerHTML.trim().length > 0",
         )
-        .then((loaded) => {
-          if (!loaded) {
+        .then((result) => {
+          if (result === "navigating") return;
+          if (result !== true && result !== "history-verified") {
             throw new Error("Renderer loaded an empty document");
           }
-          console.info("[E2E] renderer-loaded");
+          console.info(
+            e2eHistoryPath ? "[E2E] workflow-history-verified" : "[E2E] renderer-loaded",
+          );
           app.exit(0);
         })
         .catch((error) => {
@@ -214,8 +347,12 @@ function createWindow(): void {
     }
   });
 
-  mainWindow.on("close", function () {
-    app.exit(0);
+  mainWindow.on("close", (event) => {
+    if (installingUpdate) return;
+    event.preventDefault();
+    void stopServerOnce()
+      .then(() => app.exit(0))
+      .catch(handleShutdownFailure);
   });
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
@@ -229,6 +366,15 @@ function createWindow(): void {
     }
     return { action: "deny" };
   });
+}
+
+async function restoreWindowAfterFailedShutdown(): Promise<void> {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  const cliPort = await startServer();
+  const uiUrl = is.dev
+    ? `http://127.0.0.1:${uiDevPort}/?cliPort=${cliPort}`
+    : `http://127.0.0.1:${cliPort}`;
+  await mainWindow?.loadURL(uiUrl);
 }
 
 const protocolName = getProtocolName(app.getVersion());
@@ -383,11 +529,12 @@ app.whenReady().then(async () => {
           };
 
           dialog.showMessageBox(dialogOpts).then((returnValue) => {
-            if (returnValue.response === 0) autoUpdater.quitAndInstall();
+            if (returnValue.response === 0) void installDownloadedUpdate();
           });
         });
 
         autoUpdater.on("error", (message) => {
+          installingUpdate = false;
           console.error("[Update] AutoUpdater encountered an error:", message);
           // Fallback to manual update indicator if an update is actually available
           const manualInfo = resolveManualDownloadUrl(latestRelease);
@@ -429,7 +576,7 @@ app.whenReady().then(async () => {
 
   const appBundleId = getAppBundleId(app.getVersion());
   electronApp.setAppUserModelId(appBundleId);
-  registerIpcHandlers();
+  registerIpcHandlers(relaunchAfterServerStops);
   createWindow();
 
   // Start the background server (this might include downloading the CLI on first run)
@@ -476,13 +623,16 @@ app.whenReady().then(async () => {
 
 app.on("window-all-closed", async () => {
   if (process.platform !== "darwin") {
-    stopServer();
-    app.quit();
+    void stopServerOnce()
+      .then(() => app.quit())
+      .catch(handleShutdownFailure);
   }
 });
 
-app.on("before-quit", async (event) => {
+app.on("before-quit", (event) => {
+  if (installingUpdate) return;
   event.preventDefault();
-  stopServer();
-  app.exit(0);
+  void stopServerOnce()
+    .then(() => app.exit(0))
+    .catch(handleShutdownFailure);
 });

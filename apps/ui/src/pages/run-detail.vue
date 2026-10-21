@@ -268,6 +268,7 @@
                 text
                 size="small"
                 :aria-label="`Open ${artifactTitle(artifact)}`"
+                :data-artifact-path="artifact.path"
                 @click="openArtifact(artifact.path)"
               />
               <Button

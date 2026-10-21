@@ -1,5 +1,6 @@
 import { expect, test, vi } from "vitest";
 import { mkdir, mkdtemp, readFile, rm, stat as getStat, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import lockfile from "proper-lockfile";
 import { acquireManagedProfileLock, preparePlaywrightProfile } from "./export-shared";
@@ -7,16 +8,17 @@ import { fetchPackage, type ProviderHostContext } from "@pipelab/plugin-core";
 import dns from "node:dns/promises";
 
 test("copies the complete Construct profile and removes stale browser locks", async () => {
-  const root = await mkdtemp(join("/tmp", "construct-profile-copy-"));
+  const root = await mkdtemp(join(tmpdir(), "construct-profile-copy-"));
   const source = join(root, "source");
   const destination = join(root, "destination");
   const database = join(source, "IndexedDB", "https_editor.construct.net_0.indexeddb.leveldb");
-  await mkdir(database, { recursive: true });
-  await writeFile(join(source, "Preferences"), "profile metadata");
-  await writeFile(join(database, "addon-record"), "pipelab");
-  await writeFile(join(database, "LOCK"), "");
 
   try {
+    await mkdir(database, { recursive: true });
+    await writeFile(join(source, "Preferences"), "profile metadata");
+    await writeFile(join(database, "addon-record"), "pipelab");
+    await writeFile(join(database, "LOCK"), "");
+
     await preparePlaywrightProfile(source, destination);
 
     if (process.platform !== "win32") {
@@ -56,7 +58,7 @@ test("copies the complete Construct profile and removes stale browser locks", as
 });
 
 test("aborting a profile lock wait does not leave a late lock behind", async () => {
-  const root = await mkdtemp(join("/tmp", "construct-profile-lock-"));
+  const root = await mkdtemp(join(tmpdir(), "construct-profile-lock-"));
   const profile = join(root, "profile");
   await mkdir(profile, { recursive: true });
   const releaseHolder = await lockfile.lock(profile, { retries: 0 });
@@ -83,7 +85,7 @@ test("aborting a profile lock wait does not leave a late lock behind", async () 
 }, 5_000);
 
 test("cancelling profile refresh stops the remaining recursive copy", async () => {
-  const root = await mkdtemp(join("/tmp", "construct-profile-copy-abort-"));
+  const root = await mkdtemp(join(tmpdir(), "construct-profile-copy-abort-"));
   const source = join(root, "source");
   const destination = join(root, "destination");
   const controller = new AbortController();
@@ -107,7 +109,7 @@ test("cancelling profile refresh stops the remaining recursive copy", async () =
 });
 
 test("a missing selected-profile Preferences file rejects before changing managed profile data", async () => {
-  const root = await mkdtemp(join("/tmp", "construct-profile-copy-required-"));
+  const root = await mkdtemp(join(tmpdir(), "construct-profile-copy-required-"));
   const source = join(root, "source");
   const destination = join(root, "destination");
   const oldPreferences = join(destination, "Default", "Preferences");
@@ -127,7 +129,7 @@ test("a missing selected-profile Preferences file rejects before changing manage
 });
 
 test("rejects a missing Construct profile with an actionable error", async () => {
-  const root = await mkdtemp(join("/tmp", "construct-profile-missing-"));
+  const root = await mkdtemp(join(tmpdir(), "construct-profile-missing-"));
   const source = join(root, "missing-profile");
   const destination = join(root, "destination");
 
@@ -141,7 +143,7 @@ test("rejects a missing Construct profile with an actionable error", async () =>
 });
 
 test("uses an installed exact Playwright package without resolving npm metadata", async () => {
-  const root = await mkdtemp(join("/tmp", "construct-package-cache-"));
+  const root = await mkdtemp(join(tmpdir(), "construct-package-cache-"));
   const packageName = "playwright-core";
   const packageDir = join(root, "packages", packageName, "1.62.1");
   const dnsLookup = vi
@@ -185,18 +187,19 @@ test("uses an installed exact Playwright package without resolving npm metadata"
 });
 
 test("copies only the exact Chromium profile directory selected by the user", async () => {
-  const root = await mkdtemp(join("/tmp", "construct-user-data-copy-"));
+  const root = await mkdtemp(join(tmpdir(), "construct-user-data-copy-"));
   const source = join(root, "source");
   const destination = join(root, "destination");
-  await mkdir(join(source, "Default", "IndexedDB"), { recursive: true });
-  await mkdir(join(source, "IndexedDB"), { recursive: true });
-  await writeFile(join(source, "Local State"), "{}");
-  await writeFile(join(source, "Preferences"), "stale root profile");
-  await writeFile(join(source, "IndexedDB", "stale-addon-marker"), "stale");
-  await writeFile(join(source, "Default", "Preferences"), "active profile");
-  await writeFile(join(source, "Default", "IndexedDB", "installed-addon-marker"), "pipelabv2");
 
   try {
+    await mkdir(join(source, "Default", "IndexedDB"), { recursive: true });
+    await mkdir(join(source, "IndexedDB"), { recursive: true });
+    await writeFile(join(source, "Local State"), "{}");
+    await writeFile(join(source, "Preferences"), "stale root profile");
+    await writeFile(join(source, "IndexedDB", "stale-addon-marker"), "stale");
+    await writeFile(join(source, "Default", "Preferences"), "active profile");
+    await writeFile(join(source, "Default", "IndexedDB", "installed-addon-marker"), "pipelabv2");
+
     await preparePlaywrightProfile(source, destination);
 
     await expect(

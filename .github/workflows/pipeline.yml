@@ -2,9 +2,14 @@ name: CI
 
 on:
   push:
-    branches: [develop, main]
   pull_request:
-    branches: [develop, main]
+  workflow_dispatch:
+    inputs:
+      run_authenticated_local_ship:
+        description: Run disposable-profile Construct to Electron acceptance on all three platforms
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -14,6 +19,153 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  local-release-platforms:
+    name: Local release checks / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run local release workflow and artifact tests
+        run: pnpm --filter @pipelab/cli test:release-platforms
+
+      - name: Run run-history recovery tests
+        run: pnpm --filter @pipelab/core-node test
+
+      - name: Run Desktop IPC and artifact tests
+        run: pnpm --filter @pipelab/app test
+
+      - name: Run Construct profile validation tests
+        run: pnpm --filter @pipelab/providers test:construct
+
+  authenticated-local-release:
+    name: Authenticated local Ship / ${{ matrix.os }}
+    if: github.event_name == 'workflow_dispatch' && inputs.run_authenticated_local_ship
+    needs: local-release-platforms
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.15.0
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Require the disposable Construct CI test account
+        shell: bash
+        env:
+          CONSTRUCT_CI_USERNAME: ${{ secrets.CONSTRUCT_CI_USERNAME }}
+          CONSTRUCT_CI_PASSWORD: ${{ secrets.CONSTRUCT_CI_PASSWORD }}
+        run: |
+          if [[ -z "$CONSTRUCT_CI_USERNAME" || -z "$CONSTRUCT_CI_PASSWORD" ]]; then
+            echo "::error::Configure CONSTRUCT_CI_USERNAME and CONSTRUCT_CI_PASSWORD for authenticated local release acceptance."
+            exit 1
+          fi
+
+      - name: Create isolated CI application and browser-profile directories
+        run: node apps/cli/scripts/prepare-local-ci-data.mjs
+
+      - name: Install Chromium and Linux browser dependencies
+        if: runner.os == 'Linux'
+        run: pnpm --filter @pipelab/providers exec playwright install --with-deps chromium
+
+      - name: Install Chromium
+        if: runner.os != 'Linux'
+        run: pnpm --filter @pipelab/providers exec playwright install chromium
+
+      - name: Populate disposable Construct profile through the Construct editor
+        env:
+          CONSTRUCT_CI_USERNAME: ${{ secrets.CONSTRUCT_CI_USERNAME }}
+          CONSTRUCT_CI_PASSWORD: ${{ secrets.CONSTRUCT_CI_PASSWORD }}
+        run: node packages/providers/scripts/prepare-construct-ci-profile.mjs
+
+      - name: Run first authenticated Construct to Electron Ship
+        env:
+          CONSTRUCT_CI_RUN_NUMBER: "1"
+          CONSTRUCT_CI_REQUIRED: "true"
+          NODE_ENV: development
+        run: pnpm --filter @pipelab/cli test:construct-live
+
+      - name: Verify Windows CLI startup with Desktop app data
+        if: runner.os == 'Windows'
+        env:
+          NODE_ENV: development
+          PIPELAB_TEST_USER_DATA_PATH: ${{ env.PIPELAB_CI_USER_DATA }}
+        run: pnpm --filter @pipelab/app exec node --import tsx --test --test-name-pattern="starts the local TypeScript CLI on Windows" src/main/cli-runner.test.ts
+
+      - name: Cold-start Desktop and verify the first run (Linux)
+        if: runner.os == 'Linux'
+        env:
+          NODE_ENV: development
+          PIPELAB_E2E_HISTORY_PATH: /workflows/ci-construct-electron-acceptance/ci-project/runs
+          PIPELAB_E2E_EXPECTED_RUNS: "1"
+        run: xvfb-run -a pnpm --filter @pipelab/app test:local-release-e2e
+
+      - name: Cold-start Desktop and verify the first run (Windows and macOS)
+        if: runner.os != 'Linux'
+        env:
+          NODE_ENV: development
+          PIPELAB_E2E_HISTORY_PATH: /workflows/ci-construct-electron-acceptance/ci-project/runs
+          PIPELAB_E2E_EXPECTED_RUNS: "1"
+        run: pnpm --filter @pipelab/app test:local-release-e2e
+
+      - name: Refresh disposable Construct profile before the second Ship
+        env:
+          CONSTRUCT_CI_USERNAME: ${{ secrets.CONSTRUCT_CI_USERNAME }}
+          CONSTRUCT_CI_PASSWORD: ${{ secrets.CONSTRUCT_CI_PASSWORD }}
+        run: node packages/providers/scripts/prepare-construct-ci-profile.mjs
+
+      - name: Run a new Ship after Desktop restart and verify saved history
+        env:
+          CONSTRUCT_CI_RUN_NUMBER: "2"
+          CONSTRUCT_CI_REQUIRED: "true"
+          NODE_ENV: development
+        run: pnpm --filter @pipelab/cli test:construct-live
+
+      - name: Cold-start Desktop and verify both runs and artifacts (Linux)
+        if: runner.os == 'Linux'
+        env:
+          NODE_ENV: development
+          PIPELAB_E2E_HISTORY_PATH: /workflows/ci-construct-electron-acceptance/ci-project/runs
+          PIPELAB_E2E_EXPECTED_RUNS: "2"
+        run: xvfb-run -a pnpm --filter @pipelab/app test:local-release-e2e
+
+      - name: Cold-start Desktop and verify both runs and artifacts (Windows and macOS)
+        if: runner.os != 'Linux'
+        env:
+          NODE_ENV: development
+          PIPELAB_E2E_HISTORY_PATH: /workflows/ci-construct-electron-acceptance/ci-project/runs
+          PIPELAB_E2E_EXPECTED_RUNS: "2"
+        run: pnpm --filter @pipelab/app test:local-release-e2e
+
   verify:
     name: CI / ${{ matrix.task }}
     runs-on: ubuntu-latest

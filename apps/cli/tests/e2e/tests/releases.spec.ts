@@ -1,6 +1,7 @@
 import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
+import { tmpdir } from "node:os";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { createSandbox, runCLI } from "@pipelab/test-utils";
 import {
@@ -667,7 +668,7 @@ describe("CLI release dry-run", () => {
     async () => {
       const configId = "before-build-hook-cli-trust";
       const markerPath = join(
-        "/tmp",
+        tmpdir(),
         `pipelab-before-build-hook-${randomBytes(6).toString("hex")}.marker`,
       );
       const result = await runDryRun(async (testSandbox) => {
@@ -1144,11 +1145,18 @@ describe("Release beforeBuild hooks", () => {
         });
         expect(electron?.needs).toContain(hook?.id);
       }
-      expect(
-        logMessages.some(
-          (message) => message.includes("Input artifact:") && message.includes(buildStaging),
-        ),
-      ).toBe(true);
+      const normalizedLogMessages = logMessages.map((message) =>
+        message.replaceAll("\\", "/").toLowerCase(),
+      );
+      for (const profileId of ["sdk-off", "sdk-on"]) {
+        expect(
+          normalizedLogMessages.some(
+            (message) =>
+              message.includes("input artifact:") &&
+              message.includes(`/workflow-staging/${profileId}`),
+          ),
+        ).toBe(true);
+      }
       expect(JSON.parse(await readFile(join(exportedFolder, "data.json"), "utf8"))).toEqual(
         originalData,
       );

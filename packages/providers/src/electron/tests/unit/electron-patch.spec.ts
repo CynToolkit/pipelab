@@ -1,5 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { access, mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
+import {
+  access,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  readlink,
+  realpath,
+  symlink,
+  writeFile,
+} from "node:fs/promises";
 import { join } from "node:path";
 import { createSandbox, runWorkflowTask } from "@pipelab/test-utils";
 import {
@@ -62,7 +72,21 @@ beforeEach(async () => {
       ? join(String(options.cwd), "out", "make")
       : join(String(options.cwd), "out", `My Game-${target}-${arch}`);
     await mkdir(output, { recursive: true });
-    await writeFile(join(output, target === "win32" ? "My Game.exe" : "My Game"), "original");
+    if (target === "darwin") {
+      const framework = join(
+        output,
+        "My Game.app",
+        "Contents",
+        "Frameworks",
+        "Electron Framework.framework",
+      );
+      await mkdir(join(framework, "Versions", "A"), { recursive: true });
+      await writeFile(join(framework, "Versions", "A", "Electron Framework"), "framework");
+      await symlink("A", join(framework, "Versions", "Current"));
+      await symlink("Versions/Current/Electron Framework", join(framework, "Electron Framework"));
+    } else {
+      await writeFile(join(output, target === "win32" ? "My Game.exe" : "My Game"), "original");
+    }
   });
   vi.mocked(patchExecutableWithGpupatch).mockImplementation(async (binary, platform) => {
     await expect(access(join(sandbox.path, "out"))).rejects.toThrow();
@@ -136,6 +160,29 @@ describe("Electron executable patching", () => {
 
   it("keeps executable patching opt-in by default", () => {
     expect(defaultElectronConfig.patchExecutable).toBe(false);
+  });
+  it("preserves relative macOS framework symlinks in the staged output", async () => {
+    const result = await runPackage({
+      "input-folder": sandbox.paths.input,
+      platform: "darwin",
+      arch: "arm64",
+      name: "My Game",
+    });
+    const framework = join(
+      String(result.outputs.output),
+      "My Game.app",
+      "Contents",
+      "Frameworks",
+      "Electron Framework.framework",
+    );
+
+    expect(await readlink(join(framework, "Electron Framework"))).toBe(
+      "Versions/Current/Electron Framework",
+    );
+    expect(await readlink(join(framework, "Versions", "Current"))).toBe("A");
+    expect(await readFile(await realpath(join(framework, "Electron Framework")), "utf8")).toBe(
+      "framework",
+    );
   });
   it("patches the staged Windows target and publishes the patched copy", async () => {
     const result = await runPackage({

@@ -1,4 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+import { tmpdir } from "node:os";
+import { join, normalize } from "node:path";
+
+const profilePath = join(tmpdir(), "profile");
+const chromiumProfilePath = join(tmpdir(), "chromium", "PipelabConstruct");
 
 const { discoverBrowserProfiles, isChromiumProfileDirectory, listChromiumBrowserProfiles } =
   vi.hoisted(() => ({
@@ -25,7 +30,7 @@ describe("Construct source inspection", () => {
 
     try {
       const compiled = constructSource.compile(
-        { path: "/project.c3p", profilePath: "/tmp/profile", version: "" },
+        { path: "/project.c3p", profilePath, version: "" },
         { host: { platform: "linux", architecture: "x64" } },
       );
       const inputs = compiled.steps[0]?.with;
@@ -47,7 +52,7 @@ describe("Construct source inspection", () => {
 
     try {
       const compiled = constructSource.compile(
-        { path: "/project.c3p", profilePath: "/tmp/profile", version: "" },
+        { path: "/project.c3p", profilePath, version: "" },
         { host: { platform: "linux", architecture: "x64" } },
       );
 
@@ -68,7 +73,7 @@ describe("Construct source inspection", () => {
     try {
       expect(() =>
         constructSource.compile(
-          { path: "/project.c3p", profilePath: "/tmp/profile", version: "" },
+          { path: "/project.c3p", profilePath, version: "" },
           { host: { platform: "linux", architecture: "x64" } },
         ),
       ).toThrow("Set both CONSTRUCT_USERNAME and CONSTRUCT_PASSWORD, or unset both");
@@ -87,7 +92,7 @@ describe("Construct source inspection", () => {
     try {
       expect(() =>
         constructSource.compile(
-          { path: "/project.c3p", profilePath: "/tmp/profile", version: "" },
+          { path: "/project.c3p", profilePath, version: "" },
           { host: { platform: "linux", architecture: "x64" } },
         ),
       ).toThrow("Both credential values must be non-empty");
@@ -100,7 +105,7 @@ describe("Construct source inspection", () => {
     const profile = {
       browser: "Chromium",
       profileName: "PipelabConstruct",
-      path: "/tmp/chromium/PipelabConstruct",
+      path: chromiumProfilePath,
     };
     listChromiumBrowserProfiles.mockResolvedValue([profile]);
 
@@ -124,7 +129,7 @@ describe("Construct source inspection", () => {
     const inspect = constructSource.inspect;
     if (!inspect) throw new Error("Expected Construct source inspection");
     const result = await inspect(
-      { profilePath: "/tmp/chromium/removed-profile" },
+      { profilePath: join(tmpdir(), "chromium", "removed-profile") },
       {
         host: { platform: "linux", architecture: "x64" },
       },
@@ -142,11 +147,12 @@ describe("Construct source inspection", () => {
   it("retains an existing custom profile outside the discovered browser roots", async () => {
     listChromiumBrowserProfiles.mockResolvedValue([]);
     isChromiumProfileDirectory.mockResolvedValue(true);
+    const customProfilePath = normalize("/opt/pipelab/construct-profile");
 
     const inspect = constructSource.inspect;
     if (!inspect) throw new Error("Expected Construct source inspection");
     const result = await inspect(
-      { profilePath: "/opt/pipelab/construct-profile" },
+      { profilePath: customProfilePath },
       {
         host: { platform: "linux", architecture: "x64" },
       },
@@ -155,8 +161,8 @@ describe("Construct source inspection", () => {
     expect(result.issues).toEqual([]);
     expect(result.fieldOptions?.profilePath).toContainEqual({
       label: "Custom / construct-profile",
-      value: "/opt/pipelab/construct-profile",
+      value: customProfilePath,
     });
-    expect(isChromiumProfileDirectory).toHaveBeenCalledWith("/opt/pipelab/construct-profile");
+    expect(isChromiumProfileDirectory).toHaveBeenCalledWith(customProfilePath);
   });
 });

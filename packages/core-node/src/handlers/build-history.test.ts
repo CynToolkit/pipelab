@@ -297,5 +297,5 @@ describe("BuildHistoryStorage workflow runs", () => {
       "run-process-a",
       "run-process-b",
     ]);
-  });
+  }, 15_000);
 });
