@@ -387,7 +387,7 @@ export const exportc3p = async (
   };
 
   const onAbort = () => {
-    console.error("aborted");
+    log("Construct export aborted");
     void browserContext?.close().catch(() => {});
   };
   const newInputs = inputs as Inputs;
@@ -541,7 +541,7 @@ export const exportc3p = async (
       delete self.showOpenFilePicker;
     });
     page.on("filechooser", (worker) => {
-      console.log("filechooser created: " + worker.page.name);
+      log("filechooser created:", worker.page.name);
     });
     logElapsed("Construct browser initialized after", browserSetupStartedAt);
     // ---------------------------------

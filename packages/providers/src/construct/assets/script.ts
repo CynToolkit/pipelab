@@ -2,11 +2,10 @@ import type { Locator, Page } from "playwright";
 import { join } from "node:path";
 import {
   registerInstallButtonListener,
-  registerSaveLoginExpiredistener,
   registerWebglErrorListener,
   registerDeprecatedFeatures,
   registerWelcomeToConstructListener,
-  registerNewVersionAvailableListener,
+  registerConfirmDialogListener,
   registerNotNowListener,
   isConstructFreeEditionLimit,
 } from "./listeners.js";
@@ -501,12 +500,11 @@ export const script = async (
   }
 
   registerWelcomeToConstructListener(page, log);
-  registerNewVersionAvailableListener(page, log);
+  registerConfirmDialogListener(page, log);
   registerNotNowListener(page, log);
   registerInstallButtonListener(page, log);
   registerWebglErrorListener(page, log);
   registerDeprecatedFeatures(page, log);
-  registerSaveLoginExpiredistener(page, log);
 
   log("after event");
   const projectOpenStartedAt = Date.now();
@@ -532,17 +530,47 @@ export const script = async (
 
   const exportOptionsStartedAt = Date.now();
   const exportMenuStartedAt = Date.now();
-  // Construct's export shortcut avoids three menu interactions before the dialog.
-  await page.keyboard.press("F6");
-  log('"Export" shortcut pressed');
+  let actionStartedAt = Date.now();
+  await page.getByRole("button", { name: "Menu" }).click();
+  logElapsed(log, "Construct menu button click after", actionStartedAt);
+  actionStartedAt = Date.now();
+  await page.getByRole("menuitem", { name: "Project" }).click();
+  logElapsed(log, "Construct Project menu click after", actionStartedAt);
+  actionStartedAt = Date.now();
+  await page.getByRole("menuitem", { name: "Export" }).click();
+  logElapsed(log, "Construct Export menu click after", actionStartedAt);
+  log('"Export" clicked');
   logElapsed(log, "Construct export menu selection after", exportMenuStartedAt);
   const exportPlatformStartedAt = Date.now();
-  const actionStartedAt = Date.now();
-  await page
+  actionStartedAt = Date.now();
+  const webExportOption = page
     .locator("ui-iconviewitem")
     .filter({ hasText: "Web (HTML5)" })
-    .locator("ui-icon")
-    .click();
+    .locator("ui-icon");
+  try {
+    const optionTimeoutMs = Math.min(exportTimeoutMs, 30_000);
+    await webExportOption.waitFor({ state: "visible", timeout: optionTimeoutMs });
+    await webExportOption.click({ timeout: optionTimeoutMs });
+  } catch (error) {
+    if (abortSignal.aborted) throw createAbortError(abortSignal);
+    if (isAbortError(error) || isRendererCrash(error) || page.isClosed()) throw error;
+    const pageText = await page
+      .locator("body")
+      .innerText({ timeout: 2_000 })
+      .catch(() => "");
+    const context = pageText.replace(/\s+/g, " ").trim().slice(0, 500);
+    const screenshotPath = join(downloadDir, `construct-export-option-failure-${Date.now()}.png`);
+    let screenshotDetails = "";
+    try {
+      await page.screenshot({ path: screenshotPath, fullPage: true, timeout: 5_000 });
+      screenshotDetails = ` Screenshot: ${screenshotPath}`;
+    } catch {
+      // Keep the selection failure details if the page can no longer be captured.
+    }
+    throw new Error(
+      `Could not select Construct's Web (HTML5) export option after opening the Export menu.${context ? ` Page says: ${context}.` : ""}${screenshotDetails}${error instanceof Error ? ` (${error.message})` : ""}`,
+    );
+  }
   logElapsed(log, "Construct Web platform click after", actionStartedAt);
   log('"Web" clicked');
 

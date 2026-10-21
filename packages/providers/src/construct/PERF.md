@@ -7,8 +7,9 @@ point and are excluded from this metric.
 
 The latest five-run warm benchmark at `ec126fea` averaged **10.921 seconds
 for the full export** and **8.021 seconds through Next**. All five ZIPs passed
-inspection. These measurements use the existing F6 implementation; none of the
-30 subsequent optimization ideas demonstrated a consistent several-second gain.
+inspection. These measurements used the F6 opener, which has since been
+replaced with Menu → Project → Export for reliability. None of the 30
+subsequent optimization ideas demonstrated a consistent several-second gain.
 Host load differs from earlier measurements, so the lower observed time cannot
 be attributed to a new optimization.
 
@@ -92,8 +93,9 @@ verified ZIPs. Identical project CPU telemetry was enabled for this comparison.
 
 None meets the requested several-second improvement. No experimental provider
 behavior was retained. CPU pressure varied throughout; these small differences
-are insufficient evidence for adoption. The baseline remains the unchanged F6
-implementation. The earlier elevated-load measurements are retained below.
+are insufficient evidence for adoption. At the time of these measurements,
+the baseline still used F6. A reliability issue later led to restoring the
+documented menu path; see the follow-up below.
 
 ## Retained-editor finding: two workflow executions (prototype only)
 
@@ -1003,3 +1005,11 @@ Safe raw logs from this investigation are at
 `/tmp/construct-seconds-openers-paired.log`,
 `/tmp/construct-seconds-project-diagnostic.log`, and
 `/tmp/construct-seconds-cpu-diagnostic.log` on the benchmark host.
+
+## Export shortcut reliability follow-up (2026-10-21)
+
+The F6 opener was removed from production after a real workflow on Construct
+`r466-2` pressed F6 but remained on the project Properties panel; the Web
+(HTML5) export chooser never appeared. Production again follows the documented
+Menu → Project → Export route. The F6 timings above are historical and do not
+describe the current opener.

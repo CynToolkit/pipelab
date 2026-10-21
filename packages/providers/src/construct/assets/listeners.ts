@@ -27,28 +27,6 @@ export const registerInstallButtonListener = (page: Page, log: typeof console.lo
     });
 };
 
-export const registerSaveLoginExpiredistener = (page: Page, log: typeof console.log) => {
-  const installDialog = page.locator("#confirmDialog");
-  const cancelBtn = installDialog.locator(".cancelConfirmButton");
-  cancelBtn
-    .waitFor({
-      timeout: 0,
-    })
-    .then(async () => {
-      await cancelBtn.click();
-      log("cancelBtn clicked");
-      registerSaveLoginExpiredistener(page, log);
-    })
-    .catch(async (e) => {
-      if (
-        e.message.includes("Target page, context or browser has been closed") ||
-        isPageCrashError(e)
-      )
-        return;
-      log("cancelBtn.click() failed", e.message);
-    });
-};
-
 export const registerWebglErrorListener = (page: Page, log: typeof console.log) => {
   const okDialog = page.locator("#okDialog");
   const webglErrorButton = okDialog.locator(".okButton");
@@ -144,17 +122,17 @@ export const registerMissingAddonErrorListener = (page: Page, log: typeof consol
     });
 };
 
-export const registerNewVersionAvailableListener = (page: Page, log: typeof console.log) => {
-  const newVersionAvailableDialog = page.locator("#confirmDialog");
-  const cancelButton = newVersionAvailableDialog.locator(".cancelConfirmButton");
+export const registerConfirmDialogListener = (page: Page, log: typeof console.log) => {
+  const confirmDialog = page.locator("#confirmDialog");
+  const cancelButton = confirmDialog.locator(".cancelConfirmButton");
   cancelButton
     .waitFor({
       timeout: 0,
     })
     .then(async () => {
       await cancelButton.click();
-      log("cancelButton clicked");
-      registerNewVersionAvailableListener(page, log);
+      log("Construct confirmation dialog dismissed");
+      registerConfirmDialogListener(page, log);
     })
     .catch(async (e) => {
       if (

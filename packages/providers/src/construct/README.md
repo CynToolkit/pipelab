@@ -25,8 +25,8 @@ If required profile data cannot be refreshed, the export stops instead of
 using stale session or addon data. The selected profile must contain a valid
 Construct session when the task has no credentials to renew it.
 
-The export automation opens Construct's export dialog with its F6 shortcut,
-then selects Web (HTML5) and the standard export options.
+The export automation opens Construct's export dialog through Menu → Project →
+Export, then selects Web (HTML5) and the standard export options.
 
 See [PERF.md](./PERF.md) for the local setup and full-export measurements and
 their conditions.
