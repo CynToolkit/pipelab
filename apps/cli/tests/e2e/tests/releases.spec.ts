@@ -586,8 +586,36 @@ describe("CLI release dry-run", () => {
         source: true,
       });
       expect(
+        result.workflow.steps.find((step: { id: string }) => step.id === "construct-source-export"),
+      ).toMatchObject({
+        with: { file: "/game.c3p", customProfile: "/profile", version: "" },
+      });
+      expect(
         result.workflow.steps.some((step: { uses: string }) => step.uses.includes("electron")),
       ).toBe(false);
+    },
+    30 * 60 * 1000,
+  );
+
+  test(
+    "passes a Construct version override to the export task",
+    async () => {
+      const result = await runDryRun({
+        version: "3.0.0",
+        id: "construct-version-override",
+        project: "main",
+        name: "Construct version override",
+        source: {
+          ...constructSource,
+          config: { ...constructSource.config, version: "r397" },
+        },
+        builds: [],
+        destinations: [poki({ source: true })],
+      });
+
+      expect(
+        result.workflow.steps.find((step: { id: string }) => step.id === "construct-source-export"),
+      ).toMatchObject({ with: { version: "r397" } });
     },
     30 * 60 * 1000,
   );
@@ -696,10 +724,10 @@ describe("CLI release dry-run", () => {
         () => null,
         (error: unknown) => error,
       );
-      expect(failedRun).toMatchObject({
-        stdout: expect.stringContaining("beforeBuild command exited with code 2"),
-        stderr: expect.stringContaining("exited with code 2"),
-      });
+      expect(`${failedRun.stdout}\n${failedRun.stderr}`).toContain(
+        "beforeBuild command exited with code 2",
+      );
+      expect(failedRun.stderr).toContain("exited with code 2");
       expect(failedRun).toMatchObject({
         stdout: expect.not.stringContaining("✔ Before build hook CLI trust"),
       });

@@ -43,13 +43,25 @@ pipelab workflow run <id-or-name>
 
 Loads a saved Release workflow by ID or unique name and executes its compiled task workflow. The `workflows` group alias is accepted.
 
+In an interactive terminal, running workflow tasks show a live elapsed timer.
+The completed task list keeps each task's final duration visible. Non-interactive
+output shows the final durations without repeated timer updates. Task logs are
+shown after the run only when `--verbose` is enabled. The workflow name also
+shows the wall-clock time for the full run; this is elapsed time, not a sum of
+the individual task durations.
+
+Workflow tasks are grouped under **Source**, **Build**, and **Destinations**.
+Source and build tasks are nested under their provider or profile. Destinations
+with a single default slot appear directly under **Destinations**; destinations
+with named or multiple slots group uploads under the destination and slot names.
+
 | Option                | Behavior                                                                                                                                                      |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--user-data <path>`  | Use a custom user-data directory.                                                                                                                             |
 | `-o, --output <path>` | Write the run result JSON; with `--dry-run`, write the prepared config and plan instead.                                                                      |
 | `--dry-run`           | Validate and prepare the workflow without executing deployment tasks.                                                                                         |
 | `--fail-on-error`     | Exit nonzero if the workflow completes with errors.                                                                                                           |
-| `-v, --verbose`       | Registered with the description “Show workflow logs after completion”; the current command handler does not read this option, so it has no additional effect. |
+| `-v, --verbose`       | Print captured workflow task logs after the run completes. Without it, full task logs are not printed after completion. |
 
 Examples exercised by the CLI E2E suite:
 

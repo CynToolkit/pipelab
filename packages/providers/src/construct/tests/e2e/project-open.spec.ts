@@ -13,6 +13,7 @@ class FakePage {
   screenshotPath: string | undefined;
   chooserOnOpen = false;
   chooserOnShortcut = false;
+  openClickCount = 0;
   closed = false;
   onOpenClick?: () => void;
   afterReload?: (page: FakePage) => void;
@@ -38,6 +39,7 @@ class FakePage {
       isVisible: async () => this.openVisible,
       isEnabled: async () => true,
       click: async () => {
+        this.openClickCount++;
         if (this.triggerError) throw this.triggerError;
         this.onOpenClick?.();
         if (this.chooserOnOpen) this.emitChooser();
@@ -122,13 +124,14 @@ test("arms the file chooser before clicking Construct's Open button", async () =
   expect(page.reloadCount).toBe(0);
 });
 
-test("falls back to Ctrl+O when the Open button does not produce a chooser", async () => {
+test("uses Ctrl+O first when it opens the file chooser", async () => {
   const page = new FakePage();
   page.chooserOnShortcut = true;
 
   await open(page);
 
   expect(page.chooserFiles).toEqual(["/projects/game.c3p"]);
+  expect(page.openClickCount).toBe(0);
 });
 
 test("reloads once and retries the chooser handshake", async () => {

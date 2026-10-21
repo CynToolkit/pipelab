@@ -3,9 +3,9 @@ import { runPnpm, runWithLiveLogs, resolveBundledAsset } from "@pipelab/plugin-c
 import { detectRuntime } from "../web-runtime";
 
 import { dirname, join, basename, delimiter } from "node:path";
-import { cp, readFile, writeFile, rm, mkdir, appendFile } from "node:fs/promises";
+import { cp, readFile, writeFile, rm, mkdir, appendFile, mkdtemp } from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { platform as osPlatform, arch as osArch } from "node:os";
+import { platform as osPlatform, arch as osArch, tmpdir } from "node:os";
 import { kebabCase } from "change-case";
 import semver from "semver";
 import { pathToFileURL } from "node:url";
@@ -43,15 +43,17 @@ export const forge = async (
   log("Building electron");
 
   if (action !== "preview") {
-    await detectRuntime(appFolder);
+    await detectRuntime(appFolder, log);
   }
 
   const { node } = paths;
   const destinationFolder = await context.createTempFolder("electron-forge-");
   log(`Staging build in ${destinationFolder}`);
   let dependencyInstallError: unknown;
+  let packageTemporaryFolder: string | undefined;
 
   try {
+    packageTemporaryFolder = await mkdtemp(join(tmpdir(), "pipelab-electron-packager-"));
     const shimDir = join(destinationFolder, ".bin");
     await mkdir(shimDir, { recursive: true });
 
@@ -83,8 +85,8 @@ export const forge = async (
 
     const rawAssetFolder = await resolveBundledAsset("@pipelab/asset-electron", context);
     const templateFolder = join(rawAssetFolder, "template");
-    console.log("templateFolder", templateFolder);
-    console.log("destinationFolder", destinationFolder);
+    log("templateFolder", templateFolder);
+    log("destinationFolder", destinationFolder);
 
     // copy template to destination
     await cp(templateFolder, destinationFolder, {
@@ -94,7 +96,7 @@ export const forge = async (
       },
     });
 
-    console.log("copy done");
+    log("copy done");
 
     // Force hoisted node-linker for pnpm to avoid electron-forge errors
     await appendFile(join(destinationFolder, ".npmrc"), "\nnode-linker=hoisted\n", "utf-8");
@@ -250,9 +252,9 @@ export const forge = async (
       log("Setting type to", isCJSOnly ? "commonjs" : "module");
     }
 
-    console.log("done install");
+    log("done install");
 
-    console.log("completeConfiguration.icon", completeConfiguration.icon);
+    log("completeConfiguration.icon", completeConfiguration.icon);
 
     // copy icon
     if (hasIcon) {
@@ -347,6 +349,9 @@ export const forge = async (
             DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
             ELECTRON_NO_ASAR: "1",
             PATH: `${shimDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`,
+            TMP: packageTemporaryFolder,
+            TEMP: packageTemporaryFolder,
+            TMPDIR: packageTemporaryFolder,
             // DEBUG: "electron-packager"
           },
           cancelSignal: abortSignal,
@@ -449,7 +454,16 @@ export const forge = async (
       const message = e instanceof Error ? `${e.message}\n${e.stack}` : String(e);
       log("Failed to clean up staging directory:", message);
     } finally {
-      process.noAsar = originalNoAsar;
+      try {
+        if (packageTemporaryFolder) {
+          await rm(packageTemporaryFolder, { recursive: true, force: true });
+        }
+      } catch (e) {
+        const message = e instanceof Error ? `${e.message}\n${e.stack}` : String(e);
+        log("Failed to clean up Electron packaging temporary directory:", message);
+      } finally {
+        process.noAsar = originalNoAsar;
+      }
     }
   }
 };

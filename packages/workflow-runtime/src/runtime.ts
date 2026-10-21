@@ -24,9 +24,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const toError = (value: unknown): Error =>
   value instanceof Error ? value : new Error(typeof value === "string" ? value : String(value));
 
-const serializeError = (value: unknown): WorkflowError => {
+const serializeError = (value: unknown, redact: (value: string) => string): WorkflowError => {
   const error = toError(value);
-  return { name: error.name || "Error", message: error.message };
+  return { name: redact(error.name || "Error"), message: redact(error.message) };
 };
 
 const abortError = (reason: unknown): Error => {
@@ -67,11 +67,100 @@ const getPath = (value: Record<string, unknown>, path: string): unknown => {
   return current;
 };
 
+const referencePattern = /\$\{\{([^{}]+)\}\}/g;
+
+const isWorkflowArtifactWithPath = (value: Record<string, unknown>): boolean =>
+  typeof value.path === "string" &&
+  (typeof value.name === "string" ||
+    (typeof value.id === "string" &&
+      typeof value.stepId === "string" &&
+      typeof value.artifact === "string"));
+
+const isWorkflowArtifactListOwner = (value: Record<string, unknown>): boolean =>
+  (typeof value.status === "string" && Array.isArray(value.artifacts) && isRecord(value.steps)) ||
+  (typeof value.id === "string" &&
+    typeof value.uses === "string" &&
+    Array.isArray(value.artifacts));
+
+const collectEnvironmentValues = (
+  workflow: Workflow,
+  env: Record<string, string | undefined>,
+): string[] => {
+  const values = new Set<string>();
+  const collect = (value: unknown) => {
+    if (Array.isArray(value)) {
+      value.forEach(collect);
+      return;
+    }
+    if (isRecord(value)) {
+      Object.values(value).forEach(collect);
+      return;
+    }
+    if (typeof value !== "string") return;
+    for (const match of value.matchAll(referencePattern)) {
+      const reference = match[1].trim();
+      if (!reference.startsWith("env.")) continue;
+      const name = reference.slice("env.".length);
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) continue;
+      const environmentValue = env[name];
+      if (environmentValue) values.add(environmentValue);
+    }
+  };
+  workflow.steps.forEach((step) => collect(step.with));
+  return [...values].sort((left, right) => right.length - left.length);
+};
+
+const redactValue = <T>(value: T, secrets: readonly string[], preserveArtifactPaths = false): T => {
+  const redactString = (text: string) =>
+    secrets.reduce((result, secret) => result.split(secret).join("[REDACTED]"), text);
+  const seen = new WeakMap<object, unknown>();
+  const visit = (current: unknown, artifactListItem = false): unknown => {
+    if (typeof current === "string") return redactString(current);
+    if (typeof current !== "object" || current === null) return current;
+    const previous = seen.get(current);
+    if (previous !== undefined) return previous;
+    if (Array.isArray(current)) {
+      const result: unknown[] = [];
+      seen.set(current, result);
+      current.forEach((item) => result.push(visit(item, artifactListItem)));
+      return result;
+    }
+    if (!isRecord(current)) return current;
+    const prototype = Object.getPrototypeOf(current);
+    if (prototype !== Object.prototype && prototype !== null) return current;
+    const preservePath =
+      preserveArtifactPaths && artifactListItem && isWorkflowArtifactWithPath(current);
+    const result: Record<string, unknown> = Object.create(prototype);
+    seen.set(current, result);
+    for (const [key, item] of Object.entries(current)) {
+      result[key] =
+        preservePath && key === "path"
+          ? item
+          : key === "artifacts" && Array.isArray(item) && isWorkflowArtifactListOwner(current)
+            ? visit(item, true)
+            : visit(item);
+    }
+    return result;
+  };
+  return visit(value) as T;
+};
+
 const resolveReference = (
   reference: string,
   variables: Record<string, unknown>,
   outputs: Record<string, Record<string, unknown>>,
+  env: Record<string, string | undefined>,
 ): unknown => {
+  if (reference.startsWith("env.")) {
+    const name = reference.slice("env.".length);
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+      throw new Error(`Invalid environment variable reference: ${reference}`);
+    }
+    if (!Object.hasOwn(env, name) || env[name] === undefined) {
+      throw new Error(`Workflow environment variable is not set: ${name}`);
+    }
+    return env[name];
+  }
   if (reference.startsWith("variables.")) {
     return getPath(variables, reference.slice("variables.".length));
   }
@@ -85,26 +174,28 @@ const resolveReference = (
   throw new Error(`Invalid workflow reference: ${reference}`);
 };
 
-const referencePattern = /\$\{\{\s*([^{}]+?)\s*\}\}/g;
-
 const resolveValue = (
   value: unknown,
   variables: Record<string, unknown>,
   outputs: Record<string, Record<string, unknown>>,
+  env: Record<string, string | undefined>,
 ): unknown => {
-  if (Array.isArray(value)) return value.map((item) => resolveValue(item, variables, outputs));
+  if (Array.isArray(value)) return value.map((item) => resolveValue(item, variables, outputs, env));
   if (isRecord(value)) {
     return Object.fromEntries(
-      Object.entries(value).map(([key, item]) => [key, resolveValue(item, variables, outputs)]),
+      Object.entries(value).map(([key, item]) => [
+        key,
+        resolveValue(item, variables, outputs, env),
+      ]),
     );
   }
   if (typeof value !== "string") return value;
 
-  const exact = /^\$\{\{\s*([^{}]+?)\s*\}\}$/.exec(value);
-  if (exact) return resolveReference(exact[1], variables, outputs);
+  const exact = /^\$\{\{([^{}]+)\}\}$/.exec(value);
+  if (exact) return resolveReference(exact[1].trim(), variables, outputs, env);
 
   return value.replace(referencePattern, (_match, reference: string) =>
-    formatLogValue(resolveReference(reference.trim(), variables, outputs)),
+    formatLogValue(resolveReference(reference.trim(), variables, outputs, env)),
   );
 };
 
@@ -112,9 +203,10 @@ const resolveInputs = (
   step: WorkflowStep,
   variables: Record<string, unknown>,
   outputs: Record<string, Record<string, unknown>>,
+  env: Record<string, string | undefined>,
 ): Record<string, unknown> => {
   if (!step.with) return {};
-  return resolveValue(step.with, variables, outputs) as Record<string, unknown>;
+  return resolveValue(step.with, variables, outputs, env) as Record<string, unknown>;
 };
 
 const resolveArtifactInputs = (
@@ -289,6 +381,11 @@ export const runWorkflow = async <TServices = unknown>(
   const signal = context.signal ?? new AbortController().signal;
   const tasks = { ...builtInTasks, ...context.tasks };
   const variables = context.variables ?? {};
+  const env = context.env ?? {};
+  const secrets = collectEnvironmentValues(workflow, env);
+  const redact = (value: string) =>
+    secrets.reduce((result, secret) => result.split(secret).join("[REDACTED]"), value);
+  const redactObject = <T>(value: T) => redactValue(value, secrets);
   const services = context.services ?? ({} as TServices);
   const outputs: Record<string, Record<string, unknown>> = {};
   const steps: Record<string, WorkflowStepResult> = {};
@@ -296,7 +393,7 @@ export const runWorkflow = async <TServices = unknown>(
   let artifactSequence = 0;
   const startedAt = Date.now();
   const emit = (event: WorkflowEventInput): void => {
-    context.onEvent?.({ ...event, timestamp: Date.now() });
+    context.onEvent?.(redactObject({ ...event, timestamp: Date.now() }));
   };
 
   emit({ type: "workflow.started", workflow });
@@ -326,8 +423,13 @@ export const runWorkflow = async <TServices = unknown>(
         const task = tasks[step.uses];
         if (!task) throw new Error(`Workflow task not found: ${step.uses}`);
         const inputs = {
-          ...resolveInputs(step, variables, outputs),
+          ...resolveInputs(step, variables, outputs, env),
           ...resolveArtifactInputs(step, artifacts),
+        };
+        const safeLogger = {
+          info: (...args: unknown[]) => context.host.logger.info(redact(formatLog(args))),
+          warn: (...args: unknown[]) => context.host.logger.warn(redact(formatLog(args))),
+          error: (...args: unknown[]) => context.host.logger.error(redact(formatLog(args))),
         };
         const result =
           (await task({
@@ -348,20 +450,22 @@ export const runWorkflow = async <TServices = unknown>(
             workspace: context.host.workspace,
             filesystem: context.host.filesystem,
             processes: context.host.processes,
-            logger: context.host.logger,
+            logger: safeLogger,
             signal,
             log: (...args) => {
-              context.host.logger.info(...args);
+              const message = redact(formatLog(args));
+              context.host.logger.info(message);
               emit({
                 type: "step.log",
                 stepId: step.id,
                 stream: "stdout",
-                message: formatLog(args),
+                message,
               });
             },
             logStream: (stream, ...args) => {
-              context.host.logger.info(...args);
-              emit({ type: "step.log", stepId: step.id, stream, message: formatLog(args) });
+              const message = redact(formatLog(args));
+              context.host.logger.info(message);
+              emit({ type: "step.log", stepId: step.id, stream, message });
             },
             setArtifact: (outputId, path, metadata) => {
               const definition = step.artifacts?.[outputId];
@@ -452,7 +556,7 @@ export const runWorkflow = async <TServices = unknown>(
       } catch (error) {
         const normalized = signal.aborted ? abortError(signal.reason) : toError(error);
         const completedAt = Date.now();
-        const serialized = serializeError(normalized);
+        const serialized = serializeError(normalized, redact);
         const failedStep: WorkflowStepResult = {
           id: step.id,
           uses: step.uses,
@@ -575,15 +679,19 @@ export const runWorkflow = async <TServices = unknown>(
         .filter((delivery): delivery is NonNullable<typeof delivery> => Boolean(delivery)),
       steps,
     };
-    emit({ type: "workflow.completed", result, duration: Date.now() - startedAt });
-    return result;
+    const safeResult = redactValue(result, secrets, true);
+    emit({ type: "workflow.completed", result: safeResult, duration: Date.now() - startedAt });
+    return safeResult;
   } catch (error) {
     const normalized = signal.aborted ? abortError(signal.reason) : toError(error);
+    const serialized = serializeError(normalized, redact);
     emit({
       type: "workflow.failed",
-      error: serializeError(normalized),
+      error: serialized,
       duration: Date.now() - startedAt,
     });
-    throw normalized;
+    const safeError = new Error(serialized.message);
+    safeError.name = serialized.name;
+    throw safeError;
   }
 };

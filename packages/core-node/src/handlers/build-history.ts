@@ -98,7 +98,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
         await this.saveProjectHistory(entry.projectId, entries);
         this.logger
           .logger()
-          .info(`Saved build history entry: ${entry.id} for project: ${entry.projectId}`);
+          .debug(`Saved build history entry: ${entry.id} for project: ${entry.projectId}`);
       } catch (error) {
         this.logger.logger().error("Failed to save build history entry:", error);
         throw new Error(`Failed to save build history entry: ${error}`);

@@ -213,6 +213,7 @@ export interface WorkflowRunContext<TServices = unknown> {
   version?: string;
   buildId?: string;
   variables?: Record<string, unknown>;
+  env?: Record<string, string | undefined>;
   signal?: AbortSignal;
   tasks?: WorkflowTaskRegistry<TServices>;
   services?: TServices;

@@ -432,6 +432,15 @@ describe("Electron executable patching", () => {
     expect(first.outputs.output).not.toBe(second.outputs.output);
     expect(runPnpm).toHaveBeenCalledTimes(2);
     expect(vi.mocked(runPnpm).mock.calls[0]?.[0]).not.toBe(vi.mocked(runPnpm).mock.calls[1]?.[0]);
+    const packageTemporaryFolders = vi
+      .mocked(runWithLiveLogs)
+      .mock.calls.map(([, , options]) => options.env?.TMPDIR);
+    expect(packageTemporaryFolders).toHaveLength(2);
+    expect(new Set(packageTemporaryFolders).size).toBe(2);
+    for (const folder of packageTemporaryFolders) {
+      if (typeof folder !== "string") throw new Error("Missing isolated Electron temp directory");
+      await expect(access(folder)).rejects.toThrow();
+    }
     await expect(access(join(String(first.outputs.output), "My Game"))).resolves.not.toThrow();
     await expect(access(join(String(second.outputs.output), "My Game"))).resolves.not.toThrow();
   });

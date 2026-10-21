@@ -18,6 +18,7 @@ const fileExists = async (path: string): Promise<boolean> => {
  */
 export const detectRuntime = async (
   appFolder: string | undefined,
+  log?: (...args: unknown[]) => void,
 ): Promise<OutputRuntimes | undefined> => {
   if (!appFolder) {
     return undefined;
@@ -40,7 +41,7 @@ export const detectRuntime = async (
     detectedRuntime = "construct";
   }
 
-  console.log("Detected runtime", detectedRuntime);
+  log?.("Detected runtime", detectedRuntime);
 
   if (detectedRuntime === "construct" && offlineJSON && swExist) {
     throw new Error(

@@ -60,7 +60,7 @@ export const createItchUploadTask =
     if (!runtimeInputs.user && runtimeInputs["api-key"])
       runtimeInputs.user = await resolveItchUsername(String(runtimeInputs["api-key"]));
     const node = context.getNodePath();
-    const butlerPath = await ensureButler(context);
+    const butlerPath = await ensureButler(context, "LATEST", log);
 
     log("Uploading to itch");
 

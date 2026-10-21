@@ -26,9 +26,17 @@ export const constructSource: ReleaseSourceDefinition = {
       required: true,
       deferUntilEditor: true,
     },
+    {
+      key: "version",
+      type: "text",
+      label: "Construct version",
+      description:
+        "Leave blank to use the release saved with the project. Enter latest or a release such as r397 to override it.",
+      required: false,
+    },
   ],
   output: { kind: "application", platform: "web", container: "directory" },
-  createDefaultConfig: () => ({ path: "", profilePath: "" }),
+  createDefaultConfig: () => ({ path: "", profilePath: "", version: "" }),
   validate: (config) => [
     ...(typeof config.path === "string" && config.path
       ? []
@@ -93,11 +101,32 @@ export const constructSource: ReleaseSourceDefinition = {
     };
   },
   compile: (config) => {
+    const usernameConfigured = Object.hasOwn(process.env, "CONSTRUCT_USERNAME");
+    const passwordConfigured = Object.hasOwn(process.env, "CONSTRUCT_PASSWORD");
+    const hasCredentials =
+      Boolean(process.env.CONSTRUCT_USERNAME?.trim()) &&
+      Boolean(process.env.CONSTRUCT_PASSWORD?.trim());
+    if ((usernameConfigured || passwordConfigured) && !hasCredentials) {
+      throw new Error(
+        "Set both CONSTRUCT_USERNAME and CONSTRUCT_PASSWORD, or unset both to use the selected browser profile's saved session. Both credential values must be non-empty.",
+      );
+    }
+    const credentials = hasCredentials
+      ? {
+          username: "${{ env.CONSTRUCT_USERNAME }}",
+          password: "${{ env.CONSTRUCT_PASSWORD }}",
+        }
+      : {};
     const steps: WorkflowStep[] = [
       {
         id: "construct-source-export",
         uses: "@pipelab/plugin-construct/export-construct-project",
-        with: { file: String(config.path || ""), customProfile: String(config.profilePath || "") },
+        with: {
+          file: String(config.path || ""),
+          customProfile: String(config.profilePath || ""),
+          version: String(config.version || ""),
+          ...credentials,
+        },
         artifacts: {
           zipFile: {
             descriptor: {
