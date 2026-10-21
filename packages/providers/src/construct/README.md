@@ -35,5 +35,13 @@ saved session is used. Setting only one fails before export starts.
 The export automation opens Construct's export dialog through Menu → Project →
 Export, then selects Web (HTML5) and the standard export options.
 
+Projects that reference the supported Pipelab Construct addon (`pipelabv2`
+2.5.1, SDK v2) are checked in Construct's Addon Manager before the project is
+opened. If it is missing from the project-scoped managed profile, Pipelab
+downloads the official release asset, checks its pinned SHA-256 and embedded
+addon metadata, installs it through Construct, reloads the editor, and verifies
+the installed addon in Addon Manager. Other addon versions are left untouched
+and require a matching addon in the selected profile.
+
 See [PERF.md](./PERF.md) for the local setup and full-export measurements and
 their conditions.
