@@ -31,7 +31,7 @@ const makeSandbox = async () => {
 };
 
 const taskServices = {
-  context: { getThirdPartyPath: () => "/tmp/pipelab-thirdparty" },
+  context: { getThirdPartyPath: () => join(tmpdir(), "pipelab-thirdparty") },
   executables: { node: process.execPath, pnpm: "pnpm" },
   run: { projectId: "construct-test-project" },
 } as unknown as ConstructWorkflowTaskServices;

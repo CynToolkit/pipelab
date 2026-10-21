@@ -58,7 +58,7 @@ test("copies the complete Construct profile and removes stale browser locks", as
 });
 
 test("aborting a profile lock wait does not leave a late lock behind", async () => {
-  const root = await mkdtemp(join("/tmp", "construct-profile-lock-"));
+  const root = await mkdtemp(join(tmpdir(), "construct-profile-lock-"));
   const profile = join(root, "profile");
   await mkdir(profile, { recursive: true });
   const releaseHolder = await lockfile.lock(profile, { retries: 0 });
@@ -85,7 +85,7 @@ test("aborting a profile lock wait does not leave a late lock behind", async () 
 }, 5_000);
 
 test("cancelling profile refresh stops the remaining recursive copy", async () => {
-  const root = await mkdtemp(join("/tmp", "construct-profile-copy-abort-"));
+  const root = await mkdtemp(join(tmpdir(), "construct-profile-copy-abort-"));
   const source = join(root, "source");
   const destination = join(root, "destination");
   const controller = new AbortController();
@@ -109,7 +109,7 @@ test("cancelling profile refresh stops the remaining recursive copy", async () =
 });
 
 test("a missing selected-profile Preferences file rejects before changing managed profile data", async () => {
-  const root = await mkdtemp(join("/tmp", "construct-profile-copy-required-"));
+  const root = await mkdtemp(join(tmpdir(), "construct-profile-copy-required-"));
   const source = join(root, "source");
   const destination = join(root, "destination");
   const oldPreferences = join(destination, "Default", "Preferences");
@@ -129,7 +129,7 @@ test("a missing selected-profile Preferences file rejects before changing manage
 });
 
 test("rejects a missing Construct profile with an actionable error", async () => {
-  const root = await mkdtemp(join("/tmp", "construct-profile-missing-"));
+  const root = await mkdtemp(join(tmpdir(), "construct-profile-missing-"));
   const source = join(root, "missing-profile");
   const destination = join(root, "destination");
 
@@ -143,7 +143,7 @@ test("rejects a missing Construct profile with an actionable error", async () =>
 });
 
 test("uses an installed exact Playwright package without resolving npm metadata", async () => {
-  const root = await mkdtemp(join("/tmp", "construct-package-cache-"));
+  const root = await mkdtemp(join(tmpdir(), "construct-package-cache-"));
   const packageName = "playwright-core";
   const packageDir = join(root, "packages", packageName, "1.62.1");
   const dnsLookup = vi

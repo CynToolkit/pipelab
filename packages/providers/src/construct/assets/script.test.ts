@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { Locator, Page } from "playwright";
 import {
   clickConstructDownload,
@@ -9,6 +11,8 @@ import {
   waitForConstructExportDownload,
 } from "./script";
 import { isConstructFreeEditionLimit } from "./listeners";
+
+const exportRunPath = join(tmpdir(), "export-run");
 
 describe("Construct edition detection", () => {
   it("recognizes the free edition limit prompt", () => {
@@ -209,7 +213,7 @@ describe("Construct export download readiness", () => {
       screenshot: vi.fn(),
     } as unknown as Page;
 
-    await waitForConstructExportDownload(page, 120_000, "/tmp/export-run");
+    await waitForConstructExportDownload(page, 120_000, exportRunPath);
 
     expect(waitFor).toHaveBeenCalledWith({ state: "visible", timeout: 120_000 });
   });
@@ -228,7 +232,7 @@ describe("Construct export download readiness", () => {
       screenshot,
     } as unknown as Page;
 
-    await expect(waitForConstructExportDownload(page, 120_000, "/tmp/export-run")).rejects.toThrow(
+    await expect(waitForConstructExportDownload(page, 120_000, exportRunPath)).rejects.toThrow(
       /Construct did not make its project download available within 120 seconds.*Preparing project data/,
     );
     expect(screenshot).toHaveBeenCalledWith(
@@ -248,7 +252,7 @@ describe("Construct export download readiness", () => {
     abortController.abort();
 
     await expect(
-      waitForConstructExportDownload(page, 120_000, "/tmp/export-run", abortController.signal),
+      waitForConstructExportDownload(page, 120_000, exportRunPath, abortController.signal),
     ).rejects.toMatchObject({ name: "AbortError" });
     expect(screenshot).not.toHaveBeenCalled();
   });
