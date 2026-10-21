@@ -70,6 +70,97 @@ behavior was retained. CPU pressure varied throughout; these small differences
 are insufficient evidence for adoption. The baseline remains the unchanged F6
 implementation. The earlier elevated-load measurements are retained below.
 
+## Retained-editor finding: two workflow executions (prototype only)
+
+A subsequent investigation on **2026-10-21** found a several-second
+opportunity: keep the Construct editor alive between exports in the same host
+when the selected source state and pinned Construct version are unchanged.
+**This behavior is not implemented in the production provider.** It is a
+retained-editor path, not a faster fresh-browser warm-profile result. The
+five-run 8.021 s setup / 10.921 s full baseline above remains unchanged.
+
+The prototype executed **two actual `runWorkflowTask` calls** in one Node
+process, using separate workspaces. The first complete export was an excluded
+warm-up; its registered ZIP was inspected before the measured second task.
+Every invocation copied the selected source profile to a private offline
+snapshot and hashed its non-cache contents. The first browser's initial managed
+state had to match that snapshot; the second source snapshot had to be identical
+before reuse. Raw profile databases were never copied into the active browser.
+The old project was closed through the supported menu, the Open control was
+awaited, and the input file was imported again before generating a new ZIP.
+
+The control used the same two-workflow wrapper and original implementation,
+closing the browser between tasks. Three measured tasks per method ran in a
+fixed interleaved order: control, reuse, reuse, control, control, reuse.
+The full timer surrounded the entire second workflow, including normal input,
+version/package/browser resolution, source copy/hash, project close/import,
+Construct export, download, **browser disposal and artifact registration**.
+ZIP inspection was outside the timer. Thus the retained measurement includes
+closing Chromium after its one reuse; it does not measure an indefinite manager.
+Node 24.19.0, full Chromium 151.0.7922.34, headless mode and the same r397 fixture
+were used. No local builds or tests ran alongside the benchmark.
+
+| Measured run | Control setup | Retained setup | Control full | Retained full |
+| --- | ---: | ---: | ---: | ---: |
+| 1 | 7.477 s | 2.479 s | 12.136 s | 3.912 s |
+| 2 | 7.651 s | 2.490 s | 10.885 s | 3.580 s |
+| 3 | 7.191 s | 2.777 s | 10.028 s | 4.103 s |
+| **Mean** | **7.440 s** | **2.582 s** | **11.016 s** | **3.865 s** |
+| **Median** | **7.477 s** | **2.490 s** | **10.885 s** | **3.912 s** |
+
+Mean savings were **4.858 seconds setup** and **7.151 seconds full export**
+(64.9% lower full duration). All six measured exports and their six warm-ups
+completed with readable ZIPs. Unchanged-fixture ZIPs were 389,254 bytes.
+The three retained runs verified two source copies, unchanged source state,
+initial managed-profile equality, both workflow completions and the project
+close/Open gate. CPU pressure remained high: control `some avg10` before/after
+was 36.19/47.66, 47.01/47.90 and 51.79/52.86; retained was 48.02/41.95,
+44.97/42.80 and 49.26/43.75. These are local fixture results, not guarantees for
+large projects or other host loads.
+
+A separate second-workflow input changed the project's title to a unique value.
+The registered ZIP's `index.html` contained that new title: **2.580 s setup /
+4.277 s full**, 389,265 bytes. Its first attempt failed during the fresh-browser
+warm-up because Construct never exposed the download within 120 seconds; it
+never reached the measured reuse. That failure remains in the experiment
+record and is excluded from the three unchanged-input comparison samples.
+One initial successful two-workflow probe (2.542 / 3.871 s) preceded the fixed
+comparison series and is reported separately.
+
+Earlier exploratory prototypes ran two exports within one workflow. One used
+an incorrect close shortcut; another repeat missed the picker because closing
+Construct's project is asynchronous. Those failures were retained and the
+method was replaced by two real workflows with an Open-control readiness gate
+and handling for transient save prompts in the isolated automation-owned editor.
+They are not counted as successful samples of the corrected method.
+
+### Implementation tasks before production use
+
+1. **Integration owner:** supply a minimal explicit host-lifetime capability.
+   The server keeps provider modules alive; separate CLI invocations cannot
+   share a browser. No current provider shutdown/disposal contract exists.
+   A one-shot CLI must exit promptly, and server shutdown must close its browser.
+2. **Construct owner:** retain at most one owned browser initially, scoped to
+   project/source/account and resolved release. Copy source state every run;
+   reuse only identical snapshots. On source, account, addon or version changes,
+   close the old browser before applying the refreshed state and relaunching.
+   The prototype currently rejects mismatches; automatic recycle is unimplemented.
+   Moving `latest` requires release revalidation or conservative recycle.
+   Own and serialize the non-reentrant profile lock, update task logging, and
+   close/release on failure, cancellation, replacement and host shutdown.
+3. **Execution owner:** cover two separate workflow executions, changed project
+   content, changed profile/account/addons/version, concurrent requests, crashes,
+   cancellation, lock release, server shutdown and prompt one-shot CLI exit.
+   Keep same-host retention timing separate from the fresh-browser baseline.
+4. **Documentation/review owner:** update public behavior documentation and
+   affected changesets only with the actual implementation, then run the relevant
+   focused checks. There is no new opt-in or daemon proposed.
+
+The benchmark proves an impactful discovery for an eligible same-host reuse
+case. It does **not** prove production lifecycle handling, automatic refresh on
+changed source/version, or reuse across CLI processes. Public integration docs
+continue to describe the current implementation accurately.
+
 ## Reviewed implementation: five full warm exports
 
 Measured on 2026-10-20 at commit
