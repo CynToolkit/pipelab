@@ -60,8 +60,6 @@ export const electronPackageWorkflowTaskFactory =
       inputConfiguration,
     ) as DesktopApp.Electron;
 
-    task.log("completeConfiguration", completeConfiguration);
-
     const execution: ForgeExecutionContext = {
       cwd: task.workspace.root,
       log: task.log,
