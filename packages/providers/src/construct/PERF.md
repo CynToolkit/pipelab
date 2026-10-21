@@ -12,6 +12,31 @@ inspection. These measurements use the existing F6 implementation; none of the
 Host load differs from earlier measurements, so the lower observed time cannot
 be attributed to a new optimization.
 
+## Warm full CLI workflow using the Discord example (2026-10-21)
+
+The user-selected input was [`discord.c3p`](https://github.com/CynToolkit/construct-plugin/blob/main/examples/discord.c3p), downloaded at 167,766 bytes (SHA-256 `7a151977b7e719177274a128364443613e7777b73211cae7fbec624bc4be38ba`). It selects Construct `r466-2`. The local CLI ran a temporary copy of `zeqf` with all publishing destinations removed. Each run refreshed the project-scoped profile from the selected Chromium profile and authenticated through the Doppler-provided Construct credentials. Playwright logged full Chromium, `channel: chromium`, headless mode. One successful full workflow warm-up was excluded below.
+
+| Measured run | Setup through Next | Construct export task | Extract | Linux x64 build | Result |
+| --- | ---: | ---: | ---: | ---: | --- |
+| 1 | 13.500 s | 15.86 s | 0.093 s | 22.89 s | Complete |
+| 2 | 12.623 s | 15.03 s | 0.090 s | 22.55 s | Complete |
+| 3 | 13.716 s | 16.37 s | 0.166 s | 23.36 s | Complete |
+| 4 | 13.614 s | 16.43 s | 0.086 s | 24.96 s | Complete |
+| 5 | 12.411 s | 15.09 s | 0.063 s | — | Construct export and extraction completed; Electron Forge produced no output directory |
+| **Mean** | **13.173 s** | **15.756 s** | **0.100 s** | **23.440 s** | Four full workflows completed |
+
+The mean sum of the three Listr2 task durations for the four complete measured
+workflows was **39.47 seconds**. The Construct task mean is based on five
+successful exports; the fifth later failed in Electron packaging. One additional
+Construct attempt timed out after 132.06 seconds waiting for the Web platform
+option after F6, and a repeat was manually cancelled at the same point. Those
+attempts are reported as failures and excluded from successful-export means.
+The initial copied profile showed Guest despite containing a login record, so
+configured credentials now trigger code-based authentication even when a
+custom browser profile is selected. The successful runs reused the managed
+profile and its Construct cache. The 2026-10-20 small `r397` fixture results
+above are not directly comparable to this larger, different-version project.
+
 ## Latest baseline and optimization investigation
 
 Measured on 2026-10-20 using Node 24.19.0, full Chromium

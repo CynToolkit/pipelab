@@ -36,10 +36,13 @@ provide their service bundle through `runWorkflow`'s `services` option; the
 standalone runtime does not import Pipelab-specific services. Pipelab plugin
 registries resolve directly to native tasks that implement this contract.
 
-Step inputs can reference run variables with `${{ variables.name }}` or a
-previous step's outputs with `${{ steps.step-id.outputs.name }}`. Steps run in
-definition order by default; add `needs` to declare dependencies explicitly
-and allow independent steps to run concurrently. The runtime also exposes
+Step inputs can reference run variables with `${{ variables.name }}`, process
+environment values supplied in the run context with `${{ env.NAME }}`, or a
+previous step's outputs with `${{ steps.step-id.outputs.name }}`. Environment
+values are resolved only while running and are redacted from logs, errors, and
+returned results. Steps run in definition order by default; add `needs` to
+declare dependencies explicitly and allow independent steps to run
+concurrently. The runtime also exposes
 `fs:run` as a built-in task. Set `continueOnError` to keep independent
 branches running after a failure; dependent steps are reported as skipped.
 When `continueOnError` is false or omitted, the runtime stops scheduling new

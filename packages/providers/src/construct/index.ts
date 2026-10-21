@@ -101,6 +101,14 @@ export const constructSource: ReleaseSourceDefinition = {
     };
   },
   compile: (config) => {
+    const credentials =
+      Object.hasOwn(process.env, "CONSTRUCT_USERNAME") ||
+      Object.hasOwn(process.env, "CONSTRUCT_PASSWORD")
+        ? {
+            username: "${{ env.CONSTRUCT_USERNAME }}",
+            password: "${{ env.CONSTRUCT_PASSWORD }}",
+          }
+        : {};
     const steps: WorkflowStep[] = [
       {
         id: "construct-source-export",
@@ -109,6 +117,7 @@ export const constructSource: ReleaseSourceDefinition = {
           file: String(config.path || ""),
           customProfile: String(config.profilePath || ""),
           version: String(config.version || ""),
+          ...credentials,
         },
         artifacts: {
           zipFile: {

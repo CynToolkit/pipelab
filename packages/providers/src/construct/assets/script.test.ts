@@ -8,6 +8,18 @@ import {
   waitForConstructProjectLoad,
   waitForConstructExportDownload,
 } from "./script";
+import { isConstructFreeEditionLimit } from "./listeners";
+
+describe("Construct edition detection", () => {
+  it("recognizes the free edition limit prompt", () => {
+    expect(
+      isConstructFreeEditionLimit(
+        "This project exceeds the free edition limits. Some features will be unavailable.",
+      ),
+    ).toBe(true);
+    expect(isConstructFreeEditionLimit("The export options are ready.")).toBe(false);
+  });
+});
 
 describe("Construct editor navigation", () => {
   it("returns at DOM content readiness and records the navigation duration", async () => {

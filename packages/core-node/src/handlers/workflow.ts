@@ -3,6 +3,7 @@ import {
   runWorkflow,
   type Workflow,
   type WorkflowEvent,
+  type Logger as WorkflowLogger,
   type WorkflowResult,
 } from "@pipelab/workflow-runtime";
 import { nanoid } from "nanoid";
@@ -147,6 +148,7 @@ export const executeWorkflow = async (
     signal?: AbortSignal;
     onEvent?: (event: WorkflowEvent) => void;
     onRunCreated?: (id: string) => void | Promise<void>;
+    logger?: WorkflowLogger;
   } = {},
 ) => {
   const workflowId = configName.replace(/^workflows\//, "").replace(/\.json$/, "");
@@ -268,15 +270,17 @@ export const executeWorkflow = async (
       services,
       createWorkflowTaskRegistry(workflowTaskFactories, services),
     );
+    const workflowLogger = options.logger ?? {
+      info: (...args: unknown[]) => logger().info(...args),
+      warn: (...args: unknown[]) => logger().warn(...args),
+      error: (...args: unknown[]) => logger().error(...args),
+    };
     result = await runWorkflow(workflow, {
       host: createLocalHost(workspaceRoot, {
-        logger: {
-          info: (...args) => logger().info(...args),
-          warn: (...args) => logger().warn(...args),
-          error: (...args) => logger().error(...args),
-        },
+        logger: workflowLogger,
       }),
       variables: { version, workspace: workspaceRoot, buildStaging: buildStagingRoot },
+      env: process.env,
       version,
       buildId,
       tasks,

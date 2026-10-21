@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { ListrTaskState, type ListrTask } from "listr2";
-import { createWorkflowListr } from "../../../src/commands/workflows";
+import { createWorkflowListr, formatWorkflowStepElapsed } from "../../../src/commands/workflows";
 
 const status = (listr: ReturnType<typeof createWorkflowListr>, title: string) => {
   const root = listr.tasks[0];
@@ -9,6 +9,13 @@ const status = (listr: ReturnType<typeof createWorkflowListr>, title: string) =>
 };
 
 const step = (title: string, task: ListrTask["task"]): ListrTask => ({ title, task });
+
+describe("workflow CLI task durations", () => {
+  test("formats durations in milliseconds and seconds", () => {
+    expect(formatWorkflowStepElapsed(742)).toBe("742 ms");
+    expect(formatWorkflowStepElapsed(12_345)).toBe("12.35 s");
+  });
+});
 
 describe("workflow CLI task statuses", () => {
   test("reports a single failed step and failed workflow", async () => {

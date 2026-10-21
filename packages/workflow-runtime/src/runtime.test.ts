@@ -68,6 +68,104 @@ describe("artifact-aware workflow runtime", () => {
     expect(events).toContain("native task ran");
   });
 
+  it("resolves environment references while redacting their values from logs and results", async () => {
+    const username = "construct-user@example.test";
+    const password = "construct-password-secret";
+    let received: Record<string, unknown> | undefined;
+    const logs: string[] = [];
+    const events: unknown[] = [];
+
+    const result = await runWorkflow(
+      {
+        version: 1,
+        steps: [
+          {
+            id: "login",
+            uses: "test:login",
+            with: {
+              username: "${{ env.CONSTRUCT_USERNAME }}",
+              password: "${{ env.CONSTRUCT_PASSWORD }}",
+              label: "Login for ${{ env.CONSTRUCT_USERNAME }}",
+            },
+          },
+        ],
+      },
+      {
+        host: {
+          ...host,
+          logger: { ...host.logger, info: (...args) => logs.push(args.join(" ")) },
+        },
+        env: { CONSTRUCT_USERNAME: username, CONSTRUCT_PASSWORD: password },
+        tasks: {
+          "test:login": async ({ inputs, log }) => {
+            received = inputs;
+            log("Resolved password", inputs.password);
+            return { saved: inputs.password };
+          },
+        },
+        onEvent: (event) => events.push(event),
+      },
+    );
+
+    expect(received).toEqual({
+      username,
+      password,
+      label: `Login for ${username}`,
+    });
+    const persistedOutput = JSON.stringify({ result, logs, events });
+    expect(persistedOutput).not.toContain(username);
+    expect(persistedOutput).not.toContain(password);
+    expect(persistedOutput).toContain("[REDACTED]");
+  });
+
+  it("names a missing environment variable without exposing a value", async () => {
+    await expect(
+      runWorkflow(
+        {
+          version: 1,
+          steps: [
+            {
+              id: "login",
+              uses: "test:login",
+              with: { password: "${{ env.CONSTRUCT_PASSWORD }}" },
+            },
+          ],
+        },
+        { host, tasks: { "test:login": async () => undefined } },
+      ),
+    ).rejects.toThrow("Workflow environment variable is not set: CONSTRUCT_PASSWORD");
+  });
+
+  it("redacts environment values from task errors", async () => {
+    const password = "construct-password-secret";
+    const events: unknown[] = [];
+    await expect(
+      runWorkflow(
+        {
+          version: 1,
+          steps: [
+            {
+              id: "login",
+              uses: "test:login",
+              with: { password: "${{ env.CONSTRUCT_PASSWORD }}" },
+            },
+          ],
+        },
+        {
+          host,
+          env: { CONSTRUCT_PASSWORD: password },
+          tasks: {
+            "test:login": async ({ inputs }) => {
+              throw new Error(`Construct rejected ${String(inputs.password)}`);
+            },
+          },
+          onEvent: (event) => events.push(event),
+        },
+      ),
+    ).rejects.toThrow("Construct rejected [REDACTED]");
+    expect(JSON.stringify(events)).not.toContain(password);
+  });
+
   it("materializes declared artifact descriptors without a global registry", async () => {
     const workflow = {
       version: 1,

@@ -58,6 +58,11 @@ with: {
 }
 ```
 
+The run context can also provide a process environment map. Use an `env.NAME`
+reference to read one named value at task execution time. The runtime
+redacts referenced environment values from task logs, failures, emitted events,
+and returned results. A missing variable fails the step with its name only.
+
 An exact reference retains its value type. A reference embedded in surrounding text is substituted as a string. Missing values and malformed references fail the step. Reading a previous step's output does not create a scheduling dependency by itself; put that step ID in `needs` so its output is available before the consumer starts.
 
 `fs:run` accepts `command` (required non-empty string), optional `parameters` (string array), optional `workingDirectory`, and `stopOnError`. A relative working directory resolves under the host workspace. It returns `stdout`, `stderr`, `exitCode`, and `duration`. With `stopOnError: true`, a nonzero result fails the step; otherwise the command task captures execution errors in its returned fields.
@@ -77,7 +82,7 @@ Artifact descriptors have `kind` (`project`, `application`, or `files`) and `con
 - `processes.execute(command, args, { cwd, env?, signal, onStdout?, onStderr? })`;
 - a logger with `info`, `warn`, and `error` methods.
 
-The run context can also provide `variables`, additional `tasks`, a `version`, `buildId`, an `AbortSignal`, and an `onEvent` callback. `createLocalHost(workspaceRoot)` supplies Node filesystem and process implementations. The process host merges the current process environment with any supplied environment and kills its child process when aborted.
+The run context can also provide `variables`, `env`, additional `tasks`, a `version`, `buildId`, an `AbortSignal`, and an `onEvent` callback. `createLocalHost(workspaceRoot)` supplies Node filesystem and process implementations. The process host merges the current process environment with any supplied environment and kills its child process when aborted.
 
 ## Scheduling, failure, and cancellation
 

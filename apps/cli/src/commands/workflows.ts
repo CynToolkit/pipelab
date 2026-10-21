@@ -13,6 +13,9 @@ import { getDefaultUserDataPath } from "../paths";
 import { workflowStepTitle } from "./workflow-task-title";
 import { workflowTaskOutputLines } from "./workflow-task-output";
 
+export const formatWorkflowStepElapsed = (durationMs: number) =>
+  durationMs < 1_000 ? `${Math.round(durationMs)} ms` : `${(durationMs / 1_000).toFixed(2)} s`;
+
 const contextFor = (userDataPath = getDefaultUserDataPath()) =>
   new PipelabContext({ userDataPath });
 
@@ -40,6 +43,7 @@ export const createWorkflowListr = (
                     exitOnError: false,
                     rendererOptions: {
                       collapseErrors: false,
+                      collapseSubtasks: false,
                       outputBar: 1,
                       showErrorMessage: true,
                     },
@@ -50,7 +54,12 @@ export const createWorkflowListr = (
             {
               concurrent: false,
               exitOnError: true,
-              rendererOptions: { collapseErrors: false, outputBar: 1, showErrorMessage: true },
+              rendererOptions: {
+                collapseErrors: false,
+                collapseSubtasks: false,
+                outputBar: 1,
+                showErrorMessage: true,
+              },
             },
           );
         },
@@ -59,7 +68,12 @@ export const createWorkflowListr = (
     {
       concurrent: true,
       exitOnError: true,
-      rendererOptions: { collapseErrors: false, outputBar: 1, showErrorMessage: true },
+      rendererOptions: {
+        collapseErrors: false,
+        collapseSubtasks: false,
+        outputBar: 1,
+        showErrorMessage: true,
+      },
     },
   );
 };
@@ -173,16 +187,24 @@ export async function runWorkflowCommand(
   const taskControls = new Map<string, ListrTaskWrapper<any, any, any>>();
   const taskStates = new Map<string, ListrTaskState>();
   const taskLogs = new Map<string, string[]>();
-  const updateTask = (stepId: string, state: ListrTaskState, log?: string) => {
+  const workflowLogs: Array<{ stepTitle: string; message: string }> = [];
+  const updateTask = (stepId: string, state: ListrTaskState) => {
     taskStates.set(stepId, state);
-    if (log) {
-      const lines = [...(taskLogs.get(stepId) || []), ...workflowTaskOutputLines(log)].slice(-1);
-      taskLogs.set(stepId, lines);
-      const task = taskControls.get(stepId);
-      if (task) for (const line of workflowTaskOutputLines(log)) task.output = line;
-    }
     const task = taskControls.get(stepId);
     if (task) task.task.state$ = state;
+  };
+  const updateTaskOutput = (stepId: string, output: string) => {
+    const lines = [...(taskLogs.get(stepId) || []), ...workflowTaskOutputLines(output)].slice(-1);
+    taskLogs.set(stepId, lines);
+    const task = taskControls.get(stepId);
+    if (task) for (const line of workflowTaskOutputLines(output)) task.output = line;
+  };
+  const printWorkflowLogs = () => {
+    if (!options.verbose || workflowLogs.length === 0) return;
+    console.log("\nWorkflow logs:");
+    for (const { stepTitle, message } of workflowLogs) {
+      for (const line of workflowTaskOutputLines(message)) console.log(`[${stepTitle}] ${line}`);
+    }
   };
   const waitFor = (stepId: string) => {
     const existing = waiters.get(stepId);
@@ -198,9 +220,12 @@ export async function runWorkflowCommand(
     id: step.id,
     title: workflowStepTitle(step),
   }));
+  const stepTitleById = new Map<string, string>(
+    stepTasks.map((step) => [step.id, step.title] as const),
+  );
   const stepTask = (step: (typeof stepTasks)[number]) => ({
     title: step.title,
-    rendererOptions: { outputBar: 1, persistentOutput: false },
+    rendererOptions: { outputBar: 1, persistentOutput: true },
     task: (_ctx: unknown, task: ListrTaskWrapper<any, any, any>) => {
       taskControls.set(step.id, task);
       task.task.state$ = taskStates.get(step.id) || ListrTaskState.WAITING;
@@ -212,22 +237,32 @@ export async function runWorkflowCommand(
   for (const task of stepTasks) waitFor(task.id);
   const execution = executeWorkflow(context, `workflows/${entry.id}`, {
     release: { version: "", description: "" },
+    logger: {
+      info: () => undefined,
+      warn: (...args) => console.warn(...args),
+      error: (...args) => console.error(...args),
+    },
     onEvent: (event: WorkflowEvent) => {
-      if (event.type === "step.started") updateTask(event.stepId, ListrTaskState.STARTED);
-      if (event.type === "step.log")
-        updateTask(
-          event.stepId,
-          taskStates.get(event.stepId) || ListrTaskState.STARTED,
-          event.message,
-        );
-      if (event.type === "step.completed") {
+      if (event.type === "step.started") {
+        updateTask(event.stepId, ListrTaskState.STARTED);
+      } else if (event.type === "step.log") {
+        if (options.verbose) {
+          workflowLogs.push({
+            stepTitle: stepTitleById.get(event.stepId) || event.stepId,
+            message: event.message,
+          });
+        }
+        if (process.stdout.isTTY) updateTaskOutput(event.stepId, event.message);
+        updateTask(event.stepId, taskStates.get(event.stepId) || ListrTaskState.STARTED);
+      } else if (event.type === "step.completed") {
         settledSteps.add(event.stepId);
+        updateTaskOutput(event.stepId, `Completed in ${formatWorkflowStepElapsed(event.duration)}`);
         updateTask(event.stepId, ListrTaskState.COMPLETED);
         completion.get(event.stepId)?.resolve();
-      }
-      if (event.type === "step.failed") {
+      } else if (event.type === "step.failed") {
         settledSteps.add(event.stepId);
-        updateTask(event.stepId, ListrTaskState.FAILED, event.error.message);
+        updateTaskOutput(event.stepId, `Failed after ${formatWorkflowStepElapsed(event.duration)}`);
+        updateTask(event.stepId, ListrTaskState.FAILED);
         const task = taskControls.get(event.stepId);
         if (task) {
           task.task.message$ = {
@@ -235,14 +270,10 @@ export async function runWorkflowCommand(
           };
         }
         completion.get(event.stepId)?.reject(new Error(event.error.message));
-      }
-      if (event.type === "step.skipped") {
+      } else if (event.type === "step.skipped") {
         settledSteps.add(event.stepId);
-        updateTask(
-          event.stepId,
-          ListrTaskState.SKIPPED,
-          `Skipped (blocked by ${event.blockedBy.join(", ")})`,
-        );
+        updateTaskOutput(event.stepId, `Skipped (blocked by ${event.blockedBy.join(", ")})`);
+        updateTask(event.stepId, ListrTaskState.SKIPPED);
         completion.get(event.stepId)?.resolve();
       }
     },
@@ -265,11 +296,8 @@ export async function runWorkflowCommand(
       }
       for (const step of stepTasks) {
         if (settledSteps.has(step.id)) continue;
-        updateTask(
-          step.id,
-          ListrTaskState.SKIPPED,
-          "Not started because workflow execution failed",
-        );
+        updateTaskOutput(step.id, "Not started because workflow execution failed");
+        updateTask(step.id, ListrTaskState.SKIPPED);
         settledSteps.add(step.id);
         completion.get(step.id)?.resolve();
       }
@@ -278,9 +306,11 @@ export async function runWorkflowCommand(
   const listRun = listr.run();
   const result = await execution.catch(async (error: unknown) => {
     await listRun.catch(() => undefined);
+    printWorkflowLogs();
     throw error;
   });
   await listRun;
+  printWorkflowLogs();
   if (options.output) {
     const { writeFile } = await import("node:fs/promises");
     await writeFile(options.output, JSON.stringify(result, null, 2));

@@ -43,13 +43,17 @@ pipelab workflow run <id-or-name>
 
 Loads a saved Release workflow by ID or unique name and executes its compiled task workflow. The `workflows` group alias is accepted.
 
+When a workflow task completes or fails, the CLI keeps its elapsed duration in
+the output line below that task and keeps the completed task list visible after
+the run. Skipped tasks do not have a duration.
+
 | Option                | Behavior                                                                                                                                                      |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--user-data <path>`  | Use a custom user-data directory.                                                                                                                             |
 | `-o, --output <path>` | Write the run result JSON; with `--dry-run`, write the prepared config and plan instead.                                                                      |
 | `--dry-run`           | Validate and prepare the workflow without executing deployment tasks.                                                                                         |
 | `--fail-on-error`     | Exit nonzero if the workflow completes with errors.                                                                                                           |
-| `-v, --verbose`       | Registered with the description “Show workflow logs after completion”; the current command handler does not read this option, so it has no additional effect. |
+| `-v, --verbose`       | Print captured workflow task logs after the run completes. Without it, full task logs are not printed after completion. |
 
 Examples exercised by the CLI E2E suite:
 

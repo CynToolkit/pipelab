@@ -33,8 +33,25 @@ than using an older copy. Cancelling a queued export or an export refreshing
 its profile stops it before browser launch.
 
 If the selected browser profile is signed out of Construct or its session has
-expired, it must contain a valid login session before a profile-only export can
-run. Pipelab copies renewed login state automatically on the next run.
+expired, a profile-only export requires a valid login session. Pipelab does not
+modify the selected browser profile.
+
+For CLI runs, Pipelab uses `CONSTRUCT_USERNAME` and `CONSTRUCT_PASSWORD` from
+the process environment as Construct task inputs when either variable is
+configured. Keep the values in a secret manager such as Doppler; the workflow
+stores only runtime references. When configured, Pipelab requests a fresh
+session from Construct's account service and injects it into the managed
+profile, including when a selected profile has a stale login record. When
+neither variable is set, exports use the selected profile's saved session. A
+missing referenced variable is reported by name, with its value redacted from
+run logs and results.
+If Construct reports that the project exceeds the Free edition limits, the
+export stops with a plan-specific error before waiting for standard export
+options.
+
+```sh
+doppler run --project pipelab --config dev_personal -- pipelab workflow run <workflow-id>
+```
 
 Existing custom profile directories outside the usual browser locations remain selectable when they contain a Chromium `Preferences` file. Profile selection reads browser metadata without launching a browser or scanning profile storage. Project loading and download preparation have bounded waits (120 seconds by default). If the download is not ready in time, the run error includes Construct's visible status and a screenshot path when it can capture one. Browser launch, sign-in, timeout, export, and archive extraction failures appear in the run logs. The provider does not declare a host-platform allowlist, so exact OS coverage is not guaranteed here.
 

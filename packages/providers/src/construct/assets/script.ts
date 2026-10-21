@@ -8,6 +8,7 @@ import {
   registerWelcomeToConstructListener,
   registerNewVersionAvailableListener,
   registerNotNowListener,
+  isConstructFreeEditionLimit,
 } from "./listeners.js";
 
 const CONSTRUCT_READY_TIMEOUT_MS = 15_000;
@@ -446,7 +447,6 @@ export const script = async (
   downloadDir: string,
   abortSignal: AbortSignal,
   exportTimeoutMs: number,
-  hasCustomProfile = false,
 ) => {
   throwIfAborted(abortSignal);
   let url = "https://editor.construct.net/";
@@ -456,7 +456,7 @@ export const script = async (
 
   const apiStartedAt = Date.now();
   const apiLogin: Promise<ConstructLoginResult> | undefined =
-    username && password && !hasCustomProfile
+    username && password
       ? requestConstructLogin(username, password, abortSignal).then(
           (loginData) => ({ loginData, startedAt: apiStartedAt }),
           (error: unknown) => ({ error, startedAt: apiStartedAt }),
@@ -514,6 +514,16 @@ export const script = async (
   await waitForConstructProjectLoad(page, exportTimeoutMs, abortSignal, log);
   logElapsed(log, "Construct project opened after", projectOpenStartedAt);
 
+  const freeEditionDialog = page.locator("#okDialog");
+  if (await freeEditionDialog.isVisible()) {
+    const dialogText = await freeEditionDialog.innerText();
+    if (isConstructFreeEditionLimit(dialogText)) {
+      throw new Error(
+        "Construct reports that this project exceeds the free edition limits. Verify that the selected account has a plan that covers this project.",
+      );
+    }
+  }
+
   const missingAddonsDialog = page.locator("#missingAddonsDialog");
   if (await missingAddonsDialog.isVisible()) {
     const details = (await missingAddonsDialog.innerText()).trim();
@@ -569,6 +579,16 @@ export const script = async (
   }
   logElapsed(log, "Construct export platform selection after", exportPlatformStartedAt);
   log("Export platform selected");
+
+  const postPlatformText = await page
+    .locator("body")
+    .innerText({ timeout: 2_000 })
+    .catch(() => "");
+  if (isConstructFreeEditionLimit(postPlatformText)) {
+    throw new Error(
+      "Construct reports that this project exceeds the free edition limits. Verify that the selected account has a plan that covers this project.",
+    );
+  }
 
   const standardOptionsStartedAt = Date.now();
   const standardOptionsDialog = page.locator("#exportStandardOptionsDialog");

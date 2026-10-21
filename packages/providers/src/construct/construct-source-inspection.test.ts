@@ -17,6 +17,47 @@ vi.mock("./browser-profiles", async (importOriginal) => ({
 import { constructSource } from "./index";
 
 describe("Construct source inspection", () => {
+  it("binds credentials to runtime environment references without embedding their values", () => {
+    const username = "construct-user@example.test";
+    const password = "construct-password-secret";
+    vi.stubEnv("CONSTRUCT_USERNAME", username);
+    vi.stubEnv("CONSTRUCT_PASSWORD", password);
+
+    try {
+      const compiled = constructSource.compile(
+        { path: "/project.c3p", profilePath: "/tmp/profile", version: "" },
+        { host: { platform: "linux", architecture: "x64" } },
+      );
+      const inputs = compiled.steps[0]?.with;
+
+      expect(inputs).toMatchObject({
+        username: "${{ env.CONSTRUCT_USERNAME }}",
+        password: "${{ env.CONSTRUCT_PASSWORD }}",
+      });
+      expect(JSON.stringify(compiled)).not.toContain(username);
+      expect(JSON.stringify(compiled)).not.toContain(password);
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("leaves profile-only exports unchanged when no Construct credentials are configured", () => {
+    vi.stubEnv("CONSTRUCT_USERNAME", undefined);
+    vi.stubEnv("CONSTRUCT_PASSWORD", undefined);
+
+    try {
+      const compiled = constructSource.compile(
+        { path: "/project.c3p", profilePath: "/tmp/profile", version: "" },
+        { host: { platform: "linux", architecture: "x64" } },
+      );
+
+      expect(compiled.steps[0]?.with).not.toHaveProperty("username");
+      expect(compiled.steps[0]?.with).not.toHaveProperty("password");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("lists local Chromium profiles without running full browser inspection", async () => {
     const profile = {
       browser: "Chromium",

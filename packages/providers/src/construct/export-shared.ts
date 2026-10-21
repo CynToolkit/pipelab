@@ -556,7 +556,6 @@ export const exportc3p = async (
       downloadDir,
       abortSignal,
       exportTimeoutMs,
-      Boolean(seedProfile),
       // addonsFolder,
     );
 

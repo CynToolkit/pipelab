@@ -18,12 +18,33 @@ run variable or a previous step's output:
 
 An exact reference preserves the referenced value's type. References embedded
 inside a string are converted to text. References can be nested inside arrays
-and objects.
+and objects. Task inputs can also read a named environment variable at runtime:
+
+```json
+{
+  "username": "${{ env.CONSTRUCT_USERNAME }}",
+  "password": "${{ env.CONSTRUCT_PASSWORD }}"
+}
+```
+
+The CLI resolves environment references from its process environment. For
+example, run a saved workflow with Doppler:
+
+```sh
+doppler run --project pipelab --config dev_personal -- pipelab workflow run <workflow-id>
+```
+
+The `--` after the Doppler options separates Doppler arguments from the
+workflow command. Keep only the variable references in workflow configuration;
+resolved environment values are redacted from task logs, errors, and run
+results. If a referenced variable is missing, the error names the variable but
+does not print its value.
 
 The supported references are:
 
 - A path under the `variables` context reads a run variable. Nested paths can
   use dot notation.
+- `env.NAME` reads a named variable from the host process environment.
 - A path under `steps.<step-id>.outputs` reads an output returned by a step.
 
 These are references, not a general expression language. The workflow format
