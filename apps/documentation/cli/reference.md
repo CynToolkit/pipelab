@@ -43,9 +43,17 @@ pipelab workflow run <id-or-name>
 
 Loads a saved Release workflow by ID or unique name and executes its compiled task workflow. The `workflows` group alias is accepted.
 
-When a workflow task completes or fails, the CLI keeps its elapsed duration in
-the output line below that task and keeps the completed task list visible after
-the run. Skipped tasks do not have a duration.
+In an interactive terminal, running workflow tasks show a live elapsed timer.
+The completed task list keeps each task's final duration visible. Non-interactive
+output shows the final durations without repeated timer updates. Task logs are
+shown after the run only when `--verbose` is enabled. The workflow name also
+shows the wall-clock time for the full run; this is elapsed time, not a sum of
+the individual task durations.
+
+Workflow tasks are grouped under **Source**, **Build**, and **Destinations**.
+Source and build tasks are nested under their provider or profile. Destinations
+with a single default slot appear directly under **Destinations**; destinations
+with named or multiple slots group uploads under the destination and slot names.
 
 | Option                | Behavior                                                                                                                                                      |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
