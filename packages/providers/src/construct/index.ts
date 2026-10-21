@@ -101,14 +101,17 @@ export const constructSource: ReleaseSourceDefinition = {
     };
   },
   compile: (config) => {
-    const hasUsername = Object.hasOwn(process.env, "CONSTRUCT_USERNAME");
-    const hasPassword = Object.hasOwn(process.env, "CONSTRUCT_PASSWORD");
-    if (hasUsername !== hasPassword) {
+    const usernameConfigured = Object.hasOwn(process.env, "CONSTRUCT_USERNAME");
+    const passwordConfigured = Object.hasOwn(process.env, "CONSTRUCT_PASSWORD");
+    const hasCredentials =
+      Boolean(process.env.CONSTRUCT_USERNAME?.trim()) &&
+      Boolean(process.env.CONSTRUCT_PASSWORD?.trim());
+    if ((usernameConfigured || passwordConfigured) && !hasCredentials) {
       throw new Error(
-        "Set both CONSTRUCT_USERNAME and CONSTRUCT_PASSWORD, or unset both to use the selected browser profile's saved session.",
+        "Set both CONSTRUCT_USERNAME and CONSTRUCT_PASSWORD, or unset both to use the selected browser profile's saved session. Both credential values must be non-empty.",
       );
     }
-    const credentials = hasUsername
+    const credentials = hasCredentials
       ? {
           username: "${{ env.CONSTRUCT_USERNAME }}",
           password: "${{ env.CONSTRUCT_PASSWORD }}",

@@ -77,6 +77,25 @@ describe("Construct source inspection", () => {
     }
   });
 
+  it.each([
+    ["username", "", "construct-password-secret"],
+    ["password", "construct-user@example.test", ""],
+  ])("rejects an empty Construct %s", (_credential, username, password) => {
+    vi.stubEnv("CONSTRUCT_USERNAME", username);
+    vi.stubEnv("CONSTRUCT_PASSWORD", password);
+
+    try {
+      expect(() =>
+        constructSource.compile(
+          { path: "/project.c3p", profilePath: "/tmp/profile", version: "" },
+          { host: { platform: "linux", architecture: "x64" } },
+        ),
+      ).toThrow("Both credential values must be non-empty");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("lists local Chromium profiles without running full browser inspection", async () => {
     const profile = {
       browser: "Chromium",
