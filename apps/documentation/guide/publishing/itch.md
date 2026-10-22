@@ -10,7 +10,7 @@ Itch.io is a Release workflow destination. It accepts application or files artif
 4. For every enabled deployment slot, set its required **Channel** (for example, `windows`, `mac`, or `web`, according to the channels you configured on itch.io).
 5. Connect the artifact and run the Release workflow.
 
-Pipelab downloads and manages the Butler CLI for the current host. The upload uses the account username, project, and channel in Butler's `user/project:channel` form, with the API key supplied to Butler as `BUTLER_API_KEY`. Account/profile lookup errors, missing values, unsupported Butler architectures, and Butler upload failures stop the step and appear in logs. No output variables are declared by the upload action; workflow delivery details identify the destination and slot.
+Pipelab downloads and manages the Butler CLI for the current host. The upload uses the account username, project, and channel in Butler's `user/project:channel` form, with the API key supplied to Butler as `BUTLER_API_KEY`. Account/profile lookup errors, missing values, unsupported Butler architectures, and Butler upload failures stop the step and appear in logs. Pipelab redacts the API key from Butler log messages and step errors. No output variables are declared by the upload action; workflow delivery details identify the destination and slot.
 
 ## Minimal destination values
 

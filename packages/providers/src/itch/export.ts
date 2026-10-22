@@ -32,6 +32,19 @@ export const resolveItchUsername = async (apiKey: string): Promise<string> => {
   return username;
 };
 
+const redactApiKey = (value: string, apiKey: string): string =>
+  apiKey ? value.split(apiKey).join("[REDACTED]") : value;
+
+const sanitizeApiKeyError = (error: unknown, apiKey: string): Error => {
+  const message = error instanceof Error ? error.message : String(error);
+  const sanitizedMessage = redactApiKey(message, apiKey);
+  if (error instanceof Error && sanitizedMessage === message) return error;
+
+  const sanitizedError = new Error(sanitizedMessage);
+  if (error instanceof Error) sanitizedError.name = error.name;
+  return sanitizedError;
+};
+
 export type ButlerJSONOutput = ButlerJSONOutputLog | ButlerJSONOutputProgress;
 
 export interface ItchTaskServices {
@@ -57,12 +70,22 @@ export const createItchUploadTask =
         runtimeInputs["api-key"] = connection.apiKey || connection.api_key || "";
       }
     }
-    if (!runtimeInputs.user && runtimeInputs["api-key"])
-      runtimeInputs.user = await resolveItchUsername(String(runtimeInputs["api-key"]));
+    const apiKey = typeof runtimeInputs["api-key"] === "string" ? runtimeInputs["api-key"] : "";
+    const safeLog = (...args: unknown[]) =>
+      log(
+        ...args.map((value) => (typeof value === "string" ? redactApiKey(value, apiKey) : value)),
+      );
+    if (!runtimeInputs.user && apiKey) {
+      try {
+        runtimeInputs.user = await resolveItchUsername(apiKey);
+      } catch (error) {
+        throw sanitizeApiKeyError(error, apiKey);
+      }
+    }
     const node = context.getNodePath();
-    const butlerPath = await ensureButler(context, "LATEST", log);
+    const butlerPath = await ensureButler(context, "LATEST", safeLog);
 
-    log("Uploading to itch");
+    safeLog("Uploading to itch");
 
     await runWithLiveLogs(
       butlerPath,
@@ -77,11 +100,11 @@ export const createItchUploadTask =
           ...process.env,
           // DEBUG: '*',
           PATH: `${dirname(node)}${delimiter}${process.env.PATH}`,
-          BUTLER_API_KEY: runtimeInputs["api-key"] as string,
+          BUTLER_API_KEY: apiKey,
         },
         cancelSignal: signal,
       },
-      log,
+      safeLog,
       {
         onStdout(data) {
           const jsons = data.trim().split("\n");
@@ -89,16 +112,18 @@ export const createItchUploadTask =
             const json = JSON.parse(jsonData) as ButlerJSONOutput;
             switch (json.type) {
               case "log":
-                log(json.message);
+                safeLog(json.message);
                 break;
               case "progress":
-                log(`${json.progress}% - ETA: ${json.eta}s`);
+                safeLog(`${json.progress}% - ETA: ${json.eta}s`);
                 break;
             }
           }
         },
       },
-    );
+    ).catch((error: unknown) => {
+      throw sanitizeApiKeyError(error, apiKey);
+    });
 
-    log("Uploaded to itch");
+    safeLog("Uploaded to itch");
   };

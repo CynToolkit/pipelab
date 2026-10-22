@@ -29,8 +29,9 @@ settings are preserved, and the selected Chromium profile stays unchanged.
 Choose a compatible local Chromium profile that can access the Construct editor and project. Pipelab refreshes its managed profile from the selected profile before each run, while keeping the managed browser and Construct cache in place. This picks up current login state and installed Construct addons without requiring a profile reset. The managed profile is scoped to the Pipelab project and selected browser profile; changing Construct versions for that project reuses the same profile. Pipelab does not modify the selected browser profile. Same-profile exports run one at a time.
 
 The managed profile remains in Pipelab's local cache between runs and can
-include site data from the selected Chromium profile beyond Construct. On POSIX
-systems, its managed profile directories are restricted to the current user.
+include site data from the selected Chromium profile beyond Construct. Pipelab
+does not automatically expire or remove this managed copy. On POSIX systems,
+its managed profile directories are restricted to the current user.
 
 When **Construct version** is blank, Pipelab reads `savedWithRelease` from
 `project.c3proj` inside the selected `.c3p` file and opens that Construct

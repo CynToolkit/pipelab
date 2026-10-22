@@ -76,4 +76,57 @@ describe("Itch native upload task", () => {
       expect.objectContaining({ onStdout: expect.any(Function) }),
     );
   });
+
+  it("redacts the connected API key from Butler output and errors", async () => {
+    sandbox = await createSandbox("itch-credential-redaction");
+    const apiKey = "butler-private-key";
+    const connectionsPath = join(sandbox.paths.userData, "config", "connections.json");
+    const logged: string[] = [];
+    await mkdir(dirname(connectionsPath), { recursive: true });
+    await writeFile(
+      connectionsPath,
+      JSON.stringify({
+        connections: [{ id: "itch-account", username: "builder", apiKey }],
+      }),
+    );
+    vi.mocked(runWithLiveLogs).mockImplementationOnce(async (...args) => {
+      args[4]?.onStdout?.(
+        `{"type":"log","level":"info","message":"Invalid API key ${apiKey}","time":1}\n`,
+        undefined as never,
+      );
+      throw new Error(`Butler failed with credential ${apiKey}`);
+    });
+    const services: ItchTaskServices = {
+      context: {
+        getConnectionsPath: () => connectionsPath,
+        getNodePath: () => "/node/bin/node",
+      } as unknown as PipelabContext,
+    };
+
+    const failure = await runWorkflowTask(createItchUploadTask(services), {
+      inputs: {
+        accountConnectionId: "itch-account",
+        "input-folder": sandbox.paths.input,
+        project: "game-name",
+        channel: "linux",
+      },
+      workspacePath: sandbox.path,
+      services,
+      host: {
+        logger: {
+          info: (...args) => logged.push(args.map(String).join(" ")),
+          warn: (...args) => logged.push(args.map(String).join(" ")),
+          error: (...args) => logged.push(args.map(String).join(" ")),
+        },
+      },
+    }).then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+
+    expect(failure).toBeInstanceOf(Error);
+    expect(String(failure)).not.toContain(apiKey);
+    expect(logged.join(" ")).not.toContain(apiKey);
+    expect(logged.join(" ")).toContain("[REDACTED]");
+  });
 });

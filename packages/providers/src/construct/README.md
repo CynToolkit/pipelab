@@ -21,8 +21,9 @@ state from the selected profile on every run while keeping its cached Construct
 assets. Login state and editor cache persist across runs and Construct versions.
 Same-profile exports are serialized.
 The managed copy stays in Pipelab's local cache between runs and can include
-site data from the selected Chromium profile beyond Construct. On POSIX systems,
-the managed profile directories are restricted to the current user.
+site data from the selected Chromium profile beyond Construct. Pipelab does not
+automatically expire or remove this managed copy. On POSIX systems, the managed
+profile directories are restricted to the current user.
 Cancellation stops a queued export or profile refresh before browser launch.
 If required profile data cannot be refreshed, the export stops instead of
 using stale session or addon data. The selected profile must contain a valid
