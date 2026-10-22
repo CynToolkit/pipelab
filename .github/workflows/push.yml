@@ -37,10 +37,10 @@ jobs:
         with:
           run_install: false
 
-      - name: Use Node.js 22.5.1
+      - name: Use Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: "22.5.1"
+          node-version: "24"
           cache: "pnpm"
 
       - name: Set up Python 3.10
@@ -142,10 +142,10 @@ jobs:
         with:
           run_install: false
 
-      - name: Use Node.js 22.5.1
+      - name: Use Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: "22.5.1"
+          node-version: "24"
           cache: "pnpm"
 
       - name: Install dependencies
