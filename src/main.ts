@@ -18,6 +18,9 @@ import { resolve } from 'node:path'
 import Squirrel from 'electron-squirrel-startup'
 import { fetchLatestRelease } from './main/releases'
 
+const stripElectronCliSeparator = (args: string[]): string[] =>
+  args[0] === '--' ? args.slice(1) : args
+
 if (is.dev) {
   app.setPath('userData', app.getPath('userData') + '-dev')
   console.log('Dev mode: userData path set to', app.getPath('userData'))
@@ -220,8 +223,9 @@ app.whenReady().then(async () => {
     }
   } satisfies ParseArgsConfig
 
-  const rawArgs = app.isPackaged ? process.argv.slice(1) : process.argv.slice(2)
-  const args = rawArgs[0] === '--' ? rawArgs.slice(1) : rawArgs
+  const args = stripElectronCliSeparator(
+    app.isPackaged ? process.argv.slice(1) : process.argv.slice(2)
+  )
   logger().info('args to parse:', args)
   const { values } = parseArgs({ ...config, args })
 
