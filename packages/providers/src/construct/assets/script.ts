@@ -1,4 +1,4 @@
-import type { Locator, Page } from "playwright";
+import type { Locator, Page, Response } from "playwright";
 import { join } from "node:path";
 import {
   registerInstallButtonListener,
@@ -13,6 +13,7 @@ const CONSTRUCT_READY_TIMEOUT_MS = 15_000;
 const CONSTRUCT_SETTINGS_SEED_TIMEOUT_MS = 15_000;
 const FILE_CHOOSER_TIMEOUT_MS = 5_000;
 const CONSTRUCT_API_TIMEOUT_MS = 30_000;
+const CONSTRUCT_TOKEN_TIMEOUT_MS = 30_000;
 const OPEN_RETRY_COUNT = 1;
 const CONSTRUCT_EDITOR_ORIGIN = "https://editor.construct.net";
 
@@ -25,6 +26,12 @@ type ConstructLoginResult =
   | { loginData: ConstructLoginData; startedAt: number }
   | { error: unknown; startedAt: number };
 
+export const constructAccountOrigin = (version: string | undefined) => {
+  const normalizedVersion = version?.trim().toLowerCase() ?? "";
+  const isBeta = normalizedVersion === "beta" || /^r\d+-beta(?:[-.]?\d+)?$/.test(normalizedVersion);
+  return isBeta ? "https://accountbeta.construct.net" : "https://account.construct.net";
+};
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
 
@@ -33,6 +40,7 @@ export const requestConstructLogin = async (
   password: string,
   abortSignal: AbortSignal,
   timeoutMs = CONSTRUCT_API_TIMEOUT_MS,
+  accountOrigin = constructAccountOrigin(undefined),
 ): Promise<ConstructLoginData> => {
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
     throw new Error("Construct account request timeout must be a positive number");
@@ -44,17 +52,21 @@ export const requestConstructLogin = async (
   formData.append("password", password);
   formData.append("productType", "games");
 
-  const response = await fetch("https://account.construct.net/login.json", {
+  const response = await fetch(`${accountOrigin}/login.json`, {
     method: "POST",
     body: formData,
     signal: AbortSignal.any([abortSignal, AbortSignal.timeout(timeoutMs)]),
   });
-  const payload: unknown = await response.json();
+  if (!response.ok) throw new Error("Construct account authentication failed");
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new Error("Construct account API returned an invalid response");
+  }
   const request = isRecord(payload) && isRecord(payload.request) ? payload.request : undefined;
   if (!request || request.status !== "ok") {
-    throw new Error(
-      typeof request?.errorMessage === "string" ? request.errorMessage : "Invalid credentials",
-    );
+    throw new Error("Construct account authentication failed");
   }
 
   const login = isRecord(payload) && isRecord(payload.response) ? payload.response : undefined;
@@ -83,6 +95,7 @@ export const getConstructLoginData = async (
   password: string,
   abortSignal: AbortSignal,
   log: typeof console.log,
+  accountOrigin = constructAccountOrigin(undefined),
 ): Promise<ConstructLoginData | undefined> => {
   throwIfAborted(abortSignal);
 
@@ -90,7 +103,12 @@ export const getConstructLoginData = async (
     const result = await apiLogin;
     throwIfAborted(abortSignal);
     logElapsed(log, "Construct API authentication after", result.startedAt);
-    if ("error" in result) throw result.error;
+    if ("error" in result) {
+      if (result.error instanceof Error && result.error.name === "TimeoutError") {
+        throw new Error("Construct account authentication timed out");
+      }
+      throw new Error("Construct account authentication failed");
+    }
     return result.loginData;
   }
 
@@ -100,7 +118,13 @@ export const getConstructLoginData = async (
   }
 
   const fallbackApiStartedAt = Date.now();
-  const loginData = await requestConstructLogin(username, password, abortSignal);
+  const loginData = await requestConstructLogin(
+    username,
+    password,
+    abortSignal,
+    CONSTRUCT_API_TIMEOUT_MS,
+    accountOrigin,
+  );
   logElapsed(log, "Construct API authentication after", fallbackApiStartedAt);
   return loginData;
 };
@@ -280,26 +304,37 @@ export const navigateToConstruct = async (
   signal: AbortSignal,
 ) => {
   throwIfAborted(signal);
-  await page.addInitScript(seedConstructEditorSettings, {
-    origin: CONSTRUCT_EDITOR_ORIGIN,
-    timeoutMs: CONSTRUCT_SETTINGS_SEED_TIMEOUT_MS,
-  });
+  const shouldSeedEditorSettings = new URL(url).origin === CONSTRUCT_EDITOR_ORIGIN;
+  if (shouldSeedEditorSettings) {
+    await awaitWithAbort(
+      page.addInitScript(seedConstructEditorSettings, {
+        origin: CONSTRUCT_EDITOR_ORIGIN,
+        timeoutMs: CONSTRUCT_SETTINGS_SEED_TIMEOUT_MS,
+      }),
+      signal,
+    );
+  }
 
   log("Navigating to URL", url);
   const navigationStartedAt = Date.now();
-  await page.goto(url, { waitUntil: "domcontentloaded" });
+  await awaitWithAbort(page.goto(url, { waitUntil: "domcontentloaded" }), signal);
   log("Construct document ready after", `${Date.now() - navigationStartedAt} ms`);
   log("after navigating, current URL:", page.url());
 
-  const seededPreferences = await page.evaluate(async () => {
-    const state = window as Window & {
-      __pipelabConstructPreferencesReady?: Promise<ConstructSettingsSeedResult>;
-    };
-    if (!state.__pipelabConstructPreferencesReady) {
-      throw new Error("Construct editor preference seeding did not run for this origin");
-    }
-    return await state.__pipelabConstructPreferencesReady;
-  });
+  if (!shouldSeedEditorSettings) return;
+
+  const seededPreferences = await awaitWithAbort(
+    page.evaluate(async () => {
+      const state = window as Window & {
+        __pipelabConstructPreferencesReady?: Promise<ConstructSettingsSeedResult>;
+      };
+      if (!state.__pipelabConstructPreferencesReady) {
+        throw new Error("Construct editor preference seeding did not run for this origin");
+      }
+      return await state.__pipelabConstructPreferencesReady;
+    }),
+    signal,
+  );
   throwIfAborted(signal);
   if (
     !seededPreferences.welcomeTourDismissed ||
@@ -331,6 +366,135 @@ const createAbortError = (signal: AbortSignal) => {
 
 const throwIfAborted = (signal: AbortSignal) => {
   if (signal.aborted) throw createAbortError(signal);
+};
+
+const awaitWithAbort = async <T>(promise: Promise<T>, signal: AbortSignal): Promise<T> => {
+  if (signal.aborted) {
+    void promise.catch(() => {});
+    throw createAbortError(signal);
+  }
+  let onAbort: (() => void) | undefined;
+  const abortPromise = new Promise<never>((_resolve, reject) => {
+    onAbort = () => reject(createAbortError(signal));
+    signal.addEventListener("abort", onAbort, { once: true });
+    if (signal.aborted) onAbort();
+  });
+
+  try {
+    return await Promise.race([promise, abortPromise]);
+  } finally {
+    if (onAbort) signal.removeEventListener("abort", onAbort);
+  }
+};
+
+const isConstructTokenResponse = (response: Response, accountOrigin: string) => {
+  const responseUrl = new URL(response.url());
+  return responseUrl.origin === accountOrigin && responseUrl.pathname === "/token.json";
+};
+
+const waitForConstructTokenResponse = async (
+  page: Page,
+  accountOrigin: string,
+  abortSignal: AbortSignal,
+) => {
+  const responsePromise = page
+    .waitForResponse((response) => isConstructTokenResponse(response, accountOrigin), {
+      timeout: CONSTRUCT_TOKEN_TIMEOUT_MS,
+    })
+    .then(
+      (response) => response,
+      (): undefined => undefined,
+    );
+  const response = await awaitWithAbort(responsePromise, abortSignal);
+  if (!response?.ok()) {
+    throw new Error("Construct did not confirm the prepared account session");
+  }
+
+  let payload: unknown;
+  try {
+    payload = await awaitWithAbort(
+      response.json(),
+      AbortSignal.any([abortSignal, AbortSignal.timeout(CONSTRUCT_TOKEN_TIMEOUT_MS)]),
+    );
+  } catch {
+    if (abortSignal.aborted) throw createAbortError(abortSignal);
+    throw new Error("Construct did not confirm the prepared account session");
+  }
+  const request = isRecord(payload) && isRecord(payload.request) ? payload.request : undefined;
+  if (request?.status !== "ok") {
+    throw new Error("Construct did not confirm the prepared account session");
+  }
+};
+
+/**
+ * Seeds account-site storage before opening the editor. Construct keeps
+ * `login-data` on account.construct.net (accountbeta.construct.net for beta),
+ * and its editor startup iframe exchanges that session at `/token.json`.
+ * See https://github.com/skymen/c3cli/blob/main/docs/how-it-works.md for the
+ * published description of this account-origin handoff; no c3cli code is used.
+ */
+export const prepareConstructEditor = async (
+  page: Page,
+  version: string | undefined,
+  username: string | undefined,
+  password: string | undefined,
+  apiLogin: Promise<ConstructLoginResult> | undefined,
+  abortSignal: AbortSignal,
+  log: typeof console.log,
+) => {
+  const editorUrl = `https://editor.construct.net/${version ?? ""}`;
+  if (!username || !password) {
+    await navigateToConstruct(page, editorUrl, log, abortSignal);
+    return;
+  }
+
+  const accountOrigin = constructAccountOrigin(version);
+  await navigateToConstruct(
+    page,
+    `${accountOrigin}/login?theme=default&lang=en-US&productType=games`,
+    log,
+    abortSignal,
+  );
+  if (new URL(page.url()).origin !== accountOrigin) {
+    throw new Error("Construct account origin redirected unexpectedly");
+  }
+  await awaitWithAbort(
+    page.waitForFunction(
+      () => typeof localforage !== "undefined",
+      undefined,
+      { timeout: 30_000 },
+    ),
+    abortSignal,
+  );
+  const authState = await awaitWithAbort(
+    page.evaluate(async () => {
+      const data = await localforage.getItem("login-data");
+      return data as unknown;
+    }),
+    abortSignal,
+  );
+  const loginData = await getConstructLoginData(
+    authState,
+    apiLogin,
+    username,
+    password,
+    abortSignal,
+    log,
+    accountOrigin,
+  );
+
+  if (loginData) {
+    log("Preparing Construct account session before editor startup");
+    await awaitWithAbort(
+      page.evaluate(async (data) => {
+        await localforage.setItem("login-data", data);
+      }, loginData),
+      abortSignal,
+    );
+  }
+
+  const tokenResponse = waitForConstructTokenResponse(page, accountOrigin, abortSignal);
+  await Promise.all([navigateToConstruct(page, editorUrl, log, abortSignal), tokenResponse]);
 };
 
 const waitForLocatorWithAbort = async (
@@ -606,50 +770,35 @@ export const script = async (
     url += version;
   }
 
+  const accountOrigin = constructAccountOrigin(version);
   const apiStartedAt = Date.now();
   const apiLogin: Promise<ConstructLoginResult> | undefined =
     username && password
-      ? requestConstructLogin(username, password, abortSignal).then(
+      ? requestConstructLogin(
+          username,
+          password,
+          abortSignal,
+          CONSTRUCT_API_TIMEOUT_MS,
+          accountOrigin,
+        ).then(
           (loginData) => ({ loginData, startedAt: apiStartedAt }),
           (error: unknown) => ({ error, startedAt: apiStartedAt }),
         )
       : undefined;
-  await navigateToConstruct(page, url, log, abortSignal);
+  const authenticationStartedAt = username && password ? Date.now() : undefined;
+  await prepareConstructEditor(
+    page,
+    version,
+    username,
+    password,
+    apiLogin,
+    abortSignal,
+    log,
+  );
   throwIfAborted(abortSignal);
 
-  if (username && password) {
-    const authenticationStartedAt = Date.now();
-    // Wait for localforage to be available before checking existing auth state.
-    await page.waitForFunction(() => typeof localforage !== "undefined", { timeout: 30000 });
-
-    const authState = await page.evaluate(async () => {
-      const data = await localforage.getItem("login-data");
-      return data as unknown;
-    });
-
-    const loginData = await getConstructLoginData(
-      authState,
-      apiLogin,
-      username,
-      password,
-      abortSignal,
-      log,
-    );
-
-    if (loginData) {
-      log("Injecting Construct account session into the editor...");
-
-      await page.evaluate(async (data) => {
-        await localforage.setItem("login-data", data);
-      }, loginData);
-      log("Construct account session injected into the editor");
-
-      log("Reloading page to apply login state...");
-      const reloadStartedAt = Date.now();
-      await page.reload({ waitUntil: "domcontentloaded" });
-      logElapsed(log, "Construct auth reload ready after", reloadStartedAt);
-    }
-    logElapsed(log, "Construct authentication setup after", authenticationStartedAt);
+  if (authenticationStartedAt !== undefined) {
+    logElapsed(log, "Construct auth/editor startup after", authenticationStartedAt);
   }
 
   registerConfirmDialogListener(page, log);
