@@ -24,6 +24,9 @@ test("copies the complete Construct profile and removes stale browser locks", as
     if (process.platform !== "win32") {
       expect((await getStat(destination)).mode & 0o777).toBe(0o700);
       expect((await getStat(join(destination, "Default"))).mode & 0o777).toBe(0o700);
+      const preferencesMode =
+        (await getStat(join(destination, "Default", "Preferences"))).mode & 0o777;
+      expect(preferencesMode).toBe(0o600);
     }
 
     expect(await readFile(join(destination, "Default", "Preferences"), "utf8")).toBe(
@@ -41,6 +44,7 @@ test("copies the complete Construct profile and removes stale browser locks", as
         "utf8",
       ),
     ).toBe("pipelab");
+    expect(await readFile(join(source, "Preferences"), "utf8")).toBe("profile metadata");
     await expect(
       rm(
         join(
