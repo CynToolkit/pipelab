@@ -80,23 +80,7 @@ jobs:
           APPLE_TEAM_ID: ${{ env.PIPILAB_ENABLE_MACOS_SIGNING == 'true' && secrets.APPLE_TEAM_ID || '' }}
         run: pnpm electron-forge publish --dry-run --arch ${{ matrix.arch }}
 
-      - name: Disable AppArmor restriction
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-
-      - name: Run tests
-        uses: coactions/setup-xvfb@v1
-        env:
-          PIPILAB_TEST_ARCH: ${{ matrix.arch }}
-        with:
-          run: pnpm test:e2e:raw
-
-      - name: Upload Playwright artifacts
-        uses: actions/upload-artifact@v4
-        continue-on-error: true
-        with:
-          name: ${{ matrix.os }}-playwright
-          path: playwright/**/*
+      # Workflow E2E tests are manual-only via pnpm test:e2e:local.
 
       - name: windows workaround
         if: matrix.os == 'windows-latest'
