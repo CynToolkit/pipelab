@@ -295,11 +295,13 @@ describe("Construct account authentication", () => {
     expect(page.events[0]).toBe("goto:https://accountbeta.construct.net");
     expect(page.events).toContain("goto:https://editor.construct.net");
     expect(page.events).toContain("confirm-editor-preferences");
-    expect(page.stores.get("https://accountbeta.construct.net")?.get("login-data")).toEqual(session);
+    expect(page.stores.get("https://accountbeta.construct.net")?.get("login-data")).toEqual(
+      session,
+    );
     expect(page.stores.get("https://account.construct.net")).toBeUndefined();
   });
 
-  it("leaves profile-only startup on the editor origin", async () => {
+  it("confirms the selected profile session without changing account storage", async () => {
     const page = new AccountOriginPage();
 
     await prepareConstructEditor(
@@ -313,10 +315,63 @@ describe("Construct account authentication", () => {
     );
 
     expect(page.events).toEqual([
+      "wait-for-token.json",
       "install-editor-preferences",
       "goto:https://editor.construct.net",
       "confirm-editor-preferences",
     ]);
+    expect(page.stores.has("https://account.construct.net")).toBe(false);
+  });
+
+  it("fails closed when a profile-only session is rejected", async () => {
+    const page = new AccountOriginPage();
+    page.tokenResponsePayload = { request: { status: "error" } };
+
+    await expect(
+      prepareConstructEditor(
+        page as unknown as Page,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        new AbortController().signal,
+        vi.fn(),
+      ),
+    ).rejects.toThrow("Construct did not confirm the prepared account session");
+  });
+
+  it("fails closed when profile-only startup has no token confirmation", async () => {
+    const page = new AccountOriginPage();
+    page.waitForResponse = vi.fn().mockRejectedValue(new Error("response timed out"));
+
+    await expect(
+      prepareConstructEditor(
+        page as unknown as Page,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        new AbortController().signal,
+        vi.fn(),
+      ),
+    ).rejects.toThrow("Construct did not confirm the prepared account session");
+  });
+
+  it("cancels profile-only startup while waiting for token confirmation", async () => {
+    const page = new AccountOriginPage();
+    const controller = new AbortController();
+    const preparation = prepareConstructEditor(
+      page as unknown as Page,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      controller.signal,
+      vi.fn(),
+    );
+    controller.abort();
+
+    await expect(preparation).rejects.toMatchObject({ name: "AbortError" });
   });
 
   it("cancels while waiting for account storage readiness", async () => {
@@ -579,9 +634,7 @@ describe("Construct project load readiness", () => {
         press: vi.fn(async () => resolveFileChooser?.(fileChooser)),
       },
       locator: vi.fn((selector: string) =>
-        selector === "body"
-          ? { innerText: vi.fn().mockResolvedValue("Menu") }
-          : loadingOverlay,
+        selector === "body" ? { innerText: vi.fn().mockResolvedValue("Menu") } : loadingOverlay,
       ),
       waitForEvent: vi.fn(
         () =>
@@ -600,7 +653,10 @@ describe("Construct project load readiness", () => {
       "/tmp",
     );
 
-    expect(log).toHaveBeenCalledWith("Construct editor ready after", expect.stringMatching(/^\d+ ms$/));
+    expect(log).toHaveBeenCalledWith(
+      "Construct editor ready after",
+      expect.stringMatching(/^\d+ ms$/),
+    );
     expect(loadingOverlay.isVisible).toHaveBeenCalledTimes(2);
     expect(page.keyboard.press).toHaveBeenCalledWith("ControlOrMeta+O");
     expect(fileChooser.setFiles).toHaveBeenCalledWith(["/tmp/project.c3p"]);
