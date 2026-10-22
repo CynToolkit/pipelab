@@ -4,16 +4,17 @@ import {
   registerInstallButtonListener,
   registerWebglErrorListener,
   registerDeprecatedFeatures,
-  registerWelcomeToConstructListener,
   registerConfirmDialogListener,
   registerNotNowListener,
   isConstructFreeEditionLimit,
 } from "./listeners.js";
 
 const CONSTRUCT_READY_TIMEOUT_MS = 15_000;
+const CONSTRUCT_SETTINGS_SEED_TIMEOUT_MS = 15_000;
 const FILE_CHOOSER_TIMEOUT_MS = 5_000;
 const CONSTRUCT_API_TIMEOUT_MS = 30_000;
 const OPEN_RETRY_COUNT = 1;
+const CONSTRUCT_EDITOR_ORIGIN = "https://editor.construct.net";
 
 const logElapsed = (log: typeof console.log, label: string, startedAt: number) => {
   log(label, `${Date.now() - startedAt} ms`);
@@ -165,12 +166,151 @@ export const clickConstructDownload = async (
   return result.download;
 };
 
-export const navigateToConstruct = async (page: Page, url: string, log: typeof console.log) => {
+type ConstructSettingsSeedOptions = { origin: string; timeoutMs: number };
+type ConstructSettingsSeedResult = {
+  welcomeTourDismissed: true;
+  uiAnimationsDisabled: true;
+  uiEffectsDisabled: true;
+  addonUpdateChecksDisabled: true;
+  startPageHidden: true;
+};
+
+const seedConstructEditorSettings = (options: ConstructSettingsSeedOptions) => {
+  if (window.top !== window || location.origin !== options.origin) return;
+
+  const seed = new Promise<ConstructSettingsSeedResult>((resolve, reject) => {
+    let database: IDBDatabase | undefined;
+    let settled = false;
+    let timeout: number;
+    // Object methods keep this injected callback free of transpiler name helpers.
+    const completion = {
+      finish(result: ConstructSettingsSeedResult | Error) {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeout);
+        database?.close();
+        if (result instanceof Error) reject(result);
+        else resolve(result);
+      },
+      fail(error: unknown) {
+        completion.finish(
+          error instanceof Error
+            ? error
+            : new Error("Could not seed Construct editor preferences"),
+        );
+      },
+    };
+    timeout = window.setTimeout(
+      () => completion.fail(new Error("Construct editor preference seed timed out")),
+      options.timeoutMs,
+    );
+
+    const request = indexedDB.open("localforage");
+    request.onerror = () => completion.fail(request.error);
+    request.onblocked = () => completion.fail(new Error("Construct preference storage is blocked"));
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains("keyvaluepairs")) {
+        request.result.createObjectStore("keyvaluepairs");
+      }
+    };
+    request.onsuccess = () => {
+      database = request.result;
+      if (settled) {
+        database.close();
+        return;
+      }
+      if (!database.objectStoreNames.contains("keyvaluepairs")) {
+        completion.fail(new Error("Construct preference storage has an unexpected schema"));
+        return;
+      }
+
+      let transaction: IDBTransaction;
+      try {
+        transaction = database.transaction("keyvaluepairs", "readwrite");
+      } catch (error) {
+        completion.fail(error);
+        return;
+      }
+      const store = transaction.objectStore("keyvaluepairs");
+      const settingsRequest = store.get("c3-user-settings");
+      settingsRequest.onerror = () => {
+        transaction.abort();
+        completion.fail(settingsRequest.error);
+      };
+      settingsRequest.onsuccess = () => {
+        try {
+          const current = settingsRequest.result;
+          const userSettings =
+            typeof current === "object" && current !== null && !Array.isArray(current)
+              ? current
+              : {};
+          userSettings.enableUIAnimations = false;
+          userSettings.enableUIEffects = false;
+          // Editors before r422 ignore the addon-update preference.
+          userSettings.checkForAddonUpdates = false;
+          userSettings.showStartPageOnStartup = false;
+          store.put(userSettings, "c3-user-settings");
+          store.put(true, "c3-done-first-run");
+        } catch (error) {
+          transaction.abort();
+          completion.fail(error);
+        }
+      };
+      transaction.oncomplete = () => {
+        completion.finish({
+          welcomeTourDismissed: true,
+          uiAnimationsDisabled: true,
+          uiEffectsDisabled: true,
+          addonUpdateChecksDisabled: true,
+          startPageHidden: true,
+        });
+      };
+      transaction.onerror = () => completion.fail(transaction.error);
+      transaction.onabort = () => completion.fail(transaction.error);
+    };
+  });
+  void seed.catch(() => {});
+  Object.defineProperty(window, "__pipelabConstructPreferencesReady", { value: seed });
+};
+
+export const navigateToConstruct = async (
+  page: Page,
+  url: string,
+  log: typeof console.log,
+  signal: AbortSignal,
+) => {
+  throwIfAborted(signal);
+  await page.addInitScript(seedConstructEditorSettings, {
+    origin: CONSTRUCT_EDITOR_ORIGIN,
+    timeoutMs: CONSTRUCT_SETTINGS_SEED_TIMEOUT_MS,
+  });
+
   log("Navigating to URL", url);
   const navigationStartedAt = Date.now();
   await page.goto(url, { waitUntil: "domcontentloaded" });
   log("Construct document ready after", `${Date.now() - navigationStartedAt} ms`);
   log("after navigating, current URL:", page.url());
+
+  const seededPreferences = await page.evaluate(async () => {
+    const state = window as Window & {
+      __pipelabConstructPreferencesReady?: Promise<ConstructSettingsSeedResult>;
+    };
+    if (!state.__pipelabConstructPreferencesReady) {
+      throw new Error("Construct editor preference seeding did not run for this origin");
+    }
+    return await state.__pipelabConstructPreferencesReady;
+  });
+  throwIfAborted(signal);
+  if (
+    !seededPreferences.welcomeTourDismissed ||
+    !seededPreferences.uiAnimationsDisabled ||
+    !seededPreferences.uiEffectsDisabled ||
+    !seededPreferences.addonUpdateChecksDisabled ||
+    !seededPreferences.startPageHidden
+  ) {
+    throw new Error("Construct editor preferences were not seeded");
+  }
+  log("Construct startup settings seeded before editor load");
 };
 
 const isAbortError = (error: unknown) =>
@@ -284,6 +424,15 @@ const getOpenButton = async (page: Page) => {
   return undefined;
 };
 
+const isConstructEditorReady = async (page: Page) => {
+  const menuButton = page.getByRole("button", { name: "Menu", exact: true }).first();
+  if (!(await menuButton.isVisible())) return false;
+
+  // With the Start Page hidden, Construct opens directly into its editor shell.
+  // Do not send the Open shortcut while its startup loading screen is visible.
+  return !(await page.locator("#loadingLogoWrap").isVisible());
+};
+
 const waitForConstructReady = async (page: Page, signal: AbortSignal, log: typeof console.log) => {
   const startedAt = Date.now();
   const deadline = Date.now() + CONSTRUCT_READY_TIMEOUT_MS;
@@ -307,10 +456,14 @@ const waitForConstructReady = async (page: Page, signal: AbortSignal, log: typeo
       logElapsed(log, "Construct project picker ready after", startedAt);
       return;
     }
+    if (await isConstructEditorReady(page)) {
+      logElapsed(log, "Construct editor ready after", startedAt);
+      return;
+    }
     await delayWithAbort(Math.min(250, Math.max(1, deadline - Date.now())), signal);
   }
   log(
-    `Construct did not show its Open control within ${CONSTRUCT_READY_TIMEOUT_MS / 1000} seconds; continuing with Ctrl+O`,
+    `Construct did not show a ready editor or its Open control within ${CONSTRUCT_READY_TIMEOUT_MS / 1000} seconds; continuing with Ctrl+O`,
   );
 };
 
@@ -461,7 +614,7 @@ export const script = async (
           (error: unknown) => ({ error, startedAt: apiStartedAt }),
         )
       : undefined;
-  await navigateToConstruct(page, url, log);
+  await navigateToConstruct(page, url, log, abortSignal);
   throwIfAborted(abortSignal);
 
   if (username && password) {
@@ -499,7 +652,6 @@ export const script = async (
     logElapsed(log, "Construct authentication setup after", authenticationStartedAt);
   }
 
-  registerWelcomeToConstructListener(page, log);
   registerConfirmDialogListener(page, log);
   registerNotNowListener(page, log);
   registerInstallButtonListener(page, log);

@@ -81,27 +81,6 @@ export const registerDeprecatedFeatures = (page: Page, log: typeof console.log) 
     });
 };
 
-export const registerWelcomeToConstructListener = (page: Page, log: typeof console.log) => {
-  const welcomeTourDialog = page.locator("#welcomeTourDialog");
-  const okButton = welcomeTourDialog.locator(".noThanksLink");
-  okButton
-    .waitFor({
-      timeout: 0,
-    })
-    .then(async () => {
-      await okButton.click();
-      log("okButton clicked");
-    })
-    .catch(async (e) => {
-      if (
-        e.message.includes("Target page, context or browser has been closed") ||
-        isPageCrashError(e)
-      )
-        return;
-      log("welcomeTour.okButton.click() failed", e.message);
-    });
-};
-
 export const registerMissingAddonErrorListener = (page: Page, log: typeof console.log) => {
   const okDialog = page.locator("#missingAddonsDialog");
   const webglErrorButton = okDialog.locator(".okButton");
