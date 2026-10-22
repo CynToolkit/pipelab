@@ -220,7 +220,8 @@ app.whenReady().then(async () => {
     }
   } satisfies ParseArgsConfig
 
-  const args = app.isPackaged ? process.argv.slice(1) : process.argv.slice(2)
+  const rawArgs = app.isPackaged ? process.argv.slice(1) : process.argv.slice(2)
+  const args = rawArgs[0] === '--' ? rawArgs.slice(1) : rawArgs
   logger().info('args to parse:', args)
   const { values } = parseArgs({ ...config, args })
 
