@@ -406,6 +406,17 @@ const waitForConstructTokenResponse = async (
   if (!response?.ok()) {
     throw new Error("Construct did not confirm the prepared account session");
   }
+
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new Error("Construct did not confirm the prepared account session");
+  }
+  const request = isRecord(payload) && isRecord(payload.request) ? payload.request : undefined;
+  if (request?.status !== "ok") {
+    throw new Error("Construct did not confirm the prepared account session");
+  }
 };
 
 /**
@@ -476,8 +487,7 @@ export const prepareConstructEditor = async (
   }
 
   const tokenResponse = waitForConstructTokenResponse(page, accountOrigin, abortSignal);
-  await navigateToConstruct(page, editorUrl, log, abortSignal);
-  await tokenResponse;
+  await Promise.all([navigateToConstruct(page, editorUrl, log, abortSignal), tokenResponse]);
 };
 
 const waitForLocatorWithAbort = async (

@@ -22,9 +22,12 @@ class AccountOriginPage {
   currentUrl = "about:blank";
   stores = new Map<string, Map<string, unknown>>();
   responsePredicate: ((response: { url: () => string }) => boolean) | undefined;
-  resolveResponse: ((response: { url: () => string; ok: () => boolean }) => void) | undefined;
+  resolveResponse:
+    | ((response: { url: () => string; ok: () => boolean; json: () => Promise<unknown> }) => void)
+    | undefined;
   reload = vi.fn();
   tokenResponseOk = true;
+  tokenResponsePayload: unknown = { request: { status: "ok" } };
   visitedUrls: string[] = [];
   waitForFunctionArgs: unknown[] = [];
 
@@ -40,6 +43,7 @@ class AccountOriginPage {
       const response = {
         url: () => `${constructAccountOrigin("r466-2")}/token.json`,
         ok: () => this.tokenResponseOk,
+        json: async () => this.tokenResponsePayload,
       };
       if (this.responsePredicate?.(response)) this.resolveResponse?.(response);
     }
@@ -78,10 +82,17 @@ class AccountOriginPage {
     return value;
   }
 
-  waitForResponse(predicate: (response: { url: () => string }) => boolean) {
+  waitForResponse(
+    predicate: (response: { url: () => string }) => boolean,
+    _options?: { timeout: number },
+  ) {
     this.events.push("wait-for-token.json");
     this.responsePredicate = predicate;
-    return new Promise<{ url: () => string; ok: () => boolean }>((resolve) => {
+    return new Promise<{
+      url: () => string;
+      ok: () => boolean;
+      json: () => Promise<unknown>;
+    }>((resolve) => {
       this.resolveResponse = resolve;
     });
   }
@@ -232,6 +243,7 @@ describe("Construct account authentication", () => {
         const response = {
           url: () => "https://accountbeta.construct.net/token.json",
           ok: () => true,
+          json: async () => ({ request: { status: "ok" } }),
         };
         if (page.responsePredicate?.(response)) page.resolveResponse?.(response);
       }
@@ -318,6 +330,74 @@ describe("Construct account authentication", () => {
         vi.fn(),
       ),
     ).rejects.toThrow("Construct did not confirm the prepared account session");
+  });
+
+  it("fails closed when the token endpoint returns an unsuccessful confirmation envelope", async () => {
+    const page = new AccountOriginPage();
+    page.tokenResponsePayload = { request: { status: "error" } };
+
+    await expect(
+      prepareConstructEditor(
+        page as unknown as Page,
+        "r466-2",
+        "user@example.com",
+        "test-password",
+        Promise.resolve({
+          loginData: { userID: 42, token: "test-session" },
+          startedAt: Date.now(),
+        }),
+        new AbortController().signal,
+        vi.fn(),
+      ),
+    ).rejects.toThrow("Construct did not confirm the prepared account session");
+  });
+
+  it("handles token confirmation failure while editor navigation is still pending", async () => {
+    const page = new AccountOriginPage();
+    page.tokenResponsePayload = { request: { status: "error" } };
+    let releaseEditorNavigation: (() => void) | undefined;
+    let editorNavigationStarted: (() => void) | undefined;
+    const editorNavigationStartedPromise = new Promise<void>((resolve) => {
+      editorNavigationStarted = resolve;
+    });
+    const originalGoto = page.goto.bind(page);
+    page.goto = async (url: string) => {
+      const navigation = originalGoto(url);
+      if (new URL(url).origin === "https://editor.construct.net") {
+        editorNavigationStarted?.();
+        await new Promise<void>((resolve) => {
+          releaseEditorNavigation = resolve;
+        });
+      }
+      await navigation;
+    };
+
+    const preparation = prepareConstructEditor(
+      page as unknown as Page,
+      "r466-2",
+      "user@example.com",
+      "test-password",
+      Promise.resolve({
+        loginData: { userID: 42, token: "test-session" },
+        startedAt: Date.now(),
+      }),
+      new AbortController().signal,
+      vi.fn(),
+    );
+    await editorNavigationStartedPromise;
+    const settledBeforeNavigation = await Promise.race([
+      preparation.then(
+        () => "resolved" as const,
+        () => "rejected" as const,
+      ),
+      new Promise<"pending">((resolve) => setTimeout(() => resolve("pending"), 50)),
+    ]);
+    releaseEditorNavigation?.();
+
+    await expect(preparation).rejects.toThrow(
+      "Construct did not confirm the prepared account session",
+    );
+    expect(settledBeforeNavigation).toBe("rejected");
   });
 
   it("uses a fresh API session instead of a stale cached login-data value", async () => {
