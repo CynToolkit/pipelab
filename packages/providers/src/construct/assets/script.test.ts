@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { Locator, Page } from "playwright";
 import {
   clickConstructDownload,
+  disableConstructUiAnimations,
   getConstructLoginData,
   navigateToConstruct,
   requestConstructLogin,
@@ -41,6 +42,138 @@ describe("Construct editor navigation", () => {
       "Construct document ready after",
       expect.stringMatching(/^\d+ ms$/),
     );
+  });
+});
+
+describe("Construct UI animation setting", () => {
+  const settingsPage = (
+    welcomeInitiallyVisible: boolean,
+    animationsInitiallyChecked: boolean,
+    welcomeAppearsWhenMenuOpens = false,
+    welcomeAppearsWhenSettingsOpens = false,
+  ) => {
+    let welcomeVisible = welcomeInitiallyVisible;
+    let animationsChecked = animationsInitiallyChecked;
+    let menuOpen = false;
+    const actions: string[] = [];
+    const welcomeDismiss = {
+      click: vi.fn(async () => {
+        welcomeVisible = false;
+        actions.push("dismiss welcome tour");
+      }),
+    };
+    const welcomeDialog = {
+      waitFor: vi.fn(async ({ state }: { state?: string }) => {
+        if (state === "visible" && !welcomeVisible) {
+          throw Object.assign(new Error("welcome tour did not appear"), { name: "TimeoutError" });
+        }
+        if (state === "hidden" && welcomeVisible) {
+          throw new Error("welcome tour is still visible");
+        }
+      }),
+      isVisible: vi.fn(async () => welcomeVisible),
+      locator: vi.fn(() => welcomeDismiss),
+    };
+    const menu = {
+      click: vi.fn(async () => {
+        actions.push("open menu");
+        menuOpen = true;
+        if (
+          welcomeAppearsWhenMenuOpens &&
+          actions.filter((action) => action === "open menu").length === 1
+        ) {
+          welcomeVisible = true;
+          throw new Error("welcome tour intercepted the Menu click");
+        }
+      }),
+    };
+    const settings = {
+      isVisible: vi.fn(async () => menuOpen && !welcomeVisible),
+      click: vi.fn(async () => {
+        actions.push("open settings");
+        if (
+          welcomeAppearsWhenSettingsOpens &&
+          actions.filter((action) => action === "open settings").length === 1
+        ) {
+          welcomeVisible = true;
+          throw new Error("welcome tour intercepted the Settings click");
+        }
+        menuOpen = false;
+      }),
+    };
+    const animationSetting = {
+      waitFor: vi.fn().mockResolvedValue(undefined),
+      isChecked: vi.fn(async () => animationsChecked),
+      setChecked: vi.fn(async (checked: boolean) => {
+        animationsChecked = checked;
+      }),
+    };
+    const close = { click: vi.fn().mockResolvedValue(undefined) };
+    const page = {
+      locator: vi.fn((selector: string) => {
+        if (selector === "#welcomeTourDialog") return welcomeDialog;
+        throw new Error(`Unexpected Construct locator: ${selector}`);
+      }),
+      getByRole: vi.fn((role: string, options?: { name?: string; exact?: boolean }) => {
+        if (role === "button" && options?.name === "Menu") return menu;
+        if (role === "menuitem" && options?.name === "Settings") return settings;
+        if (role === "checkbox" && options?.name === "Enable UI animations") return animationSetting;
+        if (role === "button" && options?.name === "Close" && options.exact) {
+          return { last: () => close };
+        }
+        throw new Error(`Unexpected Construct setting locator: ${role} ${options?.name ?? ""}`);
+      }),
+    } as unknown as Page;
+
+    return { page, actions, menu, settings, animationSetting, welcomeDismiss, close };
+  };
+
+  it("dismisses the welcome tour before opening Settings and disables animations", async () => {
+    const { page, actions, animationSetting, welcomeDismiss, close } = settingsPage(true, true);
+
+    await disableConstructUiAnimations(page, new AbortController().signal, vi.fn());
+
+    expect(welcomeDismiss.click).toHaveBeenCalledOnce();
+    expect(actions.indexOf("dismiss welcome tour")).toBeLessThan(actions.indexOf("open menu"));
+    expect(animationSetting.setChecked).toHaveBeenCalledWith(false, { timeout: 5_000 });
+    expect(animationSetting.isChecked).toHaveBeenCalledTimes(2);
+    expect(close.click).toHaveBeenCalledOnce();
+  });
+
+  it("does not toggle an already disabled setting when no welcome tour appears", async () => {
+    const { page, animationSetting, welcomeDismiss, close } = settingsPage(false, false);
+
+    await disableConstructUiAnimations(page, new AbortController().signal, vi.fn());
+
+    expect(welcomeDismiss.click).not.toHaveBeenCalled();
+    expect(animationSetting.setChecked).not.toHaveBeenCalled();
+    expect(animationSetting.isChecked).toHaveBeenCalledTimes(2);
+    expect(close.click).toHaveBeenCalledOnce();
+  });
+
+  it("dismisses a welcome tour that appears while the Menu is opening", async () => {
+    const { page, actions, menu, welcomeDismiss } = settingsPage(false, false, true);
+
+    await disableConstructUiAnimations(page, new AbortController().signal, vi.fn());
+
+    expect(menu.click).toHaveBeenCalledOnce();
+    expect(welcomeDismiss.click).toHaveBeenCalledOnce();
+    expect(actions).toEqual(["open menu", "dismiss welcome tour", "open settings"]);
+  });
+
+  it("recovers when the welcome tour intercepts the Settings menu item", async () => {
+    const { page, actions, settings, welcomeDismiss } = settingsPage(false, false, false, true);
+
+    await disableConstructUiAnimations(page, new AbortController().signal, vi.fn());
+
+    expect(settings.click).toHaveBeenCalledTimes(2);
+    expect(welcomeDismiss.click).toHaveBeenCalledOnce();
+    expect(actions).toEqual([
+      "open menu",
+      "open settings",
+      "dismiss welcome tour",
+      "open settings",
+    ]);
   });
 });
 

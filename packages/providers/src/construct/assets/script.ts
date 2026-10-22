@@ -4,13 +4,13 @@ import {
   registerInstallButtonListener,
   registerWebglErrorListener,
   registerDeprecatedFeatures,
-  registerWelcomeToConstructListener,
   registerConfirmDialogListener,
   registerNotNowListener,
   isConstructFreeEditionLimit,
 } from "./listeners.js";
 
 const CONSTRUCT_READY_TIMEOUT_MS = 15_000;
+const CONSTRUCT_WELCOME_TOUR_TIMEOUT_MS = 250;
 const FILE_CHOOSER_TIMEOUT_MS = 5_000;
 const CONSTRUCT_API_TIMEOUT_MS = 30_000;
 const OPEN_RETRY_COUNT = 1;
@@ -314,6 +314,68 @@ const waitForConstructReady = async (page: Page, signal: AbortSignal, log: typeo
   );
 };
 
+export const dismissConstructWelcomeTour = async (
+  page: Page,
+  signal: AbortSignal,
+  log: typeof console.log,
+) => {
+  const welcomeTourDialog = page.locator("#welcomeTourDialog");
+  try {
+    await welcomeTourDialog.waitFor({
+      state: "visible",
+      timeout: CONSTRUCT_WELCOME_TOUR_TIMEOUT_MS,
+    });
+  } catch (error) {
+    throwIfAborted(signal);
+    if (!(error instanceof Error) || error.name !== "TimeoutError") throw error;
+  }
+
+  throwIfAborted(signal);
+  if (!(await welcomeTourDialog.isVisible())) return;
+  await welcomeTourDialog.locator(".noThanksLink").click({ timeout: 5_000 });
+  await welcomeTourDialog.waitFor({ state: "hidden", timeout: 5_000 });
+  log("Construct welcome tour dismissed");
+};
+
+export const disableConstructUiAnimations = async (
+  page: Page,
+  signal: AbortSignal,
+  log: typeof console.log,
+) => {
+  throwIfAborted(signal);
+  // The welcome tour can appear after the project picker and intercept Menu.
+  // Dismiss it synchronously instead of racing the detached startup listener.
+  await dismissConstructWelcomeTour(page, signal, log);
+  const menuButton = page.getByRole("button", { name: "Menu" });
+  const settingsItem = page.getByRole("menuitem", { name: "Settings" });
+  const openSettings = async () => {
+    await menuButton.click({ timeout: 5_000 });
+    await settingsItem.click({ timeout: 5_000 });
+  };
+  try {
+    await openSettings();
+  } catch (error) {
+    throwIfAborted(signal);
+    if (!(await page.locator("#welcomeTourDialog").isVisible())) throw error;
+    await dismissConstructWelcomeTour(page, signal, log);
+    if (!(await settingsItem.isVisible())) await menuButton.click({ timeout: 5_000 });
+    await settingsItem.click({ timeout: 5_000 });
+  }
+
+  const animationsSetting = page.getByRole("checkbox", { name: "Enable UI animations" });
+  await animationsSetting.waitFor({ state: "visible", timeout: 5_000 });
+  if (await animationsSetting.isChecked()) {
+    await animationsSetting.setChecked(false, { timeout: 5_000 });
+  }
+  if (await animationsSetting.isChecked()) {
+    throw new Error("Construct's UI animations setting remained enabled after disabling it");
+  }
+  throwIfAborted(signal);
+  log("Construct UI animations are disabled");
+
+  await page.getByRole("button", { name: "Close", exact: true }).last().click({ timeout: 5_000 });
+};
+
 const waitForFileChooserAfter = async (
   page: Page,
   signal: AbortSignal,
@@ -371,10 +433,15 @@ export const openConstructProjectFile = async (
   diagnosticsDir: string,
 ) => {
   let lastError: unknown;
+  let uiAnimationsDisabled = false;
   for (let attempt = 0; attempt <= OPEN_RETRY_COUNT; attempt++) {
     throwIfAborted(signal);
     try {
       await waitForConstructReady(page, signal, log);
+      if (!uiAnimationsDisabled) {
+        await disableConstructUiAnimations(page, signal, log);
+        uiAnimationsDisabled = true;
+      }
       const chooserStartedAt = Date.now();
       let fileChooser = await waitForFileChooserAfter(page, signal, () =>
         page.keyboard.press("ControlOrMeta+O"),
@@ -499,7 +566,6 @@ export const script = async (
     logElapsed(log, "Construct authentication setup after", authenticationStartedAt);
   }
 
-  registerWelcomeToConstructListener(page, log);
   registerConfirmDialogListener(page, log);
   registerNotNowListener(page, log);
   registerInstallButtonListener(page, log);

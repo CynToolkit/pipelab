@@ -35,5 +35,11 @@ saved session is used. Setting only one fails before export starts.
 The export automation opens Construct's export dialog through Menu → Project →
 Export, then selects Web (HTML5) and the standard export options.
 
+Before opening a project, Pipelab dismisses Construct's startup welcome tour
+if shown, then disables the native **Enable UI animations** setting in the
+automation-owned profile when needed. It uses Construct's Settings UI on each
+run, leaves the selected Chromium profile unchanged, and does not change the
+separate **Enable UI effects** setting.
+
 See [PERF.md](./PERF.md) for the local setup and full-export measurements and
 their conditions.
