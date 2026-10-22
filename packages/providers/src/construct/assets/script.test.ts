@@ -4,8 +4,10 @@ import { join } from "node:path";
 import type { Locator, Page } from "playwright";
 import {
   clickConstructDownload,
+  constructAccountOrigin,
   getConstructLoginData,
   navigateToConstruct,
+  prepareConstructEditor,
   requestConstructLogin,
   waitForConstructProjectLoad,
   waitForConstructExportDownload,
@@ -13,6 +15,58 @@ import {
 import { isConstructFreeEditionLimit } from "./listeners";
 
 const exportRunPath = join(tmpdir(), "export-run");
+
+class AccountOriginPage {
+  events: string[] = [];
+  currentUrl = "about:blank";
+  stores = new Map<string, Map<string, unknown>>();
+  responsePredicate: ((response: { url: () => string }) => boolean) | undefined;
+  resolveResponse: ((response: { url: () => string; ok: () => boolean }) => void) | undefined;
+  reload = vi.fn();
+  tokenResponseOk = true;
+
+  async goto(url: string) {
+    this.currentUrl = url;
+    this.events.push(`goto:${new URL(url).origin}`);
+    if (new URL(url).origin === "https://editor.construct.net") {
+      const response = {
+        url: () => `${constructAccountOrigin("r466-2")}/token.json`,
+        ok: () => this.tokenResponseOk,
+      };
+      if (this.responsePredicate?.(response)) this.resolveResponse?.(response);
+    }
+  }
+
+  url() {
+    return this.currentUrl;
+  }
+
+  async waitForFunction() {
+    this.events.push(`localforage:${new URL(this.currentUrl).origin}`);
+  }
+
+  async evaluate(callback: unknown, value?: unknown) {
+    const origin = new URL(this.currentUrl).origin;
+    const store = this.stores.get(origin) ?? new Map<string, unknown>();
+    this.stores.set(origin, store);
+    const source = String(callback);
+    if (source.includes("getItem")) {
+      this.events.push(`read:${origin}`);
+      return store.get("login-data") ?? null;
+    }
+    this.events.push(`write:${origin}`);
+    store.set("login-data", value);
+    return value;
+  }
+
+  waitForResponse(predicate: (response: { url: () => string }) => boolean) {
+    this.events.push("wait-for-token.json");
+    this.responsePredicate = predicate;
+    return new Promise<{ url: () => string; ok: () => boolean }>((resolve) => {
+      this.resolveResponse = resolve;
+    });
+  }
+}
 
 describe("Construct edition detection", () => {
   it("recognizes the free edition limit prompt", () => {
@@ -45,6 +99,110 @@ describe("Construct editor navigation", () => {
 });
 
 describe("Construct account authentication", () => {
+  it.each([
+    [undefined, "https://account.construct.net"],
+    ["r466-2", "https://account.construct.net"],
+    ["beta", "https://accountbeta.construct.net"],
+    ["r466-beta", "https://accountbeta.construct.net"],
+  ] as const)("selects account storage origin for Construct version %s", (version, origin) => {
+    expect(constructAccountOrigin(version)).toBe(origin);
+  });
+
+  it("seeds the account origin before opening the editor and verifies its startup exchange", async () => {
+    const page = new AccountOriginPage();
+    const session = { userID: 42, token: "test-session" };
+
+    await prepareConstructEditor(
+      page as unknown as Page,
+      "r466-2",
+      "user@example.com",
+      "test-password",
+      Promise.resolve({ loginData: session, startedAt: Date.now() }),
+      new AbortController().signal,
+      vi.fn(),
+    );
+
+    expect(page.events).toEqual([
+      "goto:https://account.construct.net",
+      "localforage:https://account.construct.net",
+      "read:https://account.construct.net",
+      "write:https://account.construct.net",
+      "wait-for-token.json",
+      "goto:https://editor.construct.net",
+    ]);
+    expect(page.stores.get("https://account.construct.net")?.get("login-data")).toEqual(session);
+    expect(page.stores.get("https://editor.construct.net")).toBeUndefined();
+    expect(page.reload).not.toHaveBeenCalled();
+  });
+
+  it("uses the beta account origin for beta editor sessions", async () => {
+    const page = new AccountOriginPage();
+    const session = { userID: 42, token: "test-session" };
+    const betaPage = page as unknown as Page;
+    const editorGoto = page.goto.bind(page);
+    page.goto = async (url: string) => {
+      await editorGoto(url);
+      if (new URL(url).origin === "https://editor.construct.net") {
+        const response = {
+          url: () => "https://accountbeta.construct.net/token.json",
+          ok: () => true,
+        };
+        if (page.responsePredicate?.(response)) page.resolveResponse?.(response);
+      }
+    };
+
+    await prepareConstructEditor(
+      betaPage,
+      "beta",
+      "user@example.com",
+      "test-password",
+      Promise.resolve({ loginData: session, startedAt: Date.now() }),
+      new AbortController().signal,
+      vi.fn(),
+    );
+
+    expect(page.events[0]).toBe("goto:https://accountbeta.construct.net");
+    expect(page.events.at(-1)).toBe("goto:https://editor.construct.net");
+    expect(page.stores.get("https://accountbeta.construct.net")?.get("login-data")).toEqual(session);
+    expect(page.stores.get("https://account.construct.net")).toBeUndefined();
+  });
+
+  it("leaves profile-only startup on the editor origin", async () => {
+    const page = new AccountOriginPage();
+
+    await prepareConstructEditor(
+      page as unknown as Page,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      new AbortController().signal,
+      vi.fn(),
+    );
+
+    expect(page.events).toEqual(["goto:https://editor.construct.net"]);
+  });
+
+  it("fails closed when Construct rejects the startup session exchange", async () => {
+    const page = new AccountOriginPage();
+    page.tokenResponseOk = false;
+
+    await expect(
+      prepareConstructEditor(
+        page as unknown as Page,
+        "r466-2",
+        "user@example.com",
+        "test-password",
+        Promise.resolve({
+          loginData: { userID: 42, token: "test-session" },
+          startedAt: Date.now(),
+        }),
+        new AbortController().signal,
+        vi.fn(),
+      ),
+    ).rejects.toThrow("Construct did not confirm the prepared account session");
+  });
+
   it("uses a fresh API session instead of a stale cached login-data value", async () => {
     const freshLogin = { userID: 42, token: "fresh-token" };
     const login = await getConstructLoginData(

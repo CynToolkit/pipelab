@@ -44,8 +44,10 @@ For CLI runs, set both `CONSTRUCT_USERNAME` and `CONSTRUCT_PASSWORD` in the
 process environment to provide Construct task inputs. Keep the values in a
 secret manager such as Doppler; the workflow stores only runtime references.
 When both are configured, Pipelab requests a fresh session from Construct's
-account service and injects it into the managed profile, including when a
-selected profile has a stale login record. When neither variable is set,
+account service and stores it on the matching Construct account origin in the
+managed profile before opening the editor. The editor exchanges that session
+during startup, including when a selected profile has a stale login record.
+When neither variable is set,
 exports use the selected profile's saved session. Setting only one variable
 fails before export starts, instead of falling back to the saved session. A
 missing referenced variable is reported by name, with its value redacted from
