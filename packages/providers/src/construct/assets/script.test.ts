@@ -6,6 +6,7 @@ import {
   clickConstructDownload,
   getConstructLoginData,
   navigateToConstruct,
+  openConstructProjectFile,
   requestConstructLogin,
   waitForConstructProjectLoad,
   waitForConstructExportDownload,
@@ -174,6 +175,58 @@ describe("Construct account authentication", () => {
 });
 
 describe("Construct project load readiness", () => {
+  it("opens a project as soon as the hidden-Start-Page editor shell is ready", async () => {
+    const fileChooser = { setFiles: vi.fn().mockResolvedValue(undefined) };
+    let resolveFileChooser: ((value: typeof fileChooser) => void) | undefined;
+    const unavailableOpenControl = {
+      first: () => unavailableOpenControl,
+      isEnabled: vi.fn().mockResolvedValue(false),
+      isVisible: vi.fn().mockResolvedValue(false),
+    };
+    const menuButton = {
+      first: () => menuButton,
+      isVisible: vi.fn().mockResolvedValue(true),
+    };
+    const loadingOverlay = {
+      isVisible: vi.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false),
+    };
+    const page = {
+      getByRole: vi.fn((_role: string, options: { name: string | RegExp }) =>
+        options.name === "Menu" ? menuButton : unavailableOpenControl,
+      ),
+      getByText: vi.fn().mockReturnValue(unavailableOpenControl),
+      isClosed: vi.fn().mockReturnValue(false),
+      keyboard: {
+        press: vi.fn(async () => resolveFileChooser?.(fileChooser)),
+      },
+      locator: vi.fn((selector: string) =>
+        selector === "body"
+          ? { innerText: vi.fn().mockResolvedValue("Menu") }
+          : loadingOverlay,
+      ),
+      waitForEvent: vi.fn(
+        () =>
+          new Promise<typeof fileChooser>((resolve) => {
+            resolveFileChooser = resolve;
+          }),
+      ),
+    } as unknown as Page;
+    const log = vi.fn();
+
+    await openConstructProjectFile(
+      page,
+      "/tmp/project.c3p",
+      new AbortController().signal,
+      log,
+      "/tmp",
+    );
+
+    expect(log).toHaveBeenCalledWith("Construct editor ready after", expect.stringMatching(/^\d+ ms$/));
+    expect(loadingOverlay.isVisible).toHaveBeenCalledTimes(2);
+    expect(page.keyboard.press).toHaveBeenCalledWith("ControlOrMeta+O");
+    expect(fileChooser.setFiles).toHaveBeenCalledWith(["/tmp/project.c3p"]);
+  });
+
   it("stops waiting for project load when the workflow is cancelled", async () => {
     let notifySecondWaitStarted = () => {};
     const secondWaitStarted = new Promise<void>((resolve) => {

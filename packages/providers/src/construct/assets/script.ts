@@ -424,6 +424,15 @@ const getOpenButton = async (page: Page) => {
   return undefined;
 };
 
+const isConstructEditorReady = async (page: Page) => {
+  const menuButton = page.getByRole("button", { name: "Menu", exact: true }).first();
+  if (!(await menuButton.isVisible())) return false;
+
+  // With the Start Page hidden, Construct opens directly into its editor shell.
+  // Do not send the Open shortcut while its startup loading screen is visible.
+  return !(await page.locator("#loadingLogoWrap").isVisible());
+};
+
 const waitForConstructReady = async (page: Page, signal: AbortSignal, log: typeof console.log) => {
   const startedAt = Date.now();
   const deadline = Date.now() + CONSTRUCT_READY_TIMEOUT_MS;
@@ -447,10 +456,14 @@ const waitForConstructReady = async (page: Page, signal: AbortSignal, log: typeo
       logElapsed(log, "Construct project picker ready after", startedAt);
       return;
     }
+    if (await isConstructEditorReady(page)) {
+      logElapsed(log, "Construct editor ready after", startedAt);
+      return;
+    }
     await delayWithAbort(Math.min(250, Math.max(1, deadline - Date.now())), signal);
   }
   log(
-    `Construct did not show its Open control within ${CONSTRUCT_READY_TIMEOUT_MS / 1000} seconds; continuing with Ctrl+O`,
+    `Construct did not show a ready editor or its Open control within ${CONSTRUCT_READY_TIMEOUT_MS / 1000} seconds; continuing with Ctrl+O`,
   );
 };
 
