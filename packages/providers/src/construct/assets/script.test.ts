@@ -28,6 +28,7 @@ class AccountOriginPage {
   reload = vi.fn();
   tokenResponseOk = true;
   tokenResponsePayload: unknown = { request: { status: "ok" } };
+  tokenResponseJson: () => Promise<unknown> = async () => this.tokenResponsePayload;
   visitedUrls: string[] = [];
   waitForFunctionArgs: unknown[] = [];
 
@@ -43,7 +44,7 @@ class AccountOriginPage {
       const response = {
         url: () => `${constructAccountOrigin("r466-2")}/token.json`,
         ok: () => this.tokenResponseOk,
-        json: async () => this.tokenResponsePayload,
+        json: this.tokenResponseJson,
       };
       if (this.responsePredicate?.(response)) this.resolveResponse?.(response);
     }
@@ -398,6 +399,36 @@ describe("Construct account authentication", () => {
       "Construct did not confirm the prepared account session",
     );
     expect(settledBeforeNavigation).toBe("rejected");
+  });
+
+  it("aborts when the token confirmation response body stalls", async () => {
+    const page = new AccountOriginPage();
+    let bodyReadStarted: (() => void) | undefined;
+    const bodyReadStartedPromise = new Promise<void>((resolve) => {
+      bodyReadStarted = resolve;
+    });
+    page.tokenResponseJson = () => {
+      bodyReadStarted?.();
+      return new Promise<unknown>(() => {});
+    };
+    const controller = new AbortController();
+
+    const preparation = prepareConstructEditor(
+      page as unknown as Page,
+      "r466-2",
+      "user@example.com",
+      "test-password",
+      Promise.resolve({
+        loginData: { userID: 42, token: "test-session" },
+        startedAt: Date.now(),
+      }),
+      controller.signal,
+      vi.fn(),
+    );
+    await bodyReadStartedPromise;
+    controller.abort();
+
+    await expect(preparation).rejects.toMatchObject({ name: "AbortError" });
   });
 
   it("uses a fresh API session instead of a stale cached login-data value", async () => {

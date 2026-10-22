@@ -409,8 +409,12 @@ const waitForConstructTokenResponse = async (
 
   let payload: unknown;
   try {
-    payload = await response.json();
+    payload = await awaitWithAbort(
+      response.json(),
+      AbortSignal.any([abortSignal, AbortSignal.timeout(CONSTRUCT_TOKEN_TIMEOUT_MS)]),
+    );
   } catch {
+    if (abortSignal.aborted) throw createAbortError(abortSignal);
     throw new Error("Construct did not confirm the prepared account session");
   }
   const request = isRecord(payload) && isRecord(payload.request) ? payload.request : undefined;
