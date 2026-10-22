@@ -403,7 +403,7 @@ const waitForConstructTokenResponse = async (
     })
     .then(
       (response) => response,
-      () => undefined,
+      (): undefined => undefined,
     );
   const response = await awaitWithAbort(responsePromise, abortSignal);
   if (!response?.ok()) {
