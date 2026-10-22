@@ -10,10 +10,11 @@ import {
 } from "./listeners.js";
 
 const CONSTRUCT_READY_TIMEOUT_MS = 15_000;
-const CONSTRUCT_WELCOME_TOUR_TIMEOUT_MS = 250;
+const CONSTRUCT_SETTINGS_SEED_TIMEOUT_MS = 15_000;
 const FILE_CHOOSER_TIMEOUT_MS = 5_000;
 const CONSTRUCT_API_TIMEOUT_MS = 30_000;
 const OPEN_RETRY_COUNT = 1;
+const CONSTRUCT_EDITOR_ORIGIN = "https://editor.construct.net";
 
 const logElapsed = (log: typeof console.log, label: string, startedAt: number) => {
   log(label, `${Date.now() - startedAt} ms`);
@@ -165,12 +166,129 @@ export const clickConstructDownload = async (
   return result.download;
 };
 
-export const navigateToConstruct = async (page: Page, url: string, log: typeof console.log) => {
+type ConstructSettingsSeedOptions = { origin: string; timeoutMs: number };
+type ConstructSettingsSeedResult = {
+  welcomeTourDismissed: true;
+  uiAnimationsDisabled: true;
+};
+
+const seedConstructEditorSettings = (options: ConstructSettingsSeedOptions) => {
+  if (window.top !== window || location.origin !== options.origin) return;
+
+  const seed = new Promise<ConstructSettingsSeedResult>((resolve, reject) => {
+    let database: IDBDatabase | undefined;
+    let settled = false;
+    let timeout: number;
+    const finish = (result: ConstructSettingsSeedResult | Error) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      database?.close();
+      if (result instanceof Error) reject(result);
+      else resolve(result);
+    };
+    const fail = (error: unknown) => {
+      finish(
+        error instanceof Error
+          ? error
+          : new Error("Could not seed Construct editor preferences"),
+      );
+    };
+    timeout = window.setTimeout(
+      () => fail(new Error("Construct editor preference seed timed out")),
+      options.timeoutMs,
+    );
+
+    const request = indexedDB.open("localforage");
+    request.onerror = () => fail(request.error);
+    request.onblocked = () => fail(new Error("Construct preference storage is blocked"));
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains("keyvaluepairs")) {
+        request.result.createObjectStore("keyvaluepairs");
+      }
+    };
+    request.onsuccess = () => {
+      database = request.result;
+      if (settled) {
+        database.close();
+        return;
+      }
+      if (!database.objectStoreNames.contains("keyvaluepairs")) {
+        fail(new Error("Construct preference storage has an unexpected schema"));
+        return;
+      }
+
+      let transaction: IDBTransaction;
+      try {
+        transaction = database.transaction("keyvaluepairs", "readwrite");
+      } catch (error) {
+        fail(error);
+        return;
+      }
+      const store = transaction.objectStore("keyvaluepairs");
+      const settingsRequest = store.get("c3-user-settings");
+      settingsRequest.onerror = () => {
+        transaction.abort();
+        fail(settingsRequest.error);
+      };
+      settingsRequest.onsuccess = () => {
+        try {
+          const current = settingsRequest.result;
+          const userSettings =
+            typeof current === "object" && current !== null && !Array.isArray(current)
+              ? current
+              : {};
+          userSettings.enableUIAnimations = false;
+          store.put(userSettings, "c3-user-settings");
+          store.put(true, "c3-done-first-run");
+        } catch (error) {
+          transaction.abort();
+          fail(error);
+        }
+      };
+      transaction.oncomplete = () => {
+        finish({ welcomeTourDismissed: true, uiAnimationsDisabled: true });
+      };
+      transaction.onerror = () => fail(transaction.error);
+      transaction.onabort = () => fail(transaction.error);
+    };
+  });
+  void seed.catch(() => {});
+  Object.defineProperty(window, "__pipelabConstructPreferencesReady", { value: seed });
+};
+
+export const navigateToConstruct = async (
+  page: Page,
+  url: string,
+  log: typeof console.log,
+  signal: AbortSignal,
+) => {
+  throwIfAborted(signal);
+  await page.addInitScript(seedConstructEditorSettings, {
+    origin: CONSTRUCT_EDITOR_ORIGIN,
+    timeoutMs: CONSTRUCT_SETTINGS_SEED_TIMEOUT_MS,
+  });
+
   log("Navigating to URL", url);
   const navigationStartedAt = Date.now();
   await page.goto(url, { waitUntil: "domcontentloaded" });
   log("Construct document ready after", `${Date.now() - navigationStartedAt} ms`);
   log("after navigating, current URL:", page.url());
+
+  const seededPreferences = await page.evaluate(async () => {
+    const state = window as Window & {
+      __pipelabConstructPreferencesReady?: Promise<ConstructSettingsSeedResult>;
+    };
+    if (!state.__pipelabConstructPreferencesReady) {
+      throw new Error("Construct editor preference seeding did not run for this origin");
+    }
+    return await state.__pipelabConstructPreferencesReady;
+  });
+  throwIfAborted(signal);
+  if (!seededPreferences.welcomeTourDismissed || !seededPreferences.uiAnimationsDisabled) {
+    throw new Error("Construct editor preferences were not seeded");
+  }
+  log("Construct startup settings seeded before editor load");
 };
 
 const isAbortError = (error: unknown) =>
@@ -314,68 +432,6 @@ const waitForConstructReady = async (page: Page, signal: AbortSignal, log: typeo
   );
 };
 
-export const dismissConstructWelcomeTour = async (
-  page: Page,
-  signal: AbortSignal,
-  log: typeof console.log,
-) => {
-  const welcomeTourDialog = page.locator("#welcomeTourDialog");
-  try {
-    await welcomeTourDialog.waitFor({
-      state: "visible",
-      timeout: CONSTRUCT_WELCOME_TOUR_TIMEOUT_MS,
-    });
-  } catch (error) {
-    throwIfAborted(signal);
-    if (!(error instanceof Error) || error.name !== "TimeoutError") throw error;
-  }
-
-  throwIfAborted(signal);
-  if (!(await welcomeTourDialog.isVisible())) return;
-  await welcomeTourDialog.locator(".noThanksLink").click({ timeout: 5_000 });
-  await welcomeTourDialog.waitFor({ state: "hidden", timeout: 5_000 });
-  log("Construct welcome tour dismissed");
-};
-
-export const disableConstructUiAnimations = async (
-  page: Page,
-  signal: AbortSignal,
-  log: typeof console.log,
-) => {
-  throwIfAborted(signal);
-  // The welcome tour can appear after the project picker and intercept Menu.
-  // Dismiss it synchronously instead of racing the detached startup listener.
-  await dismissConstructWelcomeTour(page, signal, log);
-  const menuButton = page.getByRole("button", { name: "Menu" });
-  const settingsItem = page.getByRole("menuitem", { name: "Settings" });
-  const openSettings = async () => {
-    await menuButton.click({ timeout: 5_000 });
-    await settingsItem.click({ timeout: 5_000 });
-  };
-  try {
-    await openSettings();
-  } catch (error) {
-    throwIfAborted(signal);
-    if (!(await page.locator("#welcomeTourDialog").isVisible())) throw error;
-    await dismissConstructWelcomeTour(page, signal, log);
-    if (!(await settingsItem.isVisible())) await menuButton.click({ timeout: 5_000 });
-    await settingsItem.click({ timeout: 5_000 });
-  }
-
-  const animationsSetting = page.getByRole("checkbox", { name: "Enable UI animations" });
-  await animationsSetting.waitFor({ state: "visible", timeout: 5_000 });
-  if (await animationsSetting.isChecked()) {
-    await animationsSetting.setChecked(false, { timeout: 5_000 });
-  }
-  if (await animationsSetting.isChecked()) {
-    throw new Error("Construct's UI animations setting remained enabled after disabling it");
-  }
-  throwIfAborted(signal);
-  log("Construct UI animations are disabled");
-
-  await page.getByRole("button", { name: "Close", exact: true }).last().click({ timeout: 5_000 });
-};
-
 const waitForFileChooserAfter = async (
   page: Page,
   signal: AbortSignal,
@@ -433,15 +489,10 @@ export const openConstructProjectFile = async (
   diagnosticsDir: string,
 ) => {
   let lastError: unknown;
-  let uiAnimationsDisabled = false;
   for (let attempt = 0; attempt <= OPEN_RETRY_COUNT; attempt++) {
     throwIfAborted(signal);
     try {
       await waitForConstructReady(page, signal, log);
-      if (!uiAnimationsDisabled) {
-        await disableConstructUiAnimations(page, signal, log);
-        uiAnimationsDisabled = true;
-      }
       const chooserStartedAt = Date.now();
       let fileChooser = await waitForFileChooserAfter(page, signal, () =>
         page.keyboard.press("ControlOrMeta+O"),
@@ -528,7 +579,7 @@ export const script = async (
           (error: unknown) => ({ error, startedAt: apiStartedAt }),
         )
       : undefined;
-  await navigateToConstruct(page, url, log);
+  await navigateToConstruct(page, url, log, abortSignal);
   throwIfAborted(abortSignal);
 
   if (username && password) {

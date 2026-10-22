@@ -17,11 +17,11 @@ The source compiles to an export action followed by an unzip action. Its final a
 Exports run in Chromium's full headless mode by default and do not require
 Xvfb. Native Workflow tasks can set `headless: false` for visual debugging.
 
-Before opening a project, Pipelab dismisses Construct's startup welcome tour if
-shown, then disables the native **Enable UI animations** setting in the
-automation-owned profile when needed. It uses Construct's Settings UI on each
-run, leaves the selected Chromium profile unchanged, and does not change the
-separate **Enable UI effects** setting.
+Before Construct's editor code loads, Pipelab seeds the welcome-tour
+dismissal and **Enable UI animations** preference in the automation-owned
+Chromium profile. It sets the welcome-tour completion flag and animation preference while
+preserving other saved Construct settings. The selected Chromium profile stays
+unchanged, and the separate **Enable UI effects** setting is not changed.
 
 ## Requirements and failures
 
