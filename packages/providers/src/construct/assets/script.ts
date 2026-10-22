@@ -218,9 +218,7 @@ const seedConstructEditorSettings = (options: ConstructSettingsSeedOptions) => {
       },
       fail(error: unknown) {
         completion.finish(
-          error instanceof Error
-            ? error
-            : new Error("Could not seed Construct editor preferences"),
+          error instanceof Error ? error : new Error("Could not seed Construct editor preferences"),
         );
       },
     };
@@ -443,12 +441,13 @@ export const prepareConstructEditor = async (
   log: typeof console.log,
 ) => {
   const editorUrl = `https://editor.construct.net/${version ?? ""}`;
+  const accountOrigin = constructAccountOrigin(version);
   if (!username || !password) {
-    await navigateToConstruct(page, editorUrl, log, abortSignal);
+    const tokenResponse = waitForConstructTokenResponse(page, accountOrigin, abortSignal);
+    await Promise.all([navigateToConstruct(page, editorUrl, log, abortSignal), tokenResponse]);
     return;
   }
 
-  const accountOrigin = constructAccountOrigin(version);
   await navigateToConstruct(
     page,
     `${accountOrigin}/login?theme=default&lang=en-US&productType=games`,
@@ -459,11 +458,7 @@ export const prepareConstructEditor = async (
     throw new Error("Construct account origin redirected unexpectedly");
   }
   await awaitWithAbort(
-    page.waitForFunction(
-      () => typeof localforage !== "undefined",
-      undefined,
-      { timeout: 30_000 },
-    ),
+    page.waitForFunction(() => typeof localforage !== "undefined", undefined, { timeout: 30_000 }),
     abortSignal,
   );
   const authState = await awaitWithAbort(
@@ -786,15 +781,7 @@ export const script = async (
         )
       : undefined;
   const authenticationStartedAt = username && password ? Date.now() : undefined;
-  await prepareConstructEditor(
-    page,
-    version,
-    username,
-    password,
-    apiLogin,
-    abortSignal,
-    log,
-  );
+  await prepareConstructEditor(page, version, username, password, apiLogin, abortSignal, log);
   throwIfAborted(abortSignal);
 
   if (authenticationStartedAt !== undefined) {
