@@ -86,6 +86,8 @@ jobs:
 
       - name: Run tests
         uses: coactions/setup-xvfb@v1
+        env:
+          PIPILAB_TEST_ARCH: ${{ matrix.arch }}
         with:
           run: pnpm test:e2e:raw
 
