@@ -48,16 +48,5 @@
     "serve-handler": "^6.1.6",
     "slash": "^5.1.0",
     "ws": "^8.18.1"
-  },
-  "pnpm": {
-    "overrides": {
-      "discord-rpc>register-scheme": "-"
-    },
-    "onlyBuiltDependencies": [
-      "electron",
-      "electron-winstaller",
-      "fs-xattr",
-      "macos-alias"
-    ]
   }
 }

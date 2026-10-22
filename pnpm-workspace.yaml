@@ -1,0 +1,11 @@
+allowBuilds:
+  '@parcel/watcher': true
+  '@sentry/cli': true
+  'core-js': true
+  electron: true
+  electron-winstaller: true
+  esbuild: true
+  fs-xattr: true
+  macos-alias: true
+  sharp: true
+  vue-demi: true
