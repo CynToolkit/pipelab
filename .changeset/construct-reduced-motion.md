@@ -2,4 +2,4 @@
 "@pipelab/providers": patch
 ---
 
-Disable Construct's UI animations in the automation-managed profile before opening a project.
+Preseed Construct's automation-managed profile to dismiss the welcome tour, disable UI animations, UI effects and addon update checks, and hide the Start Page on startup.

@@ -170,6 +170,9 @@ type ConstructSettingsSeedOptions = { origin: string; timeoutMs: number };
 type ConstructSettingsSeedResult = {
   welcomeTourDismissed: true;
   uiAnimationsDisabled: true;
+  uiEffectsDisabled: true;
+  addonUpdateChecksDisabled: true;
+  startPageHidden: true;
 };
 
 const seedConstructEditorSettings = (options: ConstructSettingsSeedOptions) => {
@@ -179,29 +182,32 @@ const seedConstructEditorSettings = (options: ConstructSettingsSeedOptions) => {
     let database: IDBDatabase | undefined;
     let settled = false;
     let timeout: number;
-    const finish = (result: ConstructSettingsSeedResult | Error) => {
-      if (settled) return;
-      settled = true;
-      window.clearTimeout(timeout);
-      database?.close();
-      if (result instanceof Error) reject(result);
-      else resolve(result);
-    };
-    const fail = (error: unknown) => {
-      finish(
-        error instanceof Error
-          ? error
-          : new Error("Could not seed Construct editor preferences"),
-      );
+    // Object methods keep this injected callback free of transpiler name helpers.
+    const completion = {
+      finish(result: ConstructSettingsSeedResult | Error) {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeout);
+        database?.close();
+        if (result instanceof Error) reject(result);
+        else resolve(result);
+      },
+      fail(error: unknown) {
+        completion.finish(
+          error instanceof Error
+            ? error
+            : new Error("Could not seed Construct editor preferences"),
+        );
+      },
     };
     timeout = window.setTimeout(
-      () => fail(new Error("Construct editor preference seed timed out")),
+      () => completion.fail(new Error("Construct editor preference seed timed out")),
       options.timeoutMs,
     );
 
     const request = indexedDB.open("localforage");
-    request.onerror = () => fail(request.error);
-    request.onblocked = () => fail(new Error("Construct preference storage is blocked"));
+    request.onerror = () => completion.fail(request.error);
+    request.onblocked = () => completion.fail(new Error("Construct preference storage is blocked"));
     request.onupgradeneeded = () => {
       if (!request.result.objectStoreNames.contains("keyvaluepairs")) {
         request.result.createObjectStore("keyvaluepairs");
@@ -214,7 +220,7 @@ const seedConstructEditorSettings = (options: ConstructSettingsSeedOptions) => {
         return;
       }
       if (!database.objectStoreNames.contains("keyvaluepairs")) {
-        fail(new Error("Construct preference storage has an unexpected schema"));
+        completion.fail(new Error("Construct preference storage has an unexpected schema"));
         return;
       }
 
@@ -222,14 +228,14 @@ const seedConstructEditorSettings = (options: ConstructSettingsSeedOptions) => {
       try {
         transaction = database.transaction("keyvaluepairs", "readwrite");
       } catch (error) {
-        fail(error);
+        completion.fail(error);
         return;
       }
       const store = transaction.objectStore("keyvaluepairs");
       const settingsRequest = store.get("c3-user-settings");
       settingsRequest.onerror = () => {
         transaction.abort();
-        fail(settingsRequest.error);
+        completion.fail(settingsRequest.error);
       };
       settingsRequest.onsuccess = () => {
         try {
@@ -239,18 +245,28 @@ const seedConstructEditorSettings = (options: ConstructSettingsSeedOptions) => {
               ? current
               : {};
           userSettings.enableUIAnimations = false;
+          userSettings.enableUIEffects = false;
+          // Editors before r422 ignore the addon-update preference.
+          userSettings.checkForAddonUpdates = false;
+          userSettings.showStartPageOnStartup = false;
           store.put(userSettings, "c3-user-settings");
           store.put(true, "c3-done-first-run");
         } catch (error) {
           transaction.abort();
-          fail(error);
+          completion.fail(error);
         }
       };
       transaction.oncomplete = () => {
-        finish({ welcomeTourDismissed: true, uiAnimationsDisabled: true });
+        completion.finish({
+          welcomeTourDismissed: true,
+          uiAnimationsDisabled: true,
+          uiEffectsDisabled: true,
+          addonUpdateChecksDisabled: true,
+          startPageHidden: true,
+        });
       };
-      transaction.onerror = () => fail(transaction.error);
-      transaction.onabort = () => fail(transaction.error);
+      transaction.onerror = () => completion.fail(transaction.error);
+      transaction.onabort = () => completion.fail(transaction.error);
     };
   });
   void seed.catch(() => {});
@@ -285,7 +301,13 @@ export const navigateToConstruct = async (
     return await state.__pipelabConstructPreferencesReady;
   });
   throwIfAborted(signal);
-  if (!seededPreferences.welcomeTourDismissed || !seededPreferences.uiAnimationsDisabled) {
+  if (
+    !seededPreferences.welcomeTourDismissed ||
+    !seededPreferences.uiAnimationsDisabled ||
+    !seededPreferences.uiEffectsDisabled ||
+    !seededPreferences.addonUpdateChecksDisabled ||
+    !seededPreferences.startPageHidden
+  ) {
     throw new Error("Construct editor preferences were not seeded");
   }
   log("Construct startup settings seeded before editor load");

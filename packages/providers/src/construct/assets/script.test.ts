@@ -37,7 +37,13 @@ describe("Construct editor settings preseed", () => {
     });
     const evaluate = vi.fn(async () => {
       actions.push("confirm seed");
-      return { welcomeTourDismissed: true, uiAnimationsDisabled: true };
+      return {
+        welcomeTourDismissed: true,
+        uiAnimationsDisabled: true,
+        uiEffectsDisabled: true,
+        addonUpdateChecksDisabled: true,
+        startPageHidden: true,
+      };
     });
     const page = {
       addInitScript,

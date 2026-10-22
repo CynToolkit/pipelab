@@ -35,11 +35,12 @@ saved session is used. Setting only one fails before export starts.
 The export automation opens Construct's export dialog through Menu → Project →
 Export, then selects Web (HTML5) and the standard export options.
 
-Before Construct's editor code loads, Pipelab seeds the welcome-tour
-dismissal and **Enable UI animations** preference in the automation-owned
-Chromium profile. It sets the welcome-tour completion flag and animation preference while
-preserving other saved Construct settings. The selected Chromium profile stays
-unchanged, and the separate **Enable UI effects** setting is not changed.
+Before Construct's editor code loads, Pipelab seeds the automation-owned
+Chromium profile to dismiss the welcome tour, disable **Enable UI animations**
+and **Enable UI effects**, and turn off **Show the Start Page on startup**.
+It also disables **Check for updates for installed addons** in Construct
+releases that support that setting (r422 and later). Other saved Construct
+settings are preserved, and the selected Chromium profile stays unchanged.
 
 See [PERF.md](./PERF.md) for the local setup and full-export measurements and
 their conditions.
