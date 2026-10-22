@@ -360,7 +360,12 @@ const clickMenuItemAfterStartupDialogs = async (page: Page, item: Locator) => {
   throw lastError;
 };
 
-const openAddonManager = async (page: Page) => {
+export const openAddonManager = async (
+  page: Page,
+  signal: AbortSignal,
+  log: typeof console.log,
+) => {
+  await waitForConstructReady(page, signal, log);
   await dismissConstructStartupDialogs(page);
   await page.getByRole("button", { name: "Menu" }).click();
   await clickMenuItemAfterStartupDialogs(page, page.getByRole("menuitem", { name: /^View$/i }));
@@ -382,13 +387,15 @@ const openAddonManager = async (page: Page) => {
   return dialog;
 };
 
-const pipelabAddonVisible = async (dialog: Locator) => {
+export const pipelabAddonVisible = async (dialog: Locator) => {
   const rows = dialog.locator("ui-table-row");
   for (let index = 0; index < (await rows.count()); index++) {
     const row = rows.nth(index);
     const name = await row.locator('ui-table-column[columnname="name"]').innerText();
     const version = await row.locator('ui-table-column[columnname="version"]').innerText();
-    if (name.trim() === "Pipelab" && version.trim() === "2.5.1") return true;
+    if (name.trim() === "Pipelab" && /^2\.5\.1(?:\s+\(SDK v2\))?$/i.test(version.trim())) {
+      return true;
+    }
   }
   return false;
 };
@@ -399,7 +406,7 @@ const ensurePipelabAddonInstalled = async (
   signal: AbortSignal,
   log: typeof console.log,
 ) => {
-  let dialog = await openAddonManager(page);
+  let dialog = await openAddonManager(page, signal, log);
   if (await pipelabAddonVisible(dialog)) {
     log("Verified Pipelab Construct addon pipelabv2 2.5.1 in Addon Manager");
     await page.keyboard.press("Escape");
@@ -428,11 +435,13 @@ const ensurePipelabAddonInstalled = async (
     );
   }
   await installDialog.locator(".okButton").click();
+  await installDialog.waitFor({ state: "hidden", timeout: 15_000 });
+  // Construct closes the confirmation dialog before its addon install is ready for reload.
+  await page.waitForTimeout(3_000);
   log("Installed the verified Pipelab Construct addon through Addon Manager");
 
   await page.reload({ waitUntil: "domcontentloaded", timeout: 15_000 });
-  await waitForConstructReady(page, signal, log);
-  dialog = await openAddonManager(page);
+  dialog = await openAddonManager(page, signal, log);
   if (!(await pipelabAddonVisible(dialog))) {
     throw new Error(
       "Construct Addon Manager did not verify installed addon ID pipelabv2 version 2.5.1 after reload",

@@ -6,6 +6,8 @@ import {
   clickConstructDownload,
   getConstructLoginData,
   navigateToConstruct,
+  openAddonManager,
+  pipelabAddonVisible,
   requestConstructLogin,
   waitForConstructProjectLoad,
   waitForConstructExportDownload,
@@ -197,6 +199,90 @@ describe("Construct project load readiness", () => {
     } finally {
       clearIntervalSpy.mockRestore();
     }
+  });
+});
+
+describe("Construct Addon Manager readiness", () => {
+  it("waits for the editor and dismisses its startup tour before opening the menu", async () => {
+    let editorReady = false;
+    let tourDismissed = false;
+    let openButtonChecks = 0;
+    const openButton = {
+      first: vi.fn(() => openButton),
+      isVisible: vi.fn(async () => {
+        openButtonChecks += 1;
+        editorReady = openButtonChecks >= 2;
+        return editorReady;
+      }),
+      isEnabled: vi.fn().mockResolvedValue(true),
+    };
+    const openText = {
+      first: vi.fn(() => openText),
+      isVisible: vi.fn().mockResolvedValue(false),
+    };
+    const menuButton = {
+      click: vi.fn(async () => {
+        editorReady = true;
+        if (!tourDismissed) throw new Error("welcome tour dialog intercepted the menu");
+      }),
+    };
+    const welcomeDialog = {
+      isVisible: vi.fn(async () => editorReady && !tourDismissed),
+      locator: vi.fn(() => ({
+        click: vi.fn(async () => {
+          tourDismissed = true;
+        }),
+      })),
+      waitFor: vi.fn().mockResolvedValue(undefined),
+    };
+    const addonManagerDialog = { waitFor: vi.fn().mockResolvedValue(undefined) };
+    const page = {
+      locator: vi.fn((selector: string) => {
+        if (selector === "body") {
+          return { innerText: vi.fn(async () => (editorReady ? "Open" : "Loading")) };
+        }
+        if (selector === "#welcomeTourDialog") return welcomeDialog;
+        if (selector === "#confirmDialog") {
+          return { isVisible: vi.fn().mockResolvedValue(false) };
+        }
+        return addonManagerDialog;
+      }),
+      getByRole: vi.fn((role: string, options?: { name?: unknown }) => {
+        if (role === "button" && options?.name instanceof RegExp) return openButton;
+        if (role === "button" && options?.name === "Menu") return menuButton;
+        return { click: vi.fn().mockResolvedValue(undefined) };
+      }),
+      getByText: vi.fn(() => openText),
+      waitForFunction: vi.fn().mockResolvedValue(undefined),
+      waitForTimeout: vi.fn().mockResolvedValue(undefined),
+    } as unknown as Page;
+
+    await openAddonManager(page, new AbortController().signal, vi.fn());
+
+    expect(openButtonChecks).toBeGreaterThanOrEqual(2);
+    expect(editorReady).toBe(true);
+    expect(tourDismissed).toBe(true);
+    expect(menuButton.click).toHaveBeenCalledOnce();
+  });
+
+  it("recognizes the pinned addon version when Construct labels it with the SDK version", async () => {
+    const makeDialog = (version: string) => {
+      const row = {
+        locator: vi.fn((selector: string) => ({
+          innerText: vi
+            .fn()
+            .mockResolvedValue(selector.includes('columnname="name"') ? "Pipelab" : version),
+        })),
+      };
+      const rows = {
+        count: vi.fn().mockResolvedValue(1),
+        nth: vi.fn(() => row),
+      };
+      return { locator: vi.fn(() => rows) } as unknown as Locator;
+    };
+
+    await expect(pipelabAddonVisible(makeDialog("2.5.1 (SDK v2)"))).resolves.toBe(true);
+    await expect(pipelabAddonVisible(makeDialog("2.5.10 (SDK v2)"))).resolves.toBe(false);
   });
 });
 
