@@ -314,144 +314,6 @@ const waitForConstructReady = async (page: Page, signal: AbortSignal, log: typeo
   );
 };
 
-const dismissConstructStartupDialogs = async (page: Page) => {
-  for (let attempt = 0; attempt < 4; attempt++) {
-    let dismissed = false;
-    for (const [dialogSelector, buttonSelector] of [
-      ["#welcomeTourDialog", ".noThanksLink"],
-      ["#confirmDialog", ".cancelConfirmButton"],
-    ]) {
-      const dialog = page.locator(dialogSelector);
-      if (!(await dialog.isVisible().catch(() => false))) continue;
-      await dialog.locator(buttonSelector).click();
-      await dialog.waitFor({ state: "hidden", timeout: 5_000 });
-      dismissed = true;
-    }
-    if (!dismissed) return;
-    await page.waitForTimeout(250);
-  }
-  if (
-    (await page
-      .locator("#welcomeTourDialog")
-      .isVisible()
-      .catch(() => false)) ||
-    (await page
-      .locator("#confirmDialog")
-      .isVisible()
-      .catch(() => false))
-  ) {
-    throw new Error("Construct startup dialogs kept blocking Addon Manager");
-  }
-};
-
-const clickMenuItemAfterStartupDialogs = async (page: Page, item: Locator) => {
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    await dismissConstructStartupDialogs(page);
-    try {
-      await item.click({ timeout: 5_000 });
-      return;
-    } catch (error) {
-      lastError = error;
-      const confirmDialog = page.locator("#confirmDialog");
-      if (!(await confirmDialog.isVisible().catch(() => false))) throw error;
-    }
-  }
-  throw lastError;
-};
-
-export const openAddonManager = async (
-  page: Page,
-  signal: AbortSignal,
-  log: typeof console.log,
-) => {
-  await waitForConstructReady(page, signal, log);
-  await dismissConstructStartupDialogs(page);
-  await page.getByRole("button", { name: "Menu" }).click();
-  await clickMenuItemAfterStartupDialogs(page, page.getByRole("menuitem", { name: /^View$/i }));
-  await clickMenuItemAfterStartupDialogs(
-    page,
-    page.getByRole("menuitem", { name: /Addon manager/i }),
-  );
-  await dismissConstructStartupDialogs(page);
-  const dialog = page.locator("#addonManagerDialog");
-  await dialog.waitFor({ state: "visible", timeout: 10_000 });
-  await page.waitForFunction(
-    () => {
-      const manager = document.querySelector("#addonManagerDialog");
-      return !!manager && !/Loading\.\.\./i.test(manager.textContent || "");
-    },
-    undefined,
-    { timeout: 20_000 },
-  );
-  return dialog;
-};
-
-export const pipelabAddonVisible = async (dialog: Locator) => {
-  const rows = dialog.locator("ui-table-row");
-  for (let index = 0; index < (await rows.count()); index++) {
-    const row = rows.nth(index);
-    const name = await row.locator('ui-table-column[columnname="name"]').innerText();
-    const version = await row.locator('ui-table-column[columnname="version"]').innerText();
-    if (name.trim() === "Pipelab" && /^2\.5\.1(?:\s+\(SDK v2\))?$/i.test(version.trim())) {
-      return true;
-    }
-  }
-  return false;
-};
-
-const ensurePipelabAddonInstalled = async (
-  page: Page,
-  getAddonPath: () => Promise<string>,
-  signal: AbortSignal,
-  log: typeof console.log,
-) => {
-  let dialog = await openAddonManager(page, signal, log);
-  if (await pipelabAddonVisible(dialog)) {
-    log("Verified Pipelab Construct addon pipelabv2 2.5.1 in Addon Manager");
-    await page.keyboard.press("Escape");
-    await dialog.waitFor({ state: "hidden", timeout: 5_000 }).catch(() => {});
-    return;
-  }
-
-  const addonPath = await getAddonPath();
-  const installAction = dialog.getByText(/Install new addon/i).first();
-  const chooserPromise = page.waitForEvent("filechooser", { timeout: 15_000, signal }).then(
-    (fileChooser) => ({ fileChooser }),
-    (error: unknown) => ({ error }),
-  );
-  await installAction.click();
-  const chooserResult = await chooserPromise;
-  if ("error" in chooserResult) throw chooserResult.error;
-  const chooser = chooserResult.fileChooser;
-  await chooser.setFiles(addonPath);
-
-  const installDialog = page.locator("#addonConfirmInstallDialog");
-  await installDialog.waitFor({ state: "visible", timeout: 15_000 });
-  const confirmation = (await installDialog.innerText()).trim();
-  if (!/pipelab/i.test(confirmation)) {
-    throw new Error(
-      `Construct's addon confirmation did not identify Pipelab: ${confirmation.slice(0, 200)}`,
-    );
-  }
-  await installDialog.locator(".okButton").click();
-  await installDialog.waitFor({ state: "hidden", timeout: 15_000 });
-  // Construct closes the confirmation dialog before its addon install is ready for reload.
-  await page.waitForTimeout(3_000);
-  log("Installed the verified Pipelab Construct addon through Addon Manager");
-
-  await page.reload({ waitUntil: "domcontentloaded", timeout: 15_000 });
-  dialog = await openAddonManager(page, signal, log);
-  if (!(await pipelabAddonVisible(dialog))) {
-    throw new Error(
-      "Construct Addon Manager did not verify installed addon ID pipelabv2 version 2.5.1 after reload",
-    );
-  }
-  log("Verified Pipelab Construct addon pipelabv2 2.5.1 in Addon Manager after reload");
-  await page.keyboard.press("Escape");
-  await dialog.waitFor({ state: "hidden", timeout: 5_000 }).catch(() => {});
-};
-
 const waitForFileChooserAfter = async (
   page: Page,
   signal: AbortSignal,
@@ -584,7 +446,6 @@ export const script = async (
   downloadDir: string,
   abortSignal: AbortSignal,
   exportTimeoutMs: number,
-  getPipelabAddonPath?: () => Promise<string>,
 ) => {
   throwIfAborted(abortSignal);
   let url = "https://editor.construct.net/";
@@ -638,20 +499,12 @@ export const script = async (
     logElapsed(log, "Construct authentication setup after", authenticationStartedAt);
   }
 
-  registerWebglErrorListener(page, log);
-  registerDeprecatedFeatures(page, log);
-
-  if (getPipelabAddonPath) {
-    throwIfAborted(abortSignal);
-    const addonStartedAt = Date.now();
-    await ensurePipelabAddonInstalled(page, getPipelabAddonPath, abortSignal, log);
-    logElapsed(log, "Construct addon preparation after", addonStartedAt);
-  }
-
   registerWelcomeToConstructListener(page, log);
   registerConfirmDialogListener(page, log);
   registerNotNowListener(page, log);
   registerInstallButtonListener(page, log);
+  registerWebglErrorListener(page, log);
+  registerDeprecatedFeatures(page, log);
 
   log("after event");
   const projectOpenStartedAt = Date.now();

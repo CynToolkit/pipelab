@@ -9,7 +9,6 @@ import {
   fetchPackage,
 } from "@pipelab/plugin-core";
 import { script } from "./assets/script.js";
-import { ensurePinnedPipelabAddon, getPipelabAddonRequirement } from "./addon-preparation.js";
 import * as v from "valibot";
 import type { BrowserContext, Video } from "playwright";
 import type { Dirent } from "node:fs";
@@ -427,8 +426,6 @@ export const exportc3p = async (
     throwIfAborted(abortSignal);
     // const { addonsFolder } = newInputs
 
-    const pipelabAddonRequirement = await getPipelabAddonRequirement(file);
-
     const { thirdparty, node } = paths;
 
     const browserName = "chromium";
@@ -587,9 +584,6 @@ export const exportc3p = async (
       downloadDir,
       abortSignal,
       exportTimeoutMs,
-      pipelabAddonRequirement
-        ? () => ensurePinnedPipelabAddon(join(managedProfile, "addons"), abortSignal)
-        : undefined,
       // addonsFolder,
     );
 

@@ -32,13 +32,6 @@ editor. Enter `latest` to use the current editor or provide a release such as
 `r397` or the patch release `r432-2` to override the project version for that
 run. Saved patch releases are preserved when the version is blank.
 
-For projects that declare the external Pipelab addon `pipelabv2` version 2.5.1
-(SDK v2), Pipelab can verify and install the pinned official addon through
-Construct's Addon Manager in its project-scoped profile before opening the
-project. Other Pipelab addon versions are not downloaded or replaced; Pipelab
-continues with the selected profile's installed addon. If that profile does not
-contain the version the project needs, Construct reports the missing addon.
-
 If required profile data cannot be refreshed, Pipelab stops the export rather
 than using an older copy. Cancelling a queued export or an export refreshing
 its profile stops it before browser launch.
@@ -67,6 +60,6 @@ doppler run --project pipelab --config dev_personal -- pipelab workflow run <wor
 
 Existing custom profile directories outside the usual browser locations remain selectable when they contain a Chromium `Preferences` file. Profile selection reads browser metadata without launching a browser or scanning profile storage. Project loading and download preparation have bounded waits (120 seconds by default). If the download is not ready in time, the run error includes Construct's visible status and a screenshot path when it can capture one. Browser launch, sign-in, timeout, export, and archive extraction failures appear in the run logs. The provider does not declare a host-platform allowlist, so exact OS coverage is not guaranteed here.
 
-Pipelab does not provide the older in-editor addon actions or Discord/Steam
-Rich Presence actions described by older guides. It only installs the pinned
-Pipelab addon when a project declares that addon as an external dependency.
+Pipelab's currently registered Construct integration does not provide the
+in-editor addon or Discord/Steam Rich Presence actions described by older
+guides.
