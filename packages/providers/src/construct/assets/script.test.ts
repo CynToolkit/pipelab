@@ -184,6 +184,38 @@ describe("Construct editor settings preseed", () => {
     expect(addInitScript).toHaveBeenCalledOnce();
     expect(goto).not.toHaveBeenCalled();
   });
+
+  it("observes a rejected page operation when cancellation races its start", async () => {
+    const url = "https://editor.construct.net/r397/";
+    const controller = new AbortController();
+    const rejectedOperation = Promise.reject(new Error("browser context closed"));
+    const observeRejection = vi.spyOn(rejectedOperation, "catch");
+    const page = {
+      addInitScript: vi.fn(() => {
+        controller.abort();
+        return rejectedOperation;
+      }),
+      goto: vi.fn(),
+      url: vi.fn().mockReturnValue(url),
+    } as unknown as Page;
+    const unhandledRejections: unknown[] = [];
+    const captureUnhandledRejection = (reason: unknown) => {
+      unhandledRejections.push(reason);
+    };
+    process.on("unhandledRejection", captureUnhandledRejection);
+
+    try {
+      await expect(
+        navigateToConstruct(page, url, vi.fn(), controller.signal),
+      ).rejects.toMatchObject({ name: "AbortError" });
+      expect(observeRejection).toHaveBeenCalledOnce();
+      await new Promise<void>((resolve) => setImmediate(resolve));
+
+      expect(unhandledRejections).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", captureUnhandledRejection);
+    }
+  });
 });
 
 describe("Construct account authentication", () => {

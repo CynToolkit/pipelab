@@ -369,7 +369,10 @@ const throwIfAborted = (signal: AbortSignal) => {
 };
 
 const awaitWithAbort = async <T>(promise: Promise<T>, signal: AbortSignal): Promise<T> => {
-  throwIfAborted(signal);
+  if (signal.aborted) {
+    void promise.catch(() => {});
+    throw createAbortError(signal);
+  }
   let onAbort: (() => void) | undefined;
   const abortPromise = new Promise<never>((_resolve, reject) => {
     onAbort = () => reject(createAbortError(signal));
