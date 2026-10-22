@@ -17,7 +17,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       CI: true
-      DEBUG: "*"
       PIPILAB_ENABLE_MACOS_SIGNING: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
 
     strategy:
