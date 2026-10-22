@@ -7,6 +7,7 @@ import {
   constructAccountOrigin,
   getConstructLoginData,
   navigateToConstruct,
+  openConstructProjectFile,
   prepareConstructEditor,
   requestConstructLogin,
   waitForConstructProjectLoad,
@@ -24,6 +25,10 @@ class AccountOriginPage {
   resolveResponse: ((response: { url: () => string; ok: () => boolean }) => void) | undefined;
   reload = vi.fn();
   tokenResponseOk = true;
+
+  async addInitScript() {
+    this.events.push("install-editor-preferences");
+  }
 
   async goto(url: string) {
     this.currentUrl = url;
@@ -50,6 +55,16 @@ class AccountOriginPage {
     const store = this.stores.get(origin) ?? new Map<string, unknown>();
     this.stores.set(origin, store);
     const source = String(callback);
+    if (source.includes("__pipelabConstructPreferencesReady")) {
+      this.events.push("confirm-editor-preferences");
+      return {
+        welcomeTourDismissed: true,
+        uiAnimationsDisabled: true,
+        uiEffectsDisabled: true,
+        addonUpdateChecksDisabled: true,
+        startPageHidden: true,
+      };
+    }
     if (source.includes("getItem")) {
       this.events.push(`read:${origin}`);
       return store.get("login-data") ?? null;
@@ -79,22 +94,79 @@ describe("Construct edition detection", () => {
   });
 });
 
-describe("Construct editor navigation", () => {
-  it("returns at DOM content readiness and records the navigation duration", async () => {
-    const url = "https://editor.construct.net/";
+describe("Construct editor settings preseed", () => {
+  it("installs the storage seed before navigation and waits for it to finish", async () => {
+    const actions: string[] = [];
+    const url = "https://editor.construct.net/r397/";
+    const addInitScript = vi.fn(async () => {
+      actions.push("install seed");
+    });
+    const goto = vi.fn(async () => {
+      actions.push("navigate");
+    });
+    const evaluate = vi.fn(async () => {
+      actions.push("confirm seed");
+      return {
+        welcomeTourDismissed: true,
+        uiAnimationsDisabled: true,
+        uiEffectsDisabled: true,
+        addonUpdateChecksDisabled: true,
+        startPageHidden: true,
+      };
+    });
     const page = {
-      goto: vi.fn().mockResolvedValue(null),
+      addInitScript,
+      goto,
+      evaluate,
       url: vi.fn().mockReturnValue(url),
     } as unknown as Page;
     const log = vi.fn();
 
-    await navigateToConstruct(page, url, log);
+    await navigateToConstruct(page, url, log, new AbortController().signal);
 
-    expect(page.goto).toHaveBeenCalledWith(url, { waitUntil: "domcontentloaded" });
-    expect(log).toHaveBeenCalledWith(
-      "Construct document ready after",
-      expect.stringMatching(/^\d+ ms$/),
-    );
+    expect(actions).toEqual(["install seed", "navigate", "confirm seed"]);
+    expect(addInitScript).toHaveBeenCalledOnce();
+    expect(goto).toHaveBeenCalledWith(url, { waitUntil: "domcontentloaded" });
+    expect(evaluate).toHaveBeenCalledOnce();
+    expect(log).toHaveBeenCalledWith("Construct startup settings seeded before editor load");
+  });
+
+  it("stops navigation setup when the storage seed fails", async () => {
+    const url = "https://editor.construct.net/r397/";
+    const addInitScript = vi.fn().mockResolvedValue(undefined);
+    const goto = vi.fn().mockResolvedValue(null);
+    const evaluate = vi.fn().mockRejectedValue(new Error("IndexedDB seed failed"));
+    const page = {
+      addInitScript,
+      goto,
+      evaluate,
+      url: vi.fn().mockReturnValue(url),
+    } as unknown as Page;
+
+    await expect(
+      navigateToConstruct(page, url, vi.fn(), new AbortController().signal),
+    ).rejects.toThrow("IndexedDB seed failed");
+    expect(addInitScript).toHaveBeenCalledOnce();
+    expect(goto).toHaveBeenCalledOnce();
+  });
+
+  it("cancels while waiting for the editor settings seed", async () => {
+    const url = "https://editor.construct.net/r397/";
+    const controller = new AbortController();
+    const addInitScript = vi.fn(() => new Promise<void>(() => {}));
+    const goto = vi.fn();
+    const page = {
+      addInitScript,
+      goto,
+      url: vi.fn().mockReturnValue(url),
+    } as unknown as Page;
+
+    const navigation = navigateToConstruct(page, url, vi.fn(), controller.signal);
+    controller.abort();
+
+    await expect(navigation).rejects.toMatchObject({ name: "AbortError" });
+    expect(addInitScript).toHaveBeenCalledOnce();
+    expect(goto).not.toHaveBeenCalled();
   });
 });
 
@@ -128,10 +200,12 @@ describe("Construct account authentication", () => {
       "read:https://account.construct.net",
       "write:https://account.construct.net",
       "wait-for-token.json",
+      "install-editor-preferences",
       "goto:https://editor.construct.net",
+      "confirm-editor-preferences",
     ]);
     expect(page.stores.get("https://account.construct.net")?.get("login-data")).toEqual(session);
-    expect(page.stores.get("https://editor.construct.net")).toBeUndefined();
+    expect(page.stores.get("https://editor.construct.net")?.get("login-data")).toBeUndefined();
     expect(page.reload).not.toHaveBeenCalled();
   });
 
@@ -162,7 +236,8 @@ describe("Construct account authentication", () => {
     );
 
     expect(page.events[0]).toBe("goto:https://accountbeta.construct.net");
-    expect(page.events.at(-1)).toBe("goto:https://editor.construct.net");
+    expect(page.events).toContain("goto:https://editor.construct.net");
+    expect(page.events).toContain("confirm-editor-preferences");
     expect(page.stores.get("https://accountbeta.construct.net")?.get("login-data")).toEqual(session);
     expect(page.stores.get("https://account.construct.net")).toBeUndefined();
   });
@@ -180,7 +255,37 @@ describe("Construct account authentication", () => {
       vi.fn(),
     );
 
-    expect(page.events).toEqual(["goto:https://editor.construct.net"]);
+    expect(page.events).toEqual([
+      "install-editor-preferences",
+      "goto:https://editor.construct.net",
+      "confirm-editor-preferences",
+    ]);
+  });
+
+  it("cancels while waiting for account storage readiness", async () => {
+    const controller = new AbortController();
+    const page = {
+      goto: vi.fn().mockResolvedValue(undefined),
+      url: vi.fn().mockReturnValue("https://account.construct.net/"),
+      waitForFunction: vi.fn(() => new Promise<void>(() => {})),
+      evaluate: vi.fn(),
+    } as unknown as Page;
+
+    const preparation = prepareConstructEditor(
+      page,
+      "r466-2",
+      "user@example.com",
+      "test-password",
+      Promise.resolve({ loginData: { userID: 42, token: "test-session" }, startedAt: Date.now() }),
+      controller.signal,
+      vi.fn(),
+    );
+    controller.abort();
+
+    await expect(preparation).rejects.toMatchObject({ name: "AbortError" });
+    expect(page.waitForFunction).toHaveBeenCalledOnce();
+    expect(page.evaluate).not.toHaveBeenCalled();
+    expect(page.goto).toHaveBeenCalledOnce();
   });
 
   it("fails closed when Construct rejects the startup session exchange", async () => {
@@ -294,6 +399,58 @@ describe("Construct account authentication", () => {
 });
 
 describe("Construct project load readiness", () => {
+  it("opens a project as soon as the hidden-Start-Page editor shell is ready", async () => {
+    const fileChooser = { setFiles: vi.fn().mockResolvedValue(undefined) };
+    let resolveFileChooser: ((value: typeof fileChooser) => void) | undefined;
+    const unavailableOpenControl = {
+      first: () => unavailableOpenControl,
+      isEnabled: vi.fn().mockResolvedValue(false),
+      isVisible: vi.fn().mockResolvedValue(false),
+    };
+    const menuButton = {
+      first: () => menuButton,
+      isVisible: vi.fn().mockResolvedValue(true),
+    };
+    const loadingOverlay = {
+      isVisible: vi.fn().mockResolvedValueOnce(true).mockResolvedValueOnce(false),
+    };
+    const page = {
+      getByRole: vi.fn((_role: string, options: { name: string | RegExp }) =>
+        options.name === "Menu" ? menuButton : unavailableOpenControl,
+      ),
+      getByText: vi.fn().mockReturnValue(unavailableOpenControl),
+      isClosed: vi.fn().mockReturnValue(false),
+      keyboard: {
+        press: vi.fn(async () => resolveFileChooser?.(fileChooser)),
+      },
+      locator: vi.fn((selector: string) =>
+        selector === "body"
+          ? { innerText: vi.fn().mockResolvedValue("Menu") }
+          : loadingOverlay,
+      ),
+      waitForEvent: vi.fn(
+        () =>
+          new Promise<typeof fileChooser>((resolve) => {
+            resolveFileChooser = resolve;
+          }),
+      ),
+    } as unknown as Page;
+    const log = vi.fn();
+
+    await openConstructProjectFile(
+      page,
+      "/tmp/project.c3p",
+      new AbortController().signal,
+      log,
+      "/tmp",
+    );
+
+    expect(log).toHaveBeenCalledWith("Construct editor ready after", expect.stringMatching(/^\d+ ms$/));
+    expect(loadingOverlay.isVisible).toHaveBeenCalledTimes(2);
+    expect(page.keyboard.press).toHaveBeenCalledWith("ControlOrMeta+O");
+    expect(fileChooser.setFiles).toHaveBeenCalledWith(["/tmp/project.c3p"]);
+  });
+
   it("stops waiting for project load when the workflow is cancelled", async () => {
     let notifySecondWaitStarted = () => {};
     const secondWaitStarted = new Promise<void>((resolve) => {
