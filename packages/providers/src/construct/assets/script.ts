@@ -431,12 +431,21 @@ export const prepareConstructEditor = async (
   }
 
   const accountOrigin = constructAccountOrigin(version);
-  await navigateToConstruct(page, `${accountOrigin}/`, log, abortSignal);
+  await navigateToConstruct(
+    page,
+    `${accountOrigin}/login?theme=default&lang=en-US&productType=games`,
+    log,
+    abortSignal,
+  );
   if (new URL(page.url()).origin !== accountOrigin) {
     throw new Error("Construct account origin redirected unexpectedly");
   }
   await awaitWithAbort(
-    page.waitForFunction(() => typeof localforage !== "undefined", { timeout: 30_000 }),
+    page.waitForFunction(
+      () => typeof localforage !== "undefined",
+      undefined,
+      { timeout: 30_000 },
+    ),
     abortSignal,
   );
   const authState = await awaitWithAbort(

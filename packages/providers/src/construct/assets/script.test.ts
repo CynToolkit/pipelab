@@ -25,6 +25,8 @@ class AccountOriginPage {
   resolveResponse: ((response: { url: () => string; ok: () => boolean }) => void) | undefined;
   reload = vi.fn();
   tokenResponseOk = true;
+  visitedUrls: string[] = [];
+  waitForFunctionArgs: unknown[] = [];
 
   async addInitScript() {
     this.events.push("install-editor-preferences");
@@ -32,6 +34,7 @@ class AccountOriginPage {
 
   async goto(url: string) {
     this.currentUrl = url;
+    this.visitedUrls.push(url);
     this.events.push(`goto:${new URL(url).origin}`);
     if (new URL(url).origin === "https://editor.construct.net") {
       const response = {
@@ -46,7 +49,8 @@ class AccountOriginPage {
     return this.currentUrl;
   }
 
-  async waitForFunction() {
+  async waitForFunction(...args: unknown[]) {
+    this.waitForFunctionArgs = args;
     this.events.push(`localforage:${new URL(this.currentUrl).origin}`);
   }
 
@@ -203,6 +207,14 @@ describe("Construct account authentication", () => {
       "install-editor-preferences",
       "goto:https://editor.construct.net",
       "confirm-editor-preferences",
+    ]);
+    expect(page.visitedUrls).toContain(
+      "https://account.construct.net/login?theme=default&lang=en-US&productType=games",
+    );
+    expect(page.waitForFunctionArgs).toEqual([
+      expect.any(Function),
+      undefined,
+      { timeout: 30_000 },
     ]);
     expect(page.stores.get("https://account.construct.net")?.get("login-data")).toEqual(session);
     expect(page.stores.get("https://editor.construct.net")?.get("login-data")).toBeUndefined();
