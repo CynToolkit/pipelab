@@ -316,11 +316,11 @@ app.whenReady().then(async () => {
       logger().info('No update available')
     })
 
-    autoUpdater.on('checking-for-update', (info: any) => {
+    autoUpdater.on('checking-for-update', () => {
       api?.execute('update:set-status', {
         status: 'checking-for-update'
       })
-      logger().info('checking-for-update', info)
+      logger().info('checking-for-update')
     })
     logger().info('autoUpdater.getFeedURL()', autoUpdater.getFeedURL())
   }
