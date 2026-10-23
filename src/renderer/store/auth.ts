@@ -5,7 +5,7 @@ import { defineStore } from 'pinia'
 import { computed, readonly, Ref, ref, shallowRef } from 'vue'
 import posthog from 'posthog-js'
 import { email } from 'valibot'
-import { Subscription } from '@polar-sh/sdk/models/components/subscription'
+import type { Subscription } from '@polar-sh/sdk/models/components/subscription'
 import { createEventHook } from '@vueuse/core'
 
 // Define a more comprehensive AuthStateType

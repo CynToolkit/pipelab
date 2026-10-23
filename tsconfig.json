@@ -2,13 +2,14 @@
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
+    "allowImportingTsExtensions": true,
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "noImplicitAny": true,
     "baseUrl": ".",
     "outDir": "dist",
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "inlineSourceMap": true,
     "resolveJsonModule": true,
     "paths": {
@@ -24,9 +25,9 @@
       "@pipelab/*": [
         "./src/shared/libs/*"
       ],
-      "fancy-ansi": ["./node_modules/fancy-ansi/dist/main.d.ts"],
-      "quickjs-emscripten-sync": ["./node_modules/quickjs-emscripten-sync/dist/index.d.ts"],
-      "tinykeys": ["./node_modules/tinykeys/dist/tinykeys.d.ts"]
+      "@polar-sh/sdk/models/components/subscription": [
+        "./node_modules/@polar-sh/sdk/dist/esm/models/components/subscription.d.ts"
+      ]
     }
   },
   "exclude": [

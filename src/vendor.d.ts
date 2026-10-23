@@ -18,9 +18,13 @@ declare module 'serve-handler' {
   export default serveHandler
 }
 
-declare module 'electron-squirrel-startup' {
-  const started: boolean
-  export = started
+declare module 'fancy-ansi' {
+  export function hasAnsi(input: string): boolean
+  export function stripAnsi(input: string): string
+
+  export class FancyAnsi {
+    toHtml(input: string): string
+  }
 }
 
 declare module 'electron-squirrel-startup' {

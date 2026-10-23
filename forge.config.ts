@@ -6,7 +6,7 @@ import { FusesPlugin } from '@electron-forge/plugin-fuses'
 import { MakerDMG } from '@electron-forge/maker-dmg'
 import { MakerPKG } from '@electron-forge/maker-pkg'
 import { FuseV1Options, FuseVersion } from '@electron/fuses'
-import { name } from './src/constants'
+import { name } from './src/constants.ts'
 import * as fs from 'fs-extra'
 import * as path from 'path'
 // Pull request builds stay unsigned; release workflows opt in through CI.
