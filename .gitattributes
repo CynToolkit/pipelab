@@ -10,3 +10,6 @@
 *.bmp binary
 *.webp binary
 *.c3p binary
+*.mp4 binary
+*.mp3 binary
+*.wav binary
