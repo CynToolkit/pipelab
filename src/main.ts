@@ -6,12 +6,11 @@ import { registerIPCHandlers } from './main/handlers'
 import { webSocketServer } from './main/websocket-server'
 import { usePlugins } from '@@/plugins'
 import { parseArgs, ParseArgsConfig } from 'node:util'
-import { readFile, writeFile, mkdir } from 'fs/promises'
+import { readFile, writeFile } from 'fs/promises'
 import { executeGraphWithHistory } from '@main/utils'
 import { SavedFile } from '@@/model'
 import { useLogger } from '@@/logger'
 import * as Sentry from '@sentry/electron/main'
-import { assetsPath } from '@main/paths'
 import { usePluginAPI } from '@main/api'
 import { setupConfig } from '@main/config'
 import { resolve } from 'node:path'
@@ -337,11 +336,6 @@ app.whenReady().then(async () => {
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
-
-  const assets = await assetsPath()
-  const shimsPaths = join(assets, 'shims')
-
-  await mkdir(shimsPaths, { recursive: true })
 
   const settingsG = await setupConfig()
 
