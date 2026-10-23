@@ -25,10 +25,9 @@
             </div>
             <div v-if="value.name" class="original-title">{{ nodeDefinition.name }}</div>
             <Button
-              v-if="nodeDefinition?.deprecated"
+              v-if="isNodeDeprecated"
               v-tooltip="
-                nodeDefinition.deprecatedMessage ??
-                'This module is deprecated. You should not use it anymore.'
+                nodeDeprecationMessage
               "
               size="small"
               :pt="{
@@ -291,6 +290,16 @@ const nodeDefinition = computed(() => {
   }
   return undefined
 })
+
+const isNodeDeprecated = computed(
+  () => nodeDefinition.value?.type === 'action' && nodeDefinition.value.deprecated === true
+)
+const nodeDeprecationMessage = computed(() =>
+  nodeDefinition.value?.type === 'action'
+    ? nodeDefinition.value.deprecatedMessage ??
+      'This module is deprecated. You should not use it anymore.'
+    : 'This module is deprecated. You should not use it anymore.'
+)
 
 const pluginDefinition = computed(() => {
   return getPluginDefinition(value.value.origin.pluginId)

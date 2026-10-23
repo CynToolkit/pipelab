@@ -18,7 +18,6 @@ import { homedir, tmpdir } from 'node:os'
 const platform = process.platform
 const { LOCALAPPDATA, XDG_CONFIG_HOME } = process.env
 
-// @ts-expect-error import.meta
 const isCI = process.env.CI === 'true' || import.meta.env.CI === 'true'
 
 let baseProfile

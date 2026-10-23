@@ -10,7 +10,9 @@ import { platform, arch } from 'process'
 const tmpLogFile = join(tmpdir(), nanoid() + 'pipelab-app-test.log.json')
 const root = process.cwd()
 
-const binFolder = outFolderName('Pipelab', platform, arch)
+const requestedArch = process.env.PIPILAB_TEST_ARCH
+const testArch = requestedArch === 'x64' || requestedArch === 'arm64' ? requestedArch : arch
+const binFolder = outFolderName('Pipelab', platform, testArch)
 const binName = getBinName(name)
 
 const bin = join(root, 'out', binFolder, binName)

@@ -357,7 +357,6 @@ export const configureParams = {
       }
     }
   ),
-
   // integrations
 
   enableSteamSupport: {
@@ -492,6 +491,17 @@ export const createPreviewProps = (
     outputs: outputs
   })
 
+type TauriRunnerData =
+  | (Omit<ActionRunnerData<ReturnType<typeof createMakeProps>>, 'setOutput'> & {
+      setOutput: (key: 'output' | 'binary', value: string) => void
+    })
+  | (Omit<ActionRunnerData<ReturnType<typeof createPackageV2Props>>, 'setOutput'> & {
+      setOutput: (key: 'output' | 'binary', value: string) => void
+    })
+  | (Omit<ActionRunnerData<ReturnType<typeof createPreviewProps>>, 'setOutput'> & {
+      setOutput: (key: 'output' | 'binary', value: string) => void
+    })
+
 export const tauri = async (
   action: 'make' | 'package' | 'preview',
   appFolder: string | undefined,
@@ -502,7 +512,7 @@ export const tauri = async (
     setOutput,
     paths,
     abortSignal
-  }: ActionRunnerData<ReturnType<typeof createPackageV2Props>>,
+  }: TauriRunnerData,
   completeConfiguration: DesktopApp.Config
 ): Promise<{ folder: string; binary: string | undefined } | undefined> => {
   const { join, basename, delimiter } = await import('node:path')

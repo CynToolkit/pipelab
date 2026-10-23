@@ -6,17 +6,19 @@ import { registerIPCHandlers } from './main/handlers'
 import { webSocketServer } from './main/websocket-server'
 import { usePlugins } from '@@/plugins'
 import { parseArgs, ParseArgsConfig } from 'node:util'
-import { readFile, writeFile, mkdir } from 'fs/promises'
+import { readFile, writeFile } from 'fs/promises'
 import { executeGraphWithHistory } from '@main/utils'
 import { SavedFile } from '@@/model'
 import { useLogger } from '@@/logger'
 import * as Sentry from '@sentry/electron/main'
-import { assetsPath } from '@main/paths'
 import { usePluginAPI } from '@main/api'
 import { setupConfig } from '@main/config'
 import { resolve } from 'node:path'
 import Squirrel from 'electron-squirrel-startup'
 import { fetchLatestRelease } from './main/releases'
+
+const stripElectronCliSeparator = (args: string[]): string[] =>
+  args[0] === '--' ? args.slice(1) : args
 
 if (is.dev) {
   app.setPath('userData', app.getPath('userData') + '-dev')
@@ -37,7 +39,6 @@ logger().info('process.argv', process.argv)
 
 const isWine = platform() === 'win32' && 'WINEHOMEDIR' in process.env
 
-// @ts-expect-error import.meta
 const isCI = process.env.CI === 'true' || import.meta.env.CI === 'true'
 
 if (app.isPackaged && process.env.TEST !== 'true' && !isWine && !isCI) {
@@ -186,6 +187,7 @@ app.whenReady().then(async () => {
     const url = request.url
     console.log('handle url', url)
     await handleProtocolUrl(url)
+    return new Response(null, { status: 204 })
   })
 
   const config = {
@@ -220,7 +222,9 @@ app.whenReady().then(async () => {
     }
   } satisfies ParseArgsConfig
 
-  const args = app.isPackaged ? process.argv.slice(1) : process.argv.slice(2)
+  const args = stripElectronCliSeparator(
+    app.isPackaged ? process.argv.slice(1) : process.argv.slice(2)
+  )
   logger().info('args to parse:', args)
   const { values } = parseArgs({ ...config, args })
 
@@ -312,11 +316,11 @@ app.whenReady().then(async () => {
       logger().info('No update available')
     })
 
-    autoUpdater.on('checking-for-update', (info: any) => {
+    autoUpdater.on('checking-for-update', () => {
       api?.execute('update:set-status', {
         status: 'checking-for-update'
       })
-      logger().info('checking-for-update', info)
+      logger().info('checking-for-update')
     })
     logger().info('autoUpdater.getFeedURL()', autoUpdater.getFeedURL())
   }
@@ -332,11 +336,6 @@ app.whenReady().then(async () => {
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
-
-  const assets = await assetsPath()
-  const shimsPaths = join(assets, 'shims')
-
-  await mkdir(shimsPaths, { recursive: true })
 
   const settingsG = await setupConfig()
 
@@ -374,6 +373,10 @@ app.whenReady().then(async () => {
       const data = JSON.parse(rawData) as SavedFile
 
       logger().info('data', data)
+
+      if (data.type !== 'default') {
+        throw new Error('Only workflow projects can be run with --action run')
+      }
 
       const { canvas, variables } = data
       const { blocks: nodes } = canvas

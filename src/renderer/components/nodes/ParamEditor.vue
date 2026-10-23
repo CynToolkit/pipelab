@@ -259,9 +259,14 @@ const { getNodeDefinition } = editor
 const { nodes, vm } = storeToRefs(editor)
 
 const confirmSwitchMode = (event: MouseEvent) => {
+  const target = event.currentTarget
+  if (!(target instanceof HTMLElement)) {
+    return Promise.resolve(false)
+  }
+
   return new Promise<boolean>((resolve) => {
     confirm.require({
-      target: event.currentTarget,
+      target,
       message:
         'Switching back to simple mode will delete all your changes. Are you sure you want to continue?',
       icon: 'pi pi-exclamation-triangle',
@@ -283,11 +288,14 @@ const confirmSwitchMode = (event: MouseEvent) => {
   })
 }
 
-const toggleMode = async (event: MouseEvent) => {
+const toggleMode = async (event?: MouseEvent) => {
   const target = param.value?.editor === 'simple' ? 'editor' : 'simple'
   let answer = true
   let targetValue = klona(param.value?.value)
   if (target === 'simple') {
+    if (!event) {
+      return
+    }
     event.preventDefault()
 
     answer = await confirmSwitchMode(event)

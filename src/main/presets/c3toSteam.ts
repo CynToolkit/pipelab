@@ -4,7 +4,8 @@ export const c3toSteamPreset: PresetFn = async () => {
   const startId = 'manual-start'
 
   const data: SavedFile = {
-    version: '3.0.0',
+    version: '4.0.0',
+    type: 'default',
     name: 'Construct 3 to Steam',
     description: 'A basic project to get you started with Construct 3 and Steam',
     variables: [],

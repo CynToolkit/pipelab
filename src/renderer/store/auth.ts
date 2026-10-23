@@ -5,7 +5,7 @@ import { defineStore } from 'pinia'
 import { computed, readonly, Ref, ref, shallowRef } from 'vue'
 import posthog from 'posthog-js'
 import { email } from 'valibot'
-import { Subscription } from '@polar-sh/sdk/dist/commonjs/models/components/subscription'
+import type { Subscription } from '@polar-sh/sdk/models/components/subscription'
 import { createEventHook } from '@vueuse/core'
 
 // Define a more comprehensive AuthStateType
@@ -226,16 +226,9 @@ export const useAuth = defineStore('auth', () => {
       setAuthState('ERROR') // Set error state if init fails unexpectedly
       errorMessage.value = 'Failed to initialize authentication.'
     } finally {
-      if (authState.value === 'LOADING') {
-        // Ensure we transition from loading state even if errors occur during init
-        if (
-          authState.value !== 'SIGNED_IN' &&
-          authState.value !== 'ANONYMOUS' &&
-          authState.value !== 'ERROR'
-        ) {
-          // If after init, state is still loading and not signed in or anonymous, default to signed out (though should ideally be ANONYMOUS or ERROR after signInAnonymously in error cases).
-          setAuthState('SIGNED_OUT') // As a last resort fallback, though ideally we should be in ANONYMOUS or ERROR state if initial auth fails and anonymous sign in is attempted in init.
-        }
+      if (authState.value === 'INITIALIZING') {
+        // Initialization should settle even when no session or auth event was received.
+        setAuthState('SIGNED_OUT')
       }
     }
   }

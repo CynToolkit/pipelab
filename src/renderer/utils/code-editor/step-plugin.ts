@@ -46,8 +46,8 @@ class PlaceholderWidget extends WidgetType {
     const result = this.options.steps.value?.[this.nodeId]?.outputs[this.output]
 
     span.classList.add('step-placeholder')
-    if (result) {
-      span.innerHTML = result
+    if (result !== undefined) {
+      span.textContent = String(result)
     } else {
       span.textContent = 'Step missing'
       span.classList.add('step-missing')
@@ -61,11 +61,11 @@ const placeholderMatcher = (options: Options) =>
   new MatchDecorator({
     regexp: /(?<full>steps\['(?<node_id>[\w-]+)'\]\['outputs'\]\['(?<output>[\w-]+)'\])/g,
     decoration: (match) => {
-      const { full, node_id, output } = match.groups ?? {
-        full: match.input
-      }
+      const full = match[1] ?? match[0]
+      const nodeId = match[2] ?? ''
+      const output = match[3] ?? ''
       return Decoration.replace({
-        widget: new PlaceholderWidget(full, options, node_id, output)
+        widget: new PlaceholderWidget(full, options, nodeId, output)
       })
     }
   })

@@ -1,0 +1,7 @@
+overrides:
+  'discord-rpc>register-scheme': '-'
+allowBuilds:
+  electron: true
+  electron-winstaller: true
+  fs-xattr: true
+  macos-alias: true

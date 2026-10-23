@@ -385,25 +385,6 @@ DISCORD_CLIENT_SECRET=yJ4vRnzDtKAqg2Le3_Sap2CqHybkTp2U`,
       throw new Error('TODO')
     }
 
-    if (action === 'package') {
-      // const binName = getBinName(completeConfiguration.name)
-      // log('cargoOutputPath', cargoOutputPath)
-      // setOutput('output', cargoOutputPath)
-      // return {
-      //   folder: cargoOutputPath,
-      //   binary: join(cargoOutputPath, binName)
-      // }
-    } else if (action === 'preview') {
-      // continue
-    } else {
-      throw new Error('Unsupported action')
-      // const output = join(destinationFolder, 'out', 'make')
-      // setOutput('output', output)
-      // return {
-      //   folder: output,
-      //   binary: undefined
-      // }
-    }
   } catch (e) {
     if (e instanceof Error) {
       if (e.name === 'RequestError') {

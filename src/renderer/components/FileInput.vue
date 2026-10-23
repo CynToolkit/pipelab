@@ -44,12 +44,6 @@ const pickLocation = async () => {
       properties: ['createDirectory', 'showOverwriteConfirmation'],
       filters: [{ name: 'Pipelab Project', extensions: [PROJECT_EXTENSION] }],
       defaultPath: defaultPath.value
-    },
-    async (_, message) => {
-      const { type } = message
-      if (type === 'end') {
-        //
-      }
     }
   )
 

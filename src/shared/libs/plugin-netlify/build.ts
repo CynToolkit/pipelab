@@ -37,6 +37,10 @@ export const buildNetlifySite = createAction({
     token: createStringParam('', {
       required: true,
       label: 'Token'
+    }),
+    site: createNetlifySiteParam('', 'token', {
+      required: true,
+      label: 'Site'
     })
   },
   outputs: {}

@@ -13,11 +13,40 @@ on:
   workflow_dispatch:
 
 jobs:
+  quality:
+    name: Typecheck and unit tests
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        name: Install pnpm
+        with:
+          run_install: false
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit tests
+        run: pnpm test:unit
+
   build-and-test:
     runs-on: ${{ matrix.os }}
     env:
       CI: true
-      DEBUG: "*"
+      PIPILAB_ENABLE_MACOS_SIGNING: ${{ startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' }}
 
     strategy:
       matrix:
@@ -37,10 +66,10 @@ jobs:
         with:
           run_install: false
 
-      - name: Use Node.js 22.5.1
+      - name: Use Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: "22.5.1"
+          node-version: "24"
           cache: "pnpm"
 
       - name: Set up Python 3.10
@@ -56,13 +85,13 @@ jobs:
 
       - name: Import Apple Code Signing Certificate
         uses: apple-actions/import-codesign-certs@v3
-        if: matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-latest' && env.PIPILAB_ENABLE_MACOS_SIGNING == 'true'
         with:
           p12-file-base64: ${{ secrets.CERTIFICATE_OSX_APPLICATION }}
           p12-password: ${{ secrets.CERTIFICATE_OSX_APPLICATION_PASSWORD }}
 
       - name: Verify certificates
-        if: matrix.os == 'macos-latest'
+        if: matrix.os == 'macos-latest' && env.PIPILAB_ENABLE_MACOS_SIGNING == 'true'
         run: |
           security find-identity -v -p codesigning
           codesign --verify --verbose /Applications/Xcode.app
@@ -74,27 +103,12 @@ jobs:
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_ID: ${{ env.PIPILAB_ENABLE_MACOS_SIGNING == 'true' && secrets.APPLE_ID || '' }}
+          APPLE_ID_PASSWORD: ${{ env.PIPILAB_ENABLE_MACOS_SIGNING == 'true' && secrets.APPLE_ID_PASSWORD || '' }}
+          APPLE_TEAM_ID: ${{ env.PIPILAB_ENABLE_MACOS_SIGNING == 'true' && secrets.APPLE_TEAM_ID || '' }}
         run: pnpm electron-forge publish --dry-run --arch ${{ matrix.arch }}
 
-      - name: Disable AppArmor restriction
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-
-      - name: Run tests
-        uses: coactions/setup-xvfb@v1
-        continue-on-error: true
-        with:
-          run: pnpm test:e2e:raw
-
-      - name: Upload Playwright artifacts
-        uses: actions/upload-artifact@v4
-        continue-on-error: true
-        with:
-          name: ${{ matrix.os }}-playwright
-          path: playwright/**/*
+      # Workflow E2E tests are manual-only via pnpm test:e2e:local.
 
       - name: windows workaround
         if: matrix.os == 'windows-latest'
@@ -106,13 +120,19 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: artifact-${{ matrix.os }}-${{ matrix.arch }}-out
-          path: out/**/*
+          include-hidden-files: true
+          path: |
+            out/**/*
+            !out/**/.env*
+            !out/**/.npmrc
+            !out/**/.git
+            !out/**/.git/**
 
   release:
     permissions:
       contents: write
       discussions: write
-    needs: build-and-test
+    needs: [build-and-test, quality]
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -125,7 +145,8 @@ jobs:
           - os: windows-latest
             arch: arm64
     if: |
-      !cancelled() &&
+      needs.build-and-test.result == 'success' &&
+      needs.quality.result == 'success' &&
       (startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch')
 
     steps:
@@ -142,10 +163,10 @@ jobs:
         with:
           run_install: false
 
-      - name: Use Node.js 22.5.1
+      - name: Use Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: "22.5.1"
+          node-version: "24"
           cache: "pnpm"
 
       - name: Install dependencies

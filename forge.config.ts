@@ -6,9 +6,12 @@ import { FusesPlugin } from '@electron-forge/plugin-fuses'
 import { MakerDMG } from '@electron-forge/maker-dmg'
 import { MakerPKG } from '@electron-forge/maker-pkg'
 import { FuseV1Options, FuseVersion } from '@electron/fuses'
-import { name } from './src/constants'
+import { name } from './src/constants.ts'
 import * as fs from 'fs-extra'
 import * as path from 'path'
+import { fileURLToPath } from 'node:url'
+// Pull request builds stay unsigned; release workflows opt in through CI.
+const enableMacOSSigning = process.env.PIPILAB_ENABLE_MACOS_SIGNING === 'true'
 /** @type {*} */
 const config: ForgeConfig = {
   packagerConfig: {
@@ -25,21 +28,25 @@ const config: ForgeConfig = {
       NSAppleEventsUsageDescription:
         'This app need to run commands through Terminal for specific tasks such as steamcmd.sh.'
     },
-    osxNotarize: {
-      appleId: process.env.APPLE_ID,
-      appleIdPassword: process.env.APPLE_ID_PASSWORD,
-      teamId: process.env.APPLE_TEAM_ID
-    },
-    osxSign: {
-      strictVerify: false,
-      identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
-      optionsForFile: (filePath) => {
-        return {
-          'entitlements-inherit': './assets/build/entitlements.mac.plist',
-          entitlements: './assets/build/entitlements.mac.plist'
+    ...(enableMacOSSigning
+      ? {
+          osxNotarize: {
+            appleId: process.env.APPLE_ID,
+            appleIdPassword: process.env.APPLE_ID_PASSWORD,
+            teamId: process.env.APPLE_TEAM_ID
+          },
+          osxSign: {
+            strictVerify: false,
+            identity: `Developer ID Application: Quentin Goinaud (${process.env.APPLE_TEAM_ID})`,
+            optionsForFile: (filePath: string) => {
+              return {
+                'entitlements-inherit': './assets/build/entitlements.mac.plist',
+                entitlements: './assets/build/entitlements.mac.plist'
+              }
+            }
+          }
         }
-      }
-    }
+      : {})
   },
   rebuildConfig: {},
   makers: [
@@ -71,7 +78,7 @@ const config: ForgeConfig = {
   hooks: {
     packageAfterCopy: async (forgeConfig, buildPath, electronVersion, platform, arch) => {
       console.log('INFO: Running packageAfterCopy hook...');
-      const projectRoot = path.resolve(__dirname);
+      const projectRoot = path.dirname(fileURLToPath(import.meta.url));
       const packagesToCopy = [
         '@esbuild',
         '@lydell'

@@ -163,10 +163,9 @@ const displayAdvancedNodes = ref(false)
 
 watchEffect(() => {
   if (visible.value === true) {
-    const el = $searchInput.value?.$el as HTMLInputElement
-
-    if (el) {
-      el.focus()
+    const input = $searchInput.value
+    if (input && '$el' in input && input.$el instanceof HTMLInputElement) {
+      input.$el.focus()
     }
   }
 })

@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "commonjs",
+    "module": "ESNext",
+    "allowImportingTsExtensions": true,
     "allowJs": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -24,10 +25,16 @@
       "@pipelab/*": [
         "./src/shared/libs/*"
       ],
+      "@polar-sh/sdk/models/components/subscription": [
+        "./node_modules/@polar-sh/sdk/dist/esm/models/components/subscription.d.ts"
+      ]
     }
   },
   "exclude": [
     "node_modules",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/*.test.mjs",
     "./assets/tauri/template/app/src-tauri",
     "dist",
     "out",

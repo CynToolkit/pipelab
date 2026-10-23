@@ -407,7 +407,6 @@ export const zipFolder = async (from: string, to: string, log: typeof console.lo
   })
 }
 
-// @ts-expect-error import.meta
 const isCI = process.env.CI === 'true' || import.meta.env.CI === 'true'
 
 export interface GraphExecutionOptions {
@@ -458,7 +457,7 @@ export const executeGraphWithHistory = async (options: GraphExecutionOptions) =>
   const buildId = `build-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
   const buildEntry: BuildHistoryEntry = {
     id: buildId,
-    pipelineId: pipelineId,
+    pipelineId: pipelineId || projectPath || buildId,
     projectName: projectName || 'Unnamed Pipeline',
     projectPath: projectPath || 'unknown',
     status: 'running',

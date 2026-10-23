@@ -10,7 +10,7 @@
     "url": "https://github.com/CynToolkit/pipelab.git"
   },
   "homepage": "https://pipelab.app",
-  "packageManager": "pnpm@10.12.0",
+  "packageManager": "pnpm@10.33.0",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint .",
@@ -90,14 +90,14 @@
     "get-value": "3.0.1",
     "klona": "2.0.6",
     "mutative": "1.0.11",
-    "nanoid": "5.0.7",
+    "nanoid": "5.1.16",
     "node-stream-zip": "1.15.0",
     "path-browserify": "1.0.1",
     "pinia": "2.2.4",
     "pinia-plugin-persistedstate": "4.1.1",
     "playwright": "1.62.1",
     "playwright-core": "1.62.1",
-    "pnpm": "9.12.2",
+    "pnpm": "10.34.5",
     "polished": "4.3.1",
     "posthog-js": "1.215.0",
     "posthog-node": "4.4.1",
@@ -162,7 +162,7 @@
     "@vue/eslint-config-typescript": "13.0.0",
     "@vue/test-utils": "2.4.6",
     "editorconfig": "2.0.0",
-    "electron": "32.1.2",
+    "electron": "41.10.6",
     "electron-vite": "2.3.0",
     "eslint": "9.13.0",
     "eslint-plugin-vue": "9.29.1",
@@ -180,13 +180,13 @@
     "typescript": "5.8.3",
     "unplugin-auto-import": "0.18.3",
     "unplugin-vue-components": "0.27.4",
-    "vite": "6.3.3",
+    "vite": "6.4.5",
     "vite-plugin-node-polyfills": "0.23.0",
     "vite-plugin-static-copy": "2.3.1",
     "vite-plugin-vue-devtools": "7.7.5",
     "vite-plugin-wasm": "3.4.1",
     "vite-tsconfig-paths": "5.1.4",
-    "vitest": "3.1.4",
+    "vitest": "5.0.5",
     "vue": "3.5.13",
     "vue-router": "4.4.5",
     "vue-tsc": "2.1.6"
@@ -194,19 +194,5 @@
   "resolutions": {
     "@codemirror/state": "6.4.1",
     "vue-demi": "0.14.10"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@parcel/watcher",
-      "@sentry/cli",
-      "core-js",
-      "electron",
-      "electron-winstaller",
-      "esbuild",
-      "fs-xattr",
-      "macos-alias",
-      "sharp",
-      "vue-demi"
-    ]
   }
 }
