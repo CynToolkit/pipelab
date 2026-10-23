@@ -91,7 +91,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: artifact-${{ matrix.os }}-${{ matrix.arch }}-out
-          path: out/**/*
+          include-hidden-files: true
+          path: |
+            out/**/*
+            !out/**/.env*
+            !out/**/.npmrc
+            !out/**/.git
+            !out/**/.git/**
 
   release:
     permissions:
