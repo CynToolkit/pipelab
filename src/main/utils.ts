@@ -407,7 +407,6 @@ export const zipFolder = async (from: string, to: string, log: typeof console.lo
   })
 }
 
-// @ts-expect-error import.meta
 const isCI = process.env.CI === 'true' || import.meta.env.CI === 'true'
 
 export interface GraphExecutionOptions {

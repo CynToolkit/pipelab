@@ -29,15 +29,18 @@ const getAllJsFiles = async (dir: string): Promise<string[]> => {
   const { join } = await import('node:path')
 
   const files = await readdir(dir, { withFileTypes: true })
-  return files.flatMap((file) => {
+  const jsFiles: string[] = []
+
+  for (const file of files) {
     const fullPath = join(dir, file.name)
     if (file.isDirectory()) {
-      return getAllJsFiles(fullPath)
+      jsFiles.push(...(await getAllJsFiles(fullPath)))
     } else if (file.isFile() && fullPath.endsWith('.js')) {
-      return fullPath
+      jsFiles.push(fullPath)
     }
-    return []
-  })
+  }
+
+  return jsFiles
 }
 
 export const minifyCodeRunner = createActionRunner<typeof minifyCode>(

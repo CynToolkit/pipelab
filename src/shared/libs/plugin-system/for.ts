@@ -1,6 +1,6 @@
-import { Meta, createLoop, createLoopRunner } from "@pipelab/plugin-core";
+import { createLoop, createLoopRunner } from '@pipelab/plugin-core'
 
-export const ID = "for";
+export const ID = 'for'
 
 export const forLoop = createLoop({
   id: ID,
@@ -9,13 +9,13 @@ export const forLoop = createLoop({
   description: 'A loop',
   outputs: {
     item: {
-      value: undefined as any,
-      label: "Item",
+      value: undefined as unknown,
+      label: 'Item'
     },
   },
   params: {
     value: {
-      value: [] as Array<unknown>,
+      value: [] as unknown[],
       label: 'Value',
       control: {
         type: 'expression',
@@ -27,11 +27,11 @@ export const forLoop = createLoop({
     loopindex: 0
   },
   displayString: 'Loop for every element of {{params.value}}',
-});
+})
 
 export const ForLoopRunner = createLoopRunner<typeof forLoop>(async ({ log, meta, setMeta, inputs }) => {
-  const index = meta?.loopindex
-  const value = inputs.value
+  const index = typeof meta?.loopindex === 'number' ? meta.loopindex : 0
+  const value: unknown[] = Array.isArray(inputs.value) ? inputs.value : []
 
   log('index', index)
 
@@ -42,5 +42,5 @@ export const ForLoopRunner = createLoopRunner<typeof forLoop>(async ({ log, meta
     }
   })
 
-  return value.length < index ? 'step' : 'exit';
+  return index < value.length ? 'step' : 'exit'
 })

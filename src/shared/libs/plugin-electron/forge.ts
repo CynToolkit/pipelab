@@ -547,6 +547,20 @@ export const createPreviewProps = (
     outputs: outputs
   })
 
+type ForgeRunnerData =
+  | (Omit<ActionRunnerData<ReturnType<typeof createMakeProps>>, 'setOutput'> & {
+      setOutput: (key: 'output', value: string) => void
+    })
+  | (Omit<ActionRunnerData<ReturnType<typeof createPackageProps>>, 'setOutput'> & {
+      setOutput: (key: 'output', value: string) => void
+    })
+  | (Omit<ActionRunnerData<ReturnType<typeof createPackageV2Props>>, 'setOutput'> & {
+      setOutput: (key: 'output', value: string) => void
+    })
+  | (Omit<ActionRunnerData<ReturnType<typeof createPreviewProps>>, 'setOutput'> & {
+      setOutput: (key: 'output', value: string) => void
+    })
+
 export const forge = async (
   action: 'make' | 'package' | 'preview',
   appFolder: string | undefined,
@@ -557,12 +571,7 @@ export const forge = async (
     setOutput,
     paths,
     abortSignal
-  }: ActionRunnerData<
-    | ReturnType<typeof createMakeProps>
-    | ReturnType<typeof createPackageProps>
-    | ReturnType<typeof createPackageV2Props>
-    | ReturnType<typeof createPreviewProps>
-  >,
+  }: ForgeRunnerData,
   completeConfiguration: DesktopApp.Electron
 ): Promise<{ folder: string; binary: string | undefined } | undefined> => {
   const { join, basename, delimiter } = await import('node:path')

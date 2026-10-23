@@ -227,7 +227,7 @@ export type InputDefinition<T extends ControlType = ControlType> = {
   label: string
   description?: string
   validator?: () => any
-  required: boolean
+  required?: boolean
   // validator?: z.ZodTypeAny
   control: T
   value: unknown
@@ -343,6 +343,7 @@ export interface BaseNode {
   disabled?: boolean | string
   advanced?: boolean | string
   updateAvailable?: boolean | string
+  tags?: string[]
 }
 
 export interface Action extends BaseNode {

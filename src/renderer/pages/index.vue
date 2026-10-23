@@ -119,7 +119,7 @@
                   <div class="flex align-items-center gap-2">
                     <span>{{ data.content.name }}</span>
                     <i
-                      v-if="data.type === 'external' && shouldMigrate === true"
+                      v-if="data.type === 'external' && shouldMigrate"
                       v-tooltip.top="$t('home.migrate-warning')"
                       class="mdi mdi-alert-circle text-orange-500"
                     ></i>
@@ -511,21 +511,14 @@ watchEffect(async () => {
 
       if (resultLoad.type === 'error') {
         console.error('Unable to load file', resultLoad.ipcError)
-        const { id } = files.value.pipelines.find((value) => {
-          if (value.type === 'internal') {
-            if (value.path === file.path) {
-              return true
-            }
-          } else if (value.type === 'external') {
-            if (value.path === file.path) {
-              return true
-            }
-          }
-          return false
-        })
-        updateFileStore((state) => {
-          state.pipelines = state.pipelines.filter((value) => value.id !== id)
-        })
+        const matchingFile = files.value.pipelines.find(
+          (value) => value.type === 'external' && value.path === file.path
+        )
+        if (matchingFile) {
+          updateFileStore((state) => {
+            state.pipelines = state.pipelines.filter((value) => value.id !== matchingFile.id)
+          })
+        }
         continue
       }
 
@@ -621,8 +614,6 @@ watch(projectMode, (mode) => {
         type: 'simple',
         name: 'Simple Pipeline',
         description: 'A simplified editor for quick projects',
-        canvas: { blocks: [], triggers: [] },
-        variables: [],
         source: { type: 'c3-html', path: '' },
         packaging: { enabled: false },
         publishing: {
@@ -912,7 +903,7 @@ const menuItems = computed(() => [
     command: () => {
       if (selectedPipelineForMenu.value) migratePipeline(selectedPipelineForMenu.value)
     },
-    visible: shouldMigrate === true && selectedPipelineForMenu.value?.type === 'external'
+    visible: shouldMigrate && selectedPipelineForMenu.value?.type === 'external'
   },
   {
     label: t('home.transfer'),

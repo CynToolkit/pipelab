@@ -11,7 +11,6 @@ const api = {}
 // renderer only if context isolation is enabled, otherwise
 // just add to the DOM global.
 if (process.contextIsolated) {
-  // @ts-expect-error import.meta
   const isCI = process.env.CI === 'true' || import.meta.env.CI === 'true'
 
   try {

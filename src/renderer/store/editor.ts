@@ -317,6 +317,10 @@ export const useEditor = defineStore('editor', () => {
       debug: true
     })
 
+    if (data.type !== 'default') {
+      throw new Error('Simple projects cannot be loaded in the workflow editor')
+    }
+
     // ensure all params are there
     const finalData = create(data, (draft) => {
       for (const block of draft.canvas.blocks) {

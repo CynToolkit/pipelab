@@ -5,7 +5,8 @@ export const testC3Offline: PresetFn = async () => {
   const steamUpload = 'steam-upload-node'
 
   const data: SavedFile = {
-    version: '3.0.0',
+    version: '4.0.0',
+    type: 'default',
     variables: [],
     name: 'C3 test without export',
     description: 'C3 test without export',

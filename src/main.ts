@@ -39,7 +39,6 @@ logger().info('process.argv', process.argv)
 
 const isWine = platform() === 'win32' && 'WINEHOMEDIR' in process.env
 
-// @ts-expect-error import.meta
 const isCI = process.env.CI === 'true' || import.meta.env.CI === 'true'
 
 if (app.isPackaged && process.env.TEST !== 'true' && !isWine && !isCI) {
@@ -188,6 +187,7 @@ app.whenReady().then(async () => {
     const url = request.url
     console.log('handle url', url)
     await handleProtocolUrl(url)
+    return new Response(null, { status: 204 })
   })
 
   const config = {
@@ -373,6 +373,10 @@ app.whenReady().then(async () => {
       const data = JSON.parse(rawData) as SavedFile
 
       logger().info('data', data)
+
+      if (data.type !== 'default') {
+        throw new Error('Only workflow projects can be run with --action run')
+      }
 
       const { canvas, variables } = data
       const { blocks: nodes } = canvas

@@ -193,13 +193,7 @@ const items = ref()
 const onChangePathClick = async (options: OpenDialogOptions) => {
   const pathsResponse = await api.execute(
     'dialog:showOpenDialog',
-    options,
-    async (context, message) => {
-      const { type, data } = message
-      if (type === 'end') {
-        logger().info('end', data)
-      }
-    }
+    options
   )
 
   if (pathsResponse.type === 'error') {

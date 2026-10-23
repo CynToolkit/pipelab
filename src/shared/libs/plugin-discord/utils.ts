@@ -24,4 +24,6 @@ export const defaultTauriConfig = {
   ignore: [] as string[],
   backgroundColor: '#FFF',
   openDevtoolsOnStart: false,
+  enableDoctor: false,
+  serverMode: 'default',
 } satisfies DesktopApp.Tauri

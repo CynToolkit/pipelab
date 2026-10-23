@@ -39,7 +39,12 @@ const icons = ref<(IconType & { origin: Origin })[]>([])
 
 watchEffect(async () => {
   const newIcons: (IconType & { origin: Origin })[] = []
-  await walker(scenario.value.content.canvas.blocks, async (node) => {
+  const content = scenario.value.content
+  if (content.type !== 'default') {
+    icons.value = newIcons
+    return
+  }
+  await walker(content.canvas.blocks, async (node) => {
     const def = getPluginDefinition(node.origin.pluginId)
     if (def) {
       newIcons.push({
