@@ -9,6 +9,7 @@ import { FuseV1Options, FuseVersion } from '@electron/fuses'
 import { name } from './src/constants.ts'
 import * as fs from 'fs-extra'
 import * as path from 'path'
+import { fileURLToPath } from 'node:url'
 // Pull request builds stay unsigned; release workflows opt in through CI.
 const enableMacOSSigning = process.env.PIPILAB_ENABLE_MACOS_SIGNING === 'true'
 /** @type {*} */
@@ -77,7 +78,7 @@ const config: ForgeConfig = {
   hooks: {
     packageAfterCopy: async (forgeConfig, buildPath, electronVersion, platform, arch) => {
       console.log('INFO: Running packageAfterCopy hook...');
-      const projectRoot = path.resolve(__dirname);
+      const projectRoot = path.dirname(fileURLToPath(import.meta.url));
       const packagesToCopy = [
         '@esbuild',
         '@lydell'
