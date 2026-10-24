@@ -128,6 +128,15 @@ const browserProviderSpecs = {
             deferUntilEditor: true,
           },
           {
+            key: "accountConnectionId",
+            type: "connection",
+            integration: "Construct Account",
+            label: "Construct account",
+            description:
+              "Optional. Use a saved Construct session from the selected browser profile instead.",
+            required: false,
+          },
+          {
             key: "version",
             type: "text",
             label: "Construct version",
@@ -144,6 +153,7 @@ const browserProviderSpecs = {
         defaultConfig: {
           path: "",
           profilePath: "",
+          accountConnectionId: "",
           version: "",
         },
         requiresAgentInspection: true,
@@ -656,6 +666,21 @@ const browserProviderSpecs = {
               label: "Chrome profile directory",
               type: "directory",
               placeholder: "e.g., ~/.config/google-chrome",
+            },
+          ],
+        },
+        {
+          name: "Construct Account",
+          fields: [
+            {
+              key: "username",
+              label: "Username",
+              type: "text",
+            },
+            {
+              key: "password",
+              label: "Password",
+              type: "password",
             },
           ],
         },

@@ -63,13 +63,27 @@ export const constructExportWorkflowTaskFactory =
     }
 
     let inputs = task.inputs;
+    const accountConnectionId =
+      typeof task.inputs.accountConnectionId === "string" ? task.inputs.accountConnectionId : "";
+    if (accountConnectionId) {
+      const account = task.connectionValues[accountConnectionId];
+      if (!account?.username || !account.password) {
+        throw new Error(
+          `Construct account Connection '${accountConnectionId}' is missing required credentials.`,
+        );
+      }
+      inputs = { ...task.inputs };
+      delete inputs.accountConnectionId;
+      inputs.username = account.username;
+      inputs.password = account.password;
+    }
     const requestedVersion =
       typeof task.inputs.version === "string" ? task.inputs.version.trim() : "";
     if (!requestedVersion) {
       const savedVersion = await getSavedConstructVersion(file);
       if (savedVersion) {
         task.log("Using Construct release saved with the project", savedVersion);
-        inputs = { ...task.inputs, version: savedVersion };
+        inputs = { ...inputs, version: savedVersion };
       }
     }
 

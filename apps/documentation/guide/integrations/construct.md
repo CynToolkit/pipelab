@@ -10,6 +10,7 @@ Add **Construct project** as the source, then choose:
 | ----------------- | -------------------- | ------------------------------------------------------------------------------------------------- |
 | Project file      | Required `.c3p` file | Empty                                                                                             |
 | Browser profile   | Required             | A local Chromium profile used to seed Pipelab's managed profile                                   |
+| Construct account | Optional             | A workflow alias for a Construct Account Connection with username and password fields             |
 | Construct version | Optional             | Blank uses the saved release when present; enter `latest` or a release such as `r397` to override |
 
 The source compiles to an export action followed by an unzip action. Its final artifact is an application for **web**, stored as a **directory**. Use that artifact as input to a compatible producer or destination.
@@ -48,25 +49,31 @@ If the selected browser profile is signed out of Construct or its session has
 expired, a profile-only export requires a valid login session. Pipelab does not
 modify the selected browser profile.
 
-For CLI runs, set both `CONSTRUCT_USERNAME` and `CONSTRUCT_PASSWORD` in the
-process environment to provide Construct task inputs. Keep the values in a
-secret manager such as Doppler; the workflow stores only runtime references.
-When both are configured, Pipelab requests a fresh session from Construct's
-account service and stores it on the matching Construct account origin in the
-managed profile before opening the editor. The editor exchanges that session
-during startup, including when a selected profile has a stale login record.
-When neither variable is set,
-exports use the selected profile's saved session. Setting only one variable
-fails before export starts, instead of falling back to the saved session. A
-missing referenced variable is reported by name, with its value redacted from
-run logs and result values; artifact paths remain intact for reopening output.
-If Construct reports that the project exceeds the Free edition limits, the
-export stops with a plan-specific error before waiting for standard export
-options.
+Desktop remembers the local Construct Connection selected for the workflow
+alias. CLI runs do not need a saved Connection registry; provide the alias's
+username and password from the environment that starts the run. When a
+Construct Account Connection is selected, Pipelab requests a fresh session
+from Construct's account service and stores it on the matching Construct
+account origin in the managed profile before opening the editor. The editor
+exchanges that session during startup, including when a selected profile has a
+stale login record. Leave the account alias empty to use the selected profile's
+saved session.
+
+For CLI runs, keep the credentials in a secret manager such as Doppler and pass
+only environment variable names to `--connection`:
 
 ```sh
-doppler run --project pipelab --config dev_personal -- pipelab workflow run <workflow-id>
+doppler run --project pipelab --config dev_personal -- pipelab workflow run <workflow-id> \
+  --connection construct-production.username=env:CONSTRUCT_USERNAME \
+  --connection construct-production.password=env:CONSTRUCT_PASSWORD
 ```
+
+Replace `construct-production` with the alias saved in the workflow. Pipelab
+checks that both required fields are present before starting export. Connection
+values are redacted from run logs, errors, and saved results. Literal CLI
+values are accepted, but may appear in shell history and process listings.
+If Construct reports that the project exceeds Free edition limits, Pipelab
+shows a plan-specific error after account authentication and project loading.
 
 Existing custom profile directories outside the usual browser locations remain selectable when they contain a Chromium `Preferences` file. Profile selection reads browser metadata without launching a browser or scanning profile storage. Project loading and download preparation have bounded waits (120 seconds by default). If the download is not ready in time, the run error includes Construct's visible status and a screenshot path when it can capture one. Browser launch, sign-in, timeout, export, and archive extraction failures appear in the run logs. The provider does not declare a host-platform allowlist, so exact OS coverage is not guaranteed here.
 

@@ -29,9 +29,22 @@ If required profile data cannot be refreshed, the export stops instead of
 using stale session or addon data. The selected profile must contain a valid
 Construct session when the task has no credentials to renew it.
 
-Set both `CONSTRUCT_USERNAME` and `CONSTRUCT_PASSWORD` to renew a Construct
-session from the account service. If neither is set, the selected profile's
-saved session is used. Setting only one fails before export starts.
+The Release source can reference a workflow-scoped Construct Account alias.
+Desktop remembers a local Connection binding for that workflow. CLI runs
+provide the alias's `username` and `password` fields directly from the
+initiating environment, without a saved Connection registry:
+
+```sh
+doppler run --project pipelab --config dev_personal -- pipelab workflow run <workflow-id> \
+  --connection construct-production.username=env:CONSTRUCT_USERNAME \
+  --connection construct-production.password=env:CONSTRUCT_PASSWORD
+```
+
+Replace `construct-production` with the alias in the workflow. Pipelab checks
+both fields before export and redacts their resolved values from logs, errors,
+and saved run results. Leave the alias empty to use the selected profile's
+saved session. Construct account authentication and Free edition restrictions
+remain distinct provider errors.
 
 The export automation opens Construct's export dialog through Menu → Project →
 Export, then selects Web (HTML5) and the standard export options.

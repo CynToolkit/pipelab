@@ -10,6 +10,7 @@ import {
   openConstructProjectFile,
   prepareConstructEditor,
   requestConstructLogin,
+  script,
   waitForConstructProjectLoad,
   waitForConstructExportDownload,
 } from "./script";
@@ -27,6 +28,7 @@ class AccountOriginPage {
     | undefined;
   reload = vi.fn();
   tokenResponseOk = true;
+  tokenResponseOkOnEditorNavigation: boolean[] = [];
   tokenResponsePayload: unknown = { request: { status: "ok" } };
   tokenResponseJson: () => Promise<unknown> = async () => this.tokenResponsePayload;
   visitedUrls: string[] = [];
@@ -43,7 +45,7 @@ class AccountOriginPage {
     if (new URL(url).origin === "https://editor.construct.net") {
       const response = {
         url: () => `${constructAccountOrigin("r466-2")}/token.json`,
-        ok: () => this.tokenResponseOk,
+        ok: () => this.tokenResponseOkOnEditorNavigation.shift() ?? this.tokenResponseOk,
         json: this.tokenResponseJson,
       };
       if (this.responsePredicate?.(response)) this.resolveResponse?.(response);
@@ -99,14 +101,124 @@ class AccountOriginPage {
   }
 }
 
+class EditionLimitPage extends AccountOriginPage {
+  keyboard = { press: vi.fn(async () => undefined) };
+
+  isClosed() {
+    return false;
+  }
+
+  locator(selector: string) {
+    return this.createLocator(selector);
+  }
+
+  getByRole(role: string, options: { name?: string | RegExp }) {
+    const name = options.name;
+    const visible =
+      role === "button" &&
+      (name === "Menu" || (name instanceof RegExp && name.test("Open")));
+    return this.createLocator(`${role}:${String(name)}`, visible);
+  }
+
+  getByText(text: string) {
+    return this.createLocator(`text:${text}`);
+  }
+
+  waitForEvent(event: string) {
+    if (event === "filechooser")
+      return Promise.resolve({ setFiles: vi.fn(async () => undefined) });
+    return Promise.reject(new Error(`Unexpected browser event: ${event}`));
+  }
+
+  private createLocator(selector: string, visible = false) {
+    const locator = {
+      first: () => locator,
+      filter: () => locator,
+      locator: (child: string) => this.createLocator(`${selector} ${child}`),
+      waitFor: async (options?: { timeout?: number }) => {
+        if (options?.timeout === 0) throw new Error("not visible");
+      },
+      isVisible: async () => selector === "#okDialog" || visible,
+      isEnabled: async () => true,
+      innerText: async () =>
+        selector === "#okDialog"
+          ? "This project exceeds the free edition limits. Some features will be unavailable."
+          : "",
+      getAttribute: async () => null,
+      click: async () => undefined,
+      allInnerTexts: async () => [],
+    };
+    return locator;
+  }
+}
+
 describe("Construct edition detection", () => {
-  it("recognizes the free edition limit prompt", () => {
-    expect(
-      isConstructFreeEditionLimit(
-        "This project exceeds the free edition limits. Some features will be unavailable.",
-      ),
-    ).toBe(true);
+  it("recognizes plan limits separately from account authentication failures", async () => {
+    const password = "construct-auth-secret";
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ request: { status: "error" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const loginFailure = await requestConstructLogin(
+        "construct-user@example.test",
+        password,
+        new AbortController().signal,
+      ).catch((error: unknown) => error);
+
+      expect(loginFailure).toEqual(new Error("Construct account authentication failed"));
+      expect(String(loginFailure)).not.toContain(password);
+      expect(isConstructFreeEditionLimit(String(loginFailure))).toBe(false);
+      expect(
+        isConstructFreeEditionLimit(
+          "This project exceeds the free edition limits. Some features will be unavailable.",
+        ),
+      ).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+
     expect(isConstructFreeEditionLimit("The export options are ready.")).toBe(false);
+  });
+
+  it("reports the plan restriction after successful account authentication and project load", async () => {
+    const page = new EditionLimitPage();
+    const token = "authenticated-session-token";
+    const fetchMock = vi.fn(async () =>
+      new Response(
+        JSON.stringify({ request: { status: "ok" }, response: { userID: 42, token } }),
+        { status: 200 },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      await expect(
+        script(
+          page as unknown as Page,
+          vi.fn(),
+          "/project.c3p",
+          "construct-user@example.test",
+          "construct-password-secret",
+          "r466-2",
+          exportRunPath,
+          new AbortController().signal,
+          1_000,
+        ),
+      ).rejects.toThrow(
+        "Construct reports that this project exceeds the free edition limits. Verify that the selected account has a plan that covers this project.",
+      );
+
+      expect(fetchMock).toHaveBeenCalledOnce();
+      expect(page.stores.get("https://account.construct.net")?.get("login-data")).toEqual({
+        userID: 42,
+        token,
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
 
@@ -263,6 +375,63 @@ describe("Construct account authentication", () => {
     expect(page.stores.get("https://account.construct.net")?.get("login-data")).toEqual(session);
     expect(page.stores.get("https://editor.construct.net")?.get("login-data")).toBeUndefined();
     expect(page.reload).not.toHaveBeenCalled();
+  });
+
+  it("reuses a cached account session when Connection credentials are also available", async () => {
+    const page = new AccountOriginPage();
+    const cachedSession = { userID: 42, token: "cached-session" };
+    const apiLogin = vi.fn(async () => ({
+      loginData: { userID: 42, token: "fresh-session" },
+      startedAt: Date.now(),
+    }));
+    page.stores.set(
+      "https://account.construct.net",
+      new Map([["login-data", cachedSession]]),
+    );
+
+    await prepareConstructEditor(
+      page as unknown as Page,
+      "r466-2",
+      "user@example.com",
+      "test-password",
+      apiLogin,
+      new AbortController().signal,
+      vi.fn(),
+    );
+
+    expect(page.stores.get("https://account.construct.net")?.get("login-data")).toEqual(
+      cachedSession,
+    );
+    expect(page.events).not.toContain("write:https://account.construct.net");
+    expect(apiLogin).not.toHaveBeenCalled();
+  });
+
+  it("refreshes a cached session with Connection credentials when Construct rejects it", async () => {
+    const page = new AccountOriginPage();
+    const freshSession = { userID: 42, token: "fresh-session" };
+    page.stores.set(
+      "https://account.construct.net",
+      new Map([["login-data", { userID: 42, token: "stale-session" }]]),
+    );
+    page.tokenResponseOkOnEditorNavigation = [false, true];
+    const apiLogin = vi.fn(async () => ({ loginData: freshSession, startedAt: Date.now() }));
+
+    await prepareConstructEditor(
+      page as unknown as Page,
+      "r466-2",
+      "user@example.com",
+      "test-password",
+      apiLogin,
+      new AbortController().signal,
+      vi.fn(),
+    );
+
+    expect(apiLogin).toHaveBeenCalledOnce();
+    expect(page.stores.get("https://account.construct.net")?.get("login-data")).toEqual(
+      freshSession,
+    );
+    expect(page.visitedUrls.filter((url) => new URL(url).origin === "https://editor.construct.net"))
+      .toHaveLength(2);
   });
 
   it("uses the beta account origin for beta editor sessions", async () => {

@@ -27,6 +27,15 @@ export const constructSource: ReleaseSourceDefinition = {
       deferUntilEditor: true,
     },
     {
+      key: "accountConnectionId",
+      type: "connection",
+      integration: "Construct Account",
+      label: "Construct account",
+      description:
+        "Optional. Use a saved Construct session from the selected browser profile instead.",
+      required: false,
+    },
+    {
       key: "version",
       type: "text",
       label: "Construct version",
@@ -36,7 +45,7 @@ export const constructSource: ReleaseSourceDefinition = {
     },
   ],
   output: { kind: "application", platform: "web", container: "directory" },
-  createDefaultConfig: () => ({ path: "", profilePath: "", version: "" }),
+  createDefaultConfig: () => ({ path: "", profilePath: "", accountConnectionId: "", version: "" }),
   validate: (config) => [
     ...(typeof config.path === "string" && config.path
       ? []
@@ -101,22 +110,8 @@ export const constructSource: ReleaseSourceDefinition = {
     };
   },
   compile: (config) => {
-    const usernameConfigured = Object.hasOwn(process.env, "CONSTRUCT_USERNAME");
-    const passwordConfigured = Object.hasOwn(process.env, "CONSTRUCT_PASSWORD");
-    const hasCredentials =
-      Boolean(process.env.CONSTRUCT_USERNAME?.trim()) &&
-      Boolean(process.env.CONSTRUCT_PASSWORD?.trim());
-    if ((usernameConfigured || passwordConfigured) && !hasCredentials) {
-      throw new Error(
-        "Set both CONSTRUCT_USERNAME and CONSTRUCT_PASSWORD, or unset both to use the selected browser profile's saved session. Both credential values must be non-empty.",
-      );
-    }
-    const credentials = hasCredentials
-      ? {
-          username: "${{ env.CONSTRUCT_USERNAME }}",
-          password: "${{ env.CONSTRUCT_PASSWORD }}",
-        }
-      : {};
+    const accountConnectionId =
+      typeof config.accountConnectionId === "string" ? config.accountConnectionId : "";
     const steps: WorkflowStep[] = [
       {
         id: "construct-source-export",
@@ -125,7 +120,7 @@ export const constructSource: ReleaseSourceDefinition = {
           file: String(config.path || ""),
           customProfile: String(config.profilePath || ""),
           version: String(config.version || ""),
-          ...credentials,
+          ...(accountConnectionId ? { accountConnectionId } : {}),
         },
         artifacts: {
           zipFile: {
@@ -184,6 +179,13 @@ export const provider = createProviderDefinition({
           type: "directory",
           placeholder: "e.g., ~/.config/google-chrome",
         },
+      ],
+    },
+    {
+      name: "Construct Account",
+      fields: [
+        { key: "username", label: "Username", type: "text" },
+        { key: "password", label: "Password", type: "password" },
       ],
     },
   ],
