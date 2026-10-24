@@ -52,6 +52,7 @@ describe("release beforeBuild task", () => {
           command: "should-not-run",
           profileId: "profile-id",
         },
+        connectionValues: {},
         outputs: {},
         artifacts: [],
         services,

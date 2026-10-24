@@ -4,11 +4,18 @@ import { join } from "node:path";
 import { spawn } from "node:child_process";
 import { describe, expect, it, vi } from "vitest";
 import { createReleaseConfig } from "@pipelab/shared";
+import type { Workflow, WorkflowResult } from "@pipelab/workflow-runtime";
+import * as workflowRuntime from "@pipelab/workflow-runtime";
 import { PipelabContext } from "./context";
 import { ReleasePersistence } from "./release-persistence";
 import { writeJsonFileAtomically } from "./utils/atomic-json";
-import { executeWorkflow } from "./handlers/workflow";
-import { saveStrictProjects } from "./strict-config-persistence";
+import {
+  executeWorkflow,
+  prepareReleaseWorkflow,
+  registerWorkflowHandlers,
+} from "./handlers/workflow";
+import { useAPI } from "./ipc-core";
+import { saveStrictConnections, saveStrictProjects } from "./strict-config-persistence";
 import * as remote from "./utils/remote";
 import { BuildHistoryStorage } from "./handlers/build-history";
 
@@ -78,6 +85,987 @@ describe("ReleasePersistence", () => {
     }
   });
 
+  it("preflights missing workflow environment before creating history or preparing runtimes", async () => {
+    const { context } = await setup();
+    const variableName = "PIPELAB_REQUIRED_SOURCE_PATH_FOR_PREFLIGHT";
+    const previousValue = process.env[variableName];
+    delete process.env[variableName];
+    const config = createReleaseConfig({
+      id: "workflow-1",
+      project: "project-1",
+      name: "Release",
+      source: {
+        provider: "@pipelab/core/source/folder",
+        config: { path: "${{ env.PIPELAB_REQUIRED_SOURCE_PATH_FOR_PREFLIGHT }}" },
+      },
+    });
+    await mkdir(context.getConfigPath("workflows"), { recursive: true });
+    await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));
+
+    const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockResolvedValue("node");
+    const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
+    let runCreated = false;
+
+    try {
+      await expect(
+        executeWorkflow(context, "workflows/workflow-1", {
+          onRunCreated: () => {
+            runCreated = true;
+          },
+        }),
+      ).rejects.toThrow(
+        "Workflow environment variable is not set: PIPELAB_REQUIRED_SOURCE_PATH_FOR_PREFLIGHT",
+      );
+
+      expect(await new BuildHistoryStorage(context).getAll()).toEqual([]);
+      expect(runCreated).toBe(false);
+      expect(nodeSetup).not.toHaveBeenCalled();
+      expect(pnpmSetup).not.toHaveBeenCalled();
+    } finally {
+      if (previousValue === undefined) delete process.env[variableName];
+      else process.env[variableName] = previousValue;
+      nodeSetup.mockRestore();
+      pnpmSetup.mockRestore();
+    }
+  });
+
+  it("executes an imported Release Workflow config without loading it from the saved index", async () => {
+    const { context } = await setup();
+    const config = createReleaseConfig({
+      id: "workflow-1",
+      project: "project-1",
+      name: "Imported workflow",
+      source: {
+        provider: "@pipelab/core/source/folder",
+        config: { path: context.getConfigPath() },
+      },
+    });
+    const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockResolvedValue("node");
+    const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
+    const workflowRun = vi.spyOn(workflowRuntime, "runWorkflow").mockResolvedValue({
+      status: "completed",
+      outputs: {},
+      artifacts: [],
+      deliveries: [],
+      steps: {},
+    });
+
+    try {
+      await expect(
+        executeWorkflow(context, "workflows/workflow-1", { workflowConfig: config }),
+      ).resolves.toMatchObject({ result: { status: "completed" } });
+
+      expect(workflowRun).toHaveBeenCalledOnce();
+      expect(await new BuildHistoryStorage(context).getAll()).toHaveLength(1);
+    } finally {
+      workflowRun.mockRestore();
+      nodeSetup.mockRestore();
+      pnpmSetup.mockRestore();
+    }
+  });
+
+  it("preflights empty required release environment values before creating history", async () => {
+    const { context } = await setup();
+    const variableName = "PIPELAB_EMPTY_REQUIRED_SOURCE_PATH_FOR_PREFLIGHT";
+    const config = createReleaseConfig({
+      id: "workflow-1",
+      project: "project-1",
+      name: "Release",
+      source: {
+        provider: "@pipelab/core/source/folder",
+        config: { path: `\${{ env.${variableName} }}` },
+      },
+    });
+    await mkdir(context.getConfigPath("workflows"), { recursive: true });
+    await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));
+
+    const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockResolvedValue("node");
+    const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
+    const workflowRun = vi.spyOn(workflowRuntime, "runWorkflow").mockResolvedValue({
+      status: "completed",
+      outputs: {},
+      artifacts: [],
+      deliveries: [],
+      steps: {},
+    });
+    let runCreated = false;
+
+    try {
+      await expect(
+        executeWorkflow(context, "workflows/workflow-1", {
+          env: { [variableName]: "" },
+          onRunCreated: () => {
+            runCreated = true;
+          },
+        }),
+      ).rejects.toThrow(`Workflow environment variable is empty: ${variableName}`);
+
+      expect(await new BuildHistoryStorage(context).getAll()).toEqual([]);
+      expect(runCreated).toBe(false);
+      expect(nodeSetup).not.toHaveBeenCalled();
+      expect(pnpmSetup).not.toHaveBeenCalled();
+      expect(workflowRun).not.toHaveBeenCalled();
+    } finally {
+      workflowRun.mockRestore();
+      nodeSetup.mockRestore();
+      pnpmSetup.mockRestore();
+    }
+  });
+
+  it("preflights incomplete provider Connections before creating history", async () => {
+    const { context } = await setup();
+    const config = {
+      ...createReleaseConfig({
+        id: "workflow-1",
+        project: "project-1",
+        name: "Release",
+        source: {
+          provider: "@pipelab/core/source/folder",
+          config: { path: context.getConfigPath() },
+        },
+      }),
+      destinations: [
+        {
+          id: "itch-production",
+          provider: "@pipelab/plugin-itch/destination",
+          enabled: true,
+          config: { accountConnectionId: "itch-production", project: "pipelab/game" },
+          slots: [{ id: "windows", enabled: true, config: { channel: "windows" } }],
+        },
+      ],
+    };
+    await mkdir(context.getConfigPath("workflows"), { recursive: true });
+    await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));
+
+    const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockResolvedValue("node");
+    const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
+    const workflowRun = vi.spyOn(workflowRuntime, "runWorkflow").mockResolvedValue({
+      status: "completed",
+      outputs: {},
+      artifacts: [],
+      deliveries: [],
+      steps: {},
+    });
+    let runCreated = false;
+
+    try {
+      await expect(
+        executeWorkflow(context, "workflows/workflow-1", {
+          connectionValues: { "itch-production": {} },
+          onRunCreated: () => {
+            runCreated = true;
+          },
+        }),
+      ).rejects.toThrow("Required workflow Connection field is missing: itch-production.apiKey");
+
+      expect(await new BuildHistoryStorage(context).getAll()).toEqual([]);
+      expect(runCreated).toBe(false);
+      expect(nodeSetup).not.toHaveBeenCalled();
+      expect(pnpmSetup).not.toHaveBeenCalled();
+      expect(workflowRun).not.toHaveBeenCalled();
+    } finally {
+      workflowRun.mockRestore();
+      nodeSetup.mockRestore();
+      pnpmSetup.mockRestore();
+    }
+  });
+
+  const constructAccountCases: Array<{
+    values: Record<string, string>;
+    field: "username" | "password";
+  }> = [
+    { values: {}, field: "username" },
+    { values: { username: "construct-user@example.test" }, field: "password" },
+  ];
+
+  it("preflights a configured optional Construct account alias before creating history", async () => {
+    const { context } = await setup();
+    const alias = "construct-production";
+    const config = createReleaseConfig({
+      id: "workflow-1",
+      project: "project-1",
+      name: "Construct release",
+      source: {
+        provider: "@pipelab/plugin-construct/source",
+        config: {
+          path: join(context.userDataPath, "project.c3p"),
+          profilePath: join(context.userDataPath, "profile"),
+          accountConnectionId: alias,
+          version: "",
+        },
+      },
+    });
+    await writeFile(join(context.userDataPath, "project.c3p"), "fixture");
+    await mkdir(context.getConfigPath("workflows"), { recursive: true });
+    await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));
+
+    const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockResolvedValue("node");
+    const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
+    const workflowRun = vi.spyOn(workflowRuntime, "runWorkflow").mockResolvedValue({
+      status: "completed",
+      outputs: {},
+      artifacts: [],
+      deliveries: [],
+      steps: {},
+    });
+
+    try {
+      await expect(executeWorkflow(context, "workflows/workflow-1")).rejects.toThrow(
+        `Required workflow Connection alias is missing: ${alias}`,
+      );
+
+      expect(await new BuildHistoryStorage(context).getAll()).toEqual([]);
+      expect(nodeSetup).not.toHaveBeenCalled();
+      expect(pnpmSetup).not.toHaveBeenCalled();
+      expect(workflowRun).not.toHaveBeenCalled();
+    } finally {
+      workflowRun.mockRestore();
+      nodeSetup.mockRestore();
+      pnpmSetup.mockRestore();
+    }
+  });
+
+  it.each(constructAccountCases)(
+    "preflights a missing Construct Account $field before creating history",
+    async (scenario) => {
+    const { context } = await setup();
+    const alias = "construct-production";
+    const config = createReleaseConfig({
+      id: "workflow-1",
+      project: "project-1",
+      name: "Construct release",
+      source: {
+        provider: "@pipelab/plugin-construct/source",
+        config: {
+          path: join(context.userDataPath, "project.c3p"),
+          profilePath: join(context.userDataPath, "profile"),
+          accountConnectionId: alias,
+          version: "",
+        },
+      },
+    });
+    await mkdir(context.getConfigPath("workflows"), { recursive: true });
+    await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));
+
+    const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockResolvedValue("node");
+    const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
+    const workflowRun = vi.spyOn(workflowRuntime, "runWorkflow").mockResolvedValue({
+      status: "completed",
+      outputs: {},
+      artifacts: [],
+      deliveries: [],
+      steps: {},
+    });
+    let runCreated = false;
+
+    try {
+      await expect(
+        executeWorkflow(context, "workflows/workflow-1", {
+          connectionValues: { [alias]: scenario.values },
+          onRunCreated: () => {
+            runCreated = true;
+          },
+        }),
+      ).rejects.toThrow(
+        `Required workflow Connection field is missing: ${alias}.${scenario.field}`,
+      );
+
+      expect(await new BuildHistoryStorage(context).getAll()).toEqual([]);
+      expect(runCreated).toBe(false);
+      expect(nodeSetup).not.toHaveBeenCalled();
+      expect(pnpmSetup).not.toHaveBeenCalled();
+      expect(workflowRun).not.toHaveBeenCalled();
+    } finally {
+      workflowRun.mockRestore();
+      nodeSetup.mockRestore();
+      pnpmSetup.mockRestore();
+    }
+    },
+  );
+
+  it("passes saved provider fields for legacy local Connection IDs into the run scope", async () => {
+    const { context } = await setup();
+    const legacyApiKey = "legacy-local-itch-api-key";
+    const config = {
+      ...createReleaseConfig({
+        id: "workflow-1",
+        project: "project-1",
+        name: "Legacy release",
+        source: {
+          provider: "@pipelab/core/source/folder",
+          config: { path: context.getConfigPath() },
+        },
+      }),
+      version: "3.0.0",
+      destinations: [
+        {
+          id: "itch-production",
+          provider: "@pipelab/plugin-itch/destination",
+          enabled: true,
+          config: { accountConnectionId: "legacy-itch-id", project: "pipelab/game" },
+          slots: [{ id: "windows", enabled: true, config: { channel: "windows" } }],
+        },
+      ],
+    };
+    await mkdir(context.getConfigPath("workflows"), { recursive: true });
+    await writeFile(
+      join(context.getConfigPath("workflows"), "workflow-1.json"),
+      JSON.stringify(config),
+    );
+    await saveStrictConnections(context, {
+      version: "1.0.0",
+      connections: [
+        {
+          id: "legacy-itch-id",
+          pluginName: "@pipelab/plugin-itch",
+          integrationName: "Itch Butler Account",
+          name: "Legacy Itch account",
+          createdAt: "2020-01-01T00:00:00.000Z",
+          isDefault: false,
+          apiKey: legacyApiKey,
+        },
+      ],
+    });
+
+    let receivedValues: unknown;
+    const workflowRun = vi
+      .spyOn(workflowRuntime, "runWorkflow")
+      .mockImplementation(async (_workflow, runContext) => {
+        receivedValues = runContext.connectionValues;
+        throw new Error("stop after runtime contract capture");
+      });
+    const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockResolvedValue("node");
+    const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
+
+    try {
+      await expect(executeWorkflow(context, "workflows/workflow-1")).rejects.toThrow(
+        "stop after runtime contract capture",
+      );
+
+      expect(receivedValues).toEqual({ "legacy-itch-id": { apiKey: legacyApiKey } });
+      expect(JSON.stringify(await new BuildHistoryStorage(context).getAll())).not.toContain(
+        legacyApiKey,
+      );
+    } finally {
+      workflowRun.mockRestore();
+      nodeSetup.mockRestore();
+      pnpmSetup.mockRestore();
+    }
+  });
+
+  it("normalizes a legacy Steam email field to the provider's username field", async () => {
+    const { context } = await setup();
+    const legacyUsername = "legacy-steam-user";
+    const config = {
+      ...createReleaseConfig({
+        id: "workflow-1",
+        project: "project-1",
+        name: "Legacy Steam release",
+        source: {
+          provider: "@pipelab/core/source/web-folder",
+          config: { path: context.getConfigPath() },
+        },
+      }),
+      version: "3.0.0",
+      builds: [
+        {
+          id: "electron",
+          type: "desktop",
+          engine: "@pipelab/plugin-electron/producer",
+          enabled: true,
+          config: {},
+          targets: [{ id: "windows-x64", enabled: true, config: {} }],
+        },
+      ],
+      destinations: [
+        {
+          id: "steam-production",
+          provider: "@pipelab/plugin-steam/destination",
+          enabled: true,
+          config: {
+            accountConnectionId: "legacy-steam-id",
+            appId: "12345",
+            description: "Legacy build",
+          },
+          slots: [
+            {
+              id: "windows",
+              enabled: true,
+              input: { buildId: "electron", targetId: "windows-x64" },
+              config: { depotId: "54321" },
+            },
+          ],
+        },
+      ],
+    };
+    await mkdir(context.getConfigPath("workflows"), { recursive: true });
+    await writeFile(
+      join(context.getConfigPath("workflows"), "workflow-1.json"),
+      JSON.stringify(config),
+    );
+    await saveStrictConnections(context, {
+      version: "1.0.0",
+      connections: [
+        {
+          id: "legacy-steam-id",
+          pluginName: "@pipelab/plugin-steam",
+          integrationName: "Steam Account",
+          name: "Legacy Steam account",
+          createdAt: "2020-01-01T00:00:00.000Z",
+          isDefault: false,
+          email: legacyUsername,
+        },
+      ],
+    });
+
+    let receivedValues: unknown;
+    const workflowRun = vi
+      .spyOn(workflowRuntime, "runWorkflow")
+      .mockImplementation(async (_workflow, runContext) => {
+        receivedValues = runContext.connectionValues;
+        throw new Error("stop after runtime contract capture");
+      });
+    const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockResolvedValue("node");
+    const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
+
+    try {
+      await expect(executeWorkflow(context, "workflows/workflow-1")).rejects.toThrow(
+        "stop after runtime contract capture",
+      );
+
+      expect(receivedValues).toEqual({ "legacy-steam-id": { username: legacyUsername } });
+    } finally {
+      workflowRun.mockRestore();
+      nodeSetup.mockRestore();
+      pnpmSetup.mockRestore();
+    }
+  });
+
+  it("derives active Connection schemas and required env bindings from provider definitions", () => {
+    const variableName = "RELEASE_SOURCE_DIRECTORY";
+    const config = {
+      ...createReleaseConfig({
+        id: "workflow-1",
+        project: "project-1",
+        name: "Release",
+        source: {
+          provider: "@pipelab/core/source/folder",
+          config: { path: `\${{ env.${variableName} }}` },
+        },
+      }),
+      destinations: [
+        {
+          id: "itch-production",
+          provider: "@pipelab/plugin-itch/destination",
+          enabled: true,
+          config: { accountConnectionId: "itch-production", project: "pipelab/game" },
+          slots: [{ id: "windows", enabled: true, config: { channel: "windows" } }],
+        },
+        {
+          id: "disabled-steam",
+          provider: "@pipelab/plugin-steam/destination",
+          enabled: false,
+          config: { accountConnectionId: "itch-production", appId: "123" },
+          slots: [{ id: "linux", enabled: true, config: { depotId: "456" } }],
+        },
+      ],
+    };
+
+    const prepared = prepareReleaseWorkflow(config, "1.0.0", {
+      [variableName]: "/games/current",
+    });
+
+    expect(prepared.connectionRequirements).toEqual([
+      {
+        alias: "itch-production",
+        required: true,
+        fields: [{ key: "apiKey", required: true }],
+        providerId: "@pipelab/plugin-itch",
+        integrationName: "Itch Butler Account",
+      },
+    ]);
+    expect(prepared.requiredEnvironmentVariables).toEqual([variableName]);
+  });
+
+  it("compiles a Construct account alias without serializing credential values or environment references", async () => {
+    const { context } = await setup();
+    const username = "construct-user@example.test";
+    const password = "construct-password-secret";
+    vi.stubEnv("CONSTRUCT_USERNAME", "daemon-user@example.test");
+    vi.stubEnv("CONSTRUCT_PASSWORD", "daemon-password-secret");
+    const config = createReleaseConfig({
+      id: "workflow-1",
+      project: "project-1",
+      name: "Construct release",
+      source: {
+        provider: "@pipelab/plugin-construct/source",
+        config: {
+          path: join(context.userDataPath, "project.c3p"),
+          profilePath: join(context.userDataPath, "profile"),
+          accountConnectionId: "construct-production",
+          version: "",
+        },
+      },
+    });
+    await mkdir(context.getConfigPath("workflows"), { recursive: true });
+    await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));
+
+    let compiled: Workflow | undefined;
+    const workflowRun = vi
+      .spyOn(workflowRuntime, "runWorkflow")
+      .mockImplementation(async (workflow) => {
+        compiled = workflow;
+        throw new Error("stop after compile");
+      });
+    const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockResolvedValue("node");
+    const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
+
+    try {
+      await expect(
+        executeWorkflow(context, "workflows/workflow-1", {
+          env: {},
+          connectionValues: { "construct-production": { username, password } },
+        }),
+      ).rejects.toThrow("stop after compile");
+
+      expect(compiled?.steps[0]?.with).toMatchObject({
+        accountConnectionId: "construct-production",
+      });
+      expect(compiled?.steps[0]?.with).not.toHaveProperty("username");
+      expect(compiled?.steps[0]?.with).not.toHaveProperty("password");
+      expect(JSON.stringify(compiled)).not.toContain(username);
+      expect(JSON.stringify(compiled)).not.toContain(password);
+      expect(JSON.stringify(compiled)).not.toContain("CONSTRUCT_USERNAME");
+      expect(JSON.stringify(compiled)).not.toContain("CONSTRUCT_PASSWORD");
+    } finally {
+      vi.unstubAllEnvs();
+      workflowRun.mockRestore();
+      nodeSetup.mockRestore();
+      pnpmSetup.mockRestore();
+    }
+  });
+
+  it("preflights missing connection override environment before creating history", async () => {
+    const { context } = await setup();
+    const variableName = "PIPELAB_REQUIRED_CONNECTION_VALUE_FOR_PREFLIGHT";
+    const previousValue = process.env[variableName];
+    delete process.env[variableName];
+    const config = createReleaseConfig({
+      id: "workflow-1",
+      project: "project-1",
+      name: "Release",
+      source: {
+        provider: "@pipelab/core/source/folder",
+        config: { path: context.getConfigPath() },
+      },
+    });
+    await mkdir(context.getConfigPath("workflows"), { recursive: true });
+    await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));
+
+    const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockResolvedValue("node");
+    const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
+    let runCreated = false;
+
+    try {
+      await expect(
+        executeWorkflow(context, "workflows/workflow-1", {
+          env: {},
+          connectionOverrides: [
+            {
+              alias: "steam-release",
+              field: "password",
+              value: { kind: "environment", name: variableName },
+            },
+          ],
+          onRunCreated: () => {
+            runCreated = true;
+          },
+        }),
+      ).rejects.toThrow(`Workflow environment variable is not set: ${variableName}`);
+
+      expect(await new BuildHistoryStorage(context).getAll()).toEqual([]);
+      expect(runCreated).toBe(false);
+      expect(nodeSetup).not.toHaveBeenCalled();
+      expect(pnpmSetup).not.toHaveBeenCalled();
+    } finally {
+      if (previousValue === undefined) delete process.env[variableName];
+      else process.env[variableName] = previousValue;
+      nodeSetup.mockRestore();
+      pnpmSetup.mockRestore();
+    }
+  });
+
+  it("passes a single resolved Connection snapshot to the shared runtime", async () => {
+    const { context } = await setup();
+    const config = {
+      ...createReleaseConfig({
+        id: "workflow-1",
+        project: "project-1",
+        name: "Release",
+        source: {
+          provider: "@pipelab/core/source/folder",
+          config: { path: context.getConfigPath() },
+        },
+      }),
+      destinations: [
+        {
+          id: "itch-production",
+          provider: "@pipelab/plugin-itch/destination",
+          enabled: true,
+          config: { accountConnectionId: "itch-production", project: "pipelab/game" },
+          slots: [{ id: "windows", enabled: true, config: { channel: "windows" } }],
+        },
+      ],
+    };
+    await mkdir(context.getConfigPath("workflows"), { recursive: true });
+    await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));
+
+    const connectionValues = { "itch-production": { apiKey: "saved-account" } };
+    const received: { values?: unknown; overrides?: unknown } = {};
+    const workflowRun = vi
+      .spyOn(workflowRuntime, "runWorkflow")
+      .mockImplementation(async (_workflow, runContext) => {
+        received.values = runContext.connectionValues;
+        received.overrides = runContext.connectionOverrides;
+        throw new Error("stop after runtime contract capture");
+      });
+    const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockImplementation(async () => {
+      connectionValues["itch-production"].apiKey = "changed during setup";
+      return "node";
+    });
+    const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
+
+    try {
+      await expect(
+        executeWorkflow(context, "workflows/workflow-1", {
+          connectionValues,
+        }),
+      ).rejects.toThrow("stop after runtime contract capture");
+
+      expect(received).toEqual({
+        values: { "itch-production": { apiKey: "saved-account" } },
+        overrides: undefined,
+      });
+    } finally {
+      workflowRun.mockRestore();
+      nodeSetup.mockRestore();
+      pnpmSetup.mockRestore();
+    }
+  });
+
+  it("uses environment values supplied by the workflow initiator", async () => {
+    const { context } = await setup();
+    const variableName = "PIPELAB_CLIENT_SOURCE_PATH";
+    const previousValue = process.env[variableName];
+    delete process.env[variableName];
+    const sourcePath = join(context.userDataPath, "client-source");
+    const changedSourcePath = join(context.userDataPath, "changed-client-source");
+    await mkdir(sourcePath, { recursive: true });
+    await writeFile(join(sourcePath, "marker.txt"), "provided by the client");
+    await mkdir(changedSourcePath, { recursive: true });
+    await writeFile(join(changedSourcePath, "marker.txt"), "changed during runtime setup");
+    const config = createReleaseConfig({
+      id: "workflow-1",
+      project: "project-1",
+      name: "Release",
+      source: {
+        provider: "@pipelab/core/source/folder",
+        config: { path: "${{ env.PIPELAB_CLIENT_SOURCE_PATH }}" },
+      },
+    });
+    await mkdir(context.getConfigPath("workflows"), { recursive: true });
+    await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));
+
+    const environment = { [variableName]: sourcePath };
+    const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockImplementation(async () => {
+      environment[variableName] = changedSourcePath;
+      return "node";
+    });
+    const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
+
+    try {
+      const run = await executeWorkflow(context, "workflows/workflow-1", {
+        env: environment,
+      });
+
+      expect(run.result.status).toBe("completed");
+      await expect(
+        readFile(
+          join(context.getArtifactsPath("workflow", run.runId), "source", "marker.txt"),
+          "utf8",
+        ),
+      ).resolves.toBe("provided by the client");
+    } finally {
+      if (previousValue === undefined) delete process.env[variableName];
+      else process.env[variableName] = previousValue;
+      nodeSetup.mockRestore();
+      pnpmSetup.mockRestore();
+    }
+  });
+
+  it("forwards the initiating environment through workflow execution IPC", async () => {
+    const { context } = await setup();
+    const variableName = "PIPELAB_IPC_SOURCE_PATH";
+    const previousValue = process.env[variableName];
+    delete process.env[variableName];
+    const sourcePath = join(context.userDataPath, "ipc-client-source");
+    await mkdir(sourcePath, { recursive: true });
+    await writeFile(join(sourcePath, "marker.txt"), "provided over IPC");
+    const config = createReleaseConfig({
+      id: "workflow-1",
+      project: "project-1",
+      name: "Release",
+      source: {
+        provider: "@pipelab/core/source/folder",
+        config: { path: "${{ env.PIPELAB_IPC_SOURCE_PATH }}" },
+      },
+    });
+    await mkdir(context.getConfigPath("workflows"), { recursive: true });
+    await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));
+    const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockResolvedValue("node");
+    const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
+
+    try {
+      registerWorkflowHandlers(context);
+      const handler = useAPI().handlers["workflow:execute"];
+      const sentEvents: unknown[] = [];
+      await handler(
+        { sender: "test" },
+        {
+          value: {
+            name: "workflows/workflow-1",
+            env: { [variableName]: sourcePath },
+          },
+          send: async (events) => {
+            sentEvents.push(events);
+          },
+        },
+      );
+
+      const completed = sentEvents.find(
+        (event) =>
+          typeof event === "object" &&
+          event !== null &&
+          "type" in event &&
+          event.type === "end" &&
+          "data" in event &&
+          typeof event.data === "object" &&
+          event.data !== null &&
+          "type" in event.data &&
+          event.data.type === "success",
+      );
+      expect(completed).toBeDefined();
+      const run = await new BuildHistoryStorage(context).getAll();
+      expect(run).toHaveLength(1);
+      await expect(
+        readFile(
+          join(context.getArtifactsPath("workflow", run[0]!.id), "source", "marker.txt"),
+          "utf8",
+        ),
+      ).resolves.toBe("provided over IPC");
+    } finally {
+      if (previousValue === undefined) delete process.env[variableName];
+      else process.env[variableName] = previousValue;
+      nodeSetup.mockRestore();
+      pnpmSetup.mockRestore();
+    }
+  });
+
+  it("forwards run-scoped connection overrides through IPC without exposing them", async () => {
+    const { context } = await setup();
+    const sourcePath = join(context.userDataPath, "ipc-connection-source");
+    const secret = "ipc-local-connection-secret";
+    const connectionOverrides = [
+      {
+        alias: "itch",
+        field: "apiKey",
+        value: { kind: "environment" as const, name: "IPC_ITCH_API_KEY" },
+      },
+    ];
+    let receivedValues: unknown;
+    let providerReceivedApiKey: unknown;
+    await mkdir(sourcePath, { recursive: true });
+    await writeFile(join(sourcePath, "marker.txt"), "copied with connection value");
+    const config = {
+      ...createReleaseConfig({
+        id: "workflow-1",
+        project: "project-1",
+        name: "Release",
+        source: { provider: "@pipelab/core/source/folder", config: { path: sourcePath } },
+      }),
+      destinations: [
+        {
+          id: "itch-production",
+          provider: "@pipelab/plugin-itch/destination",
+          enabled: true,
+          config: { accountConnectionId: "itch", project: "pipelab/game" },
+          slots: [{ id: "windows", enabled: true, config: { channel: "windows" } }],
+        },
+      ],
+    };
+    await mkdir(context.getConfigPath("workflows"), { recursive: true });
+    await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));
+
+    const releaseTask = prepareReleaseWorkflow(config).workflow.steps.find((step) => step.delivery);
+    if (!releaseTask) throw new Error("Expected the Itch release task to compile.");
+    const originalRunWorkflow = workflowRuntime.runWorkflow;
+    const workflowRun = vi
+      .spyOn(workflowRuntime, "runWorkflow")
+      .mockImplementation(async (workflow, runContext) => {
+        receivedValues = runContext.connectionValues;
+        return originalRunWorkflow(workflow, {
+          ...runContext,
+          tasks: {
+            ...runContext.tasks,
+            [releaseTask.uses]: async ({ connectionValues }) => {
+              providerReceivedApiKey = connectionValues.itch?.apiKey;
+              return { apiKey: connectionValues.itch?.apiKey ?? "" };
+            },
+          },
+        });
+      });
+    const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockResolvedValue("node");
+    const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
+    registerWorkflowHandlers(context);
+    const handler = useAPI().handlers["workflow:execute"];
+    const sentEvents: unknown[] = [];
+
+    try {
+      await handler(
+        { sender: "test" },
+        {
+          value: {
+            name: "workflows/workflow-1",
+            env: { IPC_ITCH_API_KEY: secret },
+            connectionOverrides,
+          },
+          send: async (events) => {
+            sentEvents.push(events);
+          },
+        },
+      );
+
+      expect(receivedValues).toEqual({
+        itch: { apiKey: secret },
+      });
+      expect(providerReceivedApiKey).toBe(secret);
+      expect(JSON.stringify(sentEvents)).not.toContain(secret);
+      expect(JSON.stringify(await new BuildHistoryStorage(context).getAll())).not.toContain(secret);
+    } finally {
+      workflowRun.mockRestore();
+      nodeSetup.mockRestore();
+      pnpmSetup.mockRestore();
+    }
+  });
+
+  it("redacts environment values from persisted artifact paths", async () => {
+    const { context } = await setup();
+    const variableName = "PIPELAB_ARTIFACT_PATH_SECRET";
+    const secretPath = "/private/path-with-sensitive-value";
+    const config = createReleaseConfig({
+      id: "workflow-1",
+      project: "project-1",
+      name: "Release",
+      source: {
+        provider: "@pipelab/core/source/folder",
+        config: { path: "${{ env.PIPELAB_ARTIFACT_PATH_SECRET }}" },
+      },
+    });
+    await mkdir(context.getConfigPath("workflows"), { recursive: true });
+    await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));
+    const artifact = { name: "published", path: secretPath };
+    const result = {
+      status: "completed",
+      outputs: { publish: { path: secretPath } },
+      artifacts: [artifact],
+      deliveries: [],
+      steps: {
+        publish: {
+          id: "publish",
+          uses: "test:publish",
+          status: "completed",
+          outputs: { path: secretPath },
+          artifacts: [artifact],
+          startedAt: 0,
+          completedAt: 1,
+          duration: 1,
+        },
+      },
+    } satisfies WorkflowResult;
+    const workflowRun = vi.spyOn(workflowRuntime, "runWorkflow").mockResolvedValue(result);
+    const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockResolvedValue("node");
+    const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
+
+    try {
+      const run = await executeWorkflow(context, "workflows/workflow-1", {
+        env: { [variableName]: secretPath },
+      });
+
+      expect(run.result.artifacts[0]?.path).toBe(secretPath);
+      registerWorkflowHandlers(context);
+      const handler = useAPI().handlers["workflow:execute"];
+      const sentEvents: unknown[] = [];
+      await handler(
+        { sender: "test" },
+        {
+          value: {
+            name: "workflows/workflow-1",
+            env: { [variableName]: secretPath },
+          },
+          send: async (events) => {
+            sentEvents.push(events);
+          },
+        },
+      );
+      expect(JSON.stringify(sentEvents)).not.toContain(secretPath);
+
+      const history = await new BuildHistoryStorage(context).getAll();
+      expect(JSON.stringify(history)).not.toContain(secretPath);
+      expect(history[0]?.artifacts?.[0]?.path).toBe("[REDACTED]");
+    } finally {
+      workflowRun.mockRestore();
+      nodeSetup.mockRestore();
+      pnpmSetup.mockRestore();
+    }
+  });
+
+  it("redacts environment values from thrown error names", async () => {
+    const { context } = await setup();
+    const variableName = "PIPELAB_ERROR_NAME_SECRET";
+    const secret = "private-error-name-value";
+    const setupError = new Error("runtime setup failed");
+    setupError.name = `Failure-${secret}`;
+    const config = createReleaseConfig({
+      id: "workflow-1",
+      project: "project-1",
+      name: "Release",
+      source: {
+        provider: "@pipelab/core/source/folder",
+        config: { path: "${{ env.PIPELAB_ERROR_NAME_SECRET }}" },
+      },
+    });
+    await mkdir(context.getConfigPath("workflows"), { recursive: true });
+    await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));
+    const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockRejectedValue(setupError);
+    const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
+
+    try {
+      await expect(
+        executeWorkflow(context, "workflows/workflow-1", {
+          env: { [variableName]: secret },
+        }),
+      ).rejects.toMatchObject({
+        name: "Failure-[REDACTED]",
+        message: "runtime setup failed",
+      });
+      const history = await new BuildHistoryStorage(context).getAll();
+      expect(JSON.stringify(history)).not.toContain(secret);
+    } finally {
+      nodeSetup.mockRestore();
+      pnpmSetup.mockRestore();
+    }
+  });
+
   it("validates persisted workflow connections without provider initialization", async () => {
     const { context } = await setup();
     const config = {
@@ -119,7 +1107,7 @@ describe("ReleasePersistence", () => {
     await expect(load).rejects.toThrow("does not belong to integration '@pipelab/plugin-steam'");
   });
 
-  it("rejects stale connection references before workflow execution starts", async () => {
+  it("rejects malformed connection references before workflow execution starts", async () => {
     const { context, persistence } = await setup();
     const config = {
       ...createReleaseConfig({
@@ -133,7 +1121,7 @@ describe("ReleasePersistence", () => {
           id: "steam",
           provider: "@pipelab/plugin-steam/destination",
           enabled: true,
-          config: { accountConnectionId: "deleted-connection", appId: "123" },
+          config: { accountConnectionId: "deleted.connection", appId: "123" },
           slots: [],
         },
       ],
@@ -146,7 +1134,7 @@ describe("ReleasePersistence", () => {
     );
 
     await expect(executeWorkflow(context, "workflows/workflow-1")).rejects.toThrow(
-      "Connection 'deleted-connection' does not exist.",
+      "Connection 'deleted.connection' does not exist.",
     );
     await writeFile(
       context.getConnectionsPath(),
@@ -154,7 +1142,7 @@ describe("ReleasePersistence", () => {
         version: "1.0.0",
         connections: [
           {
-            id: "deleted-connection",
+            id: "deleted.connection",
             pluginName: "@pipelab/plugin-other",
             name: "Other account",
             createdAt: "2026-01-01",

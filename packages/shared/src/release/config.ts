@@ -308,7 +308,16 @@ export const validateReleaseConnectionReferences = (
   connections: ConnectionsConfig,
 ): ValidationIssue[] => {
   const issues: ValidationIssue[] = [];
-  const known = new Map(connections.connections.map((connection) => [connection.id, connection]));
+  const knownById = new Map(
+    connections.connections.map((connection) => [connection.id, connection]),
+  );
+  const knownByAlias = new Map(
+    (connections.workflowBindings || []).flatMap((binding) => {
+      if (binding.workflowId !== config.id) return [];
+      const connection = knownById.get(binding.connectionId);
+      return connection ? [[binding.alias, connection] as const] : [];
+    }),
+  );
   const check = (
     fields: ReleaseRegistry["sources"][number]["fields"] | undefined,
     values: Record<string, unknown>,
@@ -318,7 +327,12 @@ export const validateReleaseConnectionReferences = (
       if (field.type !== "connection") continue;
       const selected = values[field.key];
       if (selected === undefined || selected === null || selected === "") continue;
-      if (typeof selected !== "string" || !known.has(selected)) {
+      const connection =
+        typeof selected === "string"
+          ? (knownByAlias.get(selected) ?? knownById.get(selected))
+          : undefined;
+      if (!connection) {
+        if (typeof selected === "string" && /^[A-Za-z_][A-Za-z0-9_-]*$/.test(selected)) continue;
         issues.push({
           code: "release.connection.missing",
           message: `Connection '${String(selected)}' does not exist.`,
@@ -327,7 +341,6 @@ export const validateReleaseConnectionReferences = (
         });
         continue;
       }
-      const connection = known.get(selected)!;
       if (
         field.integration &&
         connection.pluginName !== field.integration &&

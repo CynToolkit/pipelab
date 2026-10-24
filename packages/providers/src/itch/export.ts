@@ -1,5 +1,4 @@
 import { dirname, delimiter } from "node:path";
-import { readFile } from "node:fs/promises";
 import { ensureButler } from "./ensure.js";
 import { runWithLiveLogs } from "@pipelab/plugin-core";
 import type { PipelabContext } from "@pipelab/plugin-core";
@@ -58,19 +57,17 @@ export const createItchUploadTask =
     const { inputs, signal, log } = taskContext;
     const runtimeInputs = { ...inputs };
     const accountConnectionId = String(runtimeInputs.accountConnectionId || "").trim();
-    if (accountConnectionId && (!runtimeInputs.user || !runtimeInputs["api-key"])) {
-      const saved = JSON.parse(await readFile(context.getConnectionsPath(), "utf8")) as {
-        connections?: Array<Record<string, unknown>>;
-      };
-      const connection = saved.connections?.find(
-        (candidate) => candidate.id === accountConnectionId,
+    if (!accountConnectionId)
+      throw new Error("An Itch account Connection is required for this workflow task.");
+    const connectionValues = taskContext.connectionValues[accountConnectionId];
+    if (!connectionValues)
+      throw new Error(
+        `Itch account Connection '${accountConnectionId}' was not resolved for this run.`,
       );
-      if (connection) {
-        runtimeInputs.user = connection.user || connection.username || "";
-        runtimeInputs["api-key"] = connection.apiKey || connection.api_key || "";
-      }
-    }
+    runtimeInputs.user = connectionValues.username || connectionValues.user || runtimeInputs.user || "";
+    runtimeInputs["api-key"] = connectionValues.apiKey ?? "";
     const apiKey = typeof runtimeInputs["api-key"] === "string" ? runtimeInputs["api-key"] : "";
+    if (!apiKey) throw new Error("Itch account connection has no API key");
     const safeLog = (...args: unknown[]) =>
       log(
         ...args.map((value) => (typeof value === "string" ? redactApiKey(value, apiKey) : value)),

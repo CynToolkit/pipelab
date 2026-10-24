@@ -12,7 +12,12 @@ import type {
 } from "./release/types";
 import { Agent } from "./websocket.types";
 import { BuildHistoryEntry, BuildHistoryQuery, BuildHistoryResponse } from "./build-history";
-import type { WorkflowEvent, WorkflowResult } from "@pipelab/workflow-runtime";
+import type {
+  WorkflowConnectionOverride,
+  WorkflowConnectionValues,
+  WorkflowEvent,
+  WorkflowResult,
+} from "@pipelab/workflow-runtime";
 export type BrowserProfileCandidate = {
   browser: string;
   profileName: string;
@@ -183,6 +188,9 @@ export type IpcDefinition = {
       name: string;
       destinations?: string[];
       release?: { version: string; description: string };
+      env?: Readonly<Record<string, string | undefined>>;
+      connectionValues?: WorkflowConnectionValues;
+      connectionOverrides?: readonly WorkflowConnectionOverride[];
     },
     (
       | { type: "workflow-event"; data: WorkflowEvent }

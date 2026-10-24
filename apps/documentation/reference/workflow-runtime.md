@@ -35,15 +35,44 @@ The runtime accepts a workflow with `version`, `steps`, and optional `continueOn
 
 This shape comes from the runtime artifact/delivery test. Each step has a unique non-empty `id` and non-empty task identifier in `uses`. Optional fields are:
 
-| Field | Meaning |
-| --- | --- |
-| `needs` | Step IDs that must finish first. If omitted, a step depends on the immediately preceding step; the first step has no default dependency. Explicit dependencies can make independent steps ready together. |
-| `with` | Object of task inputs. Values may contain runtime references. |
-| `artifacts` | Named artifact declarations, each with a descriptor. |
-| `artifactInputs` | Maps task input names to `{ stepId, artifact }` references. The runtime supplies the produced artifact path as that input. |
-| `delivery` | `{ destinationId, slotId, artifact: { stepId, artifact } }` context for a destination task. |
+| Field            | Meaning                                                                                                                                                                                                   |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `needs`          | Step IDs that must finish first. If omitted, a step depends on the immediately preceding step; the first step has no default dependency. Explicit dependencies can make independent steps ready together. |
+| `with`           | Object of task inputs. Values may contain runtime references.                                                                                                                                             |
+| `artifacts`      | Named artifact declarations, each with a descriptor.                                                                                                                                                      |
+| `artifactInputs` | Maps task input names to `{ stepId, artifact }` references. The runtime supplies the produced artifact path as that input.                                                                                |
+| `delivery`       | `{ destinationId, slotId, artifact: { stepId, artifact } }` context for a destination task.                                                                                                               |
 
 The runtime checks version `1`, step IDs, dependency IDs, input object shape, and artifact references before execution. Cyclic dependency graphs cannot make progress and are rejected as workflow failures.
+
+Each task context also has `connectionValues`, a read-only map of resolved
+provider fields keyed by stable workflow alias. Release workflows store those
+aliases in connection fields; Desktop remembers the selected local Connection
+per workflow and alias, then passes its provider field values in
+`WorkflowRunContext.connectionValues`. A different workflow can bind the same
+alias to another local Connection. Per-run values can be provided in
+`connectionOverrides`:
+
+```ts
+connectionOverrides: [
+  { alias: "steam-release", field: "username", value: { kind: "literal", value: "builder" } },
+  {
+    alias: "steam-release",
+    field: "password",
+    value: { kind: "environment", name: "STEAM_PASSWORD" },
+  },
+];
+```
+
+Override environment values come from the run's environment snapshot. The
+runtime resolves them before emitting events or starting tasks, and rejects a
+missing variable before side effects. Literal and resolved connection values
+are redacted from logs, errors, events, and result values. Provider field
+schemas and authentication/session behavior remain owned by each provider.
+Hosts pass provider-derived `connectionRequirements` with the declared aliases
+and fields. When present, preflight rejects undeclared aliases or fields,
+missing required aliases or fields, and empty required field values before any
+task starts.
 
 ## Task IDs, inputs, and outputs
 
@@ -58,10 +87,26 @@ with: {
 }
 ```
 
-The run context can also provide a process environment map. Use an `env.NAME`
-reference to read one named value at task execution time. The runtime
-redacts referenced environment values from task logs, failures, emitted events,
-and returned results. A missing variable fails the step with its name only.
+The run context can also provide a read-only environment map for one run. Use an
+`env.NAME` reference to read one named value in step inputs. Before emitting
+workflow events or starting tasks, the runtime checks every environment reference in step inputs and connection overrides.
+A missing or invalid reference rejects the workflow before any task can have
+side effects, and the error includes the variable name without its value. The
+runtime redacts referenced environment values from task logs, failures, emitted
+events, and returned result values. Local returned results keep artifact paths
+intact for hosts that need to deliver or reopen files. Hosts should call
+`createRunScopedWorkflowValueResolver(workflow, variables, env)` and use its
+`redactObject` method before saving or sending results; it also redacts
+environment values embedded in artifact paths.
+
+Hosts that allocate resources before calling `runWorkflow` can call
+`preflightWorkflow(workflow, env, options)` first. `options` can include
+`connectionValues`, `connectionOverrides`, provider-derived
+`connectionRequirements`, and `requiredEnvironmentVariables`. Required
+environment bindings must be present and non-empty; ordinary optional
+environment references still need to exist when referenced. `runWorkflow`
+performs the same checks automatically. The resolver captures read-only
+environment and connection snapshots for one run.
 
 An exact reference retains its value type. A reference embedded in surrounding text is substituted as a string. Missing values and malformed references fail the step. Reading a previous step's output does not create a scheduling dependency by itself; put that step ID in `needs` so its output is available before the consumer starts.
 

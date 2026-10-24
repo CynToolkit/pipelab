@@ -67,6 +67,13 @@ such as SteamCMD, Butler and web export detection remain in provider folders.
 helper package; no additional SDK or toolchain workspaces are introduced. Its
 README records the capability ownership audit.
 
+Release provider compilation can query whether a named variable exists and is
+non-empty in the initiating run environment through
+`getEnvironmentVariableStatus`. It receives only those booleans, so compilers
+can choose whether to emit a runtime environment reference without receiving
+credential values. The workflow runtime resolves the value from the captured run
+environment before any task starts.
+
 Real provider execution tests, including Electron packaging, live in the CLI
 host E2E suite. Isolated provider folder tests use mocked service boundaries.
 

@@ -7,8 +7,12 @@ import {
   type WorkflowEventInput,
   type WorkflowResult,
   type WorkflowRunContext,
+  type WorkflowConnectionOverride,
+  type WorkflowConnectionRequirement,
+  type WorkflowConnectionValues,
   type WorkflowStep,
   type WorkflowStepResult,
+  type WorkflowEnvironment,
   type WorkflowTaskRegistry,
 } from "./types";
 import { RUN_COMMAND_TASK_ID, runCommandTask } from "./tasks/run-command";
@@ -67,7 +71,8 @@ const getPath = (value: Record<string, unknown>, path: string): unknown => {
   return current;
 };
 
-const referencePattern = /\$\{\{([^{}]+)\}\}/g;
+const referencePattern = /\$\{\{([\s\S]*?)\}\}/g;
+const environmentVariableNamePattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 const isWorkflowArtifactWithPath = (value: Record<string, unknown>): boolean =>
   typeof value.path === "string" &&
@@ -82,11 +87,8 @@ const isWorkflowArtifactListOwner = (value: Record<string, unknown>): boolean =>
     typeof value.uses === "string" &&
     Array.isArray(value.artifacts));
 
-const collectEnvironmentValues = (
-  workflow: Workflow,
-  env: Record<string, string | undefined>,
-): string[] => {
-  const values = new Set<string>();
+const collectEnvironmentReferences = (workflow: Workflow): string[] => {
+  const references = new Set<string>();
   const collect = (value: unknown) => {
     if (Array.isArray(value)) {
       value.forEach(collect);
@@ -100,15 +102,242 @@ const collectEnvironmentValues = (
     for (const match of value.matchAll(referencePattern)) {
       const reference = match[1].trim();
       if (!reference.startsWith("env.")) continue;
-      const name = reference.slice("env.".length);
-      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) continue;
-      const environmentValue = env[name];
-      if (environmentValue) values.add(environmentValue);
+      references.add(reference.slice("env.".length));
     }
   };
   workflow.steps.forEach((step) => collect(step.with));
+  return [...references];
+};
+
+const resolveConnectionValues = (
+  initial: WorkflowConnectionValues = {},
+  overrides: readonly WorkflowConnectionOverride[] = [],
+  env: WorkflowEnvironment = {},
+): WorkflowConnectionValues => {
+  const fieldsByAlias = new Map<string, Map<string, string>>();
+  const overrideTargets = new Set<string>();
+  const set = (alias: string, field: string, value: string) => {
+    let fields = fieldsByAlias.get(alias);
+    if (!fields) {
+      fields = new Map();
+      fieldsByAlias.set(alias, fields);
+    }
+    fields.set(field, value);
+  };
+
+  for (const [alias, fields] of Object.entries(initial)) {
+    if (!alias.trim() || !isRecord(fields))
+      throw new Error("Invalid run-scoped connection values.");
+    const resolvedFields = new Map<string, string>();
+    fieldsByAlias.set(alias, resolvedFields);
+    for (const [field, value] of Object.entries(fields)) {
+      if (!field.trim() || typeof value !== "string")
+        throw new Error("Invalid run-scoped connection values.");
+      resolvedFields.set(field, value);
+    }
+  }
+
+  for (const override of overrides) {
+    if (!override || !override.alias.trim() || !override.field.trim())
+      throw new Error("Invalid workflow connection override target.");
+    const target = `${override.alias}.${override.field}`;
+    if (fieldsByAlias.get(override.alias)?.has(override.field) || overrideTargets.has(target)) {
+      throw new Error(`Workflow Connection field '${target}' is mapped more than once.`);
+    }
+    overrideTargets.add(target);
+    let value: string;
+    if (override.value.kind === "literal") {
+      if (typeof override.value.value !== "string")
+        throw new Error("Invalid workflow connection override value.");
+      value = override.value.value;
+    } else if (override.value.kind === "environment") {
+      if (!environmentVariableNamePattern.test(override.value.name))
+        throw new Error(`Invalid environment variable reference: env.${override.value.name}`);
+      if (!Object.hasOwn(env, override.value.name) || env[override.value.name] === undefined)
+        throw new Error(`Workflow environment variable is not set: ${override.value.name}`);
+      value = env[override.value.name]!;
+    } else {
+      throw new Error("Invalid workflow connection override value.");
+    }
+    set(override.alias, override.field, value);
+  }
+
+  return Object.freeze(
+    Object.fromEntries(
+      [...fieldsByAlias].map(([alias, fields]) => [
+        alias,
+        Object.freeze(Object.fromEntries(fields)),
+      ]),
+    ),
+  );
+};
+
+export interface RunScopedWorkflowValueResolverOptions {
+  connectionValues?: WorkflowConnectionValues;
+  connectionOverrides?: readonly WorkflowConnectionOverride[];
+  connectionRequirements?: readonly WorkflowConnectionRequirement[];
+  requiredEnvironmentVariables?: readonly string[];
+}
+
+const validateConnectionRequirements = (
+  values: WorkflowConnectionValues,
+  requirements: readonly WorkflowConnectionRequirement[] | undefined,
+): void => {
+  if (requirements === undefined) return;
+
+  const fieldsByAlias = new Map<string, { required: boolean; fields: Map<string, boolean> }>();
+  for (const requirement of requirements) {
+    if (
+      !requirement.alias.trim() ||
+      typeof requirement.required !== "boolean" ||
+      !Array.isArray(requirement.fields)
+    ) {
+      throw new Error("Invalid workflow Connection requirements.");
+    }
+    let aliasRequirement = fieldsByAlias.get(requirement.alias);
+    if (!aliasRequirement) {
+      aliasRequirement = { required: false, fields: new Map() };
+      fieldsByAlias.set(requirement.alias, aliasRequirement);
+    }
+    aliasRequirement.required ||= requirement.required;
+    for (const field of requirement.fields) {
+      if (!field.key.trim() || typeof field.required !== "boolean") {
+        throw new Error("Invalid workflow Connection requirements.");
+      }
+      aliasRequirement.fields.set(
+        field.key,
+        field.required || aliasRequirement.fields.get(field.key) === true,
+      );
+    }
+  }
+
+  for (const [alias, fields] of Object.entries(values)) {
+    const declaredFields = fieldsByAlias.get(alias)?.fields;
+    if (!declaredFields) {
+      throw new Error(`Workflow Connection alias '${alias}' is not declared.`);
+    }
+    for (const field of Object.keys(fields)) {
+      if (!declaredFields.has(field)) {
+        throw new Error(`Workflow Connection alias '${alias}' does not define field '${field}'.`);
+      }
+    }
+  }
+
+  for (const [alias, requirement] of fieldsByAlias) {
+    if (!Object.hasOwn(values, alias)) {
+      if (requirement.required) {
+        throw new Error(`Required workflow Connection alias is missing: ${alias}`);
+      }
+      continue;
+    }
+    for (const [field, required] of requirement.fields) {
+      if (!required) continue;
+      const value = values[alias]?.[field];
+      if (value === undefined) {
+        throw new Error(`Required workflow Connection field is missing: ${alias}.${field}`);
+      }
+      if (value.length === 0) {
+        throw new Error(`Required workflow Connection field is empty: ${alias}.${field}`);
+      }
+    }
+  }
+};
+
+export const preflightWorkflow = (
+  workflow: Workflow,
+  env: WorkflowEnvironment = {},
+  options: RunScopedWorkflowValueResolverOptions = {},
+): void => {
+  for (const name of collectEnvironmentReferences(workflow)) {
+    if (!environmentVariableNamePattern.test(name)) {
+      throw new Error(`Invalid environment variable reference: env.${name}`);
+    }
+    if (!Object.hasOwn(env, name) || env[name] === undefined) {
+      throw new Error(`Workflow environment variable is not set: ${name}`);
+    }
+  }
+  for (const name of options.requiredEnvironmentVariables ?? []) {
+    if (!environmentVariableNamePattern.test(name)) {
+      throw new Error(`Invalid environment variable reference: env.${name}`);
+    }
+    if (!Object.hasOwn(env, name) || env[name] === undefined) {
+      throw new Error(`Workflow environment variable is not set: ${name}`);
+    }
+    if (env[name] === "") {
+      throw new Error(`Workflow environment variable is empty: ${name}`);
+    }
+  }
+  const connectionValues = resolveConnectionValues(
+    options.connectionValues,
+    options.connectionOverrides,
+    env,
+  );
+  validateConnectionRequirements(connectionValues, options.connectionRequirements);
+};
+
+const collectEnvironmentValues = (workflow: Workflow, env: WorkflowEnvironment): string[] => {
+  const values = new Set<string>();
+  for (const name of collectEnvironmentReferences(workflow)) {
+    const value = env[name];
+    if (value) values.add(value);
+  }
   return [...values].sort((left, right) => right.length - left.length);
 };
+
+export interface WorkflowValueResolver {
+  connectionValues: WorkflowConnectionValues;
+  resolveInputs(
+    step: WorkflowStep,
+    outputs: Record<string, Record<string, unknown>>,
+  ): Record<string, unknown>;
+  redactString(value: string): string;
+  redactObject<T>(value: T): T;
+}
+
+interface InternalRunScopedWorkflowValueResolver extends WorkflowValueResolver {
+  redactResultPreservingArtifactPaths<T>(value: T): T;
+}
+
+const createInternalRunScopedWorkflowValueResolver = (
+  workflow: Workflow,
+  variables: Record<string, unknown>,
+  env: WorkflowEnvironment,
+  options: RunScopedWorkflowValueResolverOptions = {},
+): InternalRunScopedWorkflowValueResolver => {
+  const runEnvironment = Object.freeze({ ...env });
+  const runConnectionValues = resolveConnectionValues(
+    options.connectionValues,
+    options.connectionOverrides,
+    runEnvironment,
+  );
+  preflightWorkflow(workflow, runEnvironment, options);
+  const secrets = [
+    ...new Set(
+      [
+        ...collectEnvironmentValues(workflow, runEnvironment),
+        ...Object.values(runConnectionValues).flatMap((fields) => Object.values(fields)),
+      ].filter((value) => value.length > 0),
+    ),
+  ].sort((left, right) => right.length - left.length);
+  const redactString = (value: string) =>
+    secrets.reduce((result, secret) => result.split(secret).join("[REDACTED]"), value);
+
+  return {
+    connectionValues: runConnectionValues,
+    resolveInputs: (step, outputs) => resolveInputs(step, variables, outputs, runEnvironment),
+    redactString,
+    redactObject: <T>(value: T) => redactValue(value, secrets),
+    redactResultPreservingArtifactPaths: <T>(value: T) => redactValue(value, secrets, true),
+  };
+};
+
+export const createRunScopedWorkflowValueResolver = (
+  workflow: Workflow,
+  variables: Record<string, unknown>,
+  env: WorkflowEnvironment,
+  options: RunScopedWorkflowValueResolverOptions = {},
+): WorkflowValueResolver =>
+  createInternalRunScopedWorkflowValueResolver(workflow, variables, env, options);
 
 const redactValue = <T>(value: T, secrets: readonly string[], preserveArtifactPaths = false): T => {
   const redactString = (text: string) =>
@@ -153,7 +382,7 @@ const resolveReference = (
 ): unknown => {
   if (reference.startsWith("env.")) {
     const name = reference.slice("env.".length);
-    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+    if (!environmentVariableNamePattern.test(name)) {
       throw new Error(`Invalid environment variable reference: ${reference}`);
     }
     if (!Object.hasOwn(env, name) || env[name] === undefined) {
@@ -382,10 +611,14 @@ export const runWorkflow = async <TServices = unknown>(
   const tasks = { ...builtInTasks, ...context.tasks };
   const variables = context.variables ?? {};
   const env = context.env ?? {};
-  const secrets = collectEnvironmentValues(workflow, env);
-  const redact = (value: string) =>
-    secrets.reduce((result, secret) => result.split(secret).join("[REDACTED]"), value);
-  const redactObject = <T>(value: T) => redactValue(value, secrets);
+  const valueResolver = createInternalRunScopedWorkflowValueResolver(workflow, variables, env, {
+    connectionValues: context.connectionValues,
+    connectionOverrides: context.connectionOverrides,
+    connectionRequirements: context.connectionRequirements,
+    requiredEnvironmentVariables: context.requiredEnvironmentVariables,
+  });
+  const redact = valueResolver.redactString;
+  const redactObject = <T>(value: T) => valueResolver.redactObject(value);
   const services = context.services ?? ({} as TServices);
   const outputs: Record<string, Record<string, unknown>> = {};
   const steps: Record<string, WorkflowStepResult> = {};
@@ -423,7 +656,7 @@ export const runWorkflow = async <TServices = unknown>(
         const task = tasks[step.uses];
         if (!task) throw new Error(`Workflow task not found: ${step.uses}`);
         const inputs = {
-          ...resolveInputs(step, variables, outputs, env),
+          ...valueResolver.resolveInputs(step, outputs),
           ...resolveArtifactInputs(step, artifacts),
         };
         const safeLogger = {
@@ -435,6 +668,7 @@ export const runWorkflow = async <TServices = unknown>(
           (await task({
             step,
             inputs,
+            connectionValues: valueResolver.connectionValues,
             outputs: Object.freeze({ ...outputs }),
             artifacts: [...artifacts],
             services,
@@ -679,7 +913,7 @@ export const runWorkflow = async <TServices = unknown>(
         .filter((delivery): delivery is NonNullable<typeof delivery> => Boolean(delivery)),
       steps,
     };
-    const safeResult = redactValue(result, secrets, true);
+    const safeResult = valueResolver.redactResultPreservingArtifactPaths(result);
     emit({ type: "workflow.completed", result: safeResult, duration: Date.now() - startedAt });
     return safeResult;
   } catch (error) {

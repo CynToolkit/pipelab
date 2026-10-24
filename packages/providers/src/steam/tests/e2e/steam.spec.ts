@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { createSandbox, runWorkflowTask, isWindows } from "@pipelab/test-utils";
 import { runWithLiveLogs } from "@pipelab/plugin-core";
 import type { PipelabContext } from "@pipelab/plugin-core";
+import { createLocalHost, runWorkflow } from "@pipelab/workflow-runtime";
 import type { Subprocess } from "execa";
 import { createSteamUploadTask, type SteamTaskServices } from "../../upload-to-steam";
 
@@ -37,7 +38,7 @@ describe("End-to-End: Steam Integration", () => {
   });
 
   test(
-    "should mock a steam upload action using a single file",
+    "rejects a local Connection ID when the runtime did not supply run-scoped values",
     async () => {
       sandbox = await createSandbox("steam-e2e");
       // 1. Setup a cached SteamCMD launcher
@@ -73,55 +74,73 @@ describe("End-to-End: Steam Integration", () => {
       };
 
       const services = servicesFor(sandbox.path);
-      const result = await runWorkflowTask(createSteamUploadTask(services), {
-        inputs,
-        workspacePath: sandbox.path,
-        services,
-      });
-
-      // 4. Verification
-      const outputs = result.outputs;
-      expect(outputs).toBeDefined();
-      expect(outputs["script-path"]).toBeDefined();
-      expect(outputs["output-folder"]).toBeDefined();
-      expect(outputs["status"]).toBe("success");
-      expect(runWithLiveLogs).toHaveBeenCalledTimes(2);
-      const invocations = vi.mocked(runWithLiveLogs).mock.calls;
-      const loginInvocation = invocations.find((call) => call[1].includes("+login"));
-      const uploadInvocation = invocations.find((call) => call[1].includes("+run_app_build"));
-      expect(loginInvocation?.[1]).toEqual([
-        "+@ShutdownOnFailedCommand",
-        "1",
-        "+@NoPromptForPassword",
-        "1",
-        "+login",
-        "testuser",
-        "+quit",
-      ]);
-      expect(uploadInvocation?.[0]).toContain(isWindows ? "steamcmd.exe" : "steamcmd.sh");
-      expect(uploadInvocation?.[1]).toEqual([
-        "+@ShutdownOnFailedCommand",
-        "1",
-        "+@NoPromptForPassword",
-        "1",
-        "+login",
-        "testuser",
-        "+run_app_build",
-        expect.any(String),
-        "+quit",
-      ]);
-      expect(uploadInvocation?.[2]).toMatchObject({ shell: false });
-      expect(JSON.stringify(invocations)).not.toContain("must-not-be-used");
-
-      // Verify files exist
-      await expect(access(outputs["script-path"] as string)).resolves.not.toThrow();
-      await expect(access(outputs["output-folder"] as string)).resolves.not.toThrow();
       await expect(
-        access(join(sandbox.path, "steam", "depot_build_654321.vdf")),
-      ).resolves.not.toThrow();
+        runWorkflowTask(createSteamUploadTask(services), {
+          inputs,
+          workspacePath: sandbox.path,
+          services,
+        }),
+      ).rejects.toThrow("Steam account Connection 'steam-1' was not resolved for this run.");
+
+      expect(runWithLiveLogs).not.toHaveBeenCalled();
     },
     30 * 60 * 1000,
   ); // 30 minutes timeout for real build
+
+  test("uses a run-scoped alias username without reading the local connection registry", async () => {
+    sandbox = await createSandbox("steam-portable-connection-alias");
+    const steamCmdDir = join("user-data", "thirdparty", "steamcmd", process.platform);
+    const relativeSteamCmd = join(steamCmdDir, isWindows ? "steamcmd.exe" : "steamcmd.sh");
+    const mockScript = isWindows
+      ? `@echo off\necho Authenticated\nexit /b 0`
+      : `#!/bin/bash\necho "Authenticated"\nexit 0`;
+    await sandbox.mockBinary(relativeSteamCmd, mockScript);
+
+    const folder = join(sandbox.path, "portable-upload");
+    await mkdir(folder, { recursive: true });
+    const alias = "steam-release";
+    const services = servicesFor(sandbox.path);
+    const result = await runWorkflow(
+      {
+        version: 1,
+        steps: [
+          {
+            id: "publish",
+            uses: "@pipelab/plugin-steam/steam-upload",
+            with: {
+              accountConnectionId: alias,
+              appId: "123456",
+              depotId: "654321",
+              description: "Portable alias upload",
+              folder,
+            },
+          },
+        ],
+      },
+      {
+        host: createLocalHost(sandbox.path),
+        connectionValues: { [alias]: { username: "portable-user" } },
+        tasks: {
+          "@pipelab/plugin-steam/steam-upload": createSteamUploadTask(services),
+        },
+      },
+    );
+
+    expect(result.status).toBe("completed");
+    const loginInvocation = vi
+      .mocked(runWithLiveLogs)
+      .mock.calls.find((call) => call[1].includes("+login"));
+    expect(loginInvocation?.[1]).toEqual([
+      "+@ShutdownOnFailedCommand",
+      "1",
+      "+@NoPromptForPassword",
+      "1",
+      "+login",
+      "portable-user",
+      "+quit",
+    ]);
+    await expect(access(services.context.getConnectionsPath())).rejects.toThrow();
+  });
 
   test("shows an absolute interactive login command when cached login fails", async () => {
     sandbox = await createSandbox("steam-auth-cache-e2e");
@@ -163,6 +182,7 @@ describe("End-to-End: Steam Integration", () => {
     const services = servicesFor(sandbox.path);
     const result = runWorkflowTask(createSteamUploadTask(services), {
       inputs,
+      connectionValues: { "steam-1": { username: "testuser" } },
       workspacePath: sandbox.path,
       services,
     });
@@ -170,8 +190,9 @@ describe("End-to-End: Steam Integration", () => {
     expect(failure).toBeInstanceOf(Error);
     if (!(failure instanceof Error)) throw new Error("Expected the Steam task to fail");
     expect(failure.message).toMatch(
-      /SteamCMD could not reuse the saved login[\s\S]*steamcmd[\s\S]*\+login[\s\S]*testuser[\s\S]*\+quit/,
+      /SteamCMD could not reuse the saved login[\s\S]*steamcmd[\s\S]*\+login[\s\S]*\[REDACTED\][\s\S]*\+quit/,
     );
+    expect(failure.message).not.toContain("testuser");
     expect(failure.message).not.toContain("must-not-be-used");
   });
 });
