@@ -27,7 +27,7 @@ settings are preserved, and the selected Chromium profile stays unchanged.
 
 ## Requirements and failures
 
-Choose a compatible local Chromium profile that can access the Construct editor and project. Pipelab refreshes its managed profile from the selected profile before each run, while keeping the managed browser and Construct cache in place. This picks up current login state and installed Construct addons without requiring a profile reset. The managed profile is scoped to the Pipelab project and selected browser profile; changing Construct versions for that project reuses the same profile. Pipelab does not modify the selected browser profile. Same-profile exports run one at a time.
+Choose a compatible local Chromium profile that can access the Construct editor and project. Pipelab refreshes its managed profile from the selected profile before each run, while keeping the managed browser and Construct cache in place. This picks up current login state and installed Construct addons without requiring a profile reset. With no Construct Account Connection, the managed profile is scoped to the Pipelab project and selected browser profile and uses that profile's saved login. With a Connection, the profile is also scoped to the account username; Pipelab keeps a separate account session and does not import the selected profile's Construct login data. Changing Construct versions reuses that account-scoped profile while keeping stable and beta account sessions separate. Pipelab does not modify the selected browser profile. Same-profile exports run one at a time.
 
 The managed profile remains in Pipelab's local cache between runs and can
 include site data from the selected Chromium profile beyond Construct. Pipelab
@@ -52,12 +52,12 @@ modify the selected browser profile.
 Desktop remembers the local Construct Connection selected for the workflow
 alias. CLI runs do not need a saved Connection registry; provide the alias's
 username and password from the environment that starts the run. When a
-Construct Account Connection is selected, Pipelab requests a fresh session
-from Construct's account service and stores it on the matching Construct
-account origin in the managed profile before opening the editor. The editor
-exchanges that session during startup, including when a selected profile has a
-stale login record. Leave the account alias empty to use the selected profile's
-saved session.
+Construct Account Connection is selected, Pipelab keeps its session in a
+username-scoped managed profile without importing the selected browser
+profile's Construct login data. It authenticates through Construct's account
+service on first use or when the cached session is rejected, then reuses a
+confirmed session for that account. Leave the account alias empty to use the
+selected profile's saved session.
 
 For CLI runs, keep the credentials in a secret manager such as Doppler and pass
 only environment variable names to `--connection`:

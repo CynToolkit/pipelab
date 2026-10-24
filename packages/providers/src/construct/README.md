@@ -18,8 +18,12 @@ or `r432-2`.
 Construct exports keep a managed Chromium profile in Pipelab's cache, scoped
 to the Pipelab project and selected browser profile. Pipelab refreshes browser
 state from the selected profile on every run while keeping its cached Construct
-assets. Login state and editor cache persist across runs and Construct versions.
-Same-profile exports are serialized.
+assets. Without Connection credentials, the selected profile's login state is
+copied and reused. With a Construct Account Connection, Pipelab keeps a
+separate profile scoped to the account username and does not import the
+selected profile's Construct login data. Confirmed account sessions and editor
+cache persist across runs and Construct versions; stable and beta account
+sessions remain separate. Same-profile exports are serialized.
 The managed copy stays in Pipelab's local cache between runs and can include
 site data from the selected Chromium profile beyond Construct. Pipelab does not
 automatically expire or remove this managed copy. On POSIX systems, the managed

@@ -444,6 +444,7 @@ export const prepareConstructEditor = async (
   apiLogin: ConstructApiLogin | undefined,
   abortSignal: AbortSignal,
   log: typeof console.log,
+  reuseCachedAccountSession = false,
 ) => {
   const editorUrl = `https://editor.construct.net/${version ?? ""}`;
   const accountOrigin = constructAccountOrigin(version);
@@ -473,7 +474,7 @@ export const prepareConstructEditor = async (
     }),
     abortSignal,
   );
-  const hasCachedSession = isConstructLoginData(authState);
+  const hasCachedSession = reuseCachedAccountSession && isConstructLoginData(authState);
   const loginData = hasCachedSession
     ? undefined
     : await getConstructLoginData(
@@ -804,6 +805,7 @@ export const script = async (
   downloadDir: string,
   abortSignal: AbortSignal,
   exportTimeoutMs: number,
+  reuseCachedAccountSession = false,
 ) => {
   throwIfAborted(abortSignal);
   let url = "https://editor.construct.net/";
@@ -829,7 +831,16 @@ export const script = async (
         }
       : undefined;
   const authenticationStartedAt = username && password ? Date.now() : undefined;
-  await prepareConstructEditor(page, version, username, password, apiLogin, abortSignal, log);
+  await prepareConstructEditor(
+    page,
+    version,
+    username,
+    password,
+    apiLogin,
+    abortSignal,
+    log,
+    reuseCachedAccountSession,
+  );
   throwIfAborted(abortSignal);
 
   if (authenticationStartedAt !== undefined) {

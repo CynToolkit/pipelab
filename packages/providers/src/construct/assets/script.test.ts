@@ -115,8 +115,7 @@ class EditionLimitPage extends AccountOriginPage {
   getByRole(role: string, options: { name?: string | RegExp }) {
     const name = options.name;
     const visible =
-      role === "button" &&
-      (name === "Menu" || (name instanceof RegExp && name.test("Open")));
+      role === "button" && (name === "Menu" || (name instanceof RegExp && name.test("Open")));
     return this.createLocator(`${role}:${String(name)}`, visible);
   }
 
@@ -125,8 +124,7 @@ class EditionLimitPage extends AccountOriginPage {
   }
 
   waitForEvent(event: string) {
-    if (event === "filechooser")
-      return Promise.resolve({ setFiles: vi.fn(async () => undefined) });
+    if (event === "filechooser") return Promise.resolve({ setFiles: vi.fn(async () => undefined) });
     return Promise.reject(new Error(`Unexpected browser event: ${event}`));
   }
 
@@ -186,11 +184,12 @@ describe("Construct edition detection", () => {
   it("reports the plan restriction after successful account authentication and project load", async () => {
     const page = new EditionLimitPage();
     const token = "authenticated-session-token";
-    const fetchMock = vi.fn(async () =>
-      new Response(
-        JSON.stringify({ request: { status: "ok" }, response: { userID: 42, token } }),
-        { status: 200 },
-      ),
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({ request: { status: "ok" }, response: { userID: 42, token } }),
+          { status: 200 },
+        ),
     );
     vi.stubGlobal("fetch", fetchMock);
 
@@ -377,17 +376,14 @@ describe("Construct account authentication", () => {
     expect(page.reload).not.toHaveBeenCalled();
   });
 
-  it("reuses a cached account session when Connection credentials are also available", async () => {
+  it("reuses a cached account session when the managed Connection identity is trusted", async () => {
     const page = new AccountOriginPage();
     const cachedSession = { userID: 42, token: "cached-session" };
     const apiLogin = vi.fn(async () => ({
       loginData: { userID: 42, token: "fresh-session" },
       startedAt: Date.now(),
     }));
-    page.stores.set(
-      "https://account.construct.net",
-      new Map([["login-data", cachedSession]]),
-    );
+    page.stores.set("https://account.construct.net", new Map([["login-data", cachedSession]]));
 
     await prepareConstructEditor(
       page as unknown as Page,
@@ -397,6 +393,7 @@ describe("Construct account authentication", () => {
       apiLogin,
       new AbortController().signal,
       vi.fn(),
+      true,
     );
 
     expect(page.stores.get("https://account.construct.net")?.get("login-data")).toEqual(
@@ -404,6 +401,33 @@ describe("Construct account authentication", () => {
     );
     expect(page.events).not.toContain("write:https://account.construct.net");
     expect(apiLogin).not.toHaveBeenCalled();
+  });
+
+  it("replaces an untrusted cached profile session with the bound Connection account", async () => {
+    const page = new AccountOriginPage();
+    const cachedSession = { userID: 7, token: "another-account-session" };
+    const boundAccountSession = { userID: 42, token: "bound-account-session" };
+    const apiLogin = vi.fn(async () => ({
+      loginData: boundAccountSession,
+      startedAt: Date.now(),
+    }));
+    page.stores.set("https://account.construct.net", new Map([["login-data", cachedSession]]));
+
+    await prepareConstructEditor(
+      page as unknown as Page,
+      "r466-2",
+      "bound-user@example.com",
+      "bound-password",
+      apiLogin,
+      new AbortController().signal,
+      vi.fn(),
+      false,
+    );
+
+    expect(apiLogin).toHaveBeenCalledOnce();
+    expect(page.stores.get("https://account.construct.net")?.get("login-data")).toEqual(
+      boundAccountSession,
+    );
   });
 
   it("refreshes a cached session with Connection credentials when Construct rejects it", async () => {
@@ -424,14 +448,16 @@ describe("Construct account authentication", () => {
       apiLogin,
       new AbortController().signal,
       vi.fn(),
+      true,
     );
 
     expect(apiLogin).toHaveBeenCalledOnce();
     expect(page.stores.get("https://account.construct.net")?.get("login-data")).toEqual(
       freshSession,
     );
-    expect(page.visitedUrls.filter((url) => new URL(url).origin === "https://editor.construct.net"))
-      .toHaveLength(2);
+    expect(
+      page.visitedUrls.filter((url) => new URL(url).origin === "https://editor.construct.net"),
+    ).toHaveLength(2);
   });
 
   it("uses the beta account origin for beta editor sessions", async () => {
