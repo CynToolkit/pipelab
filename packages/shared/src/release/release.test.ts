@@ -491,12 +491,13 @@ describe("release descriptors", () => {
             isDefault: false,
           },
         ],
+        workflowBindings: [{ workflowId: config.id, alias: "c1", connectionId: "c1" }],
       },
     );
     expect(wrong[0].code).toBe("release.connection.integration");
   });
 
-  it("accepts workflow-scoped connection aliases while retaining legacy local IDs", () => {
+  it("accepts workflow-scoped connection aliases with an explicit binding", () => {
     const registry: ReleaseRegistry = {
       sources: [
         {
@@ -541,12 +542,51 @@ describe("release descriptors", () => {
         ],
       }),
     ).toEqual([]);
+  });
+
+  it("does not infer a local Connection from an unbound alias with the same ID", () => {
+    const registry: ReleaseRegistry = {
+      sources: [
+        {
+          id: "source",
+          label: "Source",
+          fields: [{ key: "account", type: "connection", label: "Account", integration: "steam" }],
+          output: { kind: "project", container: "directory" },
+          createDefaultConfig: () => ({}),
+          validate: () => [],
+          compile: () => ({
+            steps: [],
+            artifact: {
+              reference: { stepId: "source", artifact: "output" },
+              descriptor: { kind: "project", container: "directory" },
+            },
+          }),
+        },
+      ],
+      producers: [],
+      destinations: [],
+    };
+    const alias = "steam-production";
+    const config = createReleaseConfig({
+      id: "release",
+      project: "project",
+      name: "Release",
+      source: { provider: "source", config: { account: alias } },
+    });
+
     expect(
-      validateReleaseConnectionReferences(
-        { ...config, source: { provider: "source", config: { account: localConnection.id } } },
-        registry,
-        { version: "1.0.0", connections: [localConnection] },
-      ),
+      validateReleaseConnectionReferences(config, registry, {
+        version: "1.0.0",
+        connections: [
+          {
+            id: alias,
+            pluginName: "@pipelab/plugin-itch",
+            name: "Unrelated local Itch account",
+            createdAt: "2026-01-01",
+            isDefault: false,
+          },
+        ],
+      }),
     ).toEqual([]);
   });
 

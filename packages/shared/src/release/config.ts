@@ -329,7 +329,7 @@ export const validateReleaseConnectionReferences = (
       if (selected === undefined || selected === null || selected === "") continue;
       const connection =
         typeof selected === "string"
-          ? (knownByAlias.get(selected) ?? knownById.get(selected))
+          ? knownByAlias.get(selected)
           : undefined;
       if (!connection) {
         if (typeof selected === "string" && /^[A-Za-z_][A-Za-z0-9_-]*$/.test(selected)) continue;

@@ -23,7 +23,6 @@ import {
   type LogEntry,
   type ReleaseConfig,
   parseReleaseConfig,
-  LEGACY_RELEASE_CONFIG_VERSION,
   useLogger,
 } from "@pipelab/shared";
 import { CacheFolder, PipelabContext } from "../context";
@@ -39,7 +38,6 @@ import { getPipelabCloudDownloadUrl } from "../pipelab-cloud";
 import { buildCoreReleaseRegistry } from "../release/registry";
 import {
   getReleaseWorkflowValueRequirements,
-  resolveLegacyReleaseConnectionValues,
 } from "../release/workflow-value-requirements";
 import { builtInProviders } from "../providers-registry";
 
@@ -199,14 +197,7 @@ export const executeWorkflow = async (
   const runEnvironment = Object.freeze({ ...(options.env ?? process.env) });
   const prepared = prepareReleaseWorkflow(stored, version, runEnvironment);
   const { config, workflow, connectionRequirements, requiredEnvironmentVariables } = prepared;
-  const connectionValues: Record<string, Record<string, string>> = {
-    ...resolveLegacyReleaseConnectionValues(
-      connectionRequirements,
-      storedEntity?.connections ?? { version: "1.0.0", connections: [] },
-      workflowId,
-      stored.version === LEGACY_RELEASE_CONFIG_VERSION,
-    ),
-  };
+  const connectionValues: Record<string, Record<string, string>> = {};
   for (const [alias, values] of Object.entries(options.connectionValues ?? {}))
     connectionValues[alias] = values;
   const valueResolver = createRunScopedWorkflowValueResolver(

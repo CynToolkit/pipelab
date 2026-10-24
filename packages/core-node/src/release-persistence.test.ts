@@ -270,7 +270,7 @@ describe("ReleasePersistence", () => {
     }
   });
 
-  it("passes saved provider fields for legacy local Connection IDs into the run scope", async () => {
+  it("does not infer run-scoped values from saved credentials for a legacy local ID", async () => {
     const { context } = await setup();
     const legacyApiKey = "legacy-local-itch-api-key";
     const config = {
@@ -314,113 +314,35 @@ describe("ReleasePersistence", () => {
       ],
     });
 
-    let receivedValues: unknown;
     const workflowRun = vi
       .spyOn(workflowRuntime, "runWorkflow")
-      .mockImplementation(async (_workflow, runContext) => {
-        receivedValues = runContext.connectionValues;
-        throw new Error("stop after runtime contract capture");
+      .mockResolvedValue({
+        status: "completed",
+        outputs: {},
+        artifacts: [],
+        deliveries: [],
+        steps: {},
       });
     const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockResolvedValue("node");
     const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
+    let runCreated = false;
 
     try {
-      await expect(executeWorkflow(context, "workflows/workflow-1")).rejects.toThrow(
-        "stop after runtime contract capture",
-      );
+      await expect(
+        executeWorkflow(context, "workflows/workflow-1", {
+          onRunCreated: () => {
+            runCreated = true;
+          },
+        }),
+      ).rejects.toThrow("Required workflow Connection alias is missing: legacy-itch-id");
 
-      expect(receivedValues).toEqual({ "legacy-itch-id": { apiKey: legacyApiKey } });
+      expect(runCreated).toBe(false);
+      expect(nodeSetup).not.toHaveBeenCalled();
+      expect(pnpmSetup).not.toHaveBeenCalled();
+      expect(workflowRun).not.toHaveBeenCalled();
       expect(JSON.stringify(await new BuildHistoryStorage(context).getAll())).not.toContain(
         legacyApiKey,
       );
-    } finally {
-      workflowRun.mockRestore();
-      nodeSetup.mockRestore();
-      pnpmSetup.mockRestore();
-    }
-  });
-
-  it("normalizes a legacy Steam email field to the provider's username field", async () => {
-    const { context } = await setup();
-    const legacyUsername = "legacy-steam-user";
-    const config = {
-      ...createReleaseConfig({
-        id: "workflow-1",
-        project: "project-1",
-        name: "Legacy Steam release",
-        source: {
-          provider: "@pipelab/core/source/web-folder",
-          config: { path: context.getConfigPath() },
-        },
-      }),
-      version: "3.0.0",
-      builds: [
-        {
-          id: "electron",
-          type: "desktop",
-          engine: "@pipelab/plugin-electron/producer",
-          enabled: true,
-          config: {},
-          targets: [{ id: "windows-x64", enabled: true, config: {} }],
-        },
-      ],
-      destinations: [
-        {
-          id: "steam-production",
-          provider: "@pipelab/plugin-steam/destination",
-          enabled: true,
-          config: {
-            accountConnectionId: "legacy-steam-id",
-            appId: "12345",
-            description: "Legacy build",
-          },
-          slots: [
-            {
-              id: "windows",
-              enabled: true,
-              input: { buildId: "electron", targetId: "windows-x64" },
-              config: { depotId: "54321" },
-            },
-          ],
-        },
-      ],
-    };
-    await mkdir(context.getConfigPath("workflows"), { recursive: true });
-    await writeFile(
-      join(context.getConfigPath("workflows"), "workflow-1.json"),
-      JSON.stringify(config),
-    );
-    await saveStrictConnections(context, {
-      version: "1.0.0",
-      connections: [
-        {
-          id: "legacy-steam-id",
-          pluginName: "@pipelab/plugin-steam",
-          integrationName: "Steam Account",
-          name: "Legacy Steam account",
-          createdAt: "2020-01-01T00:00:00.000Z",
-          isDefault: false,
-          email: legacyUsername,
-        },
-      ],
-    });
-
-    let receivedValues: unknown;
-    const workflowRun = vi
-      .spyOn(workflowRuntime, "runWorkflow")
-      .mockImplementation(async (_workflow, runContext) => {
-        receivedValues = runContext.connectionValues;
-        throw new Error("stop after runtime contract capture");
-      });
-    const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockResolvedValue("node");
-    const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
-
-    try {
-      await expect(executeWorkflow(context, "workflows/workflow-1")).rejects.toThrow(
-        "stop after runtime contract capture",
-      );
-
-      expect(receivedValues).toEqual({ "legacy-steam-id": { username: legacyUsername } });
     } finally {
       workflowRun.mockRestore();
       nodeSetup.mockRestore();
@@ -929,6 +851,9 @@ describe("ReleasePersistence", () => {
             isDefault: false,
           },
         ],
+        workflowBindings: [
+          { workflowId: "workflow-1", alias: "account-1", connectionId: "account-1" },
+        ],
       }),
     );
 
@@ -936,22 +861,25 @@ describe("ReleasePersistence", () => {
     await expect(load).rejects.toThrow("does not belong to integration '@pipelab/plugin-steam'");
   });
 
-  it("rejects malformed connection references before workflow execution starts", async () => {
+  it("preflights unbound aliases and rejects a wrong explicit Desktop binding", async () => {
     const { context, persistence } = await setup();
     const config = {
       ...createReleaseConfig({
         id: "workflow-1",
         project: "project-1",
         name: "Release",
-        source: { provider: "source", config: {} },
+        source: {
+          provider: "@pipelab/core/source/folder",
+          config: { path: context.getConfigPath() },
+        },
       }),
       destinations: [
         {
-          id: "steam",
-          provider: "@pipelab/plugin-steam/destination",
+          id: "itch",
+          provider: "@pipelab/plugin-itch/destination",
           enabled: true,
-          config: { accountConnectionId: "deleted.connection", appId: "123" },
-          slots: [],
+          config: { accountConnectionId: "steam-production", project: "pipelab/game" },
+          slots: [{ id: "windows", enabled: true, config: { channel: "windows" } }],
         },
       ],
     };
@@ -963,7 +891,7 @@ describe("ReleasePersistence", () => {
     );
 
     await expect(executeWorkflow(context, "workflows/workflow-1")).rejects.toThrow(
-      "Connection 'deleted.connection' does not exist.",
+      "Required workflow Connection alias is missing: steam-production",
     );
     await writeFile(
       context.getConnectionsPath(),
@@ -971,17 +899,24 @@ describe("ReleasePersistence", () => {
         version: "1.0.0",
         connections: [
           {
-            id: "deleted.connection",
+            id: "steam-production",
             pluginName: "@pipelab/plugin-other",
             name: "Other account",
             createdAt: "2026-01-01",
             isDefault: false,
           },
         ],
+        workflowBindings: [
+          {
+            workflowId: "workflow-1",
+            alias: "steam-production",
+            connectionId: "steam-production",
+          },
+        ],
       }),
     );
     await expect(executeWorkflow(context, "workflows/workflow-1")).rejects.toThrow(
-      "does not belong to integration '@pipelab/plugin-steam'",
+      "does not belong to integration '@pipelab/plugin-itch'",
     );
     await expect(persistence.load("workflow-1")).resolves.toMatchObject({ id: "workflow-1" });
   });

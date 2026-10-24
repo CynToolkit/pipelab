@@ -1,15 +1,10 @@
 import type {
-  Connection,
-  ConnectionsConfig,
   ProviderDefinition,
   ReleaseConfig,
   ReleasePlan,
   ReleaseRegistry,
 } from "@pipelab/shared";
-import type {
-  WorkflowConnectionRequirement,
-  WorkflowConnectionValues,
-} from "@pipelab/workflow-runtime";
+import type { WorkflowConnectionRequirement } from "@pipelab/workflow-runtime";
 
 const environmentBindingPattern = /^\$\{\{\s*env\.([^\s{}]+)\s*\}\}$/;
 const environmentVariableNamePattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -178,65 +173,6 @@ export const resolveWorkflowConnectionRequirements = (
     providerId: requirement.providerId,
     integrationName: requirement.integrationName,
   }));
-};
-
-const legacyFieldValue = (connection: Connection, field: string): string | undefined => {
-  const exact = connection[field];
-  if (typeof exact === "string") return exact;
-
-  const legacyKey =
-    field === "username" || field === "email"
-      ? "email"
-      : field === "apiKey" || field === "token" || field === "key"
-        ? "apiKey"
-        : field === "path" || field === "sdk"
-          ? "path"
-          : field;
-  const legacy = connection[legacyKey];
-  if (typeof legacy === "string") return legacy;
-  if (
-    (field === "apiKey" || field === "token" || field === "key") &&
-    typeof connection.api_key === "string"
-  )
-    return connection.api_key;
-  return undefined;
-};
-
-export const resolveLegacyReleaseConnectionValues = (
-  requirements: readonly WorkflowConnectionRequirement[],
-  connections: ConnectionsConfig,
-  workflowId: string,
-  allowLegacyLocalIdFallback = false,
-): WorkflowConnectionValues => {
-  if (!allowLegacyLocalIdFallback) return {};
-  const values: Record<string, Record<string, string>> = {};
-  for (const requirement of requirements) {
-    if (
-      connections.workflowBindings?.some(
-        (binding) => binding.workflowId === workflowId && binding.alias === requirement.alias,
-      )
-    )
-      continue;
-
-    const connection = connections.connections.find(
-      (candidate) => candidate.id === requirement.alias,
-    );
-    if (
-      !connection ||
-      !requirement.providerId ||
-      connection.pluginName !== requirement.providerId ||
-      (connection.integrationName && connection.integrationName !== requirement.integrationName)
-    )
-      continue;
-
-    const fields: Record<string, string> = {};
-    for (const field of requirement.fields) {
-      const value = legacyFieldValue(connection, field.key);
-      if (value !== undefined) fields[field.key] = value;
-    }
-    values[requirement.alias] = fields;
-  }
-  return values;
 };
 
 export const getReleaseWorkflowValueRequirements = (
