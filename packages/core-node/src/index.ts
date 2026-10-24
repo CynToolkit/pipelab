@@ -19,6 +19,7 @@ export * from "./workflow-tasks";
 export * from "./workflow-tasks/filesystem";
 export * from "./release/builtins";
 export { buildCoreReleaseRegistry } from "./release/registry";
+export * from "./release/workflow-value-requirements";
 export * from "./server";
 export * from "./desktop-bootstrap";
 export * from "./utils";

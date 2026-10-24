@@ -1,9 +1,19 @@
-import type { ConnectionsConfig, ConnectionsConfigV1, Connection } from "../config.schema";
+import type {
+  ConnectionsConfig,
+  ConnectionsConfigV1,
+  Connection,
+  WorkflowConnectionBinding,
+} from "../config.schema";
 
-export type { ConnectionsConfig, ConnectionsConfigV1, Connection };
+export type { ConnectionsConfig, ConnectionsConfigV1, Connection, WorkflowConnectionBinding };
 
 export interface ConnectionsParseIssue {
-  code: "connections.invalid" | "connections.version" | "connections.duplicate-id";
+  code:
+    | "connections.invalid"
+    | "connections.version"
+    | "connections.duplicate-id"
+    | "connections.binding"
+    | "connections.duplicate-binding";
   message: string;
   path?: string;
 }
@@ -37,6 +47,7 @@ const assertConnectionsConfig: (value: unknown) => asserts value is ConnectionsC
       message: "connections must be an array.",
       path: "connections",
     });
+
   const ids = new Set<string>();
   for (const [index, connection] of (Array.isArray(record.connections)
     ? record.connections
@@ -81,6 +92,74 @@ const assertConnectionsConfig: (value: unknown) => asserts value is ConnectionsC
       ids.add(candidate.id);
     }
   }
+
+  if (record.workflowBindings !== undefined && !Array.isArray(record.workflowBindings))
+    issues.push({
+      code: "connections.binding",
+      message: "workflowBindings must be an array.",
+      path: "workflowBindings",
+    });
+  const connectionIds = new Set(
+    (Array.isArray(record.connections) ? record.connections : []).flatMap((connection) => {
+      if (typeof connection !== "object" || connection === null || Array.isArray(connection))
+        return [];
+      const id = (connection as Record<string, unknown>).id;
+      return typeof id === "string" ? [id] : [];
+    }),
+  );
+  const bindingKeys = new Set<string>();
+  for (const [index, binding] of (Array.isArray(record.workflowBindings)
+    ? record.workflowBindings
+    : []
+  ).entries()) {
+    const path = `workflowBindings.${index}`;
+    if (typeof binding !== "object" || binding === null || Array.isArray(binding)) {
+      issues.push({
+        code: "connections.binding",
+        message: "Workflow connection binding must be an object.",
+        path,
+      });
+      continue;
+    }
+    const candidate = binding as Record<string, unknown>;
+    if (typeof candidate.workflowId !== "string" || !candidate.workflowId.trim())
+      issues.push({
+        code: "connections.binding",
+        message: "workflowId must be a non-empty string.",
+        path: `${path}.workflowId`,
+      });
+    if (typeof candidate.alias !== "string" || !/^[A-Za-z_][A-Za-z0-9_-]*$/.test(candidate.alias))
+      issues.push({
+        code: "connections.binding",
+        message:
+          "alias must start with a letter or underscore and contain only letters, numbers, underscores, or hyphens.",
+        path: `${path}.alias`,
+      });
+    if (typeof candidate.connectionId !== "string" || !candidate.connectionId.trim())
+      issues.push({
+        code: "connections.binding",
+        message: "connectionId must be a non-empty string.",
+        path: `${path}.connectionId`,
+      });
+    else if (!connectionIds.has(candidate.connectionId))
+      issues.push({
+        code: "connections.binding",
+        message: `Connection '${candidate.connectionId}' does not exist.`,
+        path: `${path}.connectionId`,
+      });
+
+    if (typeof candidate.workflowId === "string" && typeof candidate.alias === "string") {
+      const key = `${candidate.workflowId}\u0000${candidate.alias}`;
+      if (bindingKeys.has(key))
+        issues.push({
+          code: "connections.duplicate-binding",
+          message: `Workflow '${candidate.workflowId}' has duplicate connection alias '${candidate.alias}'.`,
+          path: `${path}.alias`,
+        });
+      bindingKeys.add(key);
+    }
+  }
+
   if (issues.length > 0) throw new ConnectionsParseError(issues);
 };
 

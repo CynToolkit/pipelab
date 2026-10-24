@@ -161,12 +161,20 @@ export const ConnectionValidator = looseObject({
   isDefault: boolean(),
 });
 
+export const WorkflowConnectionBindingValidator = object({
+  workflowId: string(),
+  alias: string(),
+  connectionId: string(),
+});
+
 export const ConnectionsValidatorV1 = object({
   version: literal("1.0.0"),
   connections: array(ConnectionValidator),
+  workflowBindings: optional(array(WorkflowConnectionBindingValidator)),
 });
 
 export type Connection = InferInput<typeof ConnectionValidator>;
+export type WorkflowConnectionBinding = InferInput<typeof WorkflowConnectionBindingValidator>;
 export type ConnectionsConfigV1 = InferInput<typeof ConnectionsValidatorV1>;
 export type ConnectionsConfig = ConnectionsConfigV1;
 export const ConnectionsValidator = ConnectionsValidatorV1;

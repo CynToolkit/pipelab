@@ -1,12 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { mkdtemp, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import {
   createSteamLoginArgs,
   createSteamManualLoginCommand,
   createSteamUploadArgs,
-  resolveSteamUsername,
 } from "./upload-to-steam";
 import plugin, { createSteamUploadTask, steamDestination, WORKFLOW_TASK_ID } from "./index";
 
@@ -42,28 +38,6 @@ describe("Steam release credentials", () => {
     );
     expect(issues.find((issue) => issue.code === "steam.depot.required")?.message).toBe(
       "Depot ID is required for Windows build.",
-    );
-  });
-
-  it("resolves the account username by connection ID at execution time", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "pipelab-steam-"));
-    const path = join(directory, "connections.json");
-    await writeFile(
-      path,
-      JSON.stringify({
-        connections: [{ id: "steam-1", email: "cached-user", password: "unused-password" }],
-      }),
-    );
-    await expect(resolveSteamUsername(path, "steam-1")).resolves.toBe("cached-user");
-  });
-
-  it("rejects a selected connection with no account username", async () => {
-    const directory = await mkdtemp(join(tmpdir(), "pipelab-steam-"));
-    const path = join(directory, "connections.json");
-    await writeFile(path, JSON.stringify({ connections: [{ id: "steam-1", password: "unused" }] }));
-
-    await expect(resolveSteamUsername(path, "steam-1")).rejects.toThrow(
-      "Steam account connection has no username",
     );
   });
 

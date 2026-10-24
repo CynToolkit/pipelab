@@ -448,7 +448,7 @@ describe("release descriptors", () => {
       id: "r",
       project: "p",
       name: "n",
-      source: { provider: "source", config: { account: "missing" } },
+      source: { provider: "source", config: { account: "not a valid alias" } },
     });
     const registry: ReleaseRegistry = {
       sources: [
@@ -491,9 +491,148 @@ describe("release descriptors", () => {
             isDefault: false,
           },
         ],
+        workflowBindings: [{ workflowId: config.id, alias: "c1", connectionId: "c1" }],
       },
     );
     expect(wrong[0].code).toBe("release.connection.integration");
+  });
+
+  it("accepts workflow-scoped connection aliases with an explicit binding", () => {
+    const registry: ReleaseRegistry = {
+      sources: [
+        {
+          id: "source",
+          label: "Source",
+          fields: [{ key: "account", type: "connection", label: "Account", integration: "steam" }],
+          output: { kind: "project", container: "directory" },
+          createDefaultConfig: () => ({}),
+          validate: () => [],
+          compile: () => ({
+            steps: [],
+            artifact: {
+              reference: { stepId: "source", artifact: "output" },
+              descriptor: { kind: "project", container: "directory" },
+            },
+          }),
+        },
+      ],
+      producers: [],
+      destinations: [],
+    };
+    const localConnection = {
+      id: "local-steam-connection",
+      pluginName: "steam",
+      name: "Production Steam",
+      createdAt: "2026-01-01",
+      isDefault: false,
+    };
+    const config = createReleaseConfig({
+      id: "release",
+      project: "project",
+      name: "Release",
+      source: { provider: "source", config: { account: "steam-release" } },
+    });
+
+    expect(
+      validateReleaseConnectionReferences(config, registry, {
+        version: "1.0.0",
+        connections: [localConnection],
+        workflowBindings: [
+          { workflowId: config.id, alias: "steam-release", connectionId: localConnection.id },
+        ],
+      }),
+    ).toEqual([]);
+  });
+
+  it("does not infer a local Connection from an unbound alias with the same ID", () => {
+    const registry: ReleaseRegistry = {
+      sources: [
+        {
+          id: "source",
+          label: "Source",
+          fields: [{ key: "account", type: "connection", label: "Account", integration: "steam" }],
+          output: { kind: "project", container: "directory" },
+          createDefaultConfig: () => ({}),
+          validate: () => [],
+          compile: () => ({
+            steps: [],
+            artifact: {
+              reference: { stepId: "source", artifact: "output" },
+              descriptor: { kind: "project", container: "directory" },
+            },
+          }),
+        },
+      ],
+      producers: [],
+      destinations: [],
+    };
+    const alias = "steam-production";
+    const config = createReleaseConfig({
+      id: "release",
+      project: "project",
+      name: "Release",
+      source: { provider: "source", config: { account: alias } },
+    });
+
+    expect(
+      validateReleaseConnectionReferences(config, registry, {
+        version: "1.0.0",
+        connections: [
+          {
+            id: alias,
+            pluginName: "@pipelab/plugin-itch",
+            name: "Unrelated local Itch account",
+            createdAt: "2026-01-01",
+            isDefault: false,
+          },
+        ],
+      }),
+    ).toEqual([]);
+  });
+
+  it("accepts a portable logical alias before a Desktop binding exists", () => {
+    const config = createReleaseConfig({
+      id: "release",
+      project: "project",
+      name: "Release",
+      source: { provider: "source", config: { account: "steam-release" } },
+    });
+    const registry: ReleaseRegistry = {
+      sources: [
+        {
+          id: "source",
+          label: "Source",
+          fields: [{ key: "account", type: "connection", label: "Account", integration: "steam" }],
+          output: { kind: "project", container: "directory" },
+          createDefaultConfig: () => ({}),
+          validate: () => [],
+          compile: () => ({
+            steps: [],
+            artifact: {
+              reference: { stepId: "source", artifact: "output" },
+              descriptor: { kind: "project", container: "directory" },
+            },
+          }),
+        },
+      ],
+      producers: [],
+      destinations: [],
+    };
+
+    expect(
+      validateReleaseConnectionReferences(config, registry, {
+        version: "1.0.0",
+        connections: [
+          {
+            id: "local-steam-connection",
+            pluginName: "steam",
+            name: "Production Steam",
+            createdAt: "2026-01-01",
+            isDefault: false,
+          },
+        ],
+      }),
+    ).toEqual([]);
   });
 
   it("compares descriptors structurally regardless of key order", () => {

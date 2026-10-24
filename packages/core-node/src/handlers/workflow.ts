@@ -1,7 +1,11 @@
 import {
   createLocalHost,
+  createRunScopedWorkflowValueResolver,
   runWorkflow,
+  type WorkflowConnectionOverride,
+  type WorkflowConnectionValues,
   type Workflow,
+  type WorkflowEnvironment,
   type WorkflowEvent,
   type Logger as WorkflowLogger,
   type WorkflowResult,
@@ -18,6 +22,7 @@ import {
   type ExecutionStep,
   type LogEntry,
   type ReleaseConfig,
+  parseReleaseConfig,
   useLogger,
 } from "@pipelab/shared";
 import { CacheFolder, PipelabContext } from "../context";
@@ -31,6 +36,10 @@ import { BuildHistoryStorage } from "./build-history";
 import { WorkflowRunCancellationRegistry } from "./workflow-run-cancellation";
 import { getPipelabCloudDownloadUrl } from "../pipelab-cloud";
 import { buildCoreReleaseRegistry } from "../release/registry";
+import {
+  getReleaseWorkflowValueRequirements,
+} from "../release/workflow-value-requirements";
+import { builtInProviders } from "../providers-registry";
 
 const host = () => ({ platform: process.platform, architecture: process.arch });
 const registry = () => buildCoreReleaseRegistry();
@@ -38,18 +47,36 @@ const catalog = () => buildReleaseCatalog(registry(), host());
 
 const issuesFor = (config: ReleaseConfig) => validateRelease(config, registry(), { host: host() });
 
-export const prepareReleaseWorkflow = (config: ReleaseConfig, version = "0.0.0") => {
+export const prepareReleaseWorkflow = (
+  config: ReleaseConfig,
+  version = "0.0.0",
+  env: WorkflowEnvironment = process.env,
+) => {
   const releaseRegistry = registry();
-  const context = { host: host(), variables: { version } };
+  const context = {
+    host: host(),
+    variables: { version },
+    getEnvironmentVariableStatus: (name: string) => ({
+      configured: Object.hasOwn(env, name),
+      nonEmpty: Boolean(env[name]?.trim()),
+    }),
+  };
   const resolvedConfig = resolveReleaseDefaults(config, releaseRegistry, context);
   const plan = planRelease(resolvedConfig, releaseRegistry, context);
   const errors = plan.issues.filter((issue) => issue.severity === "error");
   if (errors.length) throw new Error(errors.map((issue) => issue.message).join("\n"));
+  const valueRequirements = getReleaseWorkflowValueRequirements(
+    resolvedConfig,
+    plan,
+    releaseRegistry,
+    builtInProviders,
+  );
   return {
     config: resolvedConfig,
     plan,
     registry: releaseRegistry,
     workflow: compileReleasePlan(resolvedConfig, plan, releaseRegistry, context),
+    ...valueRequirements,
   };
 };
 
@@ -145,6 +172,10 @@ export const executeWorkflow = async (
   configName: string,
   options: {
     release?: { version?: string; description?: string };
+    workflowConfig?: ReleaseConfig;
+    env?: WorkflowEnvironment;
+    connectionValues?: WorkflowConnectionValues;
+    connectionOverrides?: readonly WorkflowConnectionOverride[];
     signal?: AbortSignal;
     onEvent?: (event: WorkflowEvent) => void;
     onRunCreated?: (id: string) => void | Promise<void>;
@@ -152,11 +183,34 @@ export const executeWorkflow = async (
   } = {},
 ) => {
   const workflowId = configName.replace(/^workflows\//, "").replace(/\.json$/, "");
-  const storedEntity = await new ReleasePersistence(context).loadWithProject(workflowId);
-  const stored = storedEntity.config;
+  let storedEntity: Awaited<ReturnType<ReleasePersistence["loadWithProject"]>> | undefined;
+  let stored: ReleaseConfig;
+  if (options.workflowConfig) {
+    stored = parseReleaseConfig(options.workflowConfig);
+  } else {
+    storedEntity = await new ReleasePersistence(context).loadWithProject(workflowId);
+    stored = storedEntity.config;
+  }
+  if (stored.id !== workflowId)
+    throw new Error(`Workflow config ID '${stored.id}' does not match execution ID '${workflowId}'.`);
   const version = options.release?.version?.trim() || "0.0.0";
-  const prepared = prepareReleaseWorkflow(stored, version);
-  const { config, workflow } = prepared;
+  const runEnvironment = Object.freeze({ ...(options.env ?? process.env) });
+  const prepared = prepareReleaseWorkflow(stored, version, runEnvironment);
+  const { config, workflow, connectionRequirements, requiredEnvironmentVariables } = prepared;
+  const connectionValues: Record<string, Record<string, string>> = {};
+  for (const [alias, values] of Object.entries(options.connectionValues ?? {}))
+    connectionValues[alias] = values;
+  const valueResolver = createRunScopedWorkflowValueResolver(
+    workflow,
+    { version },
+    runEnvironment,
+    {
+      connectionValues,
+      connectionOverrides: options.connectionOverrides,
+      connectionRequirements,
+      requiredEnvironmentVariables,
+    },
+  );
   const hasEnabledBeforeBuildHooks = config.builds.some((build) =>
     build.beforeBuild?.some((hook) => hook.enabled),
   );
@@ -172,7 +226,7 @@ export const executeWorkflow = async (
     projectId,
     workflowId: config.id,
     workflowName: config.name,
-    projectName: storedEntity.project.name,
+    projectName: storedEntity?.project.name ?? stored.project,
     status: "running",
     version,
     startTime,
@@ -280,7 +334,10 @@ export const executeWorkflow = async (
         logger: workflowLogger,
       }),
       variables: { version, workspace: workspaceRoot, buildStaging: buildStagingRoot },
-      env: process.env,
+      env: runEnvironment,
+      connectionValues: valueResolver.connectionValues,
+      connectionRequirements,
+      requiredEnvironmentVariables,
       version,
       buildId,
       tasks,
@@ -313,6 +370,9 @@ export const executeWorkflow = async (
         ? { endTime: Date.now() }
         : {}),
     }));
+    const errorMessage = valueResolver.redactString(
+      error instanceof Error ? error.message : String(error),
+    );
     await history.update(
       buildId,
       {
@@ -326,53 +386,56 @@ export const executeWorkflow = async (
           .length,
         cancelledSteps: steps.filter((step) => step.status === "cancelled").length,
         error: {
-          message: error instanceof Error ? error.message : String(error),
+          message: errorMessage,
           code: finalStatus === "cancelled" ? "CANCELLED" : "FAILED",
           timestamp: Date.now(),
         },
       },
       projectId,
     );
-    throw error;
+    const safeError = new Error(errorMessage);
+    if (error instanceof Error) safeError.name = valueResolver.redactString(error.name);
+    throw safeError;
   } finally {
     if (historyWriteTimer) clearTimeout(historyWriteTimer);
     await historyWriteTail;
   }
   await flushLiveHistory();
-  await history.update(
-    buildId,
-    {
-      status: result.status,
-      endTime: Date.now(),
-      duration: Date.now() - startTime,
-      artifacts: historyArtifacts(result),
-      deliveries: result.deliveries,
-      output: result.outputs,
-      logs: [...liveLogs],
-      steps: Object.values(result.steps).map((step) => ({
-        id: step.id,
-        name: step.id,
-        uses: step.uses,
-        status: step.status,
-        startTime: step.startedAt,
-        endTime: step.completedAt,
-        duration: step.duration,
-        logs: [...(liveSteps.find((candidate) => candidate.id === step.id)?.logs || [])],
-        output: step.outputs,
-        error: step.error
-          ? { message: step.error.message, code: step.error.name, timestamp: step.completedAt }
-          : undefined,
-      })),
-      completedSteps: Object.values(result.steps).filter((step) => step.status === "completed")
-        .length,
-      failedSteps: Object.values(result.steps).filter(
-        (step) => step.status === "failed" || step.status === "skipped",
-      ).length,
-      cancelledSteps: 0,
-    },
-    projectId,
-  );
-  return { result, runId: buildId };
+  const historyUpdate = valueResolver.redactObject({
+    status: result.status,
+    endTime: Date.now(),
+    duration: Date.now() - startTime,
+    artifacts: historyArtifacts(result),
+    deliveries: result.deliveries,
+    output: result.outputs,
+    logs: [...liveLogs],
+    steps: Object.values(result.steps).map((step) => ({
+      id: step.id,
+      name: step.id,
+      uses: step.uses,
+      status: step.status,
+      startTime: step.startedAt,
+      endTime: step.completedAt,
+      duration: step.duration,
+      logs: [...(liveSteps.find((candidate) => candidate.id === step.id)?.logs || [])],
+      output: step.outputs,
+      error: step.error
+        ? { message: step.error.message, code: step.error.name, timestamp: step.completedAt }
+        : undefined,
+    })),
+    completedSteps: Object.values(result.steps).filter((step) => step.status === "completed")
+      .length,
+    failedSteps: Object.values(result.steps).filter(
+      (step) => step.status === "failed" || step.status === "skipped",
+    ).length,
+    cancelledSteps: 0,
+  });
+  await history.update(buildId, historyUpdate, projectId);
+  return {
+    result,
+    safeResult: valueResolver.redactObject(result),
+    runId: buildId,
+  };
 };
 
 export const registerWorkflowHandlers = (context: PipelabContext) => {
@@ -445,8 +508,11 @@ export const registerWorkflowHandlers = (context: PipelabContext) => {
     const controller = new AbortController();
     let runId: string | undefined;
     try {
-      const result = await executeWorkflow(context, value.name, {
+      const execution = await executeWorkflow(context, value.name, {
         release: value.release,
+        env: value.env,
+        connectionValues: value.connectionValues,
+        connectionOverrides: value.connectionOverrides,
         signal: controller.signal,
         onRunCreated: (id) => {
           runId = id;
@@ -455,7 +521,13 @@ export const registerWorkflowHandlers = (context: PipelabContext) => {
         },
         onEvent: (event) => void send({ type: "workflow-event", data: event }),
       });
-      await send({ type: "end", data: { type: "success", result } });
+      await send({
+        type: "end",
+        data: {
+          type: "success",
+          result: { result: execution.safeResult, runId: execution.runId },
+        },
+      });
     } catch (error) {
       logger().error("Release workflow failed:", error);
       await send({

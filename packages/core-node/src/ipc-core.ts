@@ -27,7 +27,7 @@ export const useAPI = () => {
     const { data, requestId } = message;
 
     if (handlers[channel]) {
-      logger().debug("Executing handler for channel:", channel, "with data:", JSON.stringify(data));
+      logger().debug("Executing handler for channel:", channel);
       const event: WsEvent = {
         sender: ws.url || "websocket-client",
       };
