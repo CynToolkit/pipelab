@@ -47,10 +47,10 @@ The runtime checks version `1`, step IDs, dependency IDs, input object shape, an
 
 Each task context also has `connectionValues`, a read-only map of resolved
 provider fields keyed by stable workflow alias. Release workflows store those
-aliases in connection fields; Desktop remembers the selected local Connection
-per workflow and alias, then passes its provider field values in
-`WorkflowRunContext.connectionValues`. A different workflow can bind the same
-alias to another local Connection. Per-run values can be provided in
+aliases in connection fields. A host can keep its local alias-to-Connection
+choices outside the shared workflow, then pass the selected provider fields in
+`WorkflowRunContext.connectionValues`; the same alias can resolve to a different
+local instance in another workflow. Per-run values can be provided in
 `connectionOverrides`:
 
 ```ts
