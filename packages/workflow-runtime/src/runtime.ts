@@ -71,8 +71,34 @@ const getPath = (value: Record<string, unknown>, path: string): unknown => {
   return current;
 };
 
-const referencePattern = /\$\{\{([\s\S]*?)\}\}/g;
 const environmentVariableNamePattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+const forEachReference = (value: string, visit: (reference: string) => void): void => {
+  let cursor = 0;
+  while (cursor < value.length) {
+    const start = value.indexOf("${{", cursor);
+    if (start < 0) return;
+    const end = value.indexOf("}}", start + 3);
+    if (end < 0) return;
+    visit(value.slice(start + 3, end));
+    cursor = end + 2;
+  }
+};
+
+const replaceReferences = (value: string, resolve: (reference: string) => string): string => {
+  let cursor = 0;
+  let result = "";
+  while (cursor < value.length) {
+    const start = value.indexOf("${{", cursor);
+    if (start < 0) break;
+    const end = value.indexOf("}}", start + 3);
+    if (end < 0) break;
+    result += value.slice(cursor, start);
+    result += resolve(value.slice(start + 3, end));
+    cursor = end + 2;
+  }
+  return cursor === 0 ? value : result + value.slice(cursor);
+};
 
 const isWorkflowArtifactWithPath = (value: Record<string, unknown>): boolean =>
   typeof value.path === "string" &&
@@ -99,11 +125,11 @@ const collectEnvironmentReferences = (workflow: Workflow): string[] => {
       return;
     }
     if (typeof value !== "string") return;
-    for (const match of value.matchAll(referencePattern)) {
-      const reference = match[1].trim();
-      if (!reference.startsWith("env.")) continue;
+    forEachReference(value, (rawReference) => {
+      const reference = rawReference.trim();
+      if (!reference.startsWith("env.")) return;
       references.add(reference.slice("env.".length));
-    }
+    });
   };
   workflow.steps.forEach((step) => collect(step.with));
   return [...references];
@@ -423,7 +449,7 @@ const resolveValue = (
   const exact = /^\$\{\{([^{}]+)\}\}$/.exec(value);
   if (exact) return resolveReference(exact[1].trim(), variables, outputs, env);
 
-  return value.replace(referencePattern, (_match, reference: string) =>
+  return replaceReferences(value, (reference) =>
     formatLogValue(resolveReference(reference.trim(), variables, outputs, env)),
   );
 };

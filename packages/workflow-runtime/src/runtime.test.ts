@@ -652,6 +652,28 @@ describe("artifact-aware workflow runtime", () => {
     expect(result.outputs.resolve?.value).toBe("[REDACTED]");
   });
 
+  it("leaves a long sequence of unmatched reference openings untouched", async () => {
+    const malformed = "${{ {{a".repeat(20_000);
+    let received: unknown;
+
+    await runWorkflow(
+      {
+        version: 1,
+        steps: [{ id: "resolve", uses: "test:resolve", with: { value: malformed } }],
+      },
+      {
+        host,
+        tasks: {
+          "test:resolve": async ({ inputs }) => {
+            received = inputs.value;
+          },
+        },
+      },
+    );
+
+    expect(received).toBe(malformed);
+  }, 500);
+
   it("names a missing environment variable without exposing a value", async () => {
     await expect(
       runWorkflow(
