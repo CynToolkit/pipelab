@@ -98,6 +98,9 @@
           class="field-control"
           @update:model-value="emitConnectionBinding"
         />
+        <small class="field-help connection-binding-help">
+          This Desktop remembers this saved Connection; the workflow only stores the alias.
+        </small>
         <div
           v-if="!connectionBinding && connectionBindingSuggestion"
           class="connection-binding-suggestion"
@@ -363,6 +366,9 @@ const toggleEnvironmentBinding = (event: Event) => {
   gap: 0.25rem;
   color: var(--p-text-muted-color, var(--text-color-secondary));
   font-size: 0.75rem;
+}
+.connection-binding-help {
+  grid-column: 1 / -1;
 }
 
 .connection-advanced {

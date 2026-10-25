@@ -221,6 +221,47 @@ const sourceFixtures = {
   },
 };
 
+const releasePlanIssues = (config) => {
+  const issues = [];
+  for (const [index, destination] of (config?.destinations || []).entries()) {
+    if (!destination.enabled) continue;
+    const values = destination.config || {};
+    const isSet = (value) => typeof value === "string" && value.trim().length > 0;
+    if (destination.provider.includes("steam")) {
+      if (!isSet(values.accountConnectionId))
+        issues.push({
+          code: "steam.account.required",
+          path: `destinations.${index}.config.accountConnectionId`,
+          severity: "error",
+          message: "A Steam account connection is required.",
+        });
+      if (!isSet(values.appId))
+        issues.push({
+          code: "steam.app-id.required",
+          path: `destinations.${index}.config.appId`,
+          severity: "error",
+          message: "Steam App ID is required.",
+        });
+    } else if (destination.provider.includes("itch")) {
+      if (!isSet(values.accountConnectionId))
+        issues.push({
+          code: "itch.account.required",
+          path: `destinations.${index}.config.accountConnectionId`,
+          severity: "error",
+          message: "An Itch account connection is required.",
+        });
+      if (!isSet(values.project))
+        issues.push({
+          code: "itch.project.required",
+          path: `destinations.${index}.config.project`,
+          severity: "error",
+          message: "An Itch project is required.",
+        });
+    }
+  }
+  return issues;
+};
+
 const catalog = {
   buildTypes: [],
   sources: [
@@ -599,18 +640,7 @@ async function journey(
                           },
                         ]
                       : []),
-                    {
-                      code: "steam.account.required",
-                      path: "destinations.0.config.accountConnectionId",
-                      severity: "error",
-                      message: "A Steam account connection is required.",
-                    },
-                    {
-                      code: "itch.account.required",
-                      path: "destinations.1.config.accountConnectionId",
-                      severity: "error",
-                      message: "An Itch account connection is required.",
-                    },
+                    ...releasePlanIssues(request.data.config),
                   ],
             graph: {
               nodes: [
@@ -1786,8 +1816,13 @@ async function journey(
     const actionCard = page.locator(".action-required-card");
     const screenshotKey = `${sourceKey}${withSavedSteamAccount ? "-saved-account" : ""}`;
     assert.equal((await actionCard.innerText()).match(/1 of 2/)?.[0], "1 of 2");
-    assert.match(await actionCard.innerText(), /Connect your Steam account/);
-    assert.match(await actionCard.innerText(), /A Steam account connection is required/);
+    assert.doesNotMatch(
+      await actionCard.innerText(),
+      /A Steam account connection is required/,
+      "the plan fixture must not report a missing Steam account when the workflow already has an alias",
+    );
+    assert.match(await actionCard.innerText(), /Steam App ID is required/);
+    assert.match(await actionCard.innerText(), /Configure Steam — Destination 1/);
     assert.equal(
       await actionCard.getByRole("button", { name: "Previous blocker" }).isDisabled(),
       true,
@@ -1797,22 +1832,27 @@ async function journey(
       false,
     );
     if (process.env.SCREENSHOT_DIR)
-      await page.screenshot({
-        path: join(process.env.SCREENSHOT_DIR, `pipelab-${screenshotKey}-action-required.png`),
-      });
+      await captureReviewScreenshot(
+        page,
+        join(process.env.SCREENSHOT_DIR, `pipelab-${screenshotKey}-action-required.png`),
+      );
     await page.waitForTimeout(250);
     if (process.env.SCREENSHOT_DIR)
-      await page.screenshot({
-        path: join(process.env.SCREENSHOT_DIR, `pipelab-${screenshotKey}-configuration.png`),
-      });
+      await captureReviewScreenshot(
+        page,
+        join(process.env.SCREENSHOT_DIR, `pipelab-${screenshotKey}-configuration.png`),
+      );
     await actionCard.getByRole("button", { name: "Next blocker" }).click();
     assert.match(await actionCard.innerText(), /2 of 2/);
-    assert.match(await actionCard.innerText(), /An Itch account connection is required/);
+    assert.match(await actionCard.innerText(), /An Itch project is required/);
+    assert.match(await actionCard.innerText(), /Configure Itch.io — Destination 1/);
     await actionCard.getByRole("button", { name: "Previous blocker" }).click();
     assert.match(await actionCard.innerText(), /1 of 2/);
     let destinationEditor;
     if (withSavedSteamAccount) {
-      await actionCard.getByRole("button", { name: "Select Steam connection" }).click();
+      await actionCard
+        .getByRole("button", { name: "Configure Steam — Destination 1" })
+        .click();
       destinationEditor = page.getByRole("dialog", { name: "Edit destination" });
       await destinationEditor.waitFor();
       assert.equal(
@@ -1854,6 +1894,11 @@ async function journey(
             binding.connectionId === "steam-existing",
         ),
         "confirming a matching Connection persists its local alias binding",
+      );
+      assert.doesNotMatch(
+        await actionCard.innerText(),
+        /A Steam account connection is required/,
+        "a configured workflow alias is not presented as a missing Steam account",
       );
       await connectionField.locator("details.connection-advanced > summary").click();
       const bindingBounds = await connectionField.evaluate((field) => {
@@ -1898,9 +1943,10 @@ async function journey(
         "Add Connection sits beside or below the selector without overlapping it",
       );
       if (process.env.SCREENSHOT_DIR)
-        await page.screenshot({
-          path: join(process.env.SCREENSHOT_DIR, "connection-field-alias-expanded.png"),
-        });
+        await captureReviewScreenshot(
+          page,
+          join(process.env.SCREENSHOT_DIR, "connection-field-alias-expanded.png"),
+        );
       const literalInput = destinationEditor.getByLabel("Steam App ID", { exact: true });
       const appIdField = destinationEditor.locator(
         `.release-field:has(> label[for="${await literalInput.getAttribute("id")}"])`,
@@ -1924,10 +1970,17 @@ async function journey(
       const planningIndicator = page.getByText("Planning release…", { exact: true });
       await planningIndicator.waitFor({ state: "visible" });
       await planningIndicator.waitFor({ state: "hidden" });
+      assert.doesNotMatch(
+        await actionCard.innerText(),
+        /Steam App ID is required/,
+        "the mocked planner clears the App ID blocker when the workflow binds it to an environment variable",
+      );
+      assert.match(await actionCard.innerText(), /An Itch project is required/);
       if (process.env.SCREENSHOT_DIR)
-        await page.screenshot({
-          path: join(process.env.SCREENSHOT_DIR, "environment-bound-field.png"),
-        });
+        await captureReviewScreenshot(
+          page,
+          join(process.env.SCREENSHOT_DIR, "environment-bound-field.png"),
+        );
       await environmentToggle.uncheck();
       assert.equal(
         await appIdField.locator("input.field-control").inputValue(),
@@ -1936,6 +1989,11 @@ async function journey(
       );
       await planningIndicator.waitFor({ state: "visible" });
       await planningIndicator.waitFor({ state: "hidden" });
+      assert.match(
+        await actionCard.innerText(),
+        /Steam App ID is required/,
+        "the App ID blocker returns after restoring its empty literal value",
+      );
     } else {
       await actionCard.getByRole("button", { name: "Add Steam connection" }).click();
       destinationEditor = page.getByRole("dialog", { name: "Edit destination" });

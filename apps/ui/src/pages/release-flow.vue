@@ -1322,6 +1322,7 @@ const blockerFieldContext = (issue: ValidationIssue) => {
   if (!flow.value || !issue.path) return {};
   let field: ReleaseFieldDefinition | undefined;
   let targetLabel: string | undefined;
+  let destinationLabel: string | undefined;
   let fieldKey: string | undefined;
   let fieldConfig: Record<string, unknown> | undefined;
 
@@ -1357,10 +1358,14 @@ const blockerFieldContext = (issue: ValidationIssue) => {
       ? definition?.slotFields?.find((candidate) => candidate.key === fieldKey)
       : definition?.fields?.find((candidate) => candidate.key === fieldKey);
     targetLabel = definition?.label || "destination";
+    destinationLabel = releaseDestinationDisplayLabel(
+      targetLabel,
+      releaseDestinationLocalName(destination, flow.value.destinations),
+    );
   }
 
   if (field?.type !== "connection" || !field.integration)
-    return { targetLabel, field, fieldKey, fieldConfig };
+    return { targetLabel, destinationLabel, field, fieldKey, fieldConfig };
   const integrationProvider = appStore.providerDefinitions.find(
     (provider) => provider.packageName === field?.integration || provider.id === field?.integration,
   );
@@ -1371,6 +1376,7 @@ const blockerFieldContext = (issue: ValidationIssue) => {
     : field.label.toLowerCase();
   return {
     targetLabel,
+    destinationLabel,
     connectionLabel,
     connectionFieldLabel,
     field,

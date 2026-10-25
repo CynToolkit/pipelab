@@ -1792,6 +1792,26 @@ describe("release flow model", () => {
     expect(releaseRepairRoute(issue)).toBe("configuration");
   });
 
+  it("identifies the destination in a same-provider blocker repair action", () => {
+    const issue = {
+      code: "itch.project.required",
+      message: "An Itch project is required.",
+      severity: "error" as const,
+      path: "destinations.1.config.project",
+    };
+
+    expect(
+      releaseBlockerPresentation(issue, {
+        targetLabel: "Itch.io",
+        destinationLabel: "Itch.io — Personal preview",
+      }),
+    ).toEqual({
+      title: "Configure Itch.io — Personal preview",
+      description: "An Itch project is required.",
+      actionLabel: "Configure Itch.io — Personal preview",
+    });
+  });
+
   it("routes the first blocker to its existing repair surface", () => {
     expect(
       releaseRepairRoute({

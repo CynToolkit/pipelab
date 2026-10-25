@@ -339,6 +339,20 @@ describe("ReleaseFieldControl", () => {
     expect(bindingUpdates.at(-1)).toBe("connection-prod");
   });
 
+  it("explains that a saved Connection binding stays on this Desktop", () => {
+    const { root } = mountField(
+      "publish",
+      { key: "account", type: "connection", label: "Store account", integration: "store" },
+      [{ label: "Production", value: "connection-prod" }],
+      "connection-prod",
+    );
+
+    const helper = root.querySelector(".connection-binding-help");
+    expect(helper).not.toBeNull();
+    expect(helper?.textContent ?? "").toContain("This Desktop");
+    expect(helper?.textContent ?? "").toContain("workflow only stores the alias");
+  });
+
   it("requires a workflow alias before remembering a local Connection", () => {
     const { root } = mountField(
       "",

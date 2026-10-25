@@ -598,6 +598,7 @@ export const releaseRepairRoute = (issue: ValidationIssue): ReleaseRepairRoute =
 
 export interface ReleaseBlockerContext {
   targetLabel?: string;
+  destinationLabel?: string;
   connectionLabel?: string;
   connectionFieldLabel?: string;
   hasMatchingConnection?: boolean;
@@ -609,6 +610,7 @@ export const releaseBlockerPresentation = (
 ) => {
   const route = releaseRepairRoute(issue);
   const connectionLabel = context.connectionLabel;
+  const configureLabel = context.destinationLabel || context.targetLabel;
   const connectionAction = connectionLabel
     ? context.hasMatchingConnection
       ? `Select ${connectionLabel} connection`
@@ -619,7 +621,7 @@ export const releaseBlockerPresentation = (
     : route === "builds"
       ? `Configure ${context.targetLabel || "build"}`
       : route === "configuration"
-        ? `Configure ${context.targetLabel || "release"}`
+        ? `Configure ${configureLabel || "release"}`
         : route === "connections"
           ? "Manage connections"
           : "Resolve workflow issue";
@@ -632,7 +634,7 @@ export const releaseBlockerPresentation = (
       (route === "builds"
         ? "Configure build"
         : route === "configuration"
-          ? `Configure ${context.targetLabel || "release"}`
+          ? `Configure ${configureLabel || "release"}`
           : route === "connections"
             ? "Manage connections"
             : "Review issues"),
