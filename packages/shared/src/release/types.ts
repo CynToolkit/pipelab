@@ -151,6 +151,11 @@ export interface ReleaseProviderContext {
 
 export interface ReleaseCompileContext extends ReleaseProviderContext {
   variables?: Record<string, unknown>;
+  /** Query run-environment availability without exposing credential values to compilers. */
+  getEnvironmentVariableStatus?: (name: string) => {
+    configured: boolean;
+    nonEmpty: boolean;
+  };
 }
 
 export interface ReleaseValidationContext extends ReleaseProviderContext {

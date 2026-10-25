@@ -83,6 +83,8 @@ export interface WorkflowArtifact {
 export interface WorkflowTaskContext<TServices = unknown> {
   step: WorkflowStep;
   inputs: Record<string, unknown>;
+  /** Connection fields resolved for this run, keyed by stable workflow alias. */
+  connectionValues: WorkflowConnectionValues;
   /** Outputs already produced by steps in this workflow run. */
   outputs: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   /** Artifacts already produced by steps in this workflow run. */
@@ -115,6 +117,26 @@ export type WorkflowTask<TServices = unknown> = (
 ) => Promise<Record<string, unknown> | void>;
 
 export type WorkflowTaskRegistry<TServices = unknown> = Record<string, WorkflowTask<TServices>>;
+
+export type WorkflowConnectionValues = Readonly<Record<string, Readonly<Record<string, string>>>>;
+
+export type WorkflowConnectionOverrideValue =
+  | { kind: "environment"; name: string }
+  | { kind: "literal"; value: string };
+
+export interface WorkflowConnectionOverride {
+  alias: string;
+  field: string;
+  value: WorkflowConnectionOverrideValue;
+}
+
+export interface WorkflowConnectionRequirement {
+  alias: string;
+  required: boolean;
+  fields: readonly { key: string; required: boolean }[];
+  providerId?: string;
+  integrationName?: string;
+}
 
 export interface WorkflowError {
   name: string;
@@ -213,12 +235,23 @@ export interface WorkflowRunContext<TServices = unknown> {
   version?: string;
   buildId?: string;
   variables?: Record<string, unknown>;
-  env?: Record<string, string | undefined>;
+  env?: WorkflowEnvironment;
+  /** Locally bound Desktop values, or any other host-provided run values. */
+  connectionValues?: WorkflowConnectionValues;
+  /** Explicit per-run values, such as CLI --connection overrides. */
+  connectionOverrides?: readonly WorkflowConnectionOverride[];
+  /** Provider-declared Connection fields required by this workflow run. */
+  connectionRequirements?: readonly WorkflowConnectionRequirement[];
+  /** Required ordinary workflow properties bound to environment variables. */
+  requiredEnvironmentVariables?: readonly string[];
   signal?: AbortSignal;
   tasks?: WorkflowTaskRegistry<TServices>;
   services?: TServices;
   onEvent?: (event: WorkflowEvent) => void;
 }
+
+/** Environment values supplied for one workflow run. */
+export type WorkflowEnvironment = Readonly<Record<string, string | undefined>>;
 
 export interface WorkflowHost {
   workspace: Workspace;

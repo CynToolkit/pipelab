@@ -118,6 +118,472 @@ describe("artifact-aware workflow runtime", () => {
     expect(persistedOutput).toContain("[REDACTED]");
   });
 
+  it("accepts an explicitly empty environment value as set", async () => {
+    let received: unknown;
+
+    await runWorkflow(
+      {
+        version: 1,
+        steps: [{ id: "consume", uses: "test:consume", with: { token: "${{ env.EMPTY_TOKEN }}" } }],
+      },
+      {
+        host,
+        env: { EMPTY_TOKEN: "" },
+        tasks: {
+          "test:consume": async ({ inputs }) => {
+            received = inputs.token;
+          },
+        },
+      },
+    );
+
+    expect(received).toBe("");
+  });
+
+  it("uses the environment values captured at run start", async () => {
+    const env = { RUN_TOKEN: "initial-token" };
+    let received: unknown;
+
+    await runWorkflow(
+      {
+        version: 1,
+        steps: [
+          { id: "prepare", uses: "test:prepare" },
+          {
+            id: "consume",
+            uses: "test:consume",
+            with: { token: "${{ env.RUN_TOKEN }}" },
+          },
+        ],
+      },
+      {
+        host,
+        env,
+        tasks: {
+          "test:prepare": async () => {
+            env.RUN_TOKEN = "changed-during-run";
+          },
+          "test:consume": async ({ inputs }) => {
+            received = inputs.token;
+          },
+        },
+      },
+    );
+
+    expect(received).toBe("initial-token");
+  });
+
+  it("merges disjoint run-scoped Connection values and overrides, then redacts them", async () => {
+    const environmentPassword = "connection-env-secret";
+    const literalToken = "literal=connection-secret";
+    const events: unknown[] = [];
+    let received: unknown;
+
+    const result = await runWorkflow(
+      {
+        version: 1,
+        steps: [{ id: "publish", uses: "test:publish" }],
+      },
+      {
+        host,
+        env: { PUBLISH_PASSWORD: environmentPassword },
+        connectionValues: { itch: { user: "saved-user" } },
+        connectionOverrides: [
+          { alias: "itch", field: "account", value: { kind: "literal", value: literalToken } },
+          {
+            alias: "itch",
+            field: "password",
+            value: { kind: "environment", name: "PUBLISH_PASSWORD" },
+          },
+        ],
+        tasks: {
+          "test:publish": async ({ connectionValues, log }) => {
+            received = connectionValues;
+            log(literalToken, environmentPassword);
+            return { credentials: connectionValues?.itch };
+          },
+        },
+        onEvent: (event) => events.push(event),
+      },
+    );
+
+    expect(received).toEqual({
+      itch: { user: "saved-user", account: literalToken, password: environmentPassword },
+    });
+    expect(JSON.stringify({ result, events })).not.toContain(literalToken);
+    expect(JSON.stringify({ result, events })).not.toContain(environmentPassword);
+    expect(JSON.stringify({ result, events })).toContain("[REDACTED]");
+  });
+
+  it("rejects a CLI override when the same field already has a run-scoped value", async () => {
+    let sideEffectStarted = false;
+
+    await expect(
+      runWorkflow(
+        { version: 1, steps: [{ id: "prepare", uses: "test:prepare" }] },
+        {
+          host,
+          connectionRequirements: [
+            {
+              alias: "release",
+              required: true,
+              fields: [{ key: "credential", required: true }],
+            },
+          ],
+          connectionValues: { release: { credential: "desktop-value" } },
+          connectionOverrides: [
+            {
+              alias: "release",
+              field: "credential",
+              value: { kind: "literal", value: "cli-value" },
+            },
+          ],
+          tasks: {
+            "test:prepare": async () => {
+              sideEffectStarted = true;
+            },
+          },
+        },
+      ),
+    ).rejects.toThrow(
+      "Workflow Connection field 'release.credential' is mapped more than once.",
+    );
+
+    expect(sideEffectStarted).toBe(false);
+  });
+
+  it("preserves an explicitly supplied alias with no field values", async () => {
+    let received: unknown;
+
+    await runWorkflow(
+      {
+        version: 1,
+        steps: [{ id: "publish", uses: "test:publish" }],
+      },
+      {
+        host,
+        connectionValues: { itch: {} },
+        tasks: {
+          "test:publish": async ({ connectionValues }) => {
+            received = connectionValues;
+          },
+        },
+      },
+    );
+
+    expect(received).toEqual({ itch: {} });
+  });
+
+  it("preflights missing connection environment values before starting any task", async () => {
+    let sideEffectStarted = false;
+
+    await expect(
+      runWorkflow(
+        {
+          version: 1,
+          steps: [{ id: "prepare", uses: "test:prepare" }],
+        },
+        {
+          host,
+          connectionOverrides: [
+            {
+              alias: "steam",
+              field: "password",
+              value: { kind: "environment", name: "STEAM_PASSWORD" },
+            },
+          ],
+          tasks: {
+            "test:prepare": async () => {
+              sideEffectStarted = true;
+            },
+          },
+        },
+      ),
+    ).rejects.toThrow("Workflow environment variable is not set: STEAM_PASSWORD");
+
+    expect(sideEffectStarted).toBe(false);
+  });
+
+  it("preflights an empty required environment binding before starting any task", async () => {
+    let sideEffectStarted = false;
+
+    await expect(
+      runWorkflow(
+        {
+          version: 1,
+          steps: [
+            { id: "prepare", uses: "test:prepare", with: { version: "${{ env.BUILD_VERSION }}" } },
+          ],
+        },
+        {
+          host,
+          env: { BUILD_VERSION: "" },
+          requiredEnvironmentVariables: ["BUILD_VERSION"],
+          tasks: {
+            "test:prepare": async () => {
+              sideEffectStarted = true;
+            },
+          },
+        },
+      ),
+    ).rejects.toThrow("Workflow environment variable is empty: BUILD_VERSION");
+
+    expect(sideEffectStarted).toBe(false);
+  });
+
+  it("preflights missing required Connection fields before starting any task", async () => {
+    let sideEffectStarted = false;
+
+    await expect(
+      runWorkflow(
+        { version: 1, steps: [{ id: "prepare", uses: "test:prepare" }] },
+        {
+          host,
+          connectionRequirements: [
+            {
+              alias: "release",
+              required: true,
+              fields: [{ key: "credential", required: true }],
+            },
+          ],
+          connectionValues: { release: {} },
+          tasks: {
+            "test:prepare": async () => {
+              sideEffectStarted = true;
+            },
+          },
+        },
+      ),
+    ).rejects.toThrow("Required workflow Connection field is missing: release.credential");
+
+    expect(sideEffectStarted).toBe(false);
+  });
+
+  it("preflights a missing required Connection alias before starting any task", async () => {
+    let sideEffectStarted = false;
+
+    await expect(
+      runWorkflow(
+        { version: 1, steps: [{ id: "prepare", uses: "test:prepare" }] },
+        {
+          host,
+          connectionRequirements: [
+            {
+              alias: "release",
+              required: true,
+              fields: [{ key: "credential", required: true }],
+            },
+          ],
+          tasks: {
+            "test:prepare": async () => {
+              sideEffectStarted = true;
+            },
+          },
+        },
+      ),
+    ).rejects.toThrow("Required workflow Connection alias is missing: release");
+
+    expect(sideEffectStarted).toBe(false);
+  });
+
+  it("allows an optional Connection alias to remain unbound", async () => {
+    let taskStarted = false;
+
+    await runWorkflow(
+      { version: 1, steps: [{ id: "prepare", uses: "test:prepare" }] },
+      {
+        host,
+        connectionRequirements: [
+          {
+            alias: "optional-release",
+            required: false,
+            fields: [{ key: "credential", required: true }],
+          },
+        ],
+        tasks: {
+          "test:prepare": async () => {
+            taskStarted = true;
+          },
+        },
+      },
+    );
+
+    expect(taskStarted).toBe(true);
+  });
+
+  it("preflights an empty required Connection environment value before starting any task", async () => {
+    let sideEffectStarted = false;
+
+    await expect(
+      runWorkflow(
+        { version: 1, steps: [{ id: "prepare", uses: "test:prepare" }] },
+        {
+          host,
+          env: { RELEASE_CREDENTIAL: "" },
+          connectionRequirements: [
+            {
+              alias: "release",
+              required: true,
+              fields: [{ key: "credential", required: true }],
+            },
+          ],
+          connectionOverrides: [
+            {
+              alias: "release",
+              field: "credential",
+              value: { kind: "environment", name: "RELEASE_CREDENTIAL" },
+            },
+          ],
+          tasks: {
+            "test:prepare": async () => {
+              sideEffectStarted = true;
+            },
+          },
+        },
+      ),
+    ).rejects.toThrow("Required workflow Connection field is empty: release.credential");
+
+    expect(sideEffectStarted).toBe(false);
+  });
+
+  it.each([
+    [
+      { other: { credential: "token" } },
+      undefined,
+      "Workflow Connection alias 'other' is not declared.",
+    ],
+    [
+      undefined,
+      [{ alias: "release", field: "unknown", value: { kind: "literal", value: "x" } }],
+      "Workflow Connection alias 'release' does not define field 'unknown'.",
+    ],
+  ] as const)(
+    "rejects values outside the workflow's Connection requirements before task execution",
+    async (connectionValues, connectionOverrides, message) => {
+      let sideEffectStarted = false;
+
+      await expect(
+        runWorkflow(
+          { version: 1, steps: [{ id: "prepare", uses: "test:prepare" }] },
+          {
+            host,
+            connectionRequirements: [
+              {
+                alias: "release",
+                required: true,
+                fields: [{ key: "credential", required: true }],
+              },
+            ],
+            connectionValues,
+            connectionOverrides,
+            tasks: {
+              "test:prepare": async () => {
+                sideEffectStarted = true;
+              },
+            },
+          },
+        ),
+      ).rejects.toThrow(message);
+
+      expect(sideEffectStarted).toBe(false);
+    },
+  );
+
+  it("rejects duplicate mappings for the same Connection field before task execution", async () => {
+    let sideEffectStarted = false;
+    const duplicateOverrides = [
+      { alias: "release", field: "credential", value: { kind: "literal" as const, value: "one" } },
+      { alias: "release", field: "credential", value: { kind: "literal" as const, value: "two" } },
+    ];
+
+    await expect(
+      runWorkflow(
+        { version: 1, steps: [{ id: "prepare", uses: "test:prepare" }] },
+        {
+          host,
+          connectionRequirements: [
+            {
+              alias: "release",
+              required: true,
+              fields: [{ key: "credential", required: true }],
+            },
+          ],
+          connectionOverrides: duplicateOverrides,
+          tasks: {
+            "test:prepare": async () => {
+              sideEffectStarted = true;
+            },
+          },
+        },
+      ),
+    ).rejects.toThrow("Workflow Connection field 'release.credential' is mapped more than once.");
+
+    expect(sideEffectStarted).toBe(false);
+  });
+
+  it("preflights an invalid persisted environment binding before starting any task", async () => {
+    let sideEffectStarted = false;
+
+    await expect(
+      runWorkflow(
+        {
+          version: 1,
+          steps: [
+            {
+              id: "prepare",
+              uses: "test:prepare",
+              with: { label: "${{ env.BUILD-LABEL }}" },
+            },
+          ],
+        },
+        {
+          host,
+          env: { "BUILD-LABEL": "release" },
+          tasks: {
+            "test:prepare": async () => {
+              sideEffectStarted = true;
+            },
+          },
+        },
+      ),
+    ).rejects.toThrow("Invalid environment variable reference: env.BUILD-LABEL");
+
+    expect(sideEffectStarted).toBe(false);
+  });
+
+  it.each(["BUILD{LABEL", "BUILD}LABEL"])(
+    "preflights malformed environment references containing braces: %s",
+    async (name) => {
+      let sideEffectStarted = false;
+
+      await expect(
+        runWorkflow(
+          {
+            version: 1,
+            steps: [
+              {
+                id: "prepare",
+                uses: "test:prepare",
+                with: { label: `\${{ env.${name} }}` },
+              },
+            ],
+          },
+          {
+            host,
+            env: { [name]: "release" },
+            tasks: {
+              "test:prepare": async () => {
+                sideEffectStarted = true;
+              },
+            },
+          },
+        ),
+      ).rejects.toThrow(`Invalid environment variable reference: env.${name}`);
+
+      expect(sideEffectStarted).toBe(false);
+    },
+  );
+
   it("preserves artifact paths in returned results while redacting them from events", async () => {
     const artifactRoot = "/workspace/construct-profile";
     const token = "construct-session-token";
@@ -186,6 +652,28 @@ describe("artifact-aware workflow runtime", () => {
     expect(result.outputs.resolve?.value).toBe("[REDACTED]");
   });
 
+  it("leaves a long sequence of unmatched reference openings untouched", async () => {
+    const malformed = "${{ {{a".repeat(20_000);
+    let received: unknown;
+
+    await runWorkflow(
+      {
+        version: 1,
+        steps: [{ id: "resolve", uses: "test:resolve", with: { value: malformed } }],
+      },
+      {
+        host,
+        tasks: {
+          "test:resolve": async ({ inputs }) => {
+            received = inputs.value;
+          },
+        },
+      },
+    );
+
+    expect(received).toBe(malformed);
+  }, 500);
+
   it("names a missing environment variable without exposing a value", async () => {
     await expect(
       runWorkflow(
@@ -202,6 +690,37 @@ describe("artifact-aware workflow runtime", () => {
         { host, tasks: { "test:login": async () => undefined } },
       ),
     ).rejects.toThrow("Workflow environment variable is not set: CONSTRUCT_PASSWORD");
+  });
+
+  it("preflights missing environment variables before running any workflow step", async () => {
+    let sideEffectStarted = false;
+
+    await expect(
+      runWorkflow(
+        {
+          version: 1,
+          steps: [
+            { id: "prepare", uses: "test:prepare" },
+            {
+              id: "publish",
+              uses: "test:publish",
+              with: { token: "${{ env.PUBLISH_TOKEN }}" },
+            },
+          ],
+        },
+        {
+          host,
+          tasks: {
+            "test:prepare": async () => {
+              sideEffectStarted = true;
+            },
+            "test:publish": async () => undefined,
+          },
+        },
+      ),
+    ).rejects.toThrow("Workflow environment variable is not set: PUBLISH_TOKEN");
+
+    expect(sideEffectStarted).toBe(false);
   });
 
   it("redacts environment values from task errors", async () => {

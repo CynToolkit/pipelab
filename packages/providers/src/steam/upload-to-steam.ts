@@ -1,5 +1,5 @@
 import { dirname, join, resolve, win32 as win32Path } from "node:path";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { ExternalCommandError, runWithLiveLogs } from "@pipelab/plugin-core";
 import type { PipelabContext } from "@pipelab/plugin-core";
 import type { WorkflowTask, WorkflowTaskContext } from "@pipelab/workflow-runtime";
@@ -54,19 +54,6 @@ const vdfValue = (value: string) =>
     .replace(/"/g, '\\"')
     .replace(/[\r\n]/g, " ");
 
-export const resolveSteamUsername = async (
-  connectionsPath: string,
-  accountConnectionId: string,
-): Promise<string> => {
-  const saved = JSON.parse(await readFile(connectionsPath, "utf8")) as {
-    connections?: Array<Record<string, unknown>>;
-  };
-  const connection = saved.connections?.find((candidate) => candidate.id === accountConnectionId);
-  const username = String(connection?.username || connection?.email || "").trim();
-  if (!username) throw new Error("Steam account connection has no username");
-  return username;
-};
-
 export interface SteamTaskServices {
   context: PipelabContext;
 }
@@ -75,13 +62,19 @@ export const createSteamUploadTask =
   <TServices extends SteamTaskServices>(services: TServices): WorkflowTask<TServices> =>
   async (taskContext: WorkflowTaskContext<TServices>) => {
     const { context } = services;
-    const { log, inputs, workspace, signal } = taskContext;
+    const { log, inputs, workspace, signal, connectionValues } = taskContext;
     const folder = resolve(inputs.folder as string);
     const appId = inputs.appId as string;
     const depotId = inputs.depotId as string;
     const accountConnectionId = String(inputs.accountConnectionId || "").trim();
     if (!accountConnectionId) throw new Error("A Steam account connection is required");
-    const username = await resolveSteamUsername(context.getConnectionsPath(), accountConnectionId);
+    const boundConnectionValues = connectionValues[accountConnectionId];
+    if (!boundConnectionValues)
+      throw new Error(
+        `Steam account Connection '${accountConnectionId}' was not resolved for this run.`,
+      );
+    const username = String(boundConnectionValues.username || "").trim();
+    if (!username) throw new Error("Steam account connection has no username");
     const description = inputs.description as string;
 
     if (!/^\d+$/.test(appId) || !/^\d+$/.test(depotId))

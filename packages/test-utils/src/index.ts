@@ -8,6 +8,7 @@ import {
   runWorkflow,
   type WorkflowArtifactDefinition,
   type WorkflowEvent,
+  type WorkflowConnectionValues,
   type WorkflowTask,
   type WorkflowTaskRegistry,
   type WorkflowHost,
@@ -134,6 +135,7 @@ export const runWorkflowTask = async <TServices = unknown>(
     inputs?: Record<string, unknown>;
     workspacePath: string;
     artifacts?: Record<string, WorkflowArtifactDefinition>;
+    connectionValues?: WorkflowConnectionValues;
     signal?: AbortSignal;
     services?: TServices;
     host?: Partial<WorkflowHost>;
@@ -169,6 +171,7 @@ export const runWorkflowTask = async <TServices = unknown>(
       tasks,
       services: options.services,
       signal: options.signal,
+      connectionValues: options.connectionValues,
       onEvent: (event) => events.push(event),
     },
   );

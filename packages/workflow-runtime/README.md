@@ -35,14 +35,28 @@ step outputs and call `setArtifact` for declared artifacts. Pipelab hosts can
 provide their service bundle through `runWorkflow`'s `services` option; the
 standalone runtime does not import Pipelab-specific services. Pipelab plugin
 registries resolve directly to native tasks that implement this contract.
+Tasks also receive `connectionValues`, a read-only snapshot keyed by stable
+workflow alias and provider field. Hosts can pass locally bound values through
+`connectionValues`; `connectionOverrides` can replace individual alias fields
+with literal values or references to the run environment. Provider-specific
+field definitions and authentication remain provider-owned.
 
 Step inputs can reference run variables with `${{ variables.name }}`, process
 environment values supplied in the run context with `${{ env.NAME }}`, or a
 previous step's outputs with `${{ steps.step-id.outputs.name }}`. Environment
-values are resolved only while running and are redacted from logs, errors,
-events, and returned result values. Artifact paths in the returned result stay
-intact so hosts can reopen or deliver the files; emitted events still redact
-those paths. Steps run in definition order by default; add `needs` to
+references are checked before workflow events or tasks begin, so a missing
+variable fails before any step can have side effects. Connection overrides use
+the same run environment for `{ kind: "environment", name: "VARIABLE" }`
+references; missing or invalid names fail during preflight. Literal override
+values are preserved verbatim. Resolved connection values and environment
+values are redacted from logs, errors, events, and returned result values. The
+local `WorkflowResult` keeps artifact paths intact so a host can reopen or
+deliver files. Use `createRunScopedWorkflowValueResolver` and its
+`redactObject` method before persisting or sending a result; that also redacts
+environment and connection values embedded in artifact paths. Hosts may call
+`preflightWorkflow(workflow, env, { connectionValues, connectionOverrides })`
+before allocating execution resources.
+Steps run in definition order by default; add `needs` to
 declare dependencies explicitly and allow independent steps to run
 concurrently. The runtime also exposes
 `fs:run` as a built-in task. Set `continueOnError` to keep independent

@@ -109,7 +109,7 @@ export class WebSocketServer {
           ws.on("message", (data: Buffer) => {
             try {
               const message = JSON.parse(data.toString());
-              logger().debug("Received WebSocket message:", message);
+              logger().debug("Received WebSocket message");
               this.handleWebSocketMessage(ws, message);
             } catch (error) {
               logger().error("Failed to parse WebSocket message:", error);
