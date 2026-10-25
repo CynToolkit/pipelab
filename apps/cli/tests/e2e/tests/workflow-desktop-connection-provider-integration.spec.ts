@@ -3,15 +3,33 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createSandbox } from "@pipelab/test-utils";
 import { runWithLiveLogs } from "@pipelab/plugin-core";
-import { PipelabContext, ReleasePersistence, registerWorkflowHandlers, useAPI } from "@pipelab/core-node";
+import {
+  PipelabContext,
+  ReleasePersistence,
+  registerWorkflowHandlers,
+  useAPI,
+} from "@pipelab/core-node";
 import * as remote from "../../../../../packages/core-node/src/utils/remote";
 
-vi.mock("../../../../../packages/providers/src/itch/ensure.js", () => ({
-  ensureButler: vi.fn(async () => "/mock/butler"),
-}));
 vi.mock("@pipelab/plugin-core", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@pipelab/plugin-core")>();
-  return { ...actual, runWithLiveLogs: vi.fn(async () => undefined) };
+  const fs = await import("node:fs/promises");
+  const path = await import("node:path");
+  return {
+    ...actual,
+    downloadFile: vi.fn(async (_url: string, localPath: string) =>
+      fs.writeFile(localPath, "mock archive"),
+    ),
+    extractZip: vi.fn(async (_archivePath: string, destinationDir: string) => {
+      await fs.mkdir(destinationDir, { recursive: true });
+      await Promise.all(
+        ["butler", "butler.exe"].map((name) =>
+          fs.writeFile(path.join(destinationDir, name), "mock executable"),
+        ),
+      );
+    }),
+    runWithLiveLogs: vi.fn(async () => undefined),
+  };
 });
 
 describe("Desktop workflow submission to Itch provider integration", () => {
@@ -72,9 +90,11 @@ describe("Desktop workflow submission to Itch provider integration", () => {
     await new ReleasePersistence(context).save(config, config.project);
     const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockResolvedValue(process.execPath);
     const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ user: { username: "desktop-user" } }), { status: 200 }),
-    );
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(
+        new Response(JSON.stringify({ user: { username: "desktop-user" } }), { status: 200 }),
+      );
     const events: unknown[] = [];
 
     try {
@@ -105,7 +125,11 @@ describe("Desktop workflow submission to Itch provider integration", () => {
       }),
     );
     expect(runWithLiveLogs).toHaveBeenCalledWith(
-      "/mock/butler",
+      context.getThirdPartyPath(
+        "butler",
+        "LATEST",
+        process.platform === "win32" ? "butler.exe" : "butler",
+      ),
       ["push", expect.any(String), "desktop-user/owner/game:linux", "--json"],
       expect.objectContaining({ env: expect.objectContaining({ BUTLER_API_KEY: apiKey }) }),
       expect.any(Function),
