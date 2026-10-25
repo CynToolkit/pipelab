@@ -524,6 +524,10 @@ import InputIcon from "primevue/inputicon";
 import { useToast } from "primevue/usetoast";
 import { useAPI } from "@renderer/composables/api";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
+import {
+  connectionIntegrationFieldValue,
+  serializeConnectionIntegrationValues,
+} from "../utils/connection-field-values";
 
 interface ConnectedAccount {
   id: string;
@@ -688,15 +692,7 @@ watch(
     editDynamicFields.value = {};
     if (integration && integration.fields) {
       for (const field of integration.fields) {
-        let val = "";
-        if (field.key === "username" || field.key === "email") val = conn.email || "";
-        else if (field.key === "password") val = conn.password || "";
-        else if (field.key === "apiKey" || field.key === "token" || field.key === "key")
-          val = conn.apiKey || "";
-        else if (field.key === "path" || field.key === "sdk") val = conn.path || "";
-        else if (field.key === "gameId") val = conn.gameId || "";
-
-        editDynamicFields.value[field.key] = val;
+        editDynamicFields.value[field.key] = connectionIntegrationFieldValue(conn, field.key);
       }
     }
   },
@@ -784,11 +780,15 @@ const getIconClass = (iconObj: any) => {
 };
 
 // --- Storage Persistence ---
-const saveConnections = async (list: ConnectedAccount[]) => {
+const saveConnections = async (
+  list: ConnectedAccount[],
+  workflowBindings = connectionsRef.value?.workflowBindings,
+) => {
   if (!agent.isReady.value || !connectionDataReady.value) return;
   await connectionsStore.updateConnections({
     version: "1.0.0",
     connections: list,
+    workflowBindings,
   });
 };
 
@@ -797,9 +797,12 @@ const disconnectAccount = async (accountId: string) => {
   if (!target) return;
 
   const updated = connectedAccounts.value.filter((a) => a.id !== accountId);
+  const workflowBindings = connectionsRef.value?.workflowBindings?.filter(
+    (binding) => binding.connectionId !== accountId,
+  );
 
   try {
-    await saveConnections(updated);
+    await saveConnections(updated, workflowBindings);
   } catch (err) {
     toast.add({
       severity: "error",
@@ -944,6 +947,9 @@ const saveNewAccount = async () => {
     const newId = Math.random().toString(36).substring(2, 9);
 
     const newAcc: ConnectedAccount = {
+      ...(target?.fields
+        ? serializeConnectionIntegrationValues(target.fields, dynamicFields.value)
+        : {}),
       id: newId,
       pluginName,
       integrationName: target?.integrationName,
@@ -989,7 +995,11 @@ const saveConnectionEdits = async () => {
   const updated = connectedAccounts.value.map((conn) => {
     if (conn.id === selectedConnectionId.value) {
       const integration = selectedConnectionIntegration.value;
-      const copy = { ...conn, name: editConnectionName.value, integrationName: integration?.name };
+      const copy: ConnectedAccount = {
+        ...conn,
+        name: editConnectionName.value,
+        integrationName: integration?.name,
+      };
       if (integration?.fields) {
         copy.email = undefined;
         copy.password = undefined;
@@ -998,6 +1008,7 @@ const saveConnectionEdits = async () => {
         copy.gameId = undefined;
         for (const field of integration.fields) {
           const val = editDynamicFields.value[field.key] || "";
+          copy[field.key] = val;
           if (field.key === "username" || field.key === "email") copy.email = val;
           else if (field.key === "password") copy.password = val;
           else if (field.key === "apiKey" || field.key === "token" || field.key === "key")

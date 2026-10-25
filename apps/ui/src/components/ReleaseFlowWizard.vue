@@ -393,6 +393,9 @@
             <p v-else-if="!projectId" class="review-notice" role="status">
               Choose a project before creating this workflow.
             </p>
+            <p v-if="invalidEnvironmentBindingCount" class="review-notice" role="alert">
+              Fix invalid environment variable names before creating this workflow.
+            </p>
             <div v-if="createError" class="wizard-create-error" role="alert">
               <span>{{ createError }}</span>
               <Button label="Retry" text @click="create" />
@@ -407,7 +410,7 @@
               <Button
                 :label="createPending ? 'Creating workflow…' : 'Create workflow'"
                 icon="mdi mdi-rocket-launch-outline"
-                :disabled="!isReady || !projectId || !canContinueDestinations || createPending"
+                :disabled="!canCreate"
                 @click="create"
               />
             </div>
@@ -440,11 +443,15 @@ import { useAPI } from "../composables/api";
 import { useAgentAvailability } from "../composables/useAgentAvailability";
 import { uiEnvironment } from "../composables/ui-runtime";
 import { useAppStore } from "../store/app";
+import { shouldInspectReleaseProviderConfig } from "../pages/release-flow-model";
 import ReleaseFieldControl from "./ReleaseFieldControl.vue";
+import { invalidEnvironmentBindingPaths } from "../utils/environment-bindings";
 import {
   buildReleaseWizardConfig,
+  chooseReleaseWizardSource,
   createReleaseWizardDraft,
   releaseWizardCanContinueDetails,
+  releaseWizardCanCreate,
   releaseWizardCanReview,
   releaseWizardDestination,
   releaseWizardNextStep,
@@ -452,6 +459,7 @@ import {
   releaseWizardRecap,
   releaseWizardIsOfflineBrowserDraft,
   releaseWizardSourceIsReady,
+  suggestReleaseWizardConnectionAliases,
   releaseWizardTargetAvailability,
   RELEASE_WIZARD_STEPS,
   HOSTED_RELEASE_WIZARD_STEPS,
@@ -543,6 +551,18 @@ const canContinueDestinations = computed(() =>
       )
     : releaseWizardCanReview(draft.value, catalog.value),
 );
+const invalidEnvironmentBindingCount = computed(
+  () => invalidEnvironmentBindingPaths(draft.value).length,
+);
+const canCreate = computed(() =>
+  releaseWizardCanCreate({
+    isReady: isReady.value,
+    projectId: props.projectId,
+    canContinueDestinations: canContinueDestinations.value,
+    createPending: createPending.value,
+    invalidEnvironmentBindingCount: invalidEnvironmentBindingCount.value,
+  }),
+);
 const recap = computed(() => releaseWizardRecap(draft.value, catalog.value));
 const providerIconClass = (icon?: IconType) => {
   if (icon?.type !== "icon") return "mdi mdi-puzzle-outline";
@@ -582,19 +602,15 @@ const destinationIcon = (id: string, icon?: IconType) => icon || metadataIcon(id
 const hasDestination = (id: string) =>
   draft.value.destinations.some((item) => item.provider === id);
 const chooseSource = (provider: string) => {
-  const definition = catalog.value.sources.find((source) => source.id === provider);
-  if (definition)
-    draft.value.source = {
-      provider,
-      config: structuredClone(toRaw(definition.defaultConfig)),
-    };
+  chooseReleaseWizardSource(draft.value, provider, toRaw(catalog.value));
 };
 const toggleDestination = (provider: string) => {
   const index = draft.value.destinations.findIndex((item) => item.provider === provider);
   if (index >= 0) draft.value.destinations.splice(index, 1);
   else {
-    const destination = releaseWizardDestination(provider, toRaw(catalog.value));
+    const destination = releaseWizardDestination(provider, toRaw(catalog.value), draft.value);
     if (destination) draft.value.destinations.push(destination);
+    suggestReleaseWizardConnectionAliases(draft.value, toRaw(catalog.value));
   }
 };
 const selectedDestination = (provider: string) =>
@@ -623,6 +639,7 @@ const chooseBuildProducer = (producerId: string) => {
       ],
     },
   ];
+  suggestReleaseWizardConnectionAliases(draft.value, toRaw(catalog.value));
 };
 const chooseBuildTarget = (targetId: string) => {
   const target = selectedBuildProducer.value?.targets.find(
@@ -637,6 +654,7 @@ const chooseBuildTarget = (targetId: string) => {
       config: structuredClone(toRaw(target.defaultConfig)),
     },
   ];
+  suggestReleaseWizardConnectionAliases(draft.value, toRaw(catalog.value));
 };
 const setBuildField = (key: string, value: unknown) => {
   if (selectedBuild.value) selectedBuild.value.config[key] = value;
@@ -660,6 +678,17 @@ const inspectSelectedBuild = async () => {
 
   const buildSnapshot = structuredClone(toRaw(build));
   const sourceConfig = structuredClone(toRaw(draft.value.source.config));
+  const config = {
+    id: buildSnapshot.id,
+    provider: buildSnapshot.engine,
+    enabled: buildSnapshot.enabled,
+    config: buildSnapshot.config,
+    targets: buildSnapshot.targets,
+  };
+  if (!shouldInspectReleaseProviderConfig({ sourceConfig, config })) {
+    producerInspectionOptions.value = {};
+    return;
+  }
   const isCurrent = () =>
     requestId === producerInspectionRequest &&
     props.visible &&
@@ -671,13 +700,7 @@ const inspectSelectedBuild = async () => {
     const result = await api.execute("release:producer:inspect", {
       provider: buildSnapshot.engine,
       sourceConfig,
-      config: {
-        id: buildSnapshot.id,
-        provider: buildSnapshot.engine,
-        enabled: buildSnapshot.enabled,
-        config: buildSnapshot.config,
-        targets: buildSnapshot.targets,
-      },
+      config,
     });
     if (!isCurrent()) return;
     if (result.type === "error") throw new Error(result.ipcError);
@@ -705,10 +728,15 @@ onBeforeUnmount(() => {
 });
 const create = async () => {
   const projectId = props.projectId;
-  if (!isReady.value || !projectId || !canContinueDestinations.value || createPending.value) return;
+  if (!projectId || !canCreate.value) return;
   const requestId = ++createRequest;
   const isCurrent = () => requestId === createRequest;
-  const config = buildReleaseWizardConfig(toRaw(draft.value), projectId, workflowId.value);
+  const config = buildReleaseWizardConfig(
+    toRaw(draft.value),
+    projectId,
+    workflowId.value,
+    toRaw(catalog.value),
+  );
   createPending.value = true;
   createError.value = "";
 

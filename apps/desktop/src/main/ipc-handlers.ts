@@ -2,7 +2,10 @@ import { ipcMain, dialog, BrowserWindow, shell, app } from "electron";
 import { isPathBlacklisted } from "@pipelab/plugin-core";
 import { showExistingItemInFolder } from "./show-existing-item";
 
-export const registerIpcHandlers = (relaunch: () => Promise<void>) => {
+export const registerIpcHandlers = (
+  relaunch: () => Promise<void>,
+  readWorkflowEnvironment: (workflowId: unknown) => Promise<Record<string, string>>,
+) => {
   console.log("[Main] Registering IPC handlers");
 
   const OPEN_DIALOG_CHANNEL = "dialog:showOpenDialog";
@@ -27,6 +30,11 @@ export const registerIpcHandlers = (relaunch: () => Promise<void>) => {
       filePath: result.filePath,
     };
   });
+
+  ipcMain.removeHandler("workflow:environment:read");
+  ipcMain.handle("workflow:environment:read", (_event, workflowId: unknown) =>
+    readWorkflowEnvironment(workflowId),
+  );
 
   ipcMain.handle("shell:openExternal", async (event, url) => {
     try {

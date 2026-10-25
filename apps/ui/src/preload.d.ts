@@ -20,6 +20,7 @@ declare global {
       openExternal?: (url: string) => Promise<boolean | void>;
       showItemInFolder?: (path: string) => Promise<any>;
       isPathBlacklisted?: (path: string) => Promise<boolean>;
+      readWorkflowEnvironment?: (workflowId: string) => Promise<Record<string, string>>;
     };
   }
 }

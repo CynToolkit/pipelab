@@ -160,6 +160,27 @@ const {
       0,
       "the connected wizard also defers account creation instead of showing an inert control",
     );
+    await dialog.locator(".wizard-panel:visible").getByRole("button", { name: "Back" }).click();
+    await dialog.locator(".wizard-panel:visible").getByRole("button", { name: "Back" }).click();
+    const sourceField = dialog
+      .locator(".release-field")
+      .filter({ hasText: "Project path" })
+      .first();
+    await sourceField.locator("details.environment-advanced summary").click();
+    await sourceField.getByRole("checkbox", { name: "Use environment variable" }).check();
+    await sourceField
+      .getByLabel("Environment variable", { exact: true })
+      .fill("GODOT_PROJECT_PATH");
+    const inspectionsBeforeEnvironmentBinding = calls.filter(
+      (channel) => channel === "release:producer:inspect",
+    ).length;
+    await dialog.locator(".wizard-panel:visible").getByRole("button", { name: "Continue" }).click();
+    await page.waitForTimeout(350);
+    assert.equal(
+      calls.filter((channel) => channel === "release:producer:inspect").length,
+      inspectionsBeforeEnvironmentBinding,
+      "provider inspection is deferred when the initiating client's source path is environment-bound",
+    );
     assert.ok(calls.includes("release:catalog:get"));
     assert.deepEqual(errors, [], `browser had no JS errors: ${errors.join("; ")}`);
     console.log(

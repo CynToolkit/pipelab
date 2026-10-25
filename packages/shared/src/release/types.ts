@@ -96,6 +96,7 @@ export interface ResolvedReleaseDestinationConfig extends Omit<ReleaseDestinatio
 export interface ReleaseDestinationConfig {
   id: string;
   provider: string;
+  name?: string;
   enabled: boolean;
   config: Record<string, unknown>;
   slots: ReleaseDestinationSlot[];

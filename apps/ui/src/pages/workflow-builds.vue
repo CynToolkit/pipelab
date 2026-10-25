@@ -384,8 +384,19 @@
           :value="fieldValue(draftBuild.config, field.key)"
           :options="fieldOptions(field)"
           :input-id="`build-${draftBuild.id}-${field.key}`"
+          :connection-binding="connectionBindingFor(fieldValue(draftBuild.config, field.key))"
+          :connection-binding-suggestion="
+            connectionBindingSuggestionFor(fieldValue(draftBuild.config, field.key), field)
+          "
           :issues="producerFieldIssues(draftBuild, field.key)"
-          @update:value="setField(draftBuild.config, field.key, $event)"
+          @update:value="
+            field.type === 'connection'
+              ? setConnectionFieldAlias(draftBuild.config, field, $event)
+              : setField(draftBuild.config, field.key, $event)
+          "
+          @update:connection-binding="
+            setConnectionBinding(fieldValue(draftBuild.config, field.key), $event)
+          "
           @add-connection="openConnection"
         />
       </template>
@@ -408,8 +419,19 @@
             :value="fieldValue(target.config, field.key)"
             :options="fieldOptions(field)"
             :input-id="`target-${draftBuild.id}-${target.id}-${field.key}`"
+            :connection-binding="connectionBindingFor(fieldValue(target.config, field.key))"
+            :connection-binding-suggestion="
+              connectionBindingSuggestionFor(fieldValue(target.config, field.key), field)
+            "
             :issues="producerTargetFieldIssues(draftBuild, target.id, field.key)"
-            @update:value="setField(target.config, field.key, $event)"
+            @update:value="
+              field.type === 'connection'
+                ? setConnectionFieldAlias(target.config, field, $event)
+                : setField(target.config, field.key, $event)
+            "
+            @update:connection-binding="
+              setConnectionBinding(fieldValue(target.config, field.key), $event)
+            "
             @add-connection="openConnection"
           />
         </template>
@@ -527,6 +549,7 @@ import {
   createSerializedTaskQueue,
   deploymentSlotLabel,
   deduplicateValidationIssues,
+  invalidEnvironmentBindingPaths,
   issuesForPath,
   outputReferenceChangeImpact,
   outputReferenceConsumers,
@@ -537,6 +560,7 @@ import {
   releaseOutputRefValue,
   removeBuildProfile,
   selectBuildInput,
+  shouldInspectReleaseProviderConfig,
   setBuildTargetEnabled,
   switchBuildProfileEngine,
   type CompatibleBuildCandidate,
@@ -552,6 +576,17 @@ import {
   resolveUnappliedBuildNavigation,
   resolveBuildIssueRequest,
 } from "./workflow-builds-state";
+import {
+  connectionDraftForIntegration,
+  connectionFieldsForIntegration,
+  connectionOptionsForIntegration,
+  persistWorkflowConnectionAliasRename,
+  releaseWorkflowConnectionAliases,
+  renameWorkflowConnectionAliasWithDraft,
+  setWorkflowConnectionBinding,
+  suggestUniqueConnectionBinding,
+  workflowConnectionBindingValue,
+} from "../utils/release-connection-bindings";
 
 const route = useRoute();
 const router = useRouter();
@@ -578,6 +613,9 @@ const compatibleRouteRequested = computed(() =>
 );
 const catalog = computed(() => appStore.releaseCatalog);
 const flow = ref<ReleaseConfig>();
+const invalidEnvironmentPaths = computed(() =>
+  flow.value ? invalidEnvironmentBindingPaths(flow.value) : [],
+);
 const plan = ref<ReleasePlan>();
 const planning = ref(false);
 const plannerError = ref("");
@@ -622,20 +660,116 @@ const saveStateLabel = computed(() =>
   saveState.value === "saving" ? "Saving…" : saveState.value === "error" ? "Save failed" : "Saved",
 );
 const connections = computed(() => connectionsStore.connections?.connections || []);
+const localConnectionsConfig = computed(
+  () => connectionsStore.connections || { version: "1.0.0" as const, connections: [] },
+);
+const connectionBindingFor = (alias: string) =>
+  workflowConnectionBindingValue(
+    localConnectionsConfig.value,
+    flow.value?.id || flowId.value,
+    alias,
+  );
+const connectionBindingSuggestionFor = (alias: string, field: ReleaseFieldDefinition) =>
+  alias
+    ? suggestUniqueConnectionBinding(
+        connections.value,
+        field.integration,
+        connectionBindingFor(alias),
+      )
+    : undefined;
+const setConnectionBinding = async (alias: string, connectionId: string) => {
+  if (!flow.value || connectionsStore.status !== "ready") return;
+  try {
+    const workflowBindings = setWorkflowConnectionBinding(
+      localConnectionsConfig.value.workflowBindings,
+      flow.value.id,
+      alias,
+      connectionId,
+    );
+    await connectionsStore.updateConnections({
+      ...localConnectionsConfig.value,
+      workflowBindings,
+    });
+  } catch (cause) {
+    buildInputError.value =
+      cause instanceof Error ? cause.message : "Unable to remember this Connection.";
+  }
+};
+const setConnectionFieldAlias = async (
+  values: Record<string, unknown>,
+  field: ReleaseFieldDefinition,
+  value: unknown,
+) => {
+  if (!flow.value) return;
+  const previous = fieldValue(values, field.key);
+  const next = typeof value === "string" ? value : "";
+  if (previous === next) return;
+  if (!previous) {
+    setField(values, field.key, next);
+    return;
+  }
+
+  try {
+    const workflowBindings = localConnectionsConfig.value.workflowBindings || [];
+    const renamed = renameWorkflowConnectionAliasWithDraft(
+      toRaw(flow.value),
+      draftBuild.value ? toRaw(draftBuild.value) : undefined,
+      catalog.value,
+      workflowBindings,
+      previous,
+      next,
+    );
+    const previousConnectionId = workflowConnectionBindingValue(
+      localConnectionsConfig.value,
+      flow.value.id,
+      previous,
+    );
+    const nextBindings = previousConnectionId
+      ? setWorkflowConnectionBinding(
+          renamed.workflowBindings,
+          flow.value.id,
+          next,
+          previousConnectionId,
+        )
+      : renamed.workflowBindings;
+    const workflowChanged = JSON.stringify(renamed.config) !== JSON.stringify(flow.value);
+    await persistWorkflowConnectionAliasRename({
+      workflowId: flow.value.id,
+      previousAlias: previous,
+      previousBindings: workflowBindings,
+      nextBindings,
+      saveConnections: async (nextWorkflowBindings) => {
+        await connectionsStore.updateConnections({
+          ...localConnectionsConfig.value,
+          workflowBindings: nextWorkflowBindings,
+        });
+      },
+      saveWorkflow: async () => {
+        if (renamed.draftBuild) draftBuild.value = renamed.draftBuild;
+        if (!workflowChanged) return;
+        flow.value = renamed.config;
+        clearTimeout(saveTimer);
+        await save();
+      },
+    });
+  } catch (cause) {
+    buildInputError.value =
+      cause instanceof Error ? cause.message : "Unable to rename this Connection alias.";
+  }
+};
 const connectionHasValue = computed(() =>
-  connectionFields.value.some((field) => connectionDraft.value.values[field.key]?.trim()),
+  connectionFields.value.length > 0 &&
+    connectionFields.value.some((field) => connectionDraft.value.values[field.key]?.trim()),
 );
 const connectionFields = computed(() => {
-  const definition = appStore.providerDefinitions.find(
-    (plugin) =>
-      plugin.packageName === connectionDraft.value.integration ||
-      plugin.id === connectionDraft.value.integration,
-  );
-  return (
-    definition?.integrations?.find(
-      (integration) => integration.name === connectionDraft.value.integrationName,
-    )?.fields || [{ key: "value", label: "Credential", type: "password" as const }]
-  );
+  try {
+    return connectionFieldsForIntegration(
+      connectionDraft.value.integrationName || connectionDraft.value.integration,
+      appStore.providerDefinitions,
+    );
+  } catch {
+    return [];
+  }
 });
 const compatibleDestination = computed(() =>
   flow.value?.destinations.find((destination) => destination.id === compatibleDestinationId.value),
@@ -736,14 +870,7 @@ const buildReadiness = (build: ReleaseBuildProfileConfig, index: number) => {
 };
 const sourceFieldOptions = (field: ReleaseFieldDefinition) =>
   field.type === "connection"
-    ? connections.value
-        .filter(
-          (connection) =>
-            !field.integration ||
-            connection.pluginName === field.integration ||
-            connection.integrationName === field.integration,
-        )
-        .map((connection) => ({ label: connection.name || connection.id, value: connection.id }))
+    ? connectionOptionsForIntegration(connections.value, field.integration)
     : producerInspectionOptions.value[field.key] || field.options || [];
 const fieldOptions = (field: ReleaseFieldDefinition) => sourceFieldOptions(field);
 const producerFieldIssues = (build: ReleaseBuildProfileConfig, key: string) => {
@@ -918,11 +1045,12 @@ const loadWorkflow = async () => {
     )
       throw new Error("Loaded workflow identity does not match the requested route.");
 
-    hydrating = true;
     const sameWorkflow =
       flow.value?.id === requestedFlowId && flow.value?.project === requestedProjectId;
     const preserveDraft = sameWorkflow && hasUnsavedWorkflowChanges();
-    if (!preserveDraft) flow.value = workflowResult.result;
+    const loadedWorkflow = workflowResult.result;
+    hydrating = true;
+    if (!preserveDraft) flow.value = loadedWorkflow;
     await nextTick();
     hydrating = false;
     if (!preserveDraft) {
@@ -970,6 +1098,11 @@ const refreshPlan = async () => {
 
 const save = createSerializedTaskQueue(async () => {
   if (!flow.value) return;
+  if (invalidEnvironmentPaths.value.length > 0) {
+    saveState.value = "error";
+    saveError.value = "Fix invalid environment variable names before saving workflow changes.";
+    throw new Error(saveError.value);
+  }
   if (!agent.isReady.value) {
     if (!hasUnsavedWorkflowChanges()) return;
     saveState.value = "error";
@@ -1121,6 +1254,19 @@ const inspectDraftBuild = async () => {
   const sourceConfig = structuredClone(toRaw(flow.value.source.config));
   const buildIndex = flow.value.builds.findIndex((candidate) => candidate.id === build.id);
   if (buildIndex < 0) return;
+  const config = {
+    id: build.id,
+    provider: build.engine,
+    enabled: build.enabled,
+    config: build.config,
+    targets: build.targets,
+  };
+  if (!shouldInspectReleaseProviderConfig({ sourceConfig, config })) {
+    producerInspectionChecking.value = false;
+    producerInspectionOptions.value = {};
+    producerInspectionIssues.value = [];
+    return;
+  }
   const isCurrent = () =>
     producerInspectionResponseIsCurrent(
       requestId,
@@ -1134,13 +1280,7 @@ const inspectDraftBuild = async () => {
     const result = await api.execute("release:producer:inspect", {
       provider: build.engine,
       sourceConfig,
-      config: {
-        id: build.id,
-        provider: build.engine,
-        enabled: build.enabled,
-        config: build.config,
-        targets: build.targets,
-      },
+      config,
     });
     if (!isCurrent()) return;
     if (result.type === "error") throw new Error(result.ipcError);
@@ -1213,6 +1353,7 @@ const addBuild = () => {
     newBuildEngine.value,
     nanoid(),
     [newBuildTarget.value],
+    releaseWorkflowConnectionAliases(flow.value, catalog.value),
   );
   if (!build) return;
   flow.value.builds.push(build);
@@ -1226,7 +1367,7 @@ const createCompatibleBuild = (choice: CompatibleBuildCandidate) => {
   if (!target || !buildTargetIsAvailable(target)) return;
   const build = createBuildProfile(catalog.value, choice.type, choice.engine, nanoid(), [
     choice.target,
-  ]);
+  ], releaseWorkflowConnectionAliases(flow.value, catalog.value));
   if (!build) return;
   flow.value.builds.push(build);
   compatibleSlot.value.input = { buildId: build.id, targetId: choice.target };
@@ -1324,7 +1465,15 @@ const requestDiscardBuildSettings = async () => {
 };
 const stageEngineChange = (engine: string) => {
   if (!draftBuild.value || engine === draftBuild.value.engine) return;
-  const switched = switchBuildProfileEngine(catalog.value, draftBuild.value, engine);
+  const existingAliases = flow.value
+    ? releaseWorkflowConnectionAliases(flow.value, catalog.value)
+    : [];
+  const switched = switchBuildProfileEngine(
+    catalog.value,
+    draftBuild.value,
+    engine,
+    existingAliases,
+  );
   if (!switched) return;
   draftBuild.value = switched;
 };
@@ -1338,6 +1487,8 @@ const toggleDraftTarget = (target: ReleaseCatalogTarget) => {
     !draftTargetEnabled(target.id),
     target.availability,
     target.availabilityStatus,
+    target.fields,
+    flow.value ? releaseWorkflowConnectionAliases(flow.value, catalog.value) : [],
   );
 };
 const setDraftBuildInput = (value: string) => {
@@ -1459,21 +1610,21 @@ const providerIcon = (icon: IconType | undefined) =>
     : "mdi mdi-hammer-wrench";
 const producerIcon = (id: string) => providerIcon(engineDefinition(id)?.icon);
 const openConnection = (integration: string) => {
-  const definition = appStore.providerDefinitions.find(
-    (plugin) => plugin.packageName === integration || plugin.id === integration,
-  );
-  const integrationDefinition = definition?.integrations?.[0];
-  connectionDraft.value = {
-    name: "",
-    integration,
-    integrationName: integrationDefinition?.name || "",
-    values: Object.fromEntries(
-      (integrationDefinition?.fields || [{ key: "value" }]).map((field) => [field.key, ""]),
-    ),
-  };
-  connectionVisible.value = true;
+  try {
+    connectionDraft.value = {
+      name: "",
+      ...connectionDraftForIntegration(integration, appStore.providerDefinitions),
+    };
+    buildInputError.value = "";
+    connectionVisible.value = true;
+  } catch (cause) {
+    connectionVisible.value = false;
+    buildInputError.value =
+      cause instanceof Error ? cause.message : "Provider Connection schema is unavailable.";
+  }
 };
 const createConnection = async () => {
+  if (!connectionFields.value.length || !connectionHasValue.value) return;
   if (
     !agent.isReady.value ||
     connectionsStore.status !== "ready" ||
@@ -1495,7 +1646,10 @@ const createConnection = async () => {
       isDefault: false,
     };
     const result = await api.execute("connections:save", {
-      data: { version: "1.0.0", connections: [...connections.value, record] },
+      data: {
+        ...localConnectionsConfig.value,
+        connections: [...connections.value, record],
+      },
     });
     if (result.type === "error") {
       buildInputError.value = result.ipcError;

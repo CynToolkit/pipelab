@@ -5,6 +5,9 @@ import { resolveBundledCli } from "./bundled-cli";
 
 export { getDefaultUserDataPath, PipelabContext, projectRoot } from "./context";
 export { fetchLatestDesktopRelease } from "./utils/github";
+export { ReleasePersistence } from "./release-persistence";
+export { buildCoreReleaseRegistry } from "./release/registry";
+export { getReleaseWorkflowEnvironmentVariableNames } from "./release/workflow-value-requirements";
 
 export async function fetchPipelabCli(
   _versionOrRange: string,

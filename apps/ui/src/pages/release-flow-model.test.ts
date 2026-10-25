@@ -15,9 +15,12 @@ import {
   connectionMatchesIntegration,
   clampBlockerIndex,
   createBuildProfile,
+  appendReleaseDestinationInstance,
+  createReleaseSourceConfig,
   createSerializedTaskQueue,
   deduplicateValidationIssues,
   firstBlockingIssue,
+  invalidEnvironmentBindingPaths,
   issuesForPath,
   missingRequiredFieldIssues,
   planOutputOptions,
@@ -31,6 +34,7 @@ import {
   deploymentSlotLabel,
   readinessLabel,
   releaseCanRun,
+  shouldInspectReleaseProviderConfig,
   releaseBlockerPresentation,
   releaseReadinessState,
   releaseRepairRoute,
@@ -104,6 +108,195 @@ const config: ReleaseConfig = {
 };
 
 describe("release flow model", () => {
+  it("adds repeated instances of the same destination provider to one release", () => {
+    const flow = structuredClone(config);
+    const definition = reactive({
+      id: "destination/steam",
+      label: "Steam",
+      accepts: {},
+      defaultConfig: { accountConnectionId: "", options: { channel: "public" } },
+    }) satisfies ReleaseCatalog["destinations"][number];
+    const ids = ["steam-one", "slot-one", "steam-two", "slot-two"];
+    const createId = () => ids.shift()!;
+
+    appendReleaseDestinationInstance(flow, definition, createId);
+    appendReleaseDestinationInstance(flow, definition, createId);
+
+    expect(flow.destinations).toHaveLength(2);
+    expect(flow.destinations.map((destination) => destination.provider)).toEqual([
+      "destination/steam",
+      "destination/steam",
+    ]);
+    expect(flow.destinations.map((destination) => destination.id)).toEqual([
+      "steam-one",
+      "steam-two",
+    ]);
+    expect(flow.destinations.map((destination) => destination.name)).toEqual([
+      "Destination 1",
+      "Destination 2",
+    ]);
+    expect(flow.destinations.map((destination) => destination.slots[0].id)).toEqual([
+      "slot-one",
+      "slot-two",
+    ]);
+
+    flow.destinations[0].config.accountConnectionId = "first-account";
+    expect(flow.destinations[1].config.accountConnectionId).toBe("");
+    (flow.destinations[0].config.options as { channel: string }).channel = "beta";
+    expect(flow.destinations[1].config.options).toEqual({ channel: "public" });
+  });
+
+  it("chooses an unused destination name after deleting a same-provider destination", () => {
+    const flow = structuredClone(config);
+    const definition = {
+      id: "destination/steam",
+      label: "Steam",
+      accepts: {},
+      defaultConfig: {},
+    } satisfies ReleaseCatalog["destinations"][number];
+    const ids = ["steam-one", "slot-one", "steam-two", "slot-two", "steam-three", "slot-three"];
+    const createId = () => ids.shift()!;
+
+    appendReleaseDestinationInstance(flow, definition, createId);
+    appendReleaseDestinationInstance(flow, definition, createId);
+    const survivingName = flow.destinations[1]!.name;
+    flow.destinations = flow.destinations.filter((destination) => destination.id !== "steam-one");
+    appendReleaseDestinationInstance(flow, definition, createId);
+
+    expect(flow.destinations.map((destination) => destination.name)).toEqual([
+      survivingName,
+      "Destination 1",
+    ]);
+    expect(new Set(flow.destinations.map((destination) => destination.name)).size).toBe(2);
+  });
+
+  it("suggests a readable workflow alias for each new same-provider destination", () => {
+    const flow = structuredClone(config);
+    const definition = {
+      id: "destination/steam",
+      label: "Steam",
+      accepts: {},
+      defaultConfig: { account: "" },
+      fields: [
+        {
+          key: "account",
+          type: "connection" as const,
+          label: "Steam account",
+          integration: "steam-account",
+        },
+      ],
+    } satisfies ReleaseCatalog["destinations"][number];
+    const destinationCatalog = { ...catalog, destinations: [definition] };
+    const ids = ["steam-one", "slot-one", "steam-two", "slot-two"];
+    const createId = () => ids.shift()!;
+
+    appendReleaseDestinationInstance(flow, definition, createId, destinationCatalog);
+    appendReleaseDestinationInstance(flow, definition, createId, destinationCatalog);
+
+    expect(flow.destinations.map((destination) => destination.config.account)).toEqual([
+      "steam-account",
+      "steam-account-2",
+    ]);
+  });
+
+  it("suggests a readable alias when changing to a source with a Connection field", () => {
+    const flow = structuredClone(config);
+    const source = {
+      id: "source/git",
+      label: "Git source",
+      output: { kind: "project" as const, container: "directory" as const },
+      defaultConfig: { account: "", branch: "main" },
+      fields: [
+        {
+          key: "account",
+          type: "connection" as const,
+          label: "Git account",
+          integration: "git",
+        },
+      ],
+    } satisfies ReleaseCatalog["sources"][number];
+
+    expect(createReleaseSourceConfig(flow, source, catalog)).toEqual({
+      account: "git-account",
+      branch: "main",
+    });
+  });
+
+  it("suggests a unique alias for a new build Connection requirement", () => {
+    const buildCatalog: ReleaseCatalog = {
+      ...catalog,
+      buildTypes: [{ id: "web", label: "Web" }],
+      producers: [
+        {
+          id: "producer/construct",
+          label: "Construct",
+          accepts: {},
+          planning: { mode: "build" },
+          defaultConfig: { account: "" },
+          fields: [
+            {
+              key: "account",
+              type: "connection",
+              label: "Construct account",
+              integration: "Construct Account",
+              required: true,
+            },
+          ],
+          targets: [{ id: "web", label: "Web", buildType: "web", defaultConfig: {} }],
+        },
+      ],
+    };
+
+    const build = createBuildProfile(
+      buildCatalog,
+      "web",
+      "producer/construct",
+      "build-1",
+      undefined,
+      ["construct-account"],
+    )!;
+
+    expect(build.config.account).toBe("construct-account-2");
+  });
+
+  it("finds invalid environment bindings across saved workflow property configs", () => {
+    const flow = structuredClone(config);
+    flow.source.config = { path: "${{ env.BAD{NAME }}" };
+    flow.builds = [
+      {
+        id: "build-one",
+        type: "desktop",
+        engine: "engine-a",
+        enabled: true,
+        config: { label: "${{ env.RELEASE-LABEL }}" },
+        targets: [],
+      },
+    ];
+    flow.destinations = [
+      {
+        id: "steam-one",
+        provider: "destination/steam",
+        enabled: true,
+        config: { notes: "${{ env.RELEASE-NOTES }}" },
+        slots: [
+          {
+            id: "windows",
+            enabled: true,
+            config: { channel: "${{ env.CHANNEL-NAME }}" },
+          },
+        ],
+      },
+    ];
+    flow.source.config.title = "${{ env.RELEASE_TITLE }}";
+
+    expect(invalidEnvironmentBindingPaths(flow)).toEqual([
+      "source.config.path",
+      "builds.0.config.label",
+      "destinations.0.config.notes",
+      "destinations.0.slots.0.config.channel",
+    ]);
+  });
+
   it("waits for the matching workflow and settled preflight before handling dashboard Ship", () => {
     const base = {
       intent: true,
@@ -130,6 +323,27 @@ describe("release flow model", () => {
     expect(dashboardShipIntentAction({ ...base, readiness: "attention" })).toBe("blocked");
     expect(dashboardShipIntentAction({ ...base, readiness: "error" })).toBe("blocked");
     expect(dashboardShipIntentAction({ ...base, intent: false })).toBe("wait");
+  });
+
+  it("defers source inspection for environment-bound values without blocking readiness", () => {
+    expect(shouldInspectReleaseProviderConfig({ path: "${{ env.PROJECT_PATH }}" })).toBe(false);
+    expect(
+      shouldInspectReleaseProviderConfig({
+        sourceConfig: { path: "/projects/game" },
+        config: { flags: ["folder: ${{ env.PROJECT_PATH }}"] },
+      }),
+    ).toBe(false);
+    expect(shouldInspectReleaseProviderConfig({ path: "/projects/game" })).toBe(true);
+    expect(
+      releaseReadinessState({
+        loading: false,
+        inspectingSource: false,
+        planning: false,
+        hasPlan: true,
+        hasReadinessError: false,
+        blockingIssueCount: 0,
+      }),
+    ).toBe("ready");
   });
 
   it("provides the compact build-card summary without inline settings", () => {
@@ -544,6 +758,310 @@ describe("release flow model", () => {
       preset: "custom",
       futureProviderSetting: { retained: true },
     });
+  });
+
+  it("suggests a fresh alias when an engine switch changes the Connection integration", () => {
+    const connectionCatalog: ReleaseCatalog = {
+      ...catalog,
+      producers: [
+        {
+          id: "engine-old",
+          label: "Old engine",
+          accepts: {},
+          planning: { mode: "build" },
+          defaultConfig: { account: "" },
+          fields: [
+            {
+              key: "account",
+              type: "connection",
+              label: "Old account",
+              integration: "old-store",
+            },
+          ],
+          targets: [{ id: "web", label: "Web", buildType: "web", defaultConfig: {} }],
+        },
+        {
+          id: "engine-new",
+          label: "New engine",
+          accepts: {},
+          planning: { mode: "build" },
+          defaultConfig: { account: "" },
+          fields: [
+            {
+              key: "account",
+              type: "connection",
+              label: "New store account",
+              integration: "new-store",
+            },
+          ],
+          targets: [{ id: "web", label: "Web", buildType: "web", defaultConfig: {} }],
+        },
+      ],
+    };
+    const build = {
+      id: "build-1",
+      type: "web",
+      engine: "engine-old",
+      enabled: true,
+      config: { account: "old-store-production" },
+      targets: [{ id: "web", enabled: false, config: {} }],
+    } satisfies ReleaseBuildProfileConfig;
+
+    const switched = switchBuildProfileEngine(connectionCatalog, build, "engine-new", [
+      "old-store-production",
+    ]);
+
+    expect(switched?.config.account).toBe("new-store-account");
+  });
+
+  it("does not carry ordinary or unknown producer values into new Connection aliases", () => {
+    const producerCatalog: ReleaseCatalog = {
+      ...catalog,
+      producers: [
+        {
+          id: "engine-old",
+          label: "Old engine",
+          accepts: {},
+          planning: { mode: "build" },
+          defaultConfig: { account: "", extra: "" },
+          fields: [{ key: "account", type: "text", label: "Version" }],
+          targets: [],
+        },
+        {
+          id: "engine-new",
+          label: "New engine",
+          accepts: {},
+          planning: { mode: "build" },
+          defaultConfig: { account: "", extra: "" },
+          fields: [
+            {
+              key: "account",
+              type: "connection",
+              label: "New store account",
+              integration: "new-store",
+            },
+            {
+              key: "extra",
+              type: "connection",
+              label: "New API account",
+              integration: "new-api",
+            },
+          ],
+          targets: [],
+        },
+      ],
+    };
+    const build = {
+      id: "build-1",
+      type: "web",
+      engine: "engine-old",
+      enabled: true,
+      config: { account: "1.0.0", extra: "unrecognized-old-setting" },
+      targets: [],
+    } satisfies ReleaseBuildProfileConfig;
+
+    const switched = switchBuildProfileEngine(producerCatalog, build, "engine-new");
+
+    expect(switched?.config).toEqual({
+      account: "new-store-account",
+      extra: "new-api-account",
+    });
+  });
+
+  it("replaces a target alias when an engine switch reuses its ID for another Connection integration", () => {
+    const targetCatalog: ReleaseCatalog = {
+      ...catalog,
+      producers: [
+        {
+          id: "engine-old",
+          label: "Old engine",
+          accepts: {},
+          planning: { mode: "build" },
+          defaultConfig: {},
+          fields: [],
+          targets: [
+            {
+              id: "web",
+              label: "Web",
+              buildType: "web",
+              defaultConfig: { account: "" },
+              fields: [
+                {
+                  key: "account",
+                  type: "connection",
+                  label: "Old web account",
+                  integration: "old-store",
+                },
+              ],
+            },
+            {
+              id: "preview",
+              label: "Preview",
+              buildType: "web",
+              defaultConfig: { account: "" },
+              fields: [
+                {
+                  key: "account",
+                  type: "connection",
+                  label: "Shared preview account",
+                  integration: "shared-store",
+                },
+              ],
+            },
+            {
+              id: "release",
+              label: "Release",
+              buildType: "web",
+              defaultConfig: { account: "" },
+              fields: [{ key: "account", type: "text", label: "Version" }],
+            },
+            {
+              id: "missing-field",
+              label: "Unrecognized old target",
+              buildType: "web",
+              defaultConfig: {},
+              fields: [],
+            },
+          ],
+        },
+        {
+          id: "engine-new",
+          label: "New engine",
+          accepts: {},
+          planning: { mode: "build" },
+          defaultConfig: {},
+          fields: [],
+          targets: [
+            {
+              id: "web",
+              label: "Web",
+              buildType: "web",
+              defaultConfig: { account: "" },
+              fields: [
+                {
+                  key: "account",
+                  type: "connection",
+                  label: "New web account",
+                  integration: "new-store",
+                },
+              ],
+            },
+            {
+              id: "preview",
+              label: "Preview",
+              buildType: "web",
+              defaultConfig: { account: "" },
+              fields: [
+                {
+                  key: "account",
+                  type: "connection",
+                  label: "Shared preview account",
+                  integration: "shared-store",
+                },
+              ],
+            },
+            {
+              id: "release",
+              label: "Release",
+              buildType: "web",
+              defaultConfig: { account: "" },
+              fields: [
+                {
+                  key: "account",
+                  type: "connection",
+                  label: "New release account",
+                  integration: "release-store",
+                },
+              ],
+            },
+            {
+              id: "missing-field",
+              label: "New target field",
+              buildType: "web",
+              defaultConfig: { account: "" },
+              fields: [
+                {
+                  key: "account",
+                  type: "connection",
+                  label: "New target account",
+                  integration: "new-target-store",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const build = {
+      id: "build-1",
+      type: "web",
+      engine: "engine-old",
+      enabled: true,
+      config: {},
+      targets: [
+        { id: "web", enabled: true, config: { account: "old-web-account" } },
+        { id: "preview", enabled: true, config: { account: "shared-store-production" } },
+        { id: "release", enabled: true, config: { account: "1.0.0" } },
+        { id: "missing-field", enabled: true, config: { account: "old-unrecognized-value" } },
+      ],
+    } satisfies ReleaseBuildProfileConfig;
+
+    const switched = switchBuildProfileEngine(targetCatalog, build, "engine-new", [
+      "old-web-account",
+      "shared-store-production",
+    ]);
+
+    expect(switched?.targets).toEqual([
+      { id: "web", enabled: false, config: { account: "new-web-account" } },
+      { id: "preview", enabled: false, config: { account: "shared-store-production" } },
+      { id: "release", enabled: false, config: { account: "new-release-account" } },
+      { id: "missing-field", enabled: false, config: { account: "new-target-account" } },
+    ]);
+  });
+
+  it("suggests an alias when enabling an existing target with an empty Connection", () => {
+    const targetCatalog: ReleaseCatalog = {
+      ...catalog,
+      producers: [
+        {
+          ...catalog.producers[0],
+          fields: [],
+          targets: [
+            {
+              id: "windows",
+              label: "Windows x64",
+              buildType: "desktop",
+              defaultConfig: { account: "" },
+              fields: [
+                {
+                  key: "account",
+                  type: "connection",
+                  label: "Windows signing account",
+                  integration: "signing-store",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+    const build = {
+      ...createBuildProfile(targetCatalog, "desktop", "engine-a", "build-1")!,
+      targets: [{ id: "windows", enabled: false, config: { account: "" } }],
+    };
+
+    expect(
+      setBuildTargetEnabled(
+        build,
+        "windows",
+        true,
+        undefined,
+        undefined,
+        targetCatalog.producers[0].targets[0].fields,
+        ["other-account"],
+      ),
+    ).toBe(true);
+    expect(build.targets[0].config.account).toBe("windows-signing-account");
   });
 
   it("keeps unavailable targets visible but never enables them by default", () => {
@@ -1019,6 +1537,7 @@ describe("release flow model", () => {
     expect(releaseCanRun(flow, plan, [], false, false, "error")).toBe(false);
     expect(releaseCanRun(flow, plan, [], false, false, "saved", true)).toBe(false);
     expect(releaseCanRun(flow, plan, [], false, false, "saved", false, true)).toBe(false);
+    expect(releaseCanRun(flow, plan, [], false, false, "saved", false, false, true)).toBe(false);
   });
 
   it("does not run a release when persistence fails", async () => {
@@ -1102,6 +1621,17 @@ describe("release flow model", () => {
         blockingIssueCount: 0,
       }),
     ).toBe("checking");
+    expect(
+      releaseReadinessState({
+        loading: false,
+        inspectingSource: false,
+        planning: false,
+        hasPlan: true,
+        hasReadinessError: false,
+        blockingIssueCount: 0,
+        invalidFieldCount: 1,
+      }),
+    ).toBe("attention");
     expect(
       releaseReadinessState({
         loading: false,
