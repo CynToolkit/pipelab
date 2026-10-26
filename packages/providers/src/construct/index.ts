@@ -67,6 +67,17 @@ export const constructSource: ReleaseSourceDefinition = {
             path: "profilePath",
           },
         ]),
+    ...(Object.hasOwn(config, "accountConnectionId") &&
+    typeof config.accountConnectionId !== "string"
+      ? [
+          {
+            code: "construct.connection.invalid",
+            message: "A Construct Account alias must be a string.",
+            severity: "error" as const,
+            path: "accountConnectionId",
+          },
+        ]
+      : []),
   ],
   inspect: async (config) => {
     const profiles = await listChromiumBrowserProfiles();

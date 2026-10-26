@@ -568,6 +568,26 @@ describe("ReleasePersistence", () => {
     }
   });
 
+  it("rejects a non-string Construct account alias during workflow preflight", () => {
+    const config = createReleaseConfig({
+      id: "workflow-1",
+      project: "project-1",
+      name: "Construct release",
+      source: {
+        provider: "@pipelab/plugin-construct/source",
+        config: {
+          path: "project.c3p",
+          profilePath: "/browser/profile",
+          accountConnectionId: 42,
+        },
+      },
+    });
+
+    expect(() => prepareReleaseWorkflow(config)).toThrow(
+      "A Construct Account alias must be a string.",
+    );
+  });
+
   it("preflights missing connection override environment before creating history", async () => {
     const { context } = await setup();
     const variableName = "PIPELAB_REQUIRED_CONNECTION_VALUE_FOR_PREFLIGHT";
