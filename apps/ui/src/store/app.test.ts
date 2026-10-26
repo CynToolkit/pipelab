@@ -177,7 +177,19 @@ describe("built-in provider metadata", () => {
     expect(offlineProvider?.integrations?.map((integration) => integration.name)).toEqual([
       "Browser Executable",
       "Browser Profile",
+      "Construct Account",
     ]);
+    expect(
+      offlineProvider?.integrations?.find(
+        (integration) => integration.name === "Construct Account",
+      ),
+    ).toEqual({
+      name: "Construct Account",
+      fields: [
+        { key: "username", label: "Username", type: "text" },
+        { key: "password", label: "Password", type: "password" },
+      ],
+    });
     expect(offlineProvider?.integrations?.[0].fields[0]).toMatchObject({
       key: "path",
       label: "Browser Executable Path",
