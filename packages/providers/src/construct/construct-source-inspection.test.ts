@@ -22,7 +22,7 @@ vi.mock("./browser-profiles", async (importOriginal) => ({
 import { constructSource } from "./index";
 
 describe("Construct source inspection", () => {
-  it("binds credentials to runtime environment references without embedding their values", () => {
+  it("compiles a workflow-scoped account alias without reading or storing process credentials", () => {
     const username = "construct-user@example.test";
     const password = "construct-password-secret";
     vi.stubEnv("CONSTRUCT_USERNAME", username);
@@ -30,23 +30,32 @@ describe("Construct source inspection", () => {
 
     try {
       const compiled = constructSource.compile(
-        { path: "/project.c3p", profilePath, version: "" },
-        { host: { platform: "linux", architecture: "x64" } },
+        {
+          path: "/project.c3p",
+          profilePath,
+          accountConnectionId: "construct-production",
+          version: "",
+        },
+        {
+          host: { platform: "linux", architecture: "x64" },
+          getEnvironmentVariableStatus: () => ({ configured: false, nonEmpty: false }),
+        },
       );
       const inputs = compiled.steps[0]?.with;
 
-      expect(inputs).toMatchObject({
-        username: "${{ env.CONSTRUCT_USERNAME }}",
-        password: "${{ env.CONSTRUCT_PASSWORD }}",
-      });
+      expect(inputs).toMatchObject({ accountConnectionId: "construct-production" });
+      expect(inputs).not.toHaveProperty("username");
+      expect(inputs).not.toHaveProperty("password");
       expect(JSON.stringify(compiled)).not.toContain(username);
       expect(JSON.stringify(compiled)).not.toContain(password);
+      expect(JSON.stringify(compiled)).not.toContain("CONSTRUCT_USERNAME");
+      expect(JSON.stringify(compiled)).not.toContain("CONSTRUCT_PASSWORD");
     } finally {
       vi.unstubAllEnvs();
     }
   });
 
-  it("leaves profile-only exports unchanged when no Construct credentials are configured", () => {
+  it("keeps profile-only exports available when no account alias is configured", () => {
     vi.stubEnv("CONSTRUCT_USERNAME", undefined);
     vi.stubEnv("CONSTRUCT_PASSWORD", undefined);
 
@@ -58,44 +67,7 @@ describe("Construct source inspection", () => {
 
       expect(compiled.steps[0]?.with).not.toHaveProperty("username");
       expect(compiled.steps[0]?.with).not.toHaveProperty("password");
-    } finally {
-      vi.unstubAllEnvs();
-    }
-  });
-
-  it.each([
-    ["username", "construct-user@example.test", undefined],
-    ["password", undefined, "construct-password-secret"],
-  ])("rejects a configured Construct %s without its pair", (_credential, username, password) => {
-    vi.stubEnv("CONSTRUCT_USERNAME", username);
-    vi.stubEnv("CONSTRUCT_PASSWORD", password);
-
-    try {
-      expect(() =>
-        constructSource.compile(
-          { path: "/project.c3p", profilePath, version: "" },
-          { host: { platform: "linux", architecture: "x64" } },
-        ),
-      ).toThrow("Set both CONSTRUCT_USERNAME and CONSTRUCT_PASSWORD, or unset both");
-    } finally {
-      vi.unstubAllEnvs();
-    }
-  });
-
-  it.each([
-    ["username", "", "construct-password-secret"],
-    ["password", "construct-user@example.test", ""],
-  ])("rejects an empty Construct %s", (_credential, username, password) => {
-    vi.stubEnv("CONSTRUCT_USERNAME", username);
-    vi.stubEnv("CONSTRUCT_PASSWORD", password);
-
-    try {
-      expect(() =>
-        constructSource.compile(
-          { path: "/project.c3p", profilePath, version: "" },
-          { host: { platform: "linux", architecture: "x64" } },
-        ),
-      ).toThrow("Both credential values must be non-empty");
+      expect(compiled.steps[0]?.with).not.toHaveProperty("accountConnectionId");
     } finally {
       vi.unstubAllEnvs();
     }

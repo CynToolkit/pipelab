@@ -270,6 +270,122 @@ describe("ReleasePersistence", () => {
     }
   });
 
+  const constructAccountCases: Array<{
+    values: Record<string, string>;
+    field: "username" | "password";
+  }> = [
+    { values: {}, field: "username" },
+    { values: { username: "construct-user@example.test" }, field: "password" },
+  ];
+
+  it("preflights a configured optional Construct account alias before creating history", async () => {
+    const { context } = await setup();
+    const alias = "construct-production";
+    const config = createReleaseConfig({
+      id: "workflow-1",
+      project: "project-1",
+      name: "Construct release",
+      source: {
+        provider: "@pipelab/plugin-construct/source",
+        config: {
+          path: join(context.userDataPath, "project.c3p"),
+          profilePath: join(context.userDataPath, "profile"),
+          accountConnectionId: alias,
+          version: "",
+        },
+      },
+    });
+    await writeFile(join(context.userDataPath, "project.c3p"), "fixture");
+    await mkdir(context.getConfigPath("workflows"), { recursive: true });
+    await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));
+
+    const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockResolvedValue("node");
+    const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
+    const workflowRun = vi.spyOn(workflowRuntime, "runWorkflow").mockResolvedValue({
+      status: "completed",
+      outputs: {},
+      artifacts: [],
+      deliveries: [],
+      steps: {},
+    });
+
+    try {
+      await expect(executeWorkflow(context, "workflows/workflow-1")).rejects.toThrow(
+        `Required workflow Connection alias is missing: ${alias}`,
+      );
+
+      expect(await new BuildHistoryStorage(context).getAll()).toEqual([]);
+      expect(nodeSetup).not.toHaveBeenCalled();
+      expect(pnpmSetup).not.toHaveBeenCalled();
+      expect(workflowRun).not.toHaveBeenCalled();
+    } finally {
+      workflowRun.mockRestore();
+      nodeSetup.mockRestore();
+      pnpmSetup.mockRestore();
+    }
+  });
+
+  it.each(constructAccountCases)(
+    "preflights a missing Construct Account $field before creating history",
+    async (scenario) => {
+      const { context } = await setup();
+      const alias = "construct-production";
+      const config = createReleaseConfig({
+        id: "workflow-1",
+        project: "project-1",
+        name: "Construct release",
+        source: {
+          provider: "@pipelab/plugin-construct/source",
+          config: {
+            path: join(context.userDataPath, "project.c3p"),
+            profilePath: join(context.userDataPath, "profile"),
+            accountConnectionId: alias,
+            version: "",
+          },
+        },
+      });
+      await mkdir(context.getConfigPath("workflows"), { recursive: true });
+      await writeFile(
+        context.getConfigPath("workflows", "workflow-1.json"),
+        JSON.stringify(config),
+      );
+
+      const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockResolvedValue("node");
+      const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
+      const workflowRun = vi.spyOn(workflowRuntime, "runWorkflow").mockResolvedValue({
+        status: "completed",
+        outputs: {},
+        artifacts: [],
+        deliveries: [],
+        steps: {},
+      });
+      let runCreated = false;
+
+      try {
+        await expect(
+          executeWorkflow(context, "workflows/workflow-1", {
+            connectionValues: { [alias]: scenario.values },
+            onRunCreated: () => {
+              runCreated = true;
+            },
+          }),
+        ).rejects.toThrow(
+          `Required workflow Connection field is missing: ${alias}.${scenario.field}`,
+        );
+
+        expect(await new BuildHistoryStorage(context).getAll()).toEqual([]);
+        expect(runCreated).toBe(false);
+        expect(nodeSetup).not.toHaveBeenCalled();
+        expect(pnpmSetup).not.toHaveBeenCalled();
+        expect(workflowRun).not.toHaveBeenCalled();
+      } finally {
+        workflowRun.mockRestore();
+        nodeSetup.mockRestore();
+        pnpmSetup.mockRestore();
+      }
+    },
+  );
+
   it("does not infer run-scoped values from saved credentials for a legacy local ID", async () => {
     const { context } = await setup();
     const legacyApiKey = "legacy-local-itch-api-key";
@@ -314,15 +430,13 @@ describe("ReleasePersistence", () => {
       ],
     });
 
-    const workflowRun = vi
-      .spyOn(workflowRuntime, "runWorkflow")
-      .mockResolvedValue({
-        status: "completed",
-        outputs: {},
-        artifacts: [],
-        deliveries: [],
-        steps: {},
-      });
+    const workflowRun = vi.spyOn(workflowRuntime, "runWorkflow").mockResolvedValue({
+      status: "completed",
+      outputs: {},
+      artifacts: [],
+      deliveries: [],
+      steps: {},
+    });
     const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockResolvedValue("node");
     const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
     let runCreated = false;
@@ -394,6 +508,84 @@ describe("ReleasePersistence", () => {
       },
     ]);
     expect(prepared.requiredEnvironmentVariables).toEqual([variableName]);
+  });
+
+  it("compiles a Construct account alias without serializing credentials or environment references", async () => {
+    const { context } = await setup();
+    const username = "construct-user@example.test";
+    const password = "construct-password-secret";
+    vi.stubEnv("CONSTRUCT_USERNAME", "daemon-user@example.test");
+    vi.stubEnv("CONSTRUCT_PASSWORD", "daemon-password-secret");
+    const config = createReleaseConfig({
+      id: "workflow-1",
+      project: "project-1",
+      name: "Construct release",
+      source: {
+        provider: "@pipelab/plugin-construct/source",
+        config: {
+          path: join(context.userDataPath, "project.c3p"),
+          profilePath: join(context.userDataPath, "profile"),
+          accountConnectionId: "construct-production",
+          version: "",
+        },
+      },
+    });
+    await mkdir(context.getConfigPath("workflows"), { recursive: true });
+    await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));
+
+    let compiled: Workflow | undefined;
+    const workflowRun = vi
+      .spyOn(workflowRuntime, "runWorkflow")
+      .mockImplementation(async (workflow) => {
+        compiled = workflow;
+        throw new Error("stop after compile");
+      });
+    const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockResolvedValue("node");
+    const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
+
+    try {
+      await expect(
+        executeWorkflow(context, "workflows/workflow-1", {
+          env: {},
+          connectionValues: { "construct-production": { username, password } },
+        }),
+      ).rejects.toThrow("stop after compile");
+
+      expect(compiled?.steps[0]?.with).toMatchObject({
+        accountConnectionId: "construct-production",
+      });
+      expect(compiled?.steps[0]?.with).not.toHaveProperty("username");
+      expect(compiled?.steps[0]?.with).not.toHaveProperty("password");
+      expect(JSON.stringify(compiled)).not.toContain(username);
+      expect(JSON.stringify(compiled)).not.toContain(password);
+      expect(JSON.stringify(compiled)).not.toContain("CONSTRUCT_USERNAME");
+      expect(JSON.stringify(compiled)).not.toContain("CONSTRUCT_PASSWORD");
+    } finally {
+      vi.unstubAllEnvs();
+      workflowRun.mockRestore();
+      nodeSetup.mockRestore();
+      pnpmSetup.mockRestore();
+    }
+  });
+
+  it("rejects a non-string Construct account alias during workflow preflight", () => {
+    const config = createReleaseConfig({
+      id: "workflow-1",
+      project: "project-1",
+      name: "Construct release",
+      source: {
+        provider: "@pipelab/plugin-construct/source",
+        config: {
+          path: "project.c3p",
+          profilePath: "/browser/profile",
+          accountConnectionId: 42,
+        },
+      },
+    });
+
+    expect(() => prepareReleaseWorkflow(config)).toThrow(
+      "A Construct Account alias must be a string.",
+    );
   });
 
   it("preflights missing connection override environment before creating history", async () => {

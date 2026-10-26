@@ -8,7 +8,7 @@ import {
   runWithLiveLogs,
   fetchPackage,
 } from "@pipelab/plugin-core";
-import { script } from "./assets/script.js";
+import { constructAccountOrigin, script } from "./assets/script.js";
 import * as v from "valibot";
 import type { BrowserContext, Video } from "playwright";
 import type { Dirent } from "node:fs";
@@ -200,14 +200,27 @@ const restrictManagedProfileAccess = async (path: string): Promise<void> => {
   await chmod(path, 0o700);
 };
 
+const isAccountOriginDatabase = (relativePath: string, accountOrigins?: readonly string[]) => {
+  if (!accountOrigins?.length) return false;
+  const [parent, database] = relativePath.split(sep);
+  return (
+    parent?.toLowerCase() === "indexeddb" &&
+    accountOrigins.some((origin) =>
+      database?.toLowerCase().includes(new URL(origin).hostname.toLowerCase()),
+    )
+  );
+};
+
 async function resilientCopy(
   src: string,
   dest: string,
   relativePath: string,
   log: (...args: unknown[]) => void,
   abortSignal?: AbortSignal,
+  preserveAccountOrigins?: readonly string[],
 ): Promise<void> {
   throwIfAborted(abortSignal);
+  if (isAccountOriginDatabase(relativePath, preserveAccountOrigins)) return;
   const required = isProfileSyncRequired(relativePath);
 
   try {
@@ -225,9 +238,10 @@ async function resilientCopy(
       for (const entry of destinationEntries) {
         throwIfAborted(abortSignal);
         if (transientProfileEntries.has(entry.name)) continue;
+        const staleRelativePath = [relativePath, entry.name].filter(Boolean).join(sep);
+        if (isAccountOriginDatabase(staleRelativePath, preserveAccountOrigins)) continue;
         const sourceEntry = sourceEntries.get(entry.name);
         if (!sourceEntry || sourceEntry.isDirectory() !== entry.isDirectory()) {
-          const staleRelativePath = [relativePath, entry.name].filter(Boolean).join(sep);
           await rm(join(dest, entry.name), { recursive: true, force: true }).catch(
             (error: unknown) => {
               if (isProfileSyncRequired(staleRelativePath)) {
@@ -243,10 +257,18 @@ async function resilientCopy(
           log(`  Skipping transient Chromium profile data: ${entry.name}`);
           continue;
         }
+        const childRelativePath = [relativePath, entry.name].filter(Boolean).join(sep);
+        if (isAccountOriginDatabase(childRelativePath, preserveAccountOrigins)) continue;
         const srcPath = join(src, entry.name);
         const destPath = join(dest, entry.name);
-        const childRelativePath = [relativePath, entry.name].filter(Boolean).join(sep);
-        await resilientCopy(srcPath, destPath, childRelativePath, log, abortSignal);
+        await resilientCopy(
+          srcPath,
+          destPath,
+          childRelativePath,
+          log,
+          abortSignal,
+          preserveAccountOrigins,
+        );
       }
       throwIfAborted(abortSignal);
     } else {
@@ -313,6 +335,7 @@ export const preparePlaywrightProfile = async (
   destination: string,
   log: (...args: unknown[]) => void = () => {},
   abortSignal?: AbortSignal,
+  options: { preserveAccountOrigins?: readonly string[] } = {},
 ) => {
   throwIfAborted(abortSignal);
   let sourceStats: Awaited<ReturnType<typeof stat>>;
@@ -339,7 +362,14 @@ export const preparePlaywrightProfile = async (
   await restrictManagedProfileAccess(destination);
   await restrictManagedProfileAccess(playwrightProfile);
   await validateProfilePreferences(source);
-  await resilientCopy(source, playwrightProfile, "", log, abortSignal);
+  await resilientCopy(
+    source,
+    playwrightProfile,
+    "",
+    log,
+    abortSignal,
+    options.preserveAccountOrigins,
+  );
   throwIfAborted(abortSignal);
   await removeProfileLocks(playwrightProfile, "", abortSignal);
   throwIfAborted(abortSignal);
@@ -384,6 +414,19 @@ export interface ConstructExportExecutionContext {
 }
 
 const profileScope = (value: string) => createHash("sha256").update(value).digest("hex");
+
+export const constructManagedProfileIdentity = (
+  projectId: string,
+  username: string,
+  seedProfile: string,
+  useConnectionCredentials: boolean,
+) =>
+  [
+    projectId,
+    username,
+    seedProfile,
+    ...(useConnectionCredentials ? ["connection-account-session-v1"] : []),
+  ].join("\0");
 
 export const exportc3p = async (
   file: string,
@@ -502,10 +545,15 @@ export const exportc3p = async (
     const browserSetupStartedAt = Date.now();
     const profileSetupStartedAt = Date.now();
     const username = typeof newInputs.username === "string" ? newInputs.username.trim() : "";
+    const password = typeof newInputs.password === "string" ? newInputs.password : "";
+    const useConnectionAccountSession = Boolean(username && password);
     const seedProfile =
       typeof newInputs.customProfile === "string" ? newInputs.customProfile.trim() : "";
-    const profileIdentity = [projectId, username, seedProfile ? resolve(seedProfile) : ""].join(
-      "\0",
+    const profileIdentity = constructManagedProfileIdentity(
+      projectId,
+      username,
+      seedProfile ? resolve(seedProfile) : "",
+      useConnectionAccountSession,
     );
     const managedProfile = ctx.getCachePath(
       "pipelines",
@@ -516,9 +564,9 @@ export const exportc3p = async (
     await mkdir(managedProfile, { recursive: true, mode: 0o700 });
     await chmod(managedProfile, 0o700).catch(() => {});
     managedProfileLock = await acquireManagedProfileLock(managedProfile, abortSignal);
+    const managedProfileInitialized = existsSync(join(managedProfile, "Default", "Preferences"));
 
     if (seedProfile) {
-      const managedProfileInitialized = existsSync(join(managedProfile, "Default", "Preferences"));
       log(
         managedProfileInitialized
           ? "Refreshing the project-scoped Construct profile from the selected Chromium profile"
@@ -528,7 +576,20 @@ export const exportc3p = async (
       if (!existsSync(indexedDbPathSource)) {
         log(`  [WARNING] Source IndexedDB directory does not exist: "${indexedDbPathSource}".`);
       }
-      await preparePlaywrightProfile(seedProfile, managedProfile, log, abortSignal);
+      await preparePlaywrightProfile(
+        seedProfile,
+        managedProfile,
+        log,
+        abortSignal,
+        useConnectionAccountSession
+          ? {
+              preserveAccountOrigins: [
+                constructAccountOrigin(undefined),
+                constructAccountOrigin("beta"),
+              ],
+            }
+          : undefined,
+      );
     }
     throwIfAborted(abortSignal);
     logElapsed("Construct managed profile ready after", profileSetupStartedAt);
@@ -584,6 +645,7 @@ export const exportc3p = async (
       downloadDir,
       abortSignal,
       exportTimeoutMs,
+      useConnectionAccountSession && managedProfileInitialized,
       // addonsFolder,
     );
 

@@ -14,6 +14,7 @@ const CONSTRUCT_SETTINGS_SEED_TIMEOUT_MS = 15_000;
 const FILE_CHOOSER_TIMEOUT_MS = 5_000;
 const CONSTRUCT_API_TIMEOUT_MS = 30_000;
 const CONSTRUCT_TOKEN_TIMEOUT_MS = 30_000;
+const CONSTRUCT_SESSION_REJECTED_MESSAGE = "Construct did not confirm the prepared account session";
 const OPEN_RETRY_COUNT = 1;
 const CONSTRUCT_EDITOR_ORIGIN = "https://editor.construct.net";
 
@@ -25,6 +26,7 @@ type ConstructLoginData = { userID: string | number; token: string };
 type ConstructLoginResult =
   | { loginData: ConstructLoginData; startedAt: number }
   | { error: unknown; startedAt: number };
+type ConstructApiLogin = Promise<ConstructLoginResult> | (() => Promise<ConstructLoginResult>);
 
 export const constructAccountOrigin = (version: string | undefined) => {
   const normalizedVersion = version?.trim().toLowerCase() ?? "";
@@ -88,9 +90,12 @@ const isConstructLoginData = (value: unknown): value is ConstructLoginData =>
   typeof value.token === "string" &&
   value.token.length > 0;
 
+const isConstructSessionRejected = (error: unknown) =>
+  error instanceof Error && error.message === CONSTRUCT_SESSION_REJECTED_MESSAGE;
+
 export const getConstructLoginData = async (
   authState: unknown,
-  apiLogin: Promise<ConstructLoginResult> | undefined,
+  apiLogin: ConstructApiLogin | undefined,
   username: string,
   password: string,
   abortSignal: AbortSignal,
@@ -100,7 +105,7 @@ export const getConstructLoginData = async (
   throwIfAborted(abortSignal);
 
   if (apiLogin) {
-    const result = await apiLogin;
+    const result = await (typeof apiLogin === "function" ? apiLogin() : apiLogin);
     throwIfAborted(abortSignal);
     logElapsed(log, "Construct API authentication after", result.startedAt);
     if ("error" in result) {
@@ -405,7 +410,7 @@ const waitForConstructTokenResponse = async (
     );
   const response = await awaitWithAbort(responsePromise, abortSignal);
   if (!response?.ok()) {
-    throw new Error("Construct did not confirm the prepared account session");
+    throw new Error(CONSTRUCT_SESSION_REJECTED_MESSAGE);
   }
 
   let payload: unknown;
@@ -416,11 +421,11 @@ const waitForConstructTokenResponse = async (
     );
   } catch {
     if (abortSignal.aborted) throw createAbortError(abortSignal);
-    throw new Error("Construct did not confirm the prepared account session");
+    throw new Error(CONSTRUCT_SESSION_REJECTED_MESSAGE);
   }
   const request = isRecord(payload) && isRecord(payload.request) ? payload.request : undefined;
   if (request?.status !== "ok") {
-    throw new Error("Construct did not confirm the prepared account session");
+    throw new Error(CONSTRUCT_SESSION_REJECTED_MESSAGE);
   }
 };
 
@@ -436,9 +441,10 @@ export const prepareConstructEditor = async (
   version: string | undefined,
   username: string | undefined,
   password: string | undefined,
-  apiLogin: Promise<ConstructLoginResult> | undefined,
+  apiLogin: ConstructApiLogin | undefined,
   abortSignal: AbortSignal,
   log: typeof console.log,
+  reuseCachedAccountSession = false,
 ) => {
   const editorUrl = `https://editor.construct.net/${version ?? ""}`;
   const accountOrigin = constructAccountOrigin(version);
@@ -468,15 +474,18 @@ export const prepareConstructEditor = async (
     }),
     abortSignal,
   );
-  const loginData = await getConstructLoginData(
-    authState,
-    apiLogin,
-    username,
-    password,
-    abortSignal,
-    log,
-    accountOrigin,
-  );
+  const hasCachedSession = reuseCachedAccountSession && isConstructLoginData(authState);
+  const loginData = hasCachedSession
+    ? undefined
+    : await getConstructLoginData(
+        undefined,
+        apiLogin,
+        username,
+        password,
+        abortSignal,
+        log,
+        accountOrigin,
+      );
 
   if (loginData) {
     log("Preparing Construct account session before editor startup");
@@ -488,8 +497,46 @@ export const prepareConstructEditor = async (
     );
   }
 
-  const tokenResponse = waitForConstructTokenResponse(page, accountOrigin, abortSignal);
-  await Promise.all([navigateToConstruct(page, editorUrl, log, abortSignal), tokenResponse]);
+  const openEditorWithAccountSession = async () => {
+    const tokenResponse = waitForConstructTokenResponse(page, accountOrigin, abortSignal);
+    await Promise.all([navigateToConstruct(page, editorUrl, log, abortSignal), tokenResponse]);
+  };
+  try {
+    await openEditorWithAccountSession();
+  } catch (error) {
+    if (!hasCachedSession || !apiLogin || !isConstructSessionRejected(error)) throw error;
+
+    const refreshedLoginData = await getConstructLoginData(
+      undefined,
+      apiLogin,
+      username,
+      password,
+      abortSignal,
+      log,
+      accountOrigin,
+    );
+    if (!refreshedLoginData) throw error;
+
+    await navigateToConstruct(
+      page,
+      `${accountOrigin}/login?theme=default&lang=en-US&productType=games`,
+      log,
+      abortSignal,
+    );
+    await awaitWithAbort(
+      page.waitForFunction(() => typeof localforage !== "undefined", undefined, {
+        timeout: 30_000,
+      }),
+      abortSignal,
+    );
+    await awaitWithAbort(
+      page.evaluate(async (data) => {
+        await localforage.setItem("login-data", data);
+      }, refreshedLoginData),
+      abortSignal,
+    );
+    await openEditorWithAccountSession();
+  }
 };
 
 const waitForLocatorWithAbort = async (
@@ -758,6 +805,7 @@ export const script = async (
   downloadDir: string,
   abortSignal: AbortSignal,
   exportTimeoutMs: number,
+  reuseCachedAccountSession = false,
 ) => {
   throwIfAborted(abortSignal);
   let url = "https://editor.construct.net/";
@@ -766,22 +814,33 @@ export const script = async (
   }
 
   const accountOrigin = constructAccountOrigin(version);
-  const apiStartedAt = Date.now();
-  const apiLogin: Promise<ConstructLoginResult> | undefined =
+  const apiLogin: (() => Promise<ConstructLoginResult>) | undefined =
     username && password
-      ? requestConstructLogin(
-          username,
-          password,
-          abortSignal,
-          CONSTRUCT_API_TIMEOUT_MS,
-          accountOrigin,
-        ).then(
-          (loginData) => ({ loginData, startedAt: apiStartedAt }),
-          (error: unknown) => ({ error, startedAt: apiStartedAt }),
-        )
+      ? () => {
+          const apiStartedAt = Date.now();
+          return requestConstructLogin(
+            username,
+            password,
+            abortSignal,
+            CONSTRUCT_API_TIMEOUT_MS,
+            accountOrigin,
+          ).then(
+            (loginData) => ({ loginData, startedAt: apiStartedAt }),
+            (error: unknown) => ({ error, startedAt: apiStartedAt }),
+          );
+        }
       : undefined;
   const authenticationStartedAt = username && password ? Date.now() : undefined;
-  await prepareConstructEditor(page, version, username, password, apiLogin, abortSignal, log);
+  await prepareConstructEditor(
+    page,
+    version,
+    username,
+    password,
+    apiLogin,
+    abortSignal,
+    log,
+    reuseCachedAccountSession,
+  );
   throwIfAborted(abortSignal);
 
   if (authenticationStartedAt !== undefined) {

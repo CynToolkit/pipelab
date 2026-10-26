@@ -18,8 +18,12 @@ or `r432-2`.
 Construct exports keep a managed Chromium profile in Pipelab's cache, scoped
 to the Pipelab project and selected browser profile. Pipelab refreshes browser
 state from the selected profile on every run while keeping its cached Construct
-assets. Login state and editor cache persist across runs and Construct versions.
-Same-profile exports are serialized.
+assets. Without Connection credentials, the selected profile's login state is
+copied and reused. With a Construct Account Connection, Pipelab keeps a
+separate profile scoped to the account username and does not import the
+selected profile's Construct login data. Confirmed account sessions and editor
+cache persist across runs and Construct versions; stable and beta account
+sessions remain separate. Same-profile exports are serialized.
 The managed copy stays in Pipelab's local cache between runs and can include
 site data from the selected Chromium profile beyond Construct. Pipelab does not
 automatically expire or remove this managed copy. On POSIX systems, the managed
@@ -29,9 +33,22 @@ If required profile data cannot be refreshed, the export stops instead of
 using stale session or addon data. The selected profile must contain a valid
 Construct session when the task has no credentials to renew it.
 
-Set both `CONSTRUCT_USERNAME` and `CONSTRUCT_PASSWORD` to renew a Construct
-session from the account service. If neither is set, the selected profile's
-saved session is used. Setting only one fails before export starts.
+The Release source can reference a workflow-scoped Construct Account alias.
+Desktop remembers a local Connection binding for that workflow. CLI runs
+provide the alias's `username` and `password` fields directly from the
+initiating environment, without a saved Connection registry:
+
+```sh
+doppler run --project pipelab --config dev_personal -- pipelab workflow run <workflow-id> \
+  --connection construct-production.username=env:CONSTRUCT_USERNAME \
+  --connection construct-production.password=env:CONSTRUCT_PASSWORD
+```
+
+Replace `construct-production` with the alias in the workflow. Pipelab checks
+both fields before export and redacts their resolved values from logs, errors,
+and saved run results. Leave the alias empty to use the selected profile's
+saved session. Construct account authentication and Free edition restrictions
+remain distinct provider errors.
 
 The export automation opens Construct's export dialog through Menu → Project →
 Export, then selects Web (HTML5) and the standard export options.

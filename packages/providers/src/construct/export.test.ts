@@ -3,9 +3,36 @@ import { mkdir, mkdtemp, readFile, rm, stat as getStat, writeFile } from "node:f
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import lockfile from "proper-lockfile";
-import { acquireManagedProfileLock, preparePlaywrightProfile } from "./export-shared";
+import {
+  acquireManagedProfileLock,
+  constructManagedProfileIdentity,
+  preparePlaywrightProfile,
+} from "./export-shared";
 import { fetchPackage, type ProviderHostContext } from "@pipelab/plugin-core";
 import dns from "node:dns/promises";
+
+test("isolates a Connection-authenticated profile from its prior selected-profile session", () => {
+  const profileSessionIdentity = constructManagedProfileIdentity(
+    "project-1",
+    "user@example.test",
+    "/profiles/chrome",
+    false,
+  );
+  const connectionSessionIdentity = constructManagedProfileIdentity(
+    "project-1",
+    "user@example.test",
+    "/profiles/chrome",
+    true,
+  );
+
+  expect(connectionSessionIdentity).not.toBe(profileSessionIdentity);
+  expect(connectionSessionIdentity).not.toBe(
+    constructManagedProfileIdentity("project-1", "other@example.test", "/profiles/chrome", true),
+  );
+  expect(connectionSessionIdentity).toBe(
+    constructManagedProfileIdentity("project-1", "user@example.test", "/profiles/chrome", true),
+  );
+});
 
 test("copies the complete Construct profile and removes stale browser locks", async () => {
   const root = await mkdtemp(join(tmpdir(), "construct-profile-copy-"));
@@ -56,6 +83,52 @@ test("copies the complete Construct profile and removes stale browser locks", as
         ),
       ),
     ).rejects.toThrow();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("preserves the managed Construct account session when refreshing other profile data", async () => {
+  const root = await mkdtemp(join(tmpdir(), "construct-profile-connection-session-"));
+  const source = join(root, "source");
+  const destination = join(root, "destination");
+  const accountDatabases = [
+    "https_account.construct.net_0.indexeddb.leveldb",
+    "https_accountbeta.construct.net_0.indexeddb.leveldb",
+  ];
+
+  try {
+    await mkdir(source, { recursive: true });
+    await mkdir(join(destination, "Default"), { recursive: true });
+    await writeFile(join(source, "Preferences"), "selected profile");
+    await writeFile(join(destination, "Default", "Preferences"), "managed profile preferences");
+    for (const accountDatabase of accountDatabases) {
+      await mkdir(join(source, "IndexedDB", accountDatabase), { recursive: true });
+      await mkdir(join(destination, "Default", "IndexedDB", accountDatabase), {
+        recursive: true,
+      });
+      await writeFile(join(source, "IndexedDB", accountDatabase, "login"), "other account");
+      await writeFile(
+        join(destination, "Default", "IndexedDB", accountDatabase, "login"),
+        "bound account",
+      );
+    }
+
+    await preparePlaywrightProfile(source, destination, () => undefined, undefined, {
+      preserveAccountOrigins: [
+        "https://account.construct.net",
+        "https://accountbeta.construct.net",
+      ],
+    });
+
+    expect(await readFile(join(destination, "Default", "Preferences"), "utf8")).toBe(
+      "selected profile",
+    );
+    for (const accountDatabase of accountDatabases) {
+      expect(
+        await readFile(join(destination, "Default", "IndexedDB", accountDatabase, "login"), "utf8"),
+      ).toBe("bound account");
+    }
   } finally {
     await rm(root, { recursive: true, force: true });
   }
