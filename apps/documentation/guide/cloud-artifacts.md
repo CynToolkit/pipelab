@@ -37,13 +37,15 @@ its grace period. A new successful upload replaces that pin; the old artifact
 becomes history and expires according to the account's configured retention.
 Deleting a Build Profile does not remove its pinned artifact.
 
-Pinned artifacts and history share the plan's storage allowance. Uploads are
-rejected when the object and active upload reservations would exceed that
-allowance. Pipelab Cloud does not silently evict artifacts or allow overage.
-The intended Basic history period is 30 days. Plan limits and retention are
-configured by product ID on the server. Numeric storage allowances are not
-published until representative large desktop builds have been measured; a
-deployment without configured plan limits rejects uploads.
+Pinned artifacts and history share the plan's storage allowance. The measured
+Basic quota recommendation is 1 GiB (1,073,741,824 bytes), based on four
+packaged Electron target ZIPs stored concurrently at 575,081,265 bytes total.
+That leaves about 46% of the allowance for build-size variation; actual game
+outputs can be larger. Uploads are rejected when the object and active upload
+reservations would exceed the allowance. Pipelab Cloud does not silently evict
+artifacts or allow overage. The Basic history period is 30 days. Plan limits
+and retention are configured by product ID on the server; an account without a
+configured plan row fails closed. Higher-tier numeric allowances remain unset.
 
 ## Share and delete
 
