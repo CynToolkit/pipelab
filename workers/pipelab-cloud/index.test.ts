@@ -8,6 +8,9 @@ const mocks = vi.hoisted(() => ({
   send: vi.fn(),
   getSignedUrl: vi.fn(),
   from: vi.fn(),
+  eqCalls: [] as Array<[string, string, unknown]>,
+  insertCalls: [] as Array<[string, unknown]>,
+  tableData: {} as Record<string, unknown>,
 }));
 
 vi.mock("@supabase/supabase-js", () => ({
@@ -94,6 +97,9 @@ const authorizedRequest = (body: unknown) =>
 describe("Pipelab Cloud Worker", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.eqCalls.length = 0;
+    mocks.insertCalls.length = 0;
+    mocks.tableData = {};
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue(
@@ -133,7 +139,7 @@ describe("Pipelab Cloud Worker", () => {
       return Promise.resolve({ data: null, error: null });
     });
     mocks.from.mockImplementation((table: string) => {
-      const data =
+      const defaultData =
         table === "pipelab_cloud_plan_limits"
           ? {
               product_id: "plan-basic",
@@ -177,6 +183,9 @@ describe("Pipelab Cloud Worker", () => {
                       deletion_requested_at: null,
                       storage_key: "user-1/build.zip",
                     };
+      const data = Object.prototype.hasOwnProperty.call(mocks.tableData, table)
+        ? mocks.tableData[table]
+        : defaultData;
       const query = {
         select: vi.fn(),
         eq: vi.fn(),
@@ -188,11 +197,17 @@ describe("Pipelab Cloud Worker", () => {
         limit: vi.fn(),
         in: vi.fn(),
         update: vi.fn(),
-        insert: vi.fn(async () => ({ error: null })),
+        insert: vi.fn(async (values: unknown) => {
+          mocks.insertCalls.push([table, values]);
+          return { error: null };
+        }),
         maybeSingle: vi.fn(async () => ({ data, error: null })),
       };
       query.select.mockReturnValue(query);
-      query.eq.mockReturnValue(query);
+      query.eq.mockImplementation((column: string, value: unknown) => {
+        mocks.eqCalls.push([table, column, value]);
+        return query;
+      });
       query.neq.mockReturnValue(query);
       query.is.mockReturnValue(query);
       query.lte.mockReturnValue(query);
@@ -345,6 +360,45 @@ describe("Pipelab Cloud Worker", () => {
     });
   });
 
+  it("keeps uploads available when a cancellation has paid time remaining", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(
+        async () =>
+          new Response(
+            JSON.stringify({
+              subscriptions: [
+                {
+                  status: "canceled",
+                  product: { id: "plan-basic" },
+                  currentPeriodEnd: "2099-09-25T00:00:00Z",
+                },
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          ),
+      ),
+    );
+
+    const response = await handleRequest(
+      authorizedRequest({
+        action: "prepareUpload",
+        artifactId: "build-canceled",
+        artifactOutputId: "electron.windows",
+        version: "1.0.0",
+        size: 42,
+        checksum: artifactChecksum,
+      }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.rpc).toHaveBeenCalledWith(
+      "set_pipelab_cloud_active_entitlement",
+      expect.objectContaining({ p_user_id: "user-1", p_plan_product_id: "plan-basic" }),
+    );
+  });
+
   it("signs multipart part URLs with the expected part checksum", async () => {
     uploadReservation.multipart_upload_id = "upload-1";
     mocks.send.mockResolvedValue({});
@@ -413,6 +467,37 @@ describe("Pipelab Cloud Worker", () => {
     expect(JSON.stringify(body)).not.toContain("storage_key");
   });
 
+  it("scopes authenticated artifact reads and mutations to the verified owner", async () => {
+    const artifactId = "00000000-0000-4000-8000-000000000001";
+    const listResponse = await handleRequest(authorizedRequest({ action: "listArtifacts" }), env);
+    expect(listResponse.status).toBe(200);
+    expect(mocks.eqCalls).toContainEqual(["hosted_artifacts", "user_id", "user-1"]);
+
+    mocks.eqCalls.length = 0;
+    const downloadResponse = await handleRequest(
+      authorizedRequest({ action: "getArtifactDownloadUrl", hostedArtifactId: artifactId }),
+      env,
+    );
+    expect(downloadResponse.status).toBe(200);
+    expect(mocks.eqCalls).toContainEqual(["hosted_artifacts", "user_id", "user-1"]);
+
+    mocks.eqCalls.length = 0;
+    const revokeResponse = await handleRequest(
+      authorizedRequest({ action: "revokeShareLink", hostedArtifactId: artifactId }),
+      env,
+    );
+    expect(revokeResponse.status).toBe(200);
+    expect(mocks.eqCalls).toContainEqual(["hosted_artifact_share_links", "user_id", "user-1"]);
+
+    mocks.eqCalls.length = 0;
+    const deleteResponse = await handleRequest(
+      authorizedRequest({ action: "deleteArtifact", hostedArtifactId: artifactId }),
+      env,
+    );
+    expect(deleteResponse.status).toBe(200);
+    expect(mocks.eqCalls).toContainEqual(["hosted_artifacts", "user_id", "user-1"]);
+  });
+
   it("serves an anonymous share link through a short-lived redirect", async () => {
     const response = await handleRequest(
       new Request(`https://cloud.example/share/${"a".repeat(43)}`),
@@ -423,6 +508,107 @@ describe("Pipelab Cloud Worker", () => {
     expect(response.headers.get("referrer-policy")).toBe("no-referrer");
     expect(mocks.getUser).not.toHaveBeenCalled();
     expect(mocks.getSignedUrl).toHaveBeenCalledOnce();
+  });
+
+  it("creates an unguessable share token and stores only its hash and ciphertext", async () => {
+    const artifactId = "00000000-0000-4000-8000-000000000001";
+    mocks.tableData.hosted_artifact_share_links = null;
+    mocks.tableData.hosted_artifacts = {
+      id: artifactId,
+      expires_at: "2099-09-25T00:00:00Z",
+      pinned: true,
+      deletion_requested_at: null,
+      storage_key: "server-only/artifact.zip",
+    };
+    const response = await handleRequest(
+      authorizedRequest({ action: "createShareLink", hostedArtifactId: artifactId }),
+      env,
+    );
+
+    expect(response.status).toBe(200);
+    const payload: unknown = await response.json();
+    if (!payload || typeof payload !== "object" || !("shareUrl" in payload)) {
+      throw new Error("Share response did not contain a URL");
+    }
+    const shareUrl = payload.shareUrl;
+    expect(typeof shareUrl).toBe("string");
+    const token = new URL(String(shareUrl)).pathname.split("/").at(-1) ?? "";
+    expect(token).toMatch(/^[A-Za-z0-9_-]{43}$/u);
+
+    const insert = mocks.insertCalls.find(
+      ([table]) => table === "hosted_artifact_share_links",
+    )?.[1];
+    if (
+      !insert ||
+      typeof insert !== "object" ||
+      !("token_hash" in insert) ||
+      typeof insert.token_hash !== "string"
+    ) {
+      throw new Error("Share-link insert did not contain a token hash");
+    }
+    expect(insert).toMatchObject({ user_id: "user-1", artifact_id: artifactId });
+    expect(insert.token_hash).toBe(createHash("sha256").update(token).digest("hex"));
+    expect(JSON.stringify(insert)).not.toContain(token);
+    expect(mocks.eqCalls).toContainEqual(["hosted_artifacts", "user_id", "user-1"]);
+  });
+
+  it("keeps an unexpired share link usable during grace and rejects expired or deleted artifacts", async () => {
+    const artifactId = "00000000-0000-4000-8000-000000000001";
+    const token = "b".repeat(43);
+    const graceArtifact = {
+      id: artifactId,
+      expires_at: "2099-09-25T00:00:00Z",
+      pinned: false,
+      deletion_requested_at: null,
+      original_name: "release.zip",
+      artifact_kind: "file",
+      storage_key: "server-only/release.zip",
+    };
+    mocks.tableData.hosted_artifact_share_links = {
+      artifact_id: artifactId,
+      user_id: "user-1",
+      token_hash: createHash("sha256").update(token).digest("hex"),
+      revoked_at: null,
+    };
+    mocks.tableData.pipelab_cloud_account_state = {
+      user_id: "user-1",
+      entitlement_status: "grace",
+      grace_until: "2099-09-25T00:00:00Z",
+    };
+    mocks.tableData.hosted_artifacts = graceArtifact;
+
+    const request = () => new Request(`https://cloud.example/share/${token}`);
+    const duringGrace = await handleRequest(request(), env);
+    expect(duringGrace.status).toBe(302);
+    expect(mocks.getUser).not.toHaveBeenCalled();
+
+    mocks.getSignedUrl.mockClear();
+    mocks.tableData.pipelab_cloud_account_state = {
+      user_id: "user-1",
+      entitlement_status: "grace",
+      grace_until: "2026-09-25T00:00:00Z",
+    };
+    const graceExpired = await handleRequest(request(), env);
+    expect(graceExpired.status).toBe(404);
+
+    mocks.tableData.pipelab_cloud_account_state = {
+      user_id: "user-1",
+      entitlement_status: "grace",
+      grace_until: "2099-09-25T00:00:00Z",
+    };
+    mocks.tableData.hosted_artifacts = { ...graceArtifact, expires_at: "2026-09-25T00:00:00Z" };
+    const expiredHistory = await handleRequest(request(), env);
+    expect(expiredHistory.status).toBe(404);
+    expect(mocks.getSignedUrl).not.toHaveBeenCalled();
+
+    mocks.tableData.hosted_artifacts = null;
+    mocks.tableData.pipelab_cloud_account_state = {
+      user_id: "user-1",
+      entitlement_status: "deleting",
+      grace_until: null,
+    };
+    const deletedArtifact = await handleRequest(request(), env);
+    expect(deletedArtifact.status).toBe(404);
   });
 
   it("keeps local uploads single-part while retaining production multipart uploads", async () => {
@@ -595,7 +781,7 @@ describe("Pipelab Cloud Worker", () => {
       { user_id: "warning-1", email: "one@example.com", deadline_at: "2026-11-01T00:00:00Z" },
       { user_id: "warning-2", email: "two@example.com", deadline_at: "2026-11-01T00:00:00Z" },
     ];
-    const emailFetch = vi.fn(async (input: RequestInfo | URL) => {
+    const emailFetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       if (String(input) !== "https://api.resend.com/emails") {
         return new Response(
           JSON.stringify({
@@ -644,5 +830,9 @@ describe("Pipelab Cloud Worker", () => {
     expect(mocks.rpc).toHaveBeenCalledWith("complete_pipelab_cloud_deletion_warning", {
       p_user_id: "warning-2",
     });
+    const sentEmail = emailFetch.mock.calls.find(
+      ([url]) => String(url) === "https://api.resend.com/emails",
+    );
+    expect(String(sentEmail?.[1]?.body)).toContain("download your artifacts before the deadline");
   });
 });

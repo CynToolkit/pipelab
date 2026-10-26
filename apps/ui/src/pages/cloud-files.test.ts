@@ -26,11 +26,14 @@ const artifact = (id: string, hasShareLink = false) => ({
   hasShareLink,
 });
 
-const overview = (artifacts: ReturnType<typeof artifact>[]) => ({
+const overview = (
+  artifacts: ReturnType<typeof artifact>[],
+  notifications: Array<{ id: string; message: string; deadline_at: string }> = [],
+) => ({
   artifacts,
   usage: { usedBytes: 1_572_864, quotaBytes: 10 * 1024 * 1024, retentionDays: 30 },
   entitlement: { status: "active", graceUntil: null },
-  notifications: [],
+  notifications,
 });
 
 const jsonResponse = (body: unknown, status = 200) =>
@@ -181,6 +184,36 @@ describe("Cloud Files page", () => {
     await click(root, "Delete");
     expect(actions).toContainEqual({ action: "deleteArtifact", hostedArtifactId: "hosted-new" });
     expect(root.textContent).not.toContain("hosted-new.zip");
+  });
+
+  it("states the deadline and renewal or download options during grace", async () => {
+    vi.stubEnv("PIPELAB_CLOUD_WORKER_URL", "https://cloud.test");
+    authState.user = { id: "user-1" };
+    const notice = {
+      id: "notice-1",
+      message:
+        "Your Pipelab Cloud artifacts and share links will be deleted after November 2, 2026. Renew your plan to keep using Pipelab Cloud or download your artifacts before the deadline.",
+      deadline_at: "2026-11-02T00:00:00.000Z",
+    };
+    const cloudOverview = {
+      ...overview([artifact("hosted-1")], [notice]),
+      entitlement: { status: "grace", graceUntil: notice.deadline_at },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>(async () => jsonResponse(cloudOverview)),
+    );
+
+    const root = mountPage();
+    await settle();
+
+    expect(root.querySelector('[aria-label="Cloud notices"]')?.textContent).toContain(
+      "download your artifacts before the deadline",
+    );
+    expect(root.querySelector(".grace-copy")?.textContent).toContain(
+      "Download existing files or renew",
+    );
+    expect(root.textContent).toContain("November 2, 2026");
   });
 
   it("exposes sign-in, loading, empty, and request-error states accessibly", async () => {

@@ -49,7 +49,7 @@
           Unpinned history is kept for {{ overview.usage.retentionDays }} days.
         </p>
         <p v-if="overview.entitlement.status === 'grace'" class="grace-copy">
-          Your paid period has ended. Existing files and share links remain available until
+          Your paid period has ended. Download existing files or renew before
           {{ formatDate(overview.entitlement.graceUntil) }}. New uploads are paused.
         </p>
         <p v-else-if="overview.entitlement.status !== 'active'" class="muted">

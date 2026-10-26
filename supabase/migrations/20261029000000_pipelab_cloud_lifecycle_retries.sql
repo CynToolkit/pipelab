@@ -33,7 +33,8 @@ begin
   ), notifications as (
     insert into public.pipelab_cloud_notifications (user_id, kind, deadline_at, message)
     select claimed.user_id, 'artifact_deletion_warning', claimed.grace_until,
-      'Your Pipelab Cloud artifacts and share links will be deleted after ' || claimed.grace_until::date || '.'
+      'Your Pipelab Cloud artifacts and share links will be deleted after ' || claimed.grace_until::date ||
+      '. Renew your plan to keep using Pipelab Cloud or download your artifacts before the deadline.'
     from claimed
     on conflict on constraint pipelab_cloud_notifications_dedup do nothing
   )
@@ -172,7 +173,11 @@ begin
     entitlement_status, grace_until, last_entitlement_check_at, updated_at
   ) values (
     p_user_id, p_plan_product_id, p_quota_bytes, p_retention_days, p_paid_through_at,
-    case when deadline > now() then 'grace' else 'deleting' end,
+    case
+      when p_paid_through_at > now() then 'active'
+      when deadline > now() then 'grace'
+      else 'deleting'
+    end,
     deadline, now(), now()
   )
   on conflict (user_id) do update set
@@ -180,7 +185,11 @@ begin
     quota_bytes = excluded.quota_bytes,
     retention_days = excluded.retention_days,
     paid_through_at = excluded.paid_through_at,
-    entitlement_status = case when deadline > now() then 'grace' else 'deleting' end,
+    entitlement_status = case
+      when p_paid_through_at > now() then 'active'
+      when deadline > now() then 'grace'
+      else 'deleting'
+    end,
     warning_email_sent_at = case
       when existing.grace_until is distinct from deadline then null
       else existing.warning_email_sent_at

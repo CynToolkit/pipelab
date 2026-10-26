@@ -54,8 +54,9 @@ link, and the stored share token is encrypted at rest.
 
 If a paid period ends, new uploads and share links stop. Existing artifacts and
 links remain available until 30 days after the actual paid-through date. Seven
-days before that deadline, Pipelab shows an in-app notice and sends an email.
-At the end of the grace period, the artifacts and links are revoked and the
+days before that deadline, Pipelab shows an in-app notice and sends an email
+with the deletion date and the option to renew or download the artifacts. At
+the end of the grace period, the artifacts and links are revoked and the
 objects are automatically deleted. An expired unpinned history artifact is
 deleted according to its retention date.
 

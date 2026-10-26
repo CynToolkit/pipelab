@@ -4,7 +4,7 @@ Cloudflare Workers under the repository's root `workers/` directory own the auth
 
 ## Deploy
 
-1. Apply the artifact migrations in order: `20260916000000_pipelab_cloud_artifacts.sql`, `20261026000000_pipelab_cloud_artifact_identity.sql`, `20261027000000_pipelab_cloud_warning_claim_fix.sql`, then `20261028000000_pipelab_cloud_reconcile_before_deletion.sql`.
+1. Apply the artifact migrations in order: `20260916000000_pipelab_cloud_artifacts.sql`, `20261026000000_pipelab_cloud_artifact_identity.sql`, `20261027000000_pipelab_cloud_warning_claim_fix.sql`, `20261028000000_pipelab_cloud_reconcile_before_deletion.sql`, and `20261029000000_pipelab_cloud_lifecycle_retries.sql`.
 2. Deploy `pipelab-cloud-reconcile` to the same approved Supabase project. Select the target explicitly with `SUPABASE_PROJECT_REF` and `mise run deploy:cloud-reconcile`; the Edge Function project must already have its Polar sandbox `POLAR_TOKEN` and `POLAR_ORGANIZATION_ID` configured.
 3. Configure these server-only Doppler secrets: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `PIPELAB_CLOUD_LINK_ENCRYPTION_KEY`, `RESEND_API_KEY`, and `PIPELAB_CLOUD_FROM_EMAIL`. During the key migration window, the deploy script still accepts `SUPABASE_ANON_KEY` when the publishable variable is absent. Configure `CLOUDFLARE_API_TOKEN` for Wrangler deployment.
 4. Add a row to `public.pipelab_cloud_plan_limits` for each supported Polar product ID. Set its `quota_bytes`, tier name, and history retention only after measuring representative large desktop build artifacts. The migration intentionally seeds no plan allowance; uploads fail closed until limits are configured.
@@ -83,6 +83,8 @@ deno check supabase/functions/polar-user-plan/index.ts supabase/functions/polar-
 deno test supabase/functions/_shared/billing.test.ts
 deno check supabase/functions/pipelab-cloud-reconcile/index.ts
 deno test supabase/functions/pipelab-cloud-reconcile/index.test.ts
+mise exec -- supabase test db
+mise exec -- node supabase/tests/pipelab_cloud_quota_concurrency.mjs
 ```
 
-These mocked tests validate handler behavior and do not replace live sandbox acceptance. Configure secrets only in the intended nonproduction Supabase Edge Function environment. Never put `POLAR_TOKEN` in frontend builds, GitHub build variables, or browser-visible environment files.
+The database tests use only the local Supabase project. The concurrency check requires `supabase start` and opens two independent local database connections. The mocked function tests validate handler behavior and do not replace live sandbox acceptance. Configure secrets only in the intended nonproduction Supabase Edge Function environment. Never put `POLAR_TOKEN` in frontend builds, GitHub build variables, or browser-visible environment files.

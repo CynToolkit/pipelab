@@ -1199,7 +1199,7 @@ export async function cleanupExpiredArtifacts(env: Env) {
           from: env.PIPELAB_CLOUD_FROM_EMAIL,
           to: [warning.email],
           subject: "Your Pipelab Cloud artifacts are scheduled for deletion",
-          text: `Your Pipelab Cloud artifacts and share links will be deleted after ${new Date(warning.deadline_at).toLocaleDateString("en-US", { timeZone: "UTC", dateStyle: "long" })}. Sign in and renew your plan to keep using Pipelab Cloud.`,
+          text: `Your Pipelab Cloud artifacts and share links will be deleted after ${new Date(warning.deadline_at).toLocaleDateString("en-US", { timeZone: "UTC", dateStyle: "long" })}. Renew your plan to keep using Pipelab Cloud or download your artifacts before the deadline.`,
         }),
         signal: AbortSignal.timeout(8_000),
       });
