@@ -53,6 +53,33 @@ the client that starts the run and checks required bindings before starting any
 workflow steps. Connection fields are managed through aliases and do not use
 this ordinary-property control.
 
+### Run a portable workflow from CLI or CI
+
+A portable Release Workflow JSON file can run without a saved workflow index or a local Connection registry. Keep the workflow file and its referenced source files available in the runner workspace; relative provider file and directory settings resolve from the workflow file's folder.
+
+Pass provider Connection fields for the current run with repeatable `--connection alias.field=VALUE` options. Use `env:NAME` for secrets from the CLI process environment. Doppler can provide that environment directly:
+
+```sh
+doppler run --project pipelab --config dev_personal -- \
+  pipelab workflow run ./release.json \
+  --connection itch-production.apiKey=env:WORK_ITCH_KEY
+```
+
+For GitHub Actions, map a repository secret into the runner environment and reference it in the command. This assumes Pipelab CLI is installed on the runner:
+
+```yaml
+steps:
+  - uses: actions/checkout@v4
+  - name: Publish release
+    env:
+      WORK_ITCH_KEY: ${{ secrets.WORK_ITCH_KEY }}
+    run: >-
+      pipelab workflow run ./release.json
+      --connection itch-production.apiKey=env:WORK_ITCH_KEY
+```
+
+Unprefixed values are literals. When a provider declares a path-valued Connection field, a non-secret SDK path such as `/opt/steamworks` is passed verbatim; Pipelab validates the alias and field against that provider schema. Literal values can appear in shell history and process listings, so use environment references for secrets. The Steam Connection field is its account username; SteamCMD uses its saved login cache and may require an interactive password or Steam Guard prompt when the cache is absent or rejected. See [Authenticate SteamCMD](/guide/publishing/steam#authenticate-steamcmd) and the [CLI reference](/cli/reference#run-a-release-workflow) for details.
+
 The browser package includes the built-in provider fields and safe defaults, so
 an open workflow draft can still show and edit them while the agent is
 disconnected. Fields that need host inspection and build targets whose
@@ -136,7 +163,7 @@ Replace `release-id` with a saved workflow ID or a unique workflow name. A
 dry-run validates providers and references, then writes the plan if `--output`
 is provided. It does not execute deployment tasks. See the
 [workflow reference guide](/guide/workflow-references) and
-[CLI reference](/cli/reference#run-a-saved-release-workflow).
+[CLI reference](/cli/reference#run-a-release-workflow).
 
 ## Follow the run
 

@@ -49,4 +49,4 @@ delivery step fails. Pipelab does not show a user-facing retry action in the run
 detail screen; after addressing the cause, start a new workflow run.
 
 To inspect a workflow plan without running provider tasks, use
-[`pipelab workflow run <id-or-name> --dry-run`](/cli/reference#run-a-saved-release-workflow).
+[`pipelab workflow run <id-or-name> --dry-run`](/cli/reference#run-a-release-workflow).
