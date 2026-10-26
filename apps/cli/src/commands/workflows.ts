@@ -1,15 +1,24 @@
 import {
   PipelabContext,
+  executeWorkflow,
   ReleasePersistence,
+  buildCoreReleaseRegistry,
   loadStrictProjects,
   prepareReleaseWorkflow,
 } from "@pipelab/core-node";
-import type { SaveLocationWorkflow } from "@pipelab/shared";
-import { executeWorkflow } from "../../../../packages/core-node/src/handlers/workflow";
+import {
+  parseReleaseConfig,
+  type ReleaseConfig,
+  type ReleaseFieldDefinition,
+  type SaveLocationWorkflow,
+} from "@pipelab/shared";
 import { Listr, ListrTaskState, type ListrTask, type ListrTaskWrapper } from "listr2";
-import type { WorkflowEvent } from "../../../../packages/workflow-runtime/src/index";
+import type { WorkflowEvent } from "@pipelab/workflow-runtime";
 import { Option } from "commander";
+import { readFile, stat } from "node:fs/promises";
+import { dirname, isAbsolute, resolve } from "node:path";
 import { getDefaultUserDataPath } from "../paths";
+import { parseWorkflowConnectionOverrides } from "./workflow-connection-overrides";
 import { createWorkflowTaskGroups, type WorkflowStepTask } from "./workflow-task-groups";
 import { workflowStepTitle } from "./workflow-task-title";
 import { workflowTaskOutputLines } from "./workflow-task-output";
@@ -85,6 +94,9 @@ export const workflowRunOptions = [
   new Option("--dry-run", "Validate the workflow without executing deployments"),
   new Option("--fail-on-error", "Exit nonzero when a deployment fails"),
   new Option("-v, --verbose", "Show workflow logs after completion"),
+  new Option("--connection <alias.field=VALUE>", "Override a Connection field for this run")
+    .argParser((value, previous: string[] = []) => [...previous, value])
+    .default([]),
 ];
 
 export const workflowUserDataOption = () =>
@@ -95,7 +107,7 @@ const workflowEntries = async (context: PipelabContext) => {
   return repo.workflows || [];
 };
 
-const loadEntry = async (context: PipelabContext, id: string) => {
+const findEntry = async (context: PipelabContext, id: string) => {
   const entries = await workflowEntries(context);
   const persistence = new ReleasePersistence(context);
   const matches = entries.filter((entry) => entry.id === id);
@@ -105,18 +117,125 @@ const loadEntry = async (context: PipelabContext, id: string) => {
       if (flow.name === id) matches.push(entry);
     }
   }
-  if (matches.length !== 1) {
+  if (matches.length > 1)
     throw new Error(
-      matches.length > 1
-        ? `Workflow name "${id}" is ambiguous: ${matches.map((entry) => entry.id).join(", ")}`
-        : `Workflow "${id}" not found`,
+      `Workflow name "${id}" is ambiguous: ${matches.map((entry) => entry.id).join(", ")}`,
     );
-  }
   return matches[0];
+};
+
+const loadEntry = async (context: PipelabContext, id: string) => {
+  const entry = await findEntry(context, id);
+  if (!entry) throw new Error(`Workflow "${id}" not found`);
+  return entry;
 };
 
 const loadWorkflow = async (context: PipelabContext, entry: SaveLocationWorkflow) =>
   (await new ReleasePersistence(context).loadWithProject(entry.id, entry.project)).config;
+
+const isWorkflowFileArgument = (value: string) =>
+  value.startsWith(".") || isAbsolute(value) || value.includes("/") || value.includes("\\");
+
+const resolveConfiguredPaths = (
+  fields: ReleaseFieldDefinition[] | undefined,
+  values: Record<string, unknown>,
+  baseDirectory: string,
+) => {
+  for (const field of fields ?? []) {
+    if (field.type !== "file" && field.type !== "directory") continue;
+    const value = values[field.key];
+    if (typeof value !== "string" || !value || value.startsWith("${{") || isAbsolute(value))
+      continue;
+    values[field.key] = resolve(baseDirectory, value);
+  }
+};
+
+const resolveWorkflowFilePaths = (config: ReleaseConfig, baseDirectory: string) => {
+  const registry = buildCoreReleaseRegistry();
+  const source = registry.sources.find((candidate) => candidate.id === config.source.provider);
+  resolveConfiguredPaths(source?.fields, config.source.config, baseDirectory);
+
+  for (const build of config.builds) {
+    const producer = registry.producers.find((candidate) => candidate.id === build.engine);
+    resolveConfiguredPaths(producer?.fields, build.config, baseDirectory);
+    for (const target of build.targets) {
+      const definition = producer?.targets.find((candidate) => candidate.id === target.id);
+      resolveConfiguredPaths(definition?.fields, target.config, baseDirectory);
+    }
+  }
+
+  for (const destination of config.destinations) {
+    const definition = registry.destinations.find(
+      (candidate) => candidate.id === destination.provider,
+    );
+    resolveConfiguredPaths(definition?.fields, destination.config, baseDirectory);
+    for (const slot of destination.slots) {
+      resolveConfiguredPaths(definition?.slotFields, slot.config, baseDirectory);
+    }
+  }
+};
+
+const validateWorkflowSourcePath = async (config: ReleaseConfig) => {
+  const source = buildCoreReleaseRegistry().sources.find(
+    (candidate) => candidate.id === config.source.provider,
+  );
+  const field = source?.fields?.find(
+    (candidate) =>
+      candidate.required && (candidate.type === "file" || candidate.type === "directory"),
+  );
+  if (!field) return;
+
+  const path = config.source.config[field.key];
+  if (typeof path !== "string" || !path || path.includes("${{")) return;
+
+  let info: Awaited<ReturnType<typeof stat>>;
+  try {
+    info = await stat(path);
+  } catch (cause) {
+    if (cause && typeof cause === "object" && "code" in cause && cause.code === "ENOENT") {
+      throw new Error(`Workflow source path does not exist: ${path}`);
+    }
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    throw new Error(`Unable to inspect workflow source path '${path}': ${detail}`);
+  }
+  if (field.type === "file" && !info.isFile())
+    throw new Error(`Workflow source file path is not a file: ${path}`);
+  if (field.type === "directory" && !info.isDirectory())
+    throw new Error(`Workflow source directory path is not a directory: ${path}`);
+};
+
+const loadWorkflowFile = async (path: string): Promise<ReleaseConfig> => {
+  let contents: string;
+  try {
+    contents = await readFile(resolve(path), "utf8");
+  } catch (cause) {
+    if (cause && typeof cause === "object" && "code" in cause && cause.code === "ENOENT") {
+      throw new Error(`Workflow file '${path}' was not found.`);
+    }
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    throw new Error(`Unable to read workflow file '${path}': ${detail}`);
+  }
+
+  let value: unknown;
+  try {
+    value = JSON.parse(contents);
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    throw new Error(`Workflow file '${path}' is not valid JSON: ${detail}`);
+  }
+
+  let config: ReleaseConfig;
+  try {
+    config = parseReleaseConfig(value);
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    throw new Error(`Workflow file '${path}' is not a supported Release Workflow: ${detail}`);
+  }
+
+  resolveWorkflowFilePaths(config, dirname(resolve(path)));
+  await validateWorkflowSourcePath(config);
+  return config;
+};
 
 export async function listWorkflowsCommand(options: { userData?: string } = {}) {
   const context = contextFor(options.userData);
@@ -153,12 +272,26 @@ export async function runWorkflowCommand(
     failOnError?: boolean;
     dryRun?: boolean;
     verbose?: boolean;
+    connection?: readonly string[];
   },
 ) {
+  const connectionOverrides = parseWorkflowConnectionOverrides(options.connection || []);
   const context = contextFor(options.userData);
-  const entry = await loadEntry(context, id);
-  const flow = await loadWorkflow(context, entry);
+  const savedEntry = isWorkflowFileArgument(id) ? undefined : await findEntry(context, id);
+  const useWorkflowFile = isWorkflowFileArgument(id) || (!savedEntry && id.endsWith(".json"));
+  const workflowInput = useWorkflowFile
+    ? { kind: "file" as const, config: await loadWorkflowFile(id) }
+    : { kind: "saved" as const, entry: savedEntry ?? (await loadEntry(context, id)) };
+  const flow =
+    workflowInput.kind === "file"
+      ? workflowInput.config
+      : await loadWorkflow(context, workflowInput.entry);
   const prepared = prepareReleaseWorkflow(flow);
+  if (connectionOverrides.some((override) => override.value.kind === "literal")) {
+    console.warn(
+      "Warning: literal --connection values may appear in shell history and process listings. Use env:VARIABLE for secrets.",
+    );
+  }
   if (options.dryRun) {
     console.log(
       `Dry run for ${id}: ${flow.builds.length} build profile(s), ${flow.destinations.length} destination(s)`,
@@ -308,8 +441,10 @@ export async function runWorkflowCommand(
   for (const task of stepTasks) waitFor(task.id);
   const originalConsoleDebug = console.debug;
   if (!options.verbose) console.debug = () => undefined;
-  const execution = executeWorkflow(context, `workflows/${entry.id}`, {
+  const execution = executeWorkflow(context, `workflows/${flow.id}.json`, {
     release: { version: "", description: "" },
+    ...(workflowInput.kind === "file" ? { workflowConfig: workflowInput.config } : {}),
+    connectionOverrides,
     logger: {
       info: () => undefined,
       warn: (...args) => console.warn(...args),
@@ -398,7 +533,10 @@ export async function runWorkflowCommand(
   printWorkflowLogs();
   if (options.output) {
     const { writeFile } = await import("node:fs/promises");
-    await writeFile(options.output, JSON.stringify(result, null, 2));
+    await writeFile(
+      options.output,
+      JSON.stringify({ result: result.safeResult, runId: result.runId }, null, 2),
+    );
   }
   if (options.failOnError && result.result.status === "completed-with-errors") {
     throw new Error("Workflow completed with errors");
