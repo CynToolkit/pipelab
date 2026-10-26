@@ -190,9 +190,7 @@
               />
             </div>
             <div class="job-title">
-              <strong>{{
-                destinationDefinition(destination.provider)?.label || destination.provider
-              }}</strong
+              <strong>{{ destinationDisplayLabel(destination) }}</strong
               ><span
                 >{{ destination.slots.length }} deployment slot{{
                   destination.slots.length === 1 ? "" : "s"
@@ -460,7 +458,18 @@
           :options="fieldOptions(field)"
           :input-id="`source-${field.key}`"
           :issues="fieldIssues(`source.${field.key}`)"
-          @update:value="setSourceField(field.key, $event)"
+          :connection-binding="connectionBindingFor(fieldValue(flow.source.config, field.key))"
+          :connection-binding-suggestion="
+            connectionBindingSuggestionFor(fieldValue(flow.source.config, field.key), field)
+          "
+          @update:value="
+            field.type === 'connection'
+              ? setConnectionFieldAlias(flow.source.config, field, $event)
+              : setSourceField(field.key, $event)
+          "
+          @update:connection-binding="
+            setConnectionBinding(fieldValue(flow.source.config, field.key), $event)
+          "
           @add-connection="openConnection"
         />
       </template>
@@ -482,6 +491,18 @@
         />
         <span>{{ settingsDestination.enabled ? "Included in this release" : "Disabled" }}</span>
       </div>
+      <div class="release-field wide">
+        <label :for="`destination-name-${settingsDestination.id}`">Destination name</label>
+        <InputText
+          :id="`destination-name-${settingsDestination.id}`"
+          v-model="settingsDestination.name"
+          :placeholder="releaseDestinationLocalName(settingsDestination, flow?.destinations || [])"
+          autocomplete="off"
+        />
+        <small
+          >Shown beside the provider name; changing it does not rename Connection aliases.</small
+        >
+      </div>
       <template
         v-for="field in destinationDefinition(settingsDestination.provider)?.fields || []"
         :key="field.key"
@@ -490,12 +511,25 @@
           :value="fieldValue(settingsDestination.config, field.key)"
           :options="fieldOptions(field)"
           :input-id="`destination-${settingsDestination.id}-${field.key}`"
+          :connection-binding="
+            connectionBindingFor(fieldValue(settingsDestination.config, field.key))
+          "
+          :connection-binding-suggestion="
+            connectionBindingSuggestionFor(fieldValue(settingsDestination.config, field.key), field)
+          "
           :issues="
             fieldIssues(
               `destinations.${flow?.destinations.indexOf(settingsDestination)}.config.${field.key}`,
             )
           "
-          @update:value="setField(settingsDestination.config, field.key, $event)"
+          @update:value="
+            field.type === 'connection'
+              ? setConnectionFieldAlias(settingsDestination.config, field, $event)
+              : setField(settingsDestination.config, field.key, $event)
+          "
+          @update:connection-binding="
+            setConnectionBinding(fieldValue(settingsDestination.config, field.key), $event)
+          "
           @add-connection="openConnection"
       /></template>
     </div>
@@ -561,12 +595,23 @@
           :value="fieldValue(settingsSlot.config, field.key)"
           :options="fieldOptions(field)"
           :input-id="`slot-${settingsSlot.id}-${field.key}`"
+          :connection-binding="connectionBindingFor(fieldValue(settingsSlot.config, field.key))"
+          :connection-binding-suggestion="
+            connectionBindingSuggestionFor(fieldValue(settingsSlot.config, field.key), field)
+          "
           :issues="
             fieldIssues(
               `destinations.${flow?.destinations.indexOf(settingsDestination)}.slots.${settingsDestination?.slots.indexOf(settingsSlot)}.config.${field.key}`,
             )
           "
-          @update:value="setField(settingsSlot.config, field.key, $event)"
+          @update:value="
+            field.type === 'connection'
+              ? setConnectionFieldAlias(settingsSlot.config, field, $event)
+              : setField(settingsSlot.config, field.key, $event)
+          "
+          @update:connection-binding="
+            setConnectionBinding(fieldValue(settingsSlot.config, field.key), $event)
+          "
           @add-connection="openConnection"
       /></template>
     </div>
@@ -615,6 +660,7 @@
     :style="dialogStyle"
     @update:visible="(visible) => !visible && cancelReleaseDetails()"
     ><div class="settings-grid">
+      <ReleaseDestinationAccountPreview :previews="shippingConnectionPreviews" />
       <div class="release-field">
         <label for="release-version">Version</label
         ><InputText id="release-version" v-model="releaseVersion" placeholder="1.0.0" />
@@ -665,25 +711,31 @@ import type {
 } from "@pipelab/shared";
 import WorkflowShell from "../components/WorkflowShell.vue";
 import ReleaseFieldControl from "../components/ReleaseFieldControl.vue";
+import ReleaseDestinationAccountPreview from "../components/ReleaseDestinationAccountPreview.vue";
 import { useAPI } from "../composables/api";
 import { publishRunEvent } from "./run-events";
 import { useAppStore } from "../store/app";
 import { useConnectionsStore } from "../store/connections";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
+import { uiEnvironment } from "../composables/ui-runtime";
 import {
+  appendReleaseDestinationInstance,
   connectionMatchesIntegration,
   dashboardShipIntentAction,
   blockerAtIndex,
   clampBlockerIndex,
   createSerializedTaskQueue,
+  createReleaseSourceConfig,
   deploymentSlotLabel,
   issuesForPath,
   deduplicateValidationIssues,
+  invalidEnvironmentBindingPaths,
   missingRequiredFieldIssues,
   outputReferenceConsumers,
   planOutputOptions,
   readinessLabel,
   releaseCanRun,
+  shouldInspectReleaseProviderConfig,
   releaseBlockerPresentation,
   releaseReadinessState,
   releaseRepairRoute,
@@ -694,6 +746,24 @@ import {
   hasUnsavedReleaseWorkflowState,
   preventBeforeUnloadIfUnsaved,
 } from "./workflow-builds-state";
+import {
+  connectionDraftForIntegration,
+  connectionFieldsForIntegration,
+  connectionDraftMatchesIntegration,
+  connectionOptionsForIntegration,
+  persistWorkflowConnectionAliasRename,
+  releaseWorkflowConnectionAliases,
+  releaseDestinationConnectionPreviews,
+  releaseDestinationDisplayLabel,
+  releaseDestinationLocalName,
+  renameWorkflowConnectionAlias,
+  resolveDesktopWorkflowConnectionValues,
+  setWorkflowConnectionBinding,
+  suggestUniqueConnectionBinding,
+  suggestWorkflowConnectionAlias,
+  workflowConnectionBindingValue,
+} from "../utils/release-connection-bindings";
+import { submitDesktopWorkflowExecution } from "../utils/workflow-execution-input";
 
 const route = useRoute();
 const router = useRouter();
@@ -723,6 +793,9 @@ const flow = ref<ReleaseConfig>();
 const plan = ref<ReleasePlan>();
 const plannerIssues = ref<ValidationIssue[]>([]);
 const inspectionIssues = ref<ValidationIssue[]>([]);
+const invalidEnvironmentPaths = computed(() =>
+  flow.value ? invalidEnvironmentBindingPaths(flow.value) : [],
+);
 const knownFieldIssues = computed(() =>
   flow.value && !plan.value
     ? missingRequiredFieldIssues(flow.value, catalog.value).map((issue) => ({
@@ -814,6 +887,7 @@ const workflowReadinessState = computed(() =>
     hasPlan: Boolean(plan.value),
     hasReadinessError: Boolean(plannerError.value || loadError.value),
     blockingIssueCount: blockingIssues.value.length,
+    invalidFieldCount: invalidEnvironmentPaths.value.length,
   }),
 );
 const workflowReadinessLabel = computed(() =>
@@ -848,6 +922,7 @@ const canShip = computed(
       saveState.value,
       workflowLoading.value || sourceInspectionPending.value,
       Boolean(loadError.value || plannerError.value),
+      invalidEnvironmentPaths.value.length > 0,
     ),
 );
 let dashboardShipIntentHandled = false;
@@ -1089,31 +1164,135 @@ const setField = (config: Record<string, unknown>, key: string, value: unknown) 
   config[key] = String(value ?? "");
 };
 const connections = computed(() => connectionsStore.connections?.connections || []);
+const localConnectionsConfig = computed(
+  () => connectionsStore.connections || { version: "1.0.0" as const, connections: [] },
+);
+const shippingConnectionPreviews = computed(() =>
+  flow.value
+    ? releaseDestinationConnectionPreviews(flow.value, catalog.value, localConnectionsConfig.value)
+    : [],
+);
+const destinationDisplayLabel = (destination: ReleaseConfig["destinations"][number]) =>
+  releaseDestinationDisplayLabel(
+    destinationDefinition(destination.provider)?.label || destination.provider,
+    releaseDestinationLocalName(destination, flow.value?.destinations || []),
+  );
 const connectionOptions = (field: ReleaseFieldDefinition) =>
-  connections.value
-    .filter((connection) => connectionMatchesIntegration(connection, field.integration))
-    .map((connection) => ({ label: connection.name || connection.id, value: connection.id }));
+  connectionOptionsForIntegration(connections.value, field.integration);
 const connectionFields = computed(() => {
-  const definition = appStore.providerDefinitions.find(
-    (plugin) =>
-      plugin.packageName === connectionDraft.value.integration ||
-      plugin.id === connectionDraft.value.integration,
-  );
-  return (
-    definition?.integrations?.find(
-      (integration) => integration.name === connectionDraft.value.integrationName,
-    )?.fields || [{ key: "value", label: "Credential", type: "password" as const }]
-  );
+  try {
+    return connectionFieldsForIntegration(
+      connectionDraft.value.integrationName || connectionDraft.value.integration,
+      appStore.providerDefinitions,
+    );
+  } catch {
+    return [];
+  }
 });
 const connectionHasValue = computed(() =>
-  connectionFields.value.length
-    ? connectionFields.value.some((field) => connectionDraft.value.values[field.key]?.trim())
-    : Object.values(connectionDraft.value.values).some((value) => value.trim()),
+  connectionFields.value.some((field) => connectionDraft.value.values[field.key]?.trim()),
 );
 const fieldOptions = (field: ReleaseFieldDefinition) =>
   field.type === "connection"
     ? connectionOptions(field)
     : inspectionOptions.value[field.key] || field.options || [];
+const connectionBindingFor = (alias: string) =>
+  workflowConnectionBindingValue(
+    localConnectionsConfig.value,
+    flow.value?.id || flowId.value,
+    alias,
+  );
+const connectionBindingSuggestionFor = (alias: string, field: ReleaseFieldDefinition) =>
+  alias
+    ? suggestUniqueConnectionBinding(
+        connections.value,
+        field.integration,
+        connectionBindingFor(alias),
+      )
+    : undefined;
+const setConnectionBinding = async (alias: string, connectionId: string) => {
+  if (!flow.value || connectionsStore.status !== "ready") return;
+  try {
+    const workflowBindings = setWorkflowConnectionBinding(
+      localConnectionsConfig.value.workflowBindings,
+      flow.value.id,
+      alias,
+      connectionId,
+    );
+    await connectionsStore.updateConnections({
+      ...localConnectionsConfig.value,
+      workflowBindings,
+    });
+  } catch (cause) {
+    error.value = cause instanceof Error ? cause.message : "Unable to remember this Connection.";
+  }
+};
+const setConnectionFieldAlias = async (
+  values: Record<string, unknown>,
+  field: ReleaseFieldDefinition,
+  value: unknown,
+) => {
+  if (!flow.value) return;
+  const previous = fieldValue(values, field.key);
+  const next = typeof value === "string" ? value : "";
+  if (previous === next) return;
+  if (!previous) {
+    setField(values, field.key, next);
+    return;
+  }
+
+  try {
+    const renamed = renameWorkflowConnectionAlias(
+      toRaw(flow.value),
+      catalog.value,
+      localConnectionsConfig.value.workflowBindings,
+      previous,
+      next,
+    );
+    const previousBindings = localConnectionsConfig.value.workflowBindings || [];
+    const previousConnectionId = workflowConnectionBindingValue(
+      localConnectionsConfig.value,
+      flow.value.id,
+      previous,
+    );
+    const nextBindings = previousConnectionId
+      ? setWorkflowConnectionBinding(
+          renamed.workflowBindings,
+          flow.value.id,
+          next,
+          previousConnectionId,
+        )
+      : renamed.workflowBindings;
+    const workflowChanged = JSON.stringify(renamed.config) !== JSON.stringify(flow.value);
+    await persistWorkflowConnectionAliasRename({
+      workflowId: flow.value.id,
+      previousAlias: previous,
+      previousBindings,
+      nextBindings,
+      saveConnections: async (workflowBindings) => {
+        await connectionsStore.updateConnections({
+          ...localConnectionsConfig.value,
+          workflowBindings,
+        });
+      },
+      saveWorkflow: async () => {
+        if (!workflowChanged) return;
+        const destinationId = settingsDestination.value?.id;
+        const slotId = settingsSlot.value?.id;
+        flow.value = renamed.config;
+        settingsDestination.value = flow.value.destinations.find(
+          (destination) => destination.id === destinationId,
+        );
+        settingsSlot.value = settingsDestination.value?.slots.find((slot) => slot.id === slotId);
+        clearTimeout(saveTimer);
+        await save();
+      },
+    });
+  } catch (cause) {
+    error.value =
+      cause instanceof Error ? cause.message : "Unable to rename this Connection alias.";
+  }
+};
 const cardIssues = (prefix: string) => issuesForPath(summaryIssues.value, prefix);
 const fieldIssues = (path: string) => issues.value.filter((issue) => issue.path === path);
 const slotIssuePath = (slot: ReleaseDestinationSlot) => {
@@ -1143,6 +1322,7 @@ const blockerFieldContext = (issue: ValidationIssue) => {
   if (!flow.value || !issue.path) return {};
   let field: ReleaseFieldDefinition | undefined;
   let targetLabel: string | undefined;
+  let destinationLabel: string | undefined;
   let fieldKey: string | undefined;
   let fieldConfig: Record<string, unknown> | undefined;
 
@@ -1178,10 +1358,14 @@ const blockerFieldContext = (issue: ValidationIssue) => {
       ? definition?.slotFields?.find((candidate) => candidate.key === fieldKey)
       : definition?.fields?.find((candidate) => candidate.key === fieldKey);
     targetLabel = definition?.label || "destination";
+    destinationLabel = releaseDestinationDisplayLabel(
+      targetLabel,
+      releaseDestinationLocalName(destination, flow.value.destinations),
+    );
   }
 
   if (field?.type !== "connection" || !field.integration)
-    return { targetLabel, field, fieldKey, fieldConfig };
+    return { targetLabel, destinationLabel, field, fieldKey, fieldConfig };
   const integrationProvider = appStore.providerDefinitions.find(
     (provider) => provider.packageName === field?.integration || provider.id === field?.integration,
   );
@@ -1192,6 +1376,7 @@ const blockerFieldContext = (issue: ValidationIssue) => {
     : field.label.toLowerCase();
   return {
     targetLabel,
+    destinationLabel,
     connectionLabel,
     connectionFieldLabel,
     field,
@@ -1229,30 +1414,11 @@ const sourcePath = computed(() => {
 const outputOptions = computed(() =>
   flow.value && plan.value ? planOutputOptions(flow.value, plan.value, catalog.value) : [],
 );
-const availableDestinations = computed(() =>
-  catalog.value.destinations.filter(
-    (item) => !flow.value?.destinations.some((destination) => destination.provider === item.id),
-  ),
-);
+const availableDestinations = computed(() => catalog.value.destinations);
 const addDestination = (provider: string) => {
   if (!flow.value) return;
   const definition = destinationDefinition(provider);
-  if (definition) {
-    flow.value.destinations.push({
-      id: nanoid(),
-      provider,
-      enabled: true,
-      config: { ...definition.defaultConfig },
-      slots: [
-        {
-          id: nanoid(),
-          name: "Deployment 1",
-          enabled: true,
-          config: {},
-        },
-      ],
-    });
-  }
+  if (definition) appendReleaseDestinationInstance(flow.value, definition, nanoid, catalog.value);
   addDestinationVisible.value = false;
 };
 const hasConfiguredValue = (value: unknown): boolean => {
@@ -1358,7 +1524,7 @@ const selectSource = (provider: string) => {
   const definition = catalog.value.sources.find((source) => source.id === provider);
   if (!definition || flow.value.source.provider === provider) return;
   const currentConfig = flow.value.source.config;
-  const nextConfig = { ...definition.defaultConfig };
+  const nextConfig = createReleaseSourceConfig(flow.value, definition, catalog.value);
   const discardedFields = Object.keys(currentConfig).filter(
     (key) =>
       hasConfiguredValue(currentConfig[key]) &&
@@ -1401,19 +1567,18 @@ const setSourceField = (key: string, value: unknown) => {
 const openConnection = (integration: string) => {
   connectionDialogGeneration++;
   pendingBlockerConnection.value = undefined;
-  const definition = appStore.providerDefinitions.find(
-    (plugin) => plugin.packageName === integration || plugin.id === integration,
-  );
-  const integrationDefinition = definition?.integrations?.[0];
-  connectionDraft.value = {
-    name: "",
-    integration,
-    integrationName: integrationDefinition?.name || "",
-    values: Object.fromEntries(
-      (integrationDefinition?.fields || [{ key: "value" }]).map((field) => [field.key, ""]),
-    ),
-  };
-  connectionVisible.value = true;
+  try {
+    connectionDraft.value = {
+      name: "",
+      ...connectionDraftForIntegration(integration, appStore.providerDefinitions),
+    };
+    error.value = "";
+    connectionVisible.value = true;
+  } catch (cause) {
+    connectionVisible.value = false;
+    error.value =
+      cause instanceof Error ? cause.message : "Provider Connection schema is unavailable.";
+  }
 };
 const cancelConnection = () => {
   connectionDialogGeneration++;
@@ -1421,6 +1586,7 @@ const cancelConnection = () => {
   connectionVisible.value = false;
 };
 const createConnection = async () => {
+  if (!connectionFields.value.length || !connectionHasValue.value) return;
   const dialogGeneration = connectionDialogGeneration;
   const pendingAtStart = pendingBlockerConnection.value;
   connectionSaving.value = true;
@@ -1437,8 +1603,46 @@ const createConnection = async () => {
       createdAt: new Date().toISOString(),
       isDefault: false,
     };
+    let workflowBindings = localConnectionsConfig.value.workflowBindings || [];
+    let pendingAlias: string | undefined;
+    if (pendingAtStart && pendingAtStart.flowId === flow.value?.id) {
+      const currentIssue = blockingIssues.value.find(
+        (issue) =>
+          issue.code === pendingAtStart.code &&
+          issue.message === pendingAtStart.message &&
+          issue.path === pendingAtStart.path,
+      );
+      const target = currentIssue ? blockerFieldContext(currentIssue) : undefined;
+      if (
+        target &&
+        connectionDraftMatchesIntegration(target.integration, connectionDraft.value) &&
+        target.fieldConfig &&
+        target.fieldKey &&
+        flow.value
+      ) {
+        const existingAlias = String(target.fieldConfig[target.fieldKey] || "");
+        pendingAlias =
+          /^[A-Za-z_][A-Za-z0-9_-]*$/.test(existingAlias) &&
+          !connections.value.some((connection) => connection.id === existingAlias)
+            ? existingAlias
+            : suggestWorkflowConnectionAlias(
+                record.name,
+                releaseWorkflowConnectionAliases(flow.value, catalog.value),
+              );
+        workflowBindings = setWorkflowConnectionBinding(
+          workflowBindings,
+          flow.value.id,
+          pendingAlias,
+          record.id,
+        );
+      }
+    }
     const result = await api.execute("connections:save", {
-      data: { version: "1.0.0", connections: [...connections.value, record] },
+      data: {
+        ...localConnectionsConfig.value,
+        connections: [...connections.value, record],
+        workflowBindings,
+      },
     });
     if (result.type === "error") {
       error.value = result.ipcError;
@@ -1463,7 +1667,7 @@ const createConnection = async () => {
       if (currentIssue) {
         const target = blockerFieldContext(currentIssue);
         if (target.integration === integration && target.fieldConfig && target.fieldKey)
-          target.fieldConfig[target.fieldKey] = record.id;
+          target.fieldConfig[target.fieldKey] = pendingAlias || record.id;
       }
     }
     if (pendingBlockerConnection.value === pendingAtStart)
@@ -1483,6 +1687,12 @@ const inspectSource = async () => {
   const requestId = ++latestSourceInspection;
   const provider = flow.value.source.provider;
   const config = structuredClone(toRaw(flow.value.source.config));
+  if (!shouldInspectReleaseProviderConfig(config)) {
+    sourceInspectionPending.value = false;
+    inspectionIssues.value = [];
+    inspectionOptions.value = {};
+    return;
+  }
   sourceInspectionPending.value = true;
   inspectionIssues.value = [];
   inspectionOptions.value = {};
@@ -1592,6 +1802,11 @@ const refreshPlan = async (): Promise<ReleasePlan | undefined> => {
 };
 const save = createSerializedTaskQueue(async () => {
   if (!flow.value) return;
+  if (invalidEnvironmentPaths.value.length > 0) {
+    saveState.value = "error";
+    saveError.value = "Fix invalid environment variable names before saving workflow changes.";
+    throw new Error(saveError.value);
+  }
   if (
     !agent.isReady.value ||
     connectionsStore.status !== "ready" ||
@@ -1682,25 +1897,46 @@ const runShip = async () => {
       ) {
         throw new Error("The saved workflow is no longer ready to ship. Review the latest issues.");
       }
+      if (!flow.value) throw new Error("The workflow is no longer available.");
       let runId = "";
-      const result = await api.execute(
-        "workflow:execute",
-        {
+      const connectionValues = resolveDesktopWorkflowConnectionValues(
+        flow.value,
+        catalog.value,
+        localConnectionsConfig.value,
+        appStore.providerDefinitions,
+      );
+      const result = await submitDesktopWorkflowExecution({
+        workflow: flow.value,
+        catalog: catalog.value,
+        request: {
           name: `workflows/${flowId.value}`,
           release: {
             version: releaseVersion.value.trim(),
             description: releaseDescription.value.trim(),
           },
+          connectionValues,
         },
-        async (event) => {
-          if (event.type === "workflow-run") {
-            runId = event.data.runId;
-            await router.push(`/workflows/${flowId.value}/${projectId.value}/runs/${runId}`);
-          } else if (event.type === "workflow-event" && runId) {
-            publishRunEvent(runId, event.data);
-          }
+        readEnvironment: async (names) => {
+          if (uiEnvironment !== "desktop") return Promise.resolve({});
+          if (!window.pipelab?.readWorkflowEnvironment)
+            throw new Error("Desktop cannot read workflow environment bindings. Restart Pipelab.");
+          const environment = await window.pipelab.readWorkflowEnvironment(flowId.value);
+          return Object.fromEntries(
+            names.flatMap((name) =>
+              Object.hasOwn(environment, name) ? [[name, environment[name]]] : [],
+            ),
+          );
         },
-      );
+        execute: (request) =>
+          api.execute("workflow:execute", request, async (event) => {
+            if (event.type === "workflow-run") {
+              runId = event.data.runId;
+              await router.push(`/workflows/${flowId.value}/${projectId.value}/runs/${runId}`);
+            } else if (event.type === "workflow-event" && runId) {
+              publishRunEvent(runId, event.data);
+            }
+          }),
+      });
       if (result.type === "error") throw new Error(result.ipcError);
       else if (!runId)
         await router.push(

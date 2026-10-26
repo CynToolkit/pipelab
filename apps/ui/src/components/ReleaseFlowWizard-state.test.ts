@@ -2,13 +2,16 @@ import { describe, expect, it } from "vitest";
 import { computed, reactive } from "vue";
 import { resolveReleaseDefaults } from "@pipelab/shared";
 import type { ReleaseCatalog, ReleaseRegistry } from "@pipelab/shared";
+import { invalidEnvironmentBindingPaths } from "../utils/environment-bindings";
 import {
   buildReleaseWizardConfig,
+  chooseReleaseWizardSource,
   createReleaseWizardDraft,
   HOSTED_RELEASE_WIZARD_STEPS,
   RELEASE_WIZARD_STEPS,
   releaseWizardCanContinueDetails,
   releaseWizardCanReview,
+  releaseWizardCanCreate,
   releaseWizardDestination,
   releaseWizardHasSource,
   releaseWizardIsOfflineBrowserDraft,
@@ -102,6 +105,67 @@ const registry = (
 const planningContext = { host: { platform: "linux", architecture: "x64" } };
 
 describe("ReleaseFlowWizard state", () => {
+  it("blocks workflow creation while environment binding names are invalid", () => {
+    const state = {
+      isReady: true,
+      projectId: "project-1",
+      canContinueDestinations: true,
+      createPending: false,
+    };
+
+    expect(releaseWizardCanCreate({ ...state, invalidEnvironmentBindingCount: 1 })).toBe(false);
+    expect(releaseWizardCanCreate({ ...state, invalidEnvironmentBindingCount: 0 })).toBe(true);
+  });
+
+  it.each([
+    { isReady: false },
+    { projectId: undefined },
+    { canContinueDestinations: false },
+    { createPending: true },
+  ])("preserves existing workflow creation gates: %o", (override) => {
+    expect(
+      releaseWizardCanCreate({
+        isReady: true,
+        projectId: "project-1",
+        canContinueDestinations: true,
+        createPending: false,
+        invalidEnvironmentBindingCount: 0,
+        ...override,
+      }),
+    ).toBe(false);
+  });
+
+  it("updates the create gate as environment bindings in the reactive draft are corrected", () => {
+    const draft = reactive(createReleaseWizardDraft());
+    const invalidEnvironmentBindingCount = computed(
+      () => invalidEnvironmentBindingPaths(draft).length,
+    );
+    const state = {
+      isReady: true,
+      projectId: "project-1",
+      canContinueDestinations: true,
+      createPending: false,
+    };
+
+    draft.source.config.path = "${{ env.BAD-NAME }}";
+    expect(invalidEnvironmentBindingCount.value).toBe(1);
+    expect(
+      releaseWizardCanCreate({
+        ...state,
+        invalidEnvironmentBindingCount: invalidEnvironmentBindingCount.value,
+      }),
+    ).toBe(false);
+
+    draft.source.config.path = "${{ env.BUILD_PATH }}";
+    expect(invalidEnvironmentBindingCount.value).toBe(0);
+    expect(
+      releaseWizardCanCreate({
+        ...state,
+        invalidEnvironmentBindingCount: invalidEnvironmentBindingCount.value,
+      }),
+    ).toBe(true);
+  });
+
   it("starts on the first of four steps with no source preselected", () => {
     const draft = createReleaseWizardDraft();
     expect(RELEASE_WIZARD_STEPS).toEqual(["details", "source", "destinations", "recap"]);
@@ -116,6 +180,56 @@ describe("ReleaseFlowWizard state", () => {
     expect(releaseWizardPreviousStep("recap")).toBe("destinations");
     expect(releaseWizardPreviousStep("destinations")).toBe("source");
     expect(releaseWizardPreviousStep("source")).toBe("details");
+  });
+
+  it("suggests workflow aliases for required source and destination Connections", () => {
+    const connectionCatalog: ReleaseCatalog = {
+      ...catalog,
+      sources: [
+        {
+          id: "source/construct-account",
+          label: "Construct",
+          output: { kind: "project", container: "directory" },
+          defaultConfig: { account: "" },
+          fields: [
+            {
+              key: "account",
+              type: "connection",
+              label: "Construct account",
+              integration: "Construct Account",
+              required: true,
+            },
+          ],
+        },
+      ],
+      destinations: [
+        {
+          id: "destination/itch",
+          label: "Itch",
+          accepts: {},
+          defaultConfig: { account: "" },
+          fields: [
+            {
+              key: "account",
+              type: "connection",
+              label: "Itch account",
+              integration: "Itch Account",
+              required: true,
+            },
+          ],
+        },
+      ],
+    };
+    const draft = createReleaseWizardDraft();
+    draft.name = "Game release";
+    chooseReleaseWizardSource(draft, "source/construct-account", connectionCatalog);
+    const destination = releaseWizardDestination("destination/itch", connectionCatalog)!;
+
+    const built = buildReleaseWizardConfig(draft, "project-1", "release-1", connectionCatalog);
+
+    expect(draft.source.config.account).toBe("construct-account");
+    expect(built.source.config.account).toBe("construct-account");
+    expect(destination.config.account).toBe("itch-account");
   });
 
   it("includes an editable hosted build in the draft config", () => {

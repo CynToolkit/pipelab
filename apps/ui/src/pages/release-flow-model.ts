@@ -11,7 +11,15 @@ import type {
   Availability,
   ProducerInspection,
   ValidationIssue,
+  ReleaseFieldDefinition,
 } from "@pipelab/shared";
+import {
+  releaseWorkflowConnectionAliases,
+  releaseDestinationLocalName,
+  suggestWorkflowConnectionAlias,
+} from "../utils/release-connection-bindings";
+
+export { invalidEnvironmentBindingPaths } from "../utils/environment-bindings";
 
 export interface ReleaseOutputOption {
   value: string;
@@ -39,6 +47,32 @@ export type OutputReferenceChangeAction =
       discardedSettings?: string[];
       disabledTargets?: string[];
     };
+
+export const suggestMissingConnectionAliases = (
+  values: Record<string, unknown>,
+  fields: ReleaseFieldDefinition[] | undefined,
+  usedAliases: Set<string>,
+) => {
+  for (const field of fields || []) {
+    if (field.type !== "connection" || field.required === false) continue;
+    const current = values[field.key];
+    if (typeof current === "string" && current.trim()) continue;
+    const alias = suggestWorkflowConnectionAlias(field.label || field.key, [...usedAliases]);
+    values[field.key] = alias;
+    usedAliases.add(alias);
+  }
+};
+
+export const createReleaseSourceConfig = (
+  flow: ReleaseConfig,
+  source: ReleaseCatalog["sources"][number],
+  catalog: ReleaseCatalog,
+) => {
+  const config = structuredClone(toRaw(source.defaultConfig));
+  const usedAliases = new Set(releaseWorkflowConnectionAliases(flow, catalog));
+  suggestMissingConnectionAliases(config, source.fields, usedAliases);
+  return config;
+};
 
 export interface CompatibleBuildCandidate {
   type: string;
@@ -69,6 +103,38 @@ export const buildInputControlVisible = (
     selectedInput &&
     !options.some((option) => option.value === releaseOutputRefValue(selectedInput)),
   );
+
+export const appendReleaseDestinationInstance = (
+  flow: ReleaseConfig,
+  definition: ReleaseCatalog["destinations"][number],
+  createId: () => string,
+  catalog?: ReleaseCatalog,
+) => {
+  const usedAliases = new Set(catalog ? releaseWorkflowConnectionAliases(flow, catalog) : []);
+  const sameProviderDestinations = flow.destinations.filter(
+    (candidate) => candidate.provider === definition.id,
+  );
+  const usedNames = new Set(
+    sameProviderDestinations.map((candidate) =>
+      releaseDestinationLocalName(candidate, flow.destinations),
+    ),
+  );
+  let destinationNumber = 1;
+  while (usedNames.has(`Destination ${destinationNumber}`)) destinationNumber += 1;
+  const destination: ReleaseConfig["destinations"][number] = {
+    id: createId(),
+    provider: definition.id,
+    name: `Destination ${destinationNumber}`,
+    enabled: true,
+    config: structuredClone(toRaw(definition.defaultConfig)),
+    slots: [{ id: createId(), name: "Deployment 1", enabled: true, config: {} }],
+  };
+  suggestMissingConnectionAliases(destination.config, definition.fields, usedAliases);
+  for (const slot of destination.slots)
+    suggestMissingConnectionAliases(slot.config, definition.slotFields, usedAliases);
+  flow.destinations.push(destination);
+  return destination;
+};
 
 export const releaseOutputRefValue = (ref?: ReleaseOutputRef) =>
   ref ? ("source" in ref ? "source" : `${ref.buildId}:${ref.targetId}`) : "";
@@ -151,6 +217,20 @@ export const missingRequiredFieldIssues = (config: ReleaseConfig, catalog: Relea
     });
   });
   return issues;
+};
+
+export const shouldInspectReleaseProviderConfig = (config: unknown) => {
+  const containsEnvironmentReference = (value: unknown): boolean => {
+    if (Array.isArray(value)) return value.some(containsEnvironmentReference);
+    if (typeof value === "object" && value !== null)
+      return Object.values(value).some(containsEnvironmentReference);
+    if (typeof value !== "string") return false;
+    return [...value.matchAll(/\$\{\{([^{}]+)\}\}/g)].some((match) =>
+      match[1].trim().startsWith("env."),
+    );
+  };
+
+  return !containsEnvironmentReference(config);
 };
 
 export const selectBuildInput = (
@@ -261,21 +341,27 @@ export const createBuildProfile = (
   engine: string,
   id: string,
   preferredTargets?: string[],
+  existingAliases: string[] = [],
 ): ReleaseBuildProfileConfig | undefined => {
   const producer = buildEnginesFor(catalog, type).find((candidate) => candidate.id === engine);
   if (!producer) return undefined;
+  const usedAliases = new Set(existingAliases);
+  const config = { ...producer.defaultConfig };
+  suggestMissingConnectionAliases(config, producer.fields, usedAliases);
   const targets = buildTargetsFor(catalog, engine, type);
   return {
     id,
     type,
     engine,
     enabled: true,
-    config: { ...producer.defaultConfig },
-    targets: targets.map((target) => ({
-      id: target.id,
-      enabled: Boolean(preferredTargets?.includes(target.id)) && buildTargetIsAvailable(target),
-      config: { ...target.defaultConfig },
-    })),
+    config,
+    targets: targets.map((target) => {
+      const enabled =
+        Boolean(preferredTargets?.includes(target.id)) && buildTargetIsAvailable(target);
+      const targetConfig = { ...target.defaultConfig };
+      if (enabled) suggestMissingConnectionAliases(targetConfig, target.fields, usedAliases);
+      return { id: target.id, enabled, config: targetConfig };
+    }),
   };
 };
 
@@ -292,11 +378,14 @@ export const setBuildTargetEnabled = (
   enabled: boolean,
   availability?: Availability,
   availabilityStatus?: "unknown",
+  fields?: ReleaseFieldDefinition[],
+  existingAliases: readonly string[] = [],
 ): boolean => {
   const target = build.targets.find((candidate) => candidate.id === id);
   if (!target) return false;
   if (enabled && (availability?.available === false || availabilityStatus === "unknown"))
     return false;
+  if (enabled) suggestMissingConnectionAliases(target.config, fields, new Set(existingAliases));
   target.enabled = enabled;
   return true;
 };
@@ -305,24 +394,49 @@ export const switchBuildProfileEngine = (
   catalog: ReleaseCatalog,
   build: ReleaseBuildProfileConfig,
   engine: string,
+  existingAliases: readonly string[] = [],
 ): ReleaseBuildProfileConfig | undefined => {
   const producer = catalog.producers.find((candidate) => candidate.id === engine);
   if (!producer || producer.planning.mode !== "build") return undefined;
+  const previousProducer = catalog.producers.find((candidate) => candidate.id === build.engine);
   const previousTargets = new Map(build.targets.map((target) => [target.id, target]));
+  const config = { ...producer.defaultConfig, ...build.config };
+  const usedAliases = new Set(existingAliases);
+  for (const field of producer.fields || []) {
+    if (field.type !== "connection") continue;
+    const previousField = previousProducer?.fields?.find(
+      (candidate) => candidate.key === field.key,
+    );
+    if (previousField?.type !== "connection" || previousField.integration !== field.integration)
+      config[field.key] = "";
+  }
+  suggestMissingConnectionAliases(config, producer.fields, usedAliases);
   return {
     ...build,
     engine,
-    config: { ...producer.defaultConfig, ...build.config },
+    config,
     targets: producer.targets
       .filter((target) => target.buildType === build.type)
-      .map((target) => ({
-        id: target.id,
-        enabled: false,
-        config: {
-          ...target.defaultConfig,
-          ...previousTargets.get(target.id)?.config,
-        },
-      })),
+      .map((target) => {
+        const previousTarget = previousTargets.get(target.id);
+        const previousDefinition = previousProducer?.targets.find(
+          (candidate) => candidate.id === target.id,
+        );
+        const targetConfig = { ...target.defaultConfig, ...previousTarget?.config };
+        for (const field of target.fields || []) {
+          if (field.type !== "connection") continue;
+          const previousField = previousDefinition?.fields?.find(
+            (candidate) => candidate.key === field.key,
+          );
+          if (
+            previousField?.type !== "connection" ||
+            previousField.integration !== field.integration
+          )
+            targetConfig[field.key] = "";
+        }
+        suggestMissingConnectionAliases(targetConfig, target.fields, usedAliases);
+        return { id: target.id, enabled: false, config: targetConfig };
+      }),
   };
 };
 
@@ -437,6 +551,7 @@ export const releaseCanRun = (
   saveState: "saving" | "saved" | "error" = "saved",
   otherChecksPending = false,
   hasReadinessError = false,
+  hasInvalidFormInput = false,
 ) =>
   Boolean(
     flow &&
@@ -445,6 +560,7 @@ export const releaseCanRun = (
     !planning &&
     !otherChecksPending &&
     !hasReadinessError &&
+    !hasInvalidFormInput &&
     saveState !== "error" &&
     !issues.some((issue) => issue.severity === "error"),
   );
@@ -482,6 +598,7 @@ export const releaseRepairRoute = (issue: ValidationIssue): ReleaseRepairRoute =
 
 export interface ReleaseBlockerContext {
   targetLabel?: string;
+  destinationLabel?: string;
   connectionLabel?: string;
   connectionFieldLabel?: string;
   hasMatchingConnection?: boolean;
@@ -493,6 +610,7 @@ export const releaseBlockerPresentation = (
 ) => {
   const route = releaseRepairRoute(issue);
   const connectionLabel = context.connectionLabel;
+  const configureLabel = context.destinationLabel || context.targetLabel;
   const connectionAction = connectionLabel
     ? context.hasMatchingConnection
       ? `Select ${connectionLabel} connection`
@@ -503,7 +621,7 @@ export const releaseBlockerPresentation = (
     : route === "builds"
       ? `Configure ${context.targetLabel || "build"}`
       : route === "configuration"
-        ? `Configure ${context.targetLabel || "release"}`
+        ? `Configure ${configureLabel || "release"}`
         : route === "connections"
           ? "Manage connections"
           : "Resolve workflow issue";
@@ -516,7 +634,7 @@ export const releaseBlockerPresentation = (
       (route === "builds"
         ? "Configure build"
         : route === "configuration"
-          ? `Configure ${context.targetLabel || "release"}`
+          ? `Configure ${configureLabel || "release"}`
           : route === "connections"
             ? "Manage connections"
             : "Review issues"),
@@ -530,12 +648,13 @@ export interface ReleaseReadinessInput {
   hasPlan: boolean;
   hasReadinessError: boolean;
   blockingIssueCount: number;
+  invalidFieldCount?: number;
 }
 
 export const releaseReadinessState = (readiness: ReleaseReadinessInput) =>
   readiness.hasReadinessError
     ? "error"
-    : readiness.blockingIssueCount
+    : readiness.blockingIssueCount || readiness.invalidFieldCount
       ? "attention"
       : readiness.loading || readiness.inspectingSource || readiness.planning || !readiness.hasPlan
         ? "checking"

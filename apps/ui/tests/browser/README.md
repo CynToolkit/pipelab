@@ -27,6 +27,11 @@ Configuration captures there for review.
 It also saves representative empty/populated Dashboard and Workflows screenshots
 at desktop and narrow widths in the selected theme.
 
+To run just the saved-Connection layout regression from the Configuration
+destination editor, use `CONNECTION_LAYOUT_ONLY=1` with the same server and
+Chromium settings. It opens the workflow alias details and checks the selector
+and Add control bounds in a real browser.
+
 ## Hosted shell without an agent
 
 Run a hosted-mode UI server and the no-agent shell/preferences journey:

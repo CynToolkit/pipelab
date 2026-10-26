@@ -7,11 +7,19 @@ import { startServer, stopServer } from "./main/server-process";
 import { uiDevPort, getProtocolName, getAppBundleId } from "@pipelab/constants";
 import { registerIpcHandlers } from "./main/ipc-handlers";
 import { installUpdateAfterServerStops } from "./main/update-shutdown";
-import { getDefaultUserDataPath, fetchLatestDesktopRelease } from "@pipelab/core-node/desktop";
+import {
+  buildCoreReleaseRegistry,
+  fetchLatestDesktopRelease,
+  getDefaultUserDataPath,
+  getReleaseWorkflowEnvironmentVariableNames,
+  PipelabContext,
+  ReleasePersistence,
+} from "@pipelab/core-node/desktop";
 import started from "electron-squirrel-startup";
 import { PostHog } from "posthog-node";
 import { parseArgs } from "node:util";
 import semver from "semver";
+import { readWorkflowEnvironmentForWorkflow } from "./main/workflow-environment";
 
 const isProduction = app.isPackaged && process.env.TEST !== "true";
 const isE2ESmokeTest = process.env.PIPELAB_E2E === "1";
@@ -576,7 +584,17 @@ app.whenReady().then(async () => {
 
   const appBundleId = getAppBundleId(app.getVersion());
   electronApp.setAppUserModelId(appBundleId);
-  registerIpcHandlers(relaunchAfterServerStops);
+  const releaseTag = app.getVersion().includes("beta") ? "beta" : "latest";
+  const workflowContext = new PipelabContext({ userDataPath: customUserDataPath, releaseTag });
+  const workflowPersistence = new ReleasePersistence(workflowContext);
+  const workflowRegistry = buildCoreReleaseRegistry();
+  registerIpcHandlers(relaunchAfterServerStops, (workflowId) =>
+    readWorkflowEnvironmentForWorkflow(
+      workflowId,
+      (id) => workflowPersistence.load(id),
+      (config) => getReleaseWorkflowEnvironmentVariableNames(config, workflowRegistry),
+    ),
+  );
   createWindow();
 
   // Start the background server (this might include downloading the CLI on first run)

@@ -1,5 +1,7 @@
 import { createReleaseConfig } from "@pipelab/shared";
 import type { ReleaseCatalog, ReleaseCatalogTarget, ReleaseConfig } from "@pipelab/shared";
+import { suggestMissingConnectionAliases } from "../pages/release-flow-model";
+import { releaseWorkflowConnectionAliases } from "../utils/release-connection-bindings";
 
 export interface ReleaseWizardDraft {
   name: string;
@@ -32,6 +34,57 @@ export const createReleaseWizardDraft = (): ReleaseWizardDraft => ({
   builds: [],
   destinations: [],
 });
+
+const releaseConfigForDraft = (draft: ReleaseWizardDraft): ReleaseConfig => ({
+  ...createReleaseConfig({
+    id: "wizard-draft",
+    project: "wizard-project",
+    name: draft.name || "Draft",
+    source: draft.source,
+  }),
+  builds: draft.builds,
+  destinations: draft.destinations,
+});
+
+export const suggestReleaseWizardConnectionAliases = (
+  draft: ReleaseWizardDraft,
+  catalog: ReleaseCatalog,
+) => {
+  const usedAliases = new Set(releaseWorkflowConnectionAliases(releaseConfigForDraft(draft), catalog));
+  const source = catalog.sources.find((candidate) => candidate.id === draft.source.provider);
+  suggestMissingConnectionAliases(draft.source.config, source?.fields, usedAliases);
+  for (const build of draft.builds) {
+    const producer = catalog.producers.find((candidate) => candidate.id === build.engine);
+    suggestMissingConnectionAliases(build.config, producer?.fields, usedAliases);
+    for (const target of build.targets) {
+      const targetDefinition = producer?.targets.find((candidate) => candidate.id === target.id);
+      suggestMissingConnectionAliases(target.config, targetDefinition?.fields, usedAliases);
+    }
+  }
+  for (const destination of draft.destinations) {
+    const definition = catalog.destinations.find(
+      (candidate) => candidate.id === destination.provider,
+    );
+    suggestMissingConnectionAliases(destination.config, definition?.fields, usedAliases);
+    for (const slot of destination.slots)
+      suggestMissingConnectionAliases(slot.config, definition?.slotFields, usedAliases);
+  }
+  return draft;
+};
+
+export const chooseReleaseWizardSource = (
+  draft: ReleaseWizardDraft,
+  provider: string,
+  catalog: ReleaseCatalog,
+) => {
+  const definition = catalog.sources.find((source) => source.id === provider);
+  if (!definition) return draft;
+  draft.source = {
+    provider,
+    config: structuredClone(definition.defaultConfig),
+  };
+  return suggestReleaseWizardConnectionAliases(draft, catalog);
+};
 
 export const releaseWizardNextStep = (
   step: ReleaseWizardStep,
@@ -78,6 +131,21 @@ export const releaseWizardCanReview = (draft: ReleaseWizardDraft, catalog: Relea
   releaseWizardSourceIsReady(draft.source, catalog) &&
   draft.destinations.length > 0;
 
+export const releaseWizardCanCreate = (state: {
+  isReady: boolean;
+  projectId?: string;
+  canContinueDestinations: boolean;
+  createPending: boolean;
+  invalidEnvironmentBindingCount: number;
+}) =>
+  Boolean(
+    state.isReady &&
+    state.projectId &&
+    state.canContinueDestinations &&
+    !state.createPending &&
+    state.invalidEnvironmentBindingCount === 0,
+  );
+
 export const releaseWizardIsOfflineBrowserDraft = (isBrowser: boolean, agentReady: boolean) =>
   isBrowser && !agentReady;
 
@@ -96,10 +164,11 @@ export const releaseWizardTargetAvailability = (
 export const releaseWizardDestination = (
   provider: string,
   catalog: ReleaseCatalog,
+  draft: ReleaseWizardDraft = createReleaseWizardDraft(),
 ): ReleaseConfig["destinations"][number] | undefined => {
   const definition = catalog.destinations.find((item) => item.id === provider);
   if (!definition) return undefined;
-  return {
+  const destination: ReleaseConfig["destinations"][number] = {
     id: provider,
     provider,
     enabled: true,
@@ -107,24 +176,32 @@ export const releaseWizardDestination = (
     // Leave the output unrouted for the editor. Choosing an output here would be a guess.
     slots: [{ id: "output", enabled: true, config: {} }],
   };
+  const usedAliases = new Set(releaseWorkflowConnectionAliases(releaseConfigForDraft(draft), catalog));
+  suggestMissingConnectionAliases(destination.config, definition.fields, usedAliases);
+  for (const slot of destination.slots)
+    suggestMissingConnectionAliases(slot.config, definition.slotFields, usedAliases);
+  return destination;
 };
 
 export const buildReleaseWizardConfig = (
   draft: ReleaseWizardDraft,
   projectId: string,
   workflowId: string,
+  catalog?: ReleaseCatalog,
 ): ReleaseConfig => {
+  const savedDraft = structuredClone(draft);
+  if (catalog) suggestReleaseWizardConnectionAliases(savedDraft, catalog);
   const config = createReleaseConfig({
     id: workflowId,
     project: projectId,
-    name: draft.name.trim(),
-    description: draft.description.trim() || undefined,
-    source: structuredClone(draft.source),
+    name: savedDraft.name.trim(),
+    description: savedDraft.description.trim() || undefined,
+    source: structuredClone(savedDraft.source),
   });
   return {
     ...config,
-    builds: structuredClone(draft.builds),
-    destinations: structuredClone(draft.destinations),
+    builds: structuredClone(savedDraft.builds),
+    destinations: structuredClone(savedDraft.destinations),
   };
 };
 

@@ -46,6 +46,8 @@ if (process.contextIsolated) {
       showItemInFolder: (path: string) => ipcRenderer.invoke("shell:showItemInFolder", path),
       isPathBlacklisted: (path: string) => ipcRenderer.invoke("path:isBlacklisted", path),
       relaunch: () => ipcRenderer.invoke("app:relaunch"),
+      readWorkflowEnvironment: (workflowId: string) =>
+        ipcRenderer.invoke("workflow:environment:read", workflowId),
     });
     contextBridge.exposeInMainWorld("version", version);
     contextBridge.exposeInMainWorld("isPackaged", process.env.NODE_ENV !== "development");
@@ -68,6 +70,8 @@ if (process.contextIsolated) {
     showItemInFolder: (path: string) => ipcRenderer.invoke("shell:showItemInFolder", path),
     isPathBlacklisted: (path: string) => ipcRenderer.invoke("path:isBlacklisted", path),
     relaunch: () => ipcRenderer.invoke("app:relaunch"),
+    readWorkflowEnvironment: (workflowId: string) =>
+      ipcRenderer.invoke("workflow:environment:read", workflowId),
   };
   window.version = version;
   window.isPackaged = process.env.NODE_ENV !== "development";

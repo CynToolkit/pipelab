@@ -29,6 +29,30 @@ Compatibility depends on the artifact type, destination, selected target, and
 host. The [provider catalog](/guide/integrations/) links to the exact inputs,
 credentials, tools, and target limitations for each provider.
 
+### Connections and values
+
+Connection fields use workflow aliases such as `itch-studio` or
+`steam-production`. The workflow stores the alias; Desktop remembers which
+saved Connection fulfills it for that workflow. The same alias can resolve to
+a different saved Connection in another workflow. Changing a saved Connection's
+display name does not change the workflow alias. Renaming an alias updates its
+workflow references and shows a reminder to update any CLI or CI mappings that
+use the old name.
+
+When a workflow has two destinations for the same provider, give each a
+destination name such as **Studio** or **Personal**. The editor shows that name
+beside the provider (for example, **Itch.io — Studio**) and keeps it separate
+from the Connection alias. Before shipping, Pipelab previews the selected saved
+account for each destination and warns if multiple destinations use the same
+Connection; using one account more than once is allowed when that is intended.
+
+Ordinary provider properties are literal values by default. To save an
+environment binding instead, open **Advanced · Value source** and choose **Use
+environment variable**. Pipelab reads that variable from the environment of
+the client that starts the run and checks required bindings before starting any
+workflow steps. Connection fields are managed through aliases and do not use
+this ordinary-property control.
+
 The browser package includes the built-in provider fields and safe defaults, so
 an open workflow draft can still show and edit them while the agent is
 disconnected. Fields that need host inspection and build targets whose
@@ -44,7 +68,11 @@ The workflow editor has four sections: **Configuration**, **Builds**,
 destinations. Its settings save automatically as you edit; there is no Save
 button. Opening a workflow does not change its saved build or routing choices.
 Choose **Add destination** to open the provider picker. Provider-specific
-settings remain in each destination's edit view.
+settings remain in each destination's edit view. The picker stays available
+for providers already in the workflow, so you can add the same provider more
+than once. Use separate destinations when publishing to different provider
+accounts or projects; use deployment slots under one destination for variants
+of the same account or project, such as Windows and Linux channels.
 
 Use **Builds** when you want to customize producers or targets. Adding a build
 is an explicit choice: select its type, engine, and target. Changing an engine
