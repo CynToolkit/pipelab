@@ -174,6 +174,15 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
 
+function isContentMd5(value: unknown): value is string {
+  if (typeof value !== "string" || !/^[A-Za-z0-9+/]{22}==$/.test(value)) return false;
+  try {
+    return atob(value).length === 16;
+  } catch {
+    return false;
+  }
+}
+
 function createSupabaseClients(env: Env, authorization: string) {
   const { url, publishableKey, serviceRoleKey } = getSupabaseConfig(env);
   const userClient = createClient(url, publishableKey, {
@@ -368,6 +377,8 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         version,
         size,
         checksum,
+        contentMd5,
+        partSize: requestedPartSize,
         originalName,
         artifactKind,
       } = body;
@@ -390,6 +401,22 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         !/^[a-f0-9]{64}$/.test(checksum)
       )
         return json({ error: "Invalid artifact upload metadata" }, 422);
+      if (!isContentMd5(contentMd5)) {
+        return json({ error: "Invalid artifact content checksum" }, 422);
+      }
+
+      const mib = 1024 * 1024;
+      const partSize = Number.isSafeInteger(requestedPartSize)
+        ? Number(requestedPartSize)
+        : Math.ceil(Math.max(64 * mib, Number(size) / 10_000) / mib) * mib;
+      if (
+        Number(size) > 5 * 1024 ** 3 &&
+        (partSize < 5 * mib ||
+          partSize > 5 * 1024 ** 3 ||
+          Math.ceil(Number(size) / partSize) > 10_000)
+      ) {
+        return json({ error: "Invalid multipart upload part size" }, 422);
+      }
 
       if (storage.local && Number(size) > 5 * 1024 ** 3) {
         return json({ error: "Local R2 supports single-part uploads up to 5 GiB" }, 413);
@@ -463,11 +490,23 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           const command = new PutObjectCommand({
             Bucket: storage.bucket,
             Key: storageKey,
+            ContentLength: Number(size),
+            ContentMD5: contentMd5,
+            IfNoneMatch: "*",
             ContentType: contentTypeFor(artifactKind),
             Metadata: metadata,
           });
           const uploadUrl = await getSignedUrl(storage.client, command, { expiresIn: 900 });
-          return json({ uploadUrl, reservationId, headers });
+          return json({
+            uploadUrl,
+            reservationId,
+            headers: {
+              ...headers,
+              "content-length": String(size),
+              "content-md5": contentMd5,
+              "if-none-match": "*",
+            },
+          });
         }
 
         const started = await storage.client.send(
@@ -486,8 +525,6 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
           p_multipart_upload_id: multipartUploadId,
         });
         if (multipartError) throw multipartError;
-        const mib = 1024 * 1024;
-        const partSize = Math.ceil(Math.max(64 * mib, Number(size) / 10_000) / mib) * mib;
         return json({ reservationId, uploadId: multipartUploadId, partSize, multipart: true });
       } catch (error) {
         if (multipartUploadId) {
@@ -514,15 +551,35 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         return json({ error: "Multipart uploads are only supported with production R2" }, 400);
       }
       const { reservationId, partNumbers } = body;
+      const partChecksums = body.partChecksums;
       if (
         typeof reservationId !== "string" ||
         !/^[0-9a-f-]{36}$/i.test(reservationId) ||
         !Array.isArray(partNumbers) ||
         partNumbers.length < 1 ||
         partNumbers.length > 50 ||
-        !partNumbers.every((part) => Number.isInteger(part) && part >= 1 && part <= 10_000)
+        !partNumbers.every((part) => Number.isInteger(part) && part >= 1 && part <= 10_000) ||
+        new Set(partNumbers).size !== partNumbers.length ||
+        !Array.isArray(partChecksums) ||
+        partChecksums.length !== partNumbers.length
       )
         return json({ error: "Invalid multipart upload request" }, 422);
+
+      const checksumByPart = new Map<number, string>();
+      for (const entry of partChecksums) {
+        if (
+          !isRecord(entry) ||
+          typeof entry.partNumber !== "number" ||
+          !Number.isInteger(entry.partNumber) ||
+          !isContentMd5(entry.contentMd5)
+        ) {
+          return json({ error: "Invalid multipart upload checksum" }, 422);
+        }
+        checksumByPart.set(entry.partNumber, entry.contentMd5);
+      }
+      if (partNumbers.some((part) => !checksumByPart.has(Number(part)))) {
+        return json({ error: "Invalid multipart upload checksum" }, 422);
+      }
 
       const { data: reservation, error: reservationError } = await admin
         .from("hosted_artifact_upload_reservations")
@@ -543,19 +600,26 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         }),
       );
       const parts = await Promise.all(
-        partNumbers.map(async (partNumber) => ({
-          partNumber,
-          url: await getSignedUrl(
-            storage.client,
-            new UploadPartCommand({
-              Bucket: storage.bucket,
-              Key: reservation.storage_key,
-              UploadId: reservation.multipart_upload_id,
-              PartNumber: partNumber,
-            }),
-            { expiresIn: 900 },
-          ),
-        })),
+        partNumbers.map(async (rawPartNumber) => {
+          const partNumber = Number(rawPartNumber);
+          const contentMd5 = checksumByPart.get(partNumber);
+          if (!contentMd5) throw new Error("Invalid multipart upload checksum");
+          return {
+            partNumber,
+            url: await getSignedUrl(
+              storage.client,
+              new UploadPartCommand({
+                Bucket: storage.bucket,
+                Key: reservation.storage_key,
+                UploadId: reservation.multipart_upload_id,
+                PartNumber: partNumber,
+                ContentMD5: contentMd5,
+              }),
+              { expiresIn: 900 },
+            ),
+            headers: { "content-md5": contentMd5 },
+          };
+        }),
       );
       return json({ parts });
     }
@@ -1003,6 +1067,7 @@ export async function cleanupExpiredArtifacts(env: Env) {
   const storage = getR2(env);
 
   let entitlementChecksSucceeded = false;
+  let verifiedUserIds: string[] = [];
   try {
     const staleBefore = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
     const deadlineCheck = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
@@ -1050,6 +1115,7 @@ export async function cleanupExpiredArtifacts(env: Env) {
         .update({ last_entitlement_check_at: new Date().toISOString() })
         .in("user_id", userIds);
       if (checkedError) throw checkedError;
+      verifiedUserIds = userIds;
     }
     entitlementChecksSucceeded = true;
   } catch {
@@ -1117,36 +1183,52 @@ export async function cleanupExpiredArtifacts(env: Env) {
     email: string | null;
     deadline_at: string;
   }>) {
-    if (!warning.email || !env.RESEND_API_KEY || !env.PIPELAB_CLOUD_FROM_EMAIL) {
-      await admin.rpc("release_pipelab_cloud_deletion_warning", { p_user_id: warning.user_id });
+    let acknowledged = false;
+    try {
+      if (!warning.email || !env.RESEND_API_KEY || !env.PIPELAB_CLOUD_FROM_EMAIL) {
+        emailsFailed++;
+        continue;
+      }
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.RESEND_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: env.PIPELAB_CLOUD_FROM_EMAIL,
+          to: [warning.email],
+          subject: "Your Pipelab Cloud artifacts are scheduled for deletion",
+          text: `Your Pipelab Cloud artifacts and share links will be deleted after ${new Date(warning.deadline_at).toLocaleDateString("en-US", { timeZone: "UTC", dateStyle: "long" })}. Sign in and renew your plan to keep using Pipelab Cloud.`,
+        }),
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (!response.ok) {
+        emailsFailed++;
+        continue;
+      }
+      const { error: acknowledgeError } = await admin.rpc(
+        "complete_pipelab_cloud_deletion_warning",
+        { p_user_id: warning.user_id },
+      );
+      if (acknowledgeError) throw acknowledgeError;
+      acknowledged = true;
+      emailsSent++;
+    } catch {
       emailsFailed++;
-      continue;
+    } finally {
+      if (!acknowledged) {
+        const { error: releaseError } = await admin.rpc("release_pipelab_cloud_deletion_warning", {
+          p_user_id: warning.user_id,
+        });
+        if (releaseError) throw releaseError;
+      }
     }
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${env.RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: env.PIPELAB_CLOUD_FROM_EMAIL,
-        to: [warning.email],
-        subject: "Your Pipelab Cloud artifacts are scheduled for deletion",
-        text: `Your Pipelab Cloud artifacts and share links will be deleted after ${new Date(warning.deadline_at).toLocaleDateString("en-US", { timeZone: "UTC", dateStyle: "long" })}. Sign in and renew your plan to keep using Pipelab Cloud.`,
-      }),
-      signal: AbortSignal.timeout(8_000),
-    });
-    if (!response.ok) {
-      await admin.rpc("release_pipelab_cloud_deletion_warning", { p_user_id: warning.user_id });
-      emailsFailed++;
-      continue;
-    }
-    emailsSent++;
   }
 
   const { data: artifacts, error: claimError } = await admin.rpc(
     "claim_expired_pipelab_cloud_artifacts",
-    { p_limit: 100, p_allow_account_deletion: entitlementChecksSucceeded },
+    { p_limit: 100, p_verified_user_ids: verifiedUserIds },
   );
   if (claimError) throw claimError;
 

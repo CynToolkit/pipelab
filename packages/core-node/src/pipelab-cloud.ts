@@ -36,10 +36,51 @@ export const createCloudArtifactUploadMetadata = (
   checksum,
 });
 
-const hashFile = async (path: string, signal: AbortSignal) => {
-  const hash = createHash("sha256");
-  for await (const chunk of createReadStream(path, { signal })) hash.update(chunk as Buffer);
-  return hash.digest("hex");
+export const hashPipelabCloudArtifact = async (
+  path: string,
+  signal: AbortSignal,
+  partSize?: number,
+) => {
+  if (partSize !== undefined && (!Number.isSafeInteger(partSize) || partSize < 1)) {
+    throw new Error("Pipelab Cloud returned an invalid multipart upload part size");
+  }
+  const sha256 = createHash("sha256");
+  const contentMd5 = createHash("md5");
+  const partChecksums: string[] = [];
+  let partMd5 = partSize === undefined ? undefined : createHash("md5");
+  let bytesInPart = 0;
+
+  for await (const chunk of createReadStream(path, { signal })) {
+    const bytes = chunk as Buffer;
+    sha256.update(bytes);
+    contentMd5.update(bytes);
+
+    if (partSize === undefined || !partMd5) continue;
+    let offset = 0;
+    while (offset < bytes.length) {
+      const length = Math.min(partSize - bytesInPart, bytes.length - offset);
+      partMd5.update(bytes.subarray(offset, offset + length));
+      bytesInPart += length;
+      offset += length;
+      if (bytesInPart === partSize) {
+        partChecksums.push(partMd5.digest("base64"));
+        partMd5 = createHash("md5");
+        bytesInPart = 0;
+      }
+    }
+  }
+
+  if (partMd5 && bytesInPart > 0) partChecksums.push(partMd5.digest("base64"));
+  return {
+    checksum: sha256.digest("hex"),
+    contentMd5: contentMd5.digest("base64"),
+    partChecksums,
+  };
+};
+
+const multipartPartSizeFor = (size: number) => {
+  const mib = 1024 * 1024;
+  return Math.ceil(Math.max(64 * mib, size / 10_000) / mib) * mib;
 };
 
 const readPreparedUpload = (value: unknown): PreparedUpload => {
@@ -202,7 +243,8 @@ export const createPipelabCloudUploadTask =
       }
 
       const { size } = await stat(uploadPath);
-      const checksum = await hashFile(uploadPath, signal);
+      const multipartPartSize = size > 5 * 1024 ** 3 ? multipartPartSizeFor(size) : undefined;
+      const checksums = await hashPipelabCloudArtifact(uploadPath, signal, multipartPartSize);
       const uploadMetadata = createCloudArtifactUploadMetadata(
         {
           id: artifactId,
@@ -213,15 +255,28 @@ export const createPipelabCloudUploadTask =
         },
         identity,
         size,
-        checksum,
+        checksums.checksum,
       );
       log(`Preparing ${artifactName} for Pipelab Cloud (${size} bytes)`);
 
       const prepareData = await invokeCloudWorker(cloudWorkerUrl, session.access_token, {
         action: "prepareUpload",
         ...uploadMetadata,
+        contentMd5: checksums.contentMd5,
+        ...(multipartPartSize === undefined ? {} : { partSize: multipartPartSize }),
       });
       const prepared = readPreparedUpload(prepareData);
+      const preparedAsMultipart = "multipart" in prepared;
+      if (
+        preparedAsMultipart !== (multipartPartSize !== undefined) ||
+        (preparedAsMultipart && prepared.partSize !== multipartPartSize)
+      ) {
+        await invokeCloudWorker(cloudWorkerUrl, session.access_token, {
+          action: "abortUpload",
+          reservationId: prepared.reservationId,
+        }).catch((): undefined => undefined);
+        throw new Error("Pipelab Cloud returned an unexpected multipart part size");
+      }
 
       log(`Uploading ${artifactName} to Pipelab Cloud`);
       let multipartParts: Array<{ PartNumber: number; ETag: string }> | undefined;
@@ -258,6 +313,11 @@ export const createPipelabCloudUploadTask =
               action: "signParts",
               reservationId: prepared.reservationId,
               partNumbers,
+              partChecksums: partNumbers.map((partNumber) => {
+                const contentMd5 = checksums.partChecksums[partNumber - 1];
+                if (!contentMd5) throw new Error("Pipelab Cloud part checksum is missing");
+                return { partNumber, contentMd5 };
+              }),
             });
             const signedParts = (signedData as { parts?: unknown } | null)?.parts;
             if (!Array.isArray(signedParts) || signedParts.length !== partNumbers.length) {
@@ -268,9 +328,21 @@ export const createPipelabCloudUploadTask =
               signedParts.map(async (entry, index) => {
                 if (!entry || typeof entry !== "object")
                   throw new Error("Pipelab Cloud returned invalid multipart upload URLs");
-                const signed = entry as { partNumber?: unknown; url?: unknown };
+                const signed = entry as {
+                  partNumber?: unknown;
+                  url?: unknown;
+                  headers?: unknown;
+                };
                 const partNumber = partNumbers[index];
-                if (signed.partNumber !== partNumber || typeof signed.url !== "string") {
+                const expectedMd5 = checksums.partChecksums[partNumber - 1];
+                if (
+                  signed.partNumber !== partNumber ||
+                  typeof signed.url !== "string" ||
+                  !signed.headers ||
+                  typeof signed.headers !== "object" ||
+                  Array.isArray(signed.headers) ||
+                  (signed.headers as Record<string, unknown>)["content-md5"] !== expectedMd5
+                ) {
                   throw new Error("Pipelab Cloud returned invalid multipart upload URLs");
                 }
                 const start = (partNumber - 1) * prepared.partSize;
@@ -278,7 +350,10 @@ export const createPipelabCloudUploadTask =
                 const partLength = end - start + 1;
                 const response = await fetch(signed.url, {
                   method: "PUT",
-                  headers: { "content-length": String(partLength) },
+                  headers: {
+                    ...(signed.headers as Record<string, string>),
+                    "content-length": String(partLength),
+                  },
                   body: createReadStream(uploadPath, { start, end, signal }),
                   signal,
                   duplex: "half",
@@ -351,7 +426,7 @@ export const createPipelabCloudUploadTask =
         artifactId,
         artifactName,
         size,
-        checksum,
+        checksum: checksums.checksum,
         cloud: {
           hostedArtifactId: uploaded.id,
           uploadedAt: uploaded.uploaded_at,

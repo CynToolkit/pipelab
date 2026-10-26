@@ -1,11 +1,16 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createLocalHost, runWorkflow, type Workflow } from "@pipelab/workflow-runtime";
 import type { ProviderServices } from "./workflow-tasks";
 import { PipelabContext } from "./context";
-import { createCloudArtifactUploadMetadata, createPipelabCloudUploadTask } from "./pipelab-cloud";
+import {
+  createCloudArtifactUploadMetadata,
+  createPipelabCloudUploadTask,
+  hashPipelabCloudArtifact,
+} from "./pipelab-cloud";
 
 const cloudAuth = vi.hoisted(() => ({
   getSession: vi.fn(async () => ({ data: { session: null }, error: null })),
@@ -53,6 +58,28 @@ describe("createCloudArtifactUploadMetadata", () => {
       buildTargetId: "windows-x64",
       size: 42,
       checksum: "a".repeat(64),
+    });
+  });
+});
+
+describe("hashPipelabCloudArtifact", () => {
+  it("returns a SHA-256 digest and per-part MD5 checksums from the same file pass", async () => {
+    const testWorkspace = await mkdtemp(join(tmpdir(), "pipelab-cloud-checksum-"));
+    workspace = testWorkspace;
+    const path = join(testWorkspace, "artifact.bin");
+    const contents = Buffer.from("abcdefghij");
+    await writeFile(path, contents);
+
+    const result = await hashPipelabCloudArtifact(path, new AbortController().signal, 4);
+
+    expect(result).toEqual({
+      checksum: createHash("sha256").update(contents).digest("hex"),
+      contentMd5: createHash("md5").update(contents).digest("base64"),
+      partChecksums: [
+        createHash("md5").update("abcd").digest("base64"),
+        createHash("md5").update("efgh").digest("base64"),
+        createHash("md5").update("ij").digest("base64"),
+      ],
     });
   });
 });

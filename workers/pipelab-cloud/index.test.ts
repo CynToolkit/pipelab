@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createHash } from "node:crypto";
 
 const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
@@ -55,6 +56,9 @@ const env = {
 };
 
 const reservationId = "00000000-0000-4000-8000-000000000099";
+const artifactBytes = Buffer.alloc(42, 7);
+const artifactChecksum = createHash("sha256").update(artifactBytes).digest("hex");
+const artifactContentMd5 = createHash("md5").update(artifactBytes).digest("base64");
 const uploadReservation = {
   id: reservationId,
   storage_key: "user-1/00000000-0000-4000-8000-000000000098.artifact",
@@ -67,8 +71,8 @@ const uploadReservation = {
   original_name: "release-build",
   artifact_kind: "directory",
   size: 42,
-  checksum: "a".repeat(64),
-  multipart_upload_id: null,
+  checksum: artifactChecksum,
+  multipart_upload_id: null as string | null,
   expires_at: "2099-09-25T00:00:00Z",
 };
 
@@ -82,6 +86,7 @@ const authorizedRequest = (body: unknown) =>
       buildTargetId: "windows-x64",
       originalName: "release-build",
       artifactKind: "directory",
+      contentMd5: artifactContentMd5,
       ...(body && typeof body === "object" ? body : {}),
     }),
   });
@@ -210,6 +215,7 @@ describe("Pipelab Cloud Worker", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+    uploadReservation.multipart_upload_id = null;
   });
 
   it("exports a Worker fetch handler", () => {
@@ -320,10 +326,61 @@ describe("Pipelab Cloud Worker", () => {
     const body = await response.json();
     expect(body).toMatchObject({
       uploadUrl: expect.stringContaining("127.0.0.1:8787"),
-      headers: { "content-type": "application/zip", "x-amz-meta-ownerid": "user-1" },
+      headers: {
+        "content-type": "application/zip",
+        "content-length": "42",
+        "content-md5": artifactContentMd5,
+        "if-none-match": "*",
+        "x-amz-meta-ownerid": "user-1",
+      },
     });
     expect(JSON.stringify(body)).not.toContain("storageKey");
     expect(mocks.getSignedUrl).toHaveBeenCalledOnce();
+    expect(mocks.getSignedUrl.mock.calls[0]?.[1]).toMatchObject({
+      input: {
+        ContentLength: 42,
+        ContentMD5: artifactContentMd5,
+        IfNoneMatch: "*",
+      },
+    });
+  });
+
+  it("signs multipart part URLs with the expected part checksum", async () => {
+    uploadReservation.multipart_upload_id = "upload-1";
+    mocks.send.mockResolvedValue({});
+
+    const response = await handleRequest(
+      authorizedRequest({
+        action: "signParts",
+        reservationId,
+        partNumbers: [1],
+        partChecksums: [{ partNumber: 1, contentMd5: artifactContentMd5 }],
+      }),
+      {
+        ...env,
+        R2_ENDPOINT_URL: undefined,
+        R2_ACCOUNT_ID: "account",
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.getSignedUrl.mock.calls[0]?.[1]).toMatchObject({
+      input: { ContentMD5: artifactContentMd5, PartNumber: 1, UploadId: "upload-1" },
+    });
+    expect(await response.json()).toMatchObject({
+      parts: [{ partNumber: 1, headers: { "content-md5": artifactContentMd5 } }],
+    });
+    uploadReservation.multipart_upload_id = null;
+  });
+
+  it("rejects multipart signing requests without a valid checksum for every part", async () => {
+    const response = await handleRequest(
+      authorizedRequest({ action: "signParts", reservationId, partNumbers: [1] }),
+      { ...env, R2_ENDPOINT_URL: undefined, R2_ACCOUNT_ID: "account" },
+    );
+
+    expect(response.status).toBe(422);
+    expect(mocks.getSignedUrl).not.toHaveBeenCalled();
   });
 
   it("returns a short-lived signed URL for an owned hosted artifact without exposing its storage key", async () => {
@@ -398,7 +455,7 @@ describe("Pipelab Cloud Worker", () => {
   });
 
   it("verifies uploaded object metadata before recording it", async () => {
-    const checksum = "a".repeat(64);
+    const checksum = artifactChecksum;
     mocks.send.mockResolvedValue({
       ContentLength: 42,
       Metadata: {
@@ -479,7 +536,113 @@ describe("Pipelab Cloud Worker", () => {
     expect(mocks.rpc).not.toHaveBeenCalledWith("start_pipelab_cloud_grace_periods");
     expect(mocks.rpc).toHaveBeenCalledWith("claim_expired_pipelab_cloud_artifacts", {
       p_limit: 100,
-      p_allow_account_deletion: false,
+      p_verified_user_ids: [],
+    });
+  });
+
+  it("passes only the successfully reconciled account batch to deletion eligibility", async () => {
+    const accounts = Array.from({ length: 101 }, (_, index) => ({
+      user_id: `00000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+    }));
+    const query = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      neq: vi.fn(),
+      is: vi.fn(),
+      lte: vi.fn(),
+      or: vi.fn(),
+      order: vi.fn(),
+      limit: vi.fn(),
+      in: vi.fn(),
+      update: vi.fn(),
+      then: (resolve: (value: unknown) => unknown, reject: (reason?: unknown) => unknown) =>
+        Promise.resolve({ data: accounts, error: null }).then(resolve, reject),
+    };
+    for (const method of [
+      "select",
+      "eq",
+      "neq",
+      "is",
+      "lte",
+      "or",
+      "order",
+      "limit",
+      "in",
+      "update",
+    ] as const) {
+      query[method].mockReturnValue(query);
+    }
+    mocks.from.mockReturnValue(query);
+
+    let scheduled: Promise<unknown> | undefined;
+    await handleScheduled({ cron: "17 * * * *", scheduledTime: Date.now() } as never, env, {
+      waitUntil: (promise: Promise<unknown>) => {
+        scheduled = promise;
+      },
+    } as never);
+    await scheduled;
+
+    const verifiedIds = accounts.slice(0, 100).map((account) => account.user_id);
+    expect(mocks.rpc).toHaveBeenCalledWith("claim_expired_pipelab_cloud_artifacts", {
+      p_limit: 100,
+      p_verified_user_ids: verifiedIds,
+    });
+    expect(verifiedIds).not.toContain(accounts[100]?.user_id);
+  });
+
+  it("releases failed warning emails and continues sending the rest of the claim batch", async () => {
+    const warnings = [
+      { user_id: "warning-1", email: "one@example.com", deadline_at: "2026-11-01T00:00:00Z" },
+      { user_id: "warning-2", email: "two@example.com", deadline_at: "2026-11-01T00:00:00Z" },
+    ];
+    const emailFetch = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input) !== "https://api.resend.com/emails") {
+        return new Response(
+          JSON.stringify({
+            subscriptions: [
+              {
+                status: "active",
+                product: { id: "plan-basic" },
+                currentPeriodEnd: "2099-09-25T00:00:00Z",
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        );
+      }
+      if (
+        emailFetch.mock.calls.filter(([url]) => String(url) === "https://api.resend.com/emails")
+          .length === 1
+      ) {
+        throw new Error("email service unavailable");
+      }
+      return new Response("sent", { status: 202 });
+    });
+    vi.stubGlobal("fetch", emailFetch);
+    mocks.rpc.mockImplementation((name: string) => {
+      if (name === "claim_pipelab_cloud_deletion_warnings") {
+        return Promise.resolve({ data: warnings, error: null });
+      }
+      return Promise.resolve({ data: [], error: null });
+    });
+
+    let scheduled: Promise<unknown> | undefined;
+    await handleScheduled(
+      { cron: "17 * * * *", scheduledTime: Date.now() } as never,
+      { ...env, RESEND_API_KEY: "local-resend-key", PIPELAB_CLOUD_FROM_EMAIL: "cloud@example.com" },
+      {
+        waitUntil: (promise: Promise<unknown>) => {
+          scheduled = promise;
+        },
+      } as never,
+    );
+    await expect(scheduled).resolves.toBeDefined();
+
+    expect(mocks.rpc).toHaveBeenCalledWith("release_pipelab_cloud_deletion_warning", {
+      p_user_id: "warning-1",
+    });
+    expect(mocks.rpc).toHaveBeenCalledWith("complete_pipelab_cloud_deletion_warning", {
+      p_user_id: "warning-2",
     });
   });
 });

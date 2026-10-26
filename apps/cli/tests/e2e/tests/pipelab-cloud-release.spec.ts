@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { createHash } from "node:crypto";
 import { createSandbox } from "@pipelab/test-utils";
 import {
   buildCoreReleaseRegistry,
@@ -134,6 +135,7 @@ describe("Pipelab Cloud Release destination in the CLI workflow host", () => {
       const folderExtraction = join(sandbox.path, "uploaded-folder");
       const fileContent = Buffer.from([0, 1, 2, 255, 10]);
       const storage = new Map<string, Buffer>();
+      const uploadHeaders = new Map<string, Headers>();
       const uploadRequests: Array<Record<string, unknown>> = [];
       await mkdir(source, { recursive: true });
       await mkdir(workspace, { recursive: true });
@@ -162,7 +164,11 @@ describe("Pipelab Cloud Release destination in the CLI workflow host", () => {
                       ? "11111111-1111-4111-8111-111111111111"
                       : "22222222-2222-4222-8222-222222222222",
                   uploadUrl: `https://storage.test/${String(request.buildTargetId)}`,
-                  headers: {},
+                  headers: {
+                    "content-length": String(request.size),
+                    "content-md5": String(request.contentMd5),
+                    "if-none-match": "*",
+                  },
                 }),
                 { status: 200 },
               );
@@ -192,6 +198,10 @@ describe("Pipelab Cloud Release destination in the CLI workflow host", () => {
               chunks.push(Buffer.from(body));
             }
             storage.set(url.slice("https://storage.test/".length), Buffer.concat(chunks));
+            uploadHeaders.set(
+              url.slice("https://storage.test/".length),
+              new Headers(init?.headers),
+            );
             return new Response(null, { status: 200 });
           }
 
@@ -297,6 +307,19 @@ describe("Pipelab Cloud Release destination in the CLI workflow host", () => {
       ).toBe("directory");
       expect(storage.get("file")).toEqual(fileContent);
       expect(storage.get("folder")?.subarray(0, 2).toString()).toBe("PK");
+      for (const targetId of ["file", "folder"]) {
+        const uploadedBytes = storage.get(targetId);
+        expect(uploadedBytes).toBeDefined();
+        expect(uploadHeaders.get(targetId)?.get("content-length")).toBe(
+          String(uploadedBytes?.length),
+        );
+        expect(uploadHeaders.get(targetId)?.get("content-md5")).toBe(
+          createHash("md5")
+            .update(uploadedBytes ?? Buffer.alloc(0))
+            .digest("base64"),
+        );
+        expect(uploadHeaders.get(targetId)?.get("if-none-match")).toBe("*");
+      }
       await expect(readFile(join(localDestination, "local-only.txt"), "utf8")).resolves.toBe(
         "local-only output",
       );
