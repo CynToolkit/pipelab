@@ -51,7 +51,13 @@ describe("built-in provider Release task factories", () => {
                   {
                     id: "provider-registry-test",
                     enabled: true,
-                    input: { source: true },
+                    input:
+                      destination.id === "@pipelab/pipelab-cloud/destination"
+                        ? {
+                            producerId: "provider-registry-test",
+                            outputId: "provider-registry-test",
+                          }
+                        : { source: true },
                     config: {},
                   },
                 ],
@@ -59,7 +65,10 @@ describe("built-in provider Release task factories", () => {
               {
                 id: "provider-registry-test",
                 enabled: true,
-                input: { source: true },
+                input:
+                  destination.id === "@pipelab/pipelab-cloud/destination"
+                    ? { producerId: "provider-registry-test", outputId: "provider-registry-test" }
+                    : { source: true },
                 config: {},
               },
               context,
@@ -81,6 +90,7 @@ describe("provider compatibility and composition", () => {
   it("retains all built-in provider and Workflow task IDs", async () => {
     const { createBuiltInWorkflowTaskFactories } = await import("./workflow-tasks/registry");
     expect(builtInProviders.map((provider) => provider.id).sort()).toEqual([
+      "@pipelab/pipelab-cloud",
       "@pipelab/plugin-construct",
       "@pipelab/plugin-electron",
       "@pipelab/plugin-godot",
@@ -130,6 +140,7 @@ describe("provider compatibility and composition", () => {
       "@pipelab/plugin-tauri/producer",
     ]);
     expect(contributedIds("destinations")).toEqual([
+      "@pipelab/pipelab-cloud/destination",
       "@pipelab/plugin-itch/destination",
       "@pipelab/plugin-poki/destination",
       "@pipelab/plugin-steam/destination",
