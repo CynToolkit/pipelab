@@ -117,6 +117,21 @@ pipelab workflow rm <id>
 
 `workflow ls` (alias `list`) prints saved workflow names and IDs, source provider, destination providers, and last-modified value. `workflow rm` also accepts `remove` and `delete`; it requires `-f, --force`. Both commands accept `--user-data <path>`. The parent group accepts `workflows` as an alias.
 
+### Pipelab Cloud sign-in
+
+```text
+pipelab settings cloud login
+pipelab settings cloud status
+pipelab settings cloud logout
+```
+
+`login` asks for the Pipelab account email and password in an interactive
+terminal. Supabase stores the local session in the operating system credential
+store. `status` shows the signed-in account without exposing its session token.
+`logout` removes the session from this device only. Pass `--user-data <path>`
+to use a separate local account context. CI uploads and token authentication
+are deferred.
+
 ### Build history and maintenance
 
 ```text

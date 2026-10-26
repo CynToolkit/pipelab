@@ -35,6 +35,12 @@ const routes: RouterOptions["routes"] = [
     },
   },
   {
+    path: "/cloud-files",
+    name: "CloudFiles",
+    component: () => import("../pages/cloud-files.vue"),
+    meta: { title: "Cloud files" },
+  },
+  {
     path: "/team",
     name: "Team",
     component: () => import("../pages/team.vue"),

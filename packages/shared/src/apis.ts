@@ -226,6 +226,7 @@ export type IpcDefinition = {
   ];
   "agents:get": [void, EndEvent<{ agents: Agent[] }>];
   "auth:getUser": [void, EndEvent<{ user: User | null }>];
+  "auth:getCloudAccessToken": [void, EndEvent<{ accessToken: string | null }>];
   "auth:signInWithPassword": [{ email: string; password: string }, EndEvent<UserResponse>];
   "auth:signUp": [{ email: string; password: string }, EndEvent<UserResponse>];
   "auth:signOut": [void, EndEvent<void>];

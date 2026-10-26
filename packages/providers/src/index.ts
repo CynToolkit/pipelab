@@ -5,6 +5,7 @@ export { provider as tauriProvider } from "./tauri";
 export { provider as steamProvider } from "./steam";
 export { provider as itchProvider } from "./itch";
 export { provider as pokiProvider } from "./poki";
+export { provider as pipelabCloudProvider } from "./pipelab-cloud";
 
 // Host-facing helpers and existing public task factory aliases.
 export { discoverBrowserProfiles, inspectChromiumProfile } from "./construct";
@@ -18,3 +19,4 @@ export { workflowTasks } from "./godot";
 export { createSteamUploadTask } from "./steam";
 export { createItchUploadTask } from "./itch";
 export { createPokiUploadTask } from "./poki";
+export { PIPELAB_CLOUD_UPLOAD_TASK_ID, pipelabCloudDestination } from "./pipelab-cloud";

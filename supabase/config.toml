@@ -420,6 +420,10 @@ verify_jwt = false
 [functions.polar-user-plan]
 verify_jwt = true
 
+[functions.pipelab-cloud-reconcile]
+# The function validates the exact service-role bearer itself; only the Worker calls it.
+verify_jwt = false
+
 [functions.customer-portal]
 verify_jwt = true
 

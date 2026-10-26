@@ -13,10 +13,10 @@ The release workflow uses Node.js 24.15.0 to build the package. The published ma
 
 By default, the CLI stores configuration, projects, cache, and history under a Pipelab user-data directory:
 
-| Platform | Base path |
-| --- | --- |
-| Windows | `%APPDATA%\@pipelab\app` (or `~/AppData/Roaming/@pipelab/app` if `APPDATA` is unset) |
-| macOS | `~/Library/Application Support/@pipelab/app` |
+| Platform                  | Base path                                                                                  |
+| ------------------------- | ------------------------------------------------------------------------------------------ |
+| Windows                   | `%APPDATA%\@pipelab\app` (or `~/AppData/Roaming/@pipelab/app` if `APPDATA` is unset)       |
+| macOS                     | `~/Library/Application Support/@pipelab/app`                                               |
 | Linux and other platforms | `$XDG_CONFIG_HOME/@pipelab/app`, or `~/.config/@pipelab/app` if `XDG_CONFIG_HOME` is unset |
 
 Beta builds use `app-beta` in place of `app`; development runs use `app-dev`. Commands that accept `--user-data <path>` use that path instead. The desktop app has its own channel-specific startup configuration; this table describes the CLI default.
@@ -29,12 +29,13 @@ When Supabase configuration is unavailable, startup prints:
 Warning: Authentication is currently disabled (Cloud services not configured).
 ```
 
-The CLI can still run local commands. Authentication and cloud features depend
-on the Supabase values included in the build. The artifact client also reads
-`PIPELAB_CLOUD_WORKER_URL`, but the current Release editor does not expose an
-upload path. See [Cloud artifacts](/guide/cloud-artifacts) for current
-availability and limits. `POSTHOG_API_KEY`, when included in a production
-build, enables command telemetry.
+The CLI can still run local commands. Cloud artifact uploads require Supabase
+configuration and `PIPELAB_CLOUD_WORKER_URL` in the build. Sign in on the
+machine running the CLI with `pipelab settings cloud login`; the session is
+saved in the operating system credential store. Login is interactive. CI
+uploads and CI tokens are deferred. See [Cloud artifacts](/guide/cloud-artifacts)
+for upload, quota, retention, and sharing behavior. `POSTHOG_API_KEY`, when
+included in a production build, enables command telemetry.
 
 Use `pipelab --help` for the command list and `pipelab <command> --help` for a command's options. See the [CLI reference](/cli/reference) for command behavior and Release workflow execution.
 

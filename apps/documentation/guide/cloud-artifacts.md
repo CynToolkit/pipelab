@@ -1,34 +1,73 @@
 # Pipelab Cloud artifacts
 
-The current Release workflow editor does not expose a Cloud destination or an
-upload setting. You cannot start an artifact upload from the workflow editor
-in this build. The run detail page can show a Cloud download button when a run
-already contains hosted artifact metadata; a signed-in Pipelab account is
-required to retrieve that file.
+Pipelab Cloud stores selected Release workflow build outputs in private object
+storage. Desktop and an interactive local CLI can upload artifacts from a
+signed-in Pipelab account. CI uploads and CI tokens are deferred.
 
-Cloud project storage is unavailable in the current build. The Cloud Save
-benefit and project-storage UI are not wired to working create, load, or save
-flows. Artifact transfer is a separate service and is described below only for
-runs that already contain hosted artifact metadata.
+## Add Cloud as a Release Destination
 
-## Current transfer limits
+In the Release workflow editor, add **Pipelab Cloud** under **Destinations**
+and select the Build Profile outputs to upload. A produced file is uploaded
+unchanged. A produced directory is zipped before upload. Uploads start after the
+selected output is built and complete; the latest pin changes only after the
+object has been verified in storage.
 
-These limits describe the transfer service used by the current implementation.
-They do not imply that the Release editor currently provides an upload flow.
+An active paid Pipelab Cloud plan is required. The Cloud Files page shows the
+stored artifacts, pooled storage use, latest pins, history, and share links.
+Download URLs are short-lived. The object storage key is kept on the server.
 
-- Supported artifact output identifiers are `electron.windows`,
-  `electron.linux`, `electron.macos.arm64`, `tauri.windows`, `tauri.linux`,
-  `tauri.macos.arm64`, and `web.html5`.
-- A file is uploaded as-is. A directory is first packaged as a ZIP file.
-- Production storage accepts uploads up to 5 TiB, using multipart upload above
+For local CLI use, sign in once with an interactive terminal:
+
+```sh
+pipelab settings cloud login
+pipelab settings cloud status
+pipelab settings cloud logout
+```
+
+The CLI stores this Cloud session in the operating system credential store. It
+does not accept or print a CI access token. Run the upload workflow on the
+machine where you signed in. CI uploads and token authentication are not
+available.
+
+## Pins, history, and quota
+
+The latest successful upload is pinned for each project, Build Profile, and
+target. The pinned artifact stays available while the account is active or in
+its grace period. A new successful upload replaces that pin; the old artifact
+becomes history and expires according to the account's configured retention.
+Deleting a Build Profile does not remove its pinned artifact.
+
+Pinned artifacts and history share the plan's storage allowance. Uploads are
+rejected when the object and active upload reservations would exceed that
+allowance. Pipelab Cloud does not silently evict artifacts or allow overage.
+The intended Basic history period is 30 days. Plan limits and retention are
+configured by product ID on the server. Numeric storage allowances are not
+published until representative large desktop builds have been measured; a
+deployment without configured plan limits rejects uploads.
+
+## Share and delete
+
+Each artifact can have one active, immutable share link. Anyone with that link
+can download the artifact. The owner can revoke the link or delete the artifact
+from **Cloud files**. Share downloads use short-lived signed URLs behind the
+link, and the stored share token is encrypted at rest.
+
+If a paid period ends, new uploads and share links stop. Existing artifacts and
+links remain available until 30 days after the actual paid-through date. Seven
+days before that deadline, Pipelab shows an in-app notice and sends an email.
+At the end of the grace period, the artifacts and links are revoked and the
+objects are automatically deleted. An expired unpinned history artifact is
+deleted according to its retention date.
+
+## Transfer limits
+
+- Files are uploaded as-is; directories are compressed into ZIP files.
+- Production accepts artifacts up to 5 TiB and uses multipart upload above
   5 GiB. Local development storage supports single-part uploads up to 5 GiB.
-- Upload URLs expire after 15 minutes. Download URLs expire after 60 seconds.
-- Artifacts have a seven-day expiry. The newest upload for an account and
-  output type is pinned; a later upload unpins the previous artifact, and
-  scheduled cleanup removes it once its expiry has passed.
+- Upload URLs last 15 minutes. Download URLs last 60 seconds.
+- Uploads require a signed-in, non-anonymous Pipelab account and an active paid
+  plan.
 
-Transfer requires a signed-in, non-anonymous Pipelab account. Hosted downloads
-are available only while the artifact remains pinned or has not expired.
-
-For contributor context about the Worker and client boundary, see
-[Contributor architecture](/contributing/architecture).
+See [Contributor architecture](/contributing/architecture) and
+[`supabase/README.md`](https://github.com/CynToolkit/pipelab/blob/develop/supabase/README.md)
+for service and deployment details.

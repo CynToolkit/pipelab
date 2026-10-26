@@ -17,7 +17,7 @@ const iconFontStylesheets = [
   "/primeicons/primeicons.css",
 ] as const;
 
-function cspConnectOrigins(supabaseUrl: string | undefined) {
+function cspConnectOrigins(supabaseUrl: string | undefined, cloudWorkerUrl: string | undefined) {
   const origins = new Set([
     "'self'",
     "https://eu.i.posthog.com",
@@ -38,10 +38,22 @@ function cspConnectOrigins(supabaseUrl: string | undefined) {
     }
   }
 
+  if (cloudWorkerUrl) {
+    try {
+      const url = new URL(cloudWorkerUrl);
+      if (url.protocol === "https:" || url.protocol === "http:") origins.add(url.origin);
+    } catch {
+      // An absent or malformed Worker URL should not broaden the policy.
+    }
+  }
+
   return [...origins].join(" ");
 }
 
-function reportOnlyCsp(supabaseUrl: string | undefined): Plugin {
+function reportOnlyCsp(
+  supabaseUrl: string | undefined,
+  cloudWorkerUrl: string | undefined,
+): Plugin {
   const policy = [
     "default-src 'self'",
     "base-uri 'self'",
@@ -55,7 +67,7 @@ function reportOnlyCsp(supabaseUrl: string | undefined): Plugin {
     "style-src-attr 'none'",
     "font-src 'self' data: https://fonts.gstatic.com",
     "img-src 'self' data: blob:",
-    `connect-src ${cspConnectOrigins(supabaseUrl)}`,
+    `connect-src ${cspConnectOrigins(supabaseUrl, cloudWorkerUrl)}`,
     "frame-src 'self'",
     "worker-src 'self'",
   ].join("; ");
@@ -101,6 +113,7 @@ export default defineConfig(({ mode }) => {
   const rootPath = resolve(__dirname, "../../");
   const env = loadEnv(mode, rootPath, "");
   const supabasePublishableKey = resolveSupabasePublishableKey(env);
+  const cloudWorkerUrl = env.PIPELAB_CLOUD_WORKER_URL;
 
   return {
     envDir: rootPath,
@@ -141,7 +154,7 @@ export default defineConfig(({ mode }) => {
         // with project types like Steps, Message, etc.
         // resolvers: [PrimeVueResolver()]
       }),
-      reportOnlyCsp(env.SUPABASE_URL),
+      reportOnlyCsp(env.SUPABASE_URL, cloudWorkerUrl),
     ],
     define: {
       "process.env.SUPABASE_URL": JSON.stringify(env.SUPABASE_URL),
@@ -149,6 +162,7 @@ export default defineConfig(({ mode }) => {
       "process.env.SUPABASE_ANON_KEY": JSON.stringify(env.SUPABASE_ANON_KEY),
       "process.env.SUPABASE_PROJECT_ID": JSON.stringify(env.SUPABASE_PROJECT_ID),
       "process.env.POSTHOG_API_KEY": JSON.stringify(env.POSTHOG_API_KEY),
+      "process.env.PIPELAB_CLOUD_WORKER_URL": JSON.stringify(cloudWorkerUrl),
       "process.env.UI_VERSION": JSON.stringify(env.npm_package_version || "1.0.0"),
     },
     optimizeDeps: {

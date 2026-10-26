@@ -47,7 +47,7 @@ export const createPipelabWorkflowTasks = <TServices = unknown>(
     ...createCoreFilesystemWorkflowTasks(),
     [RELEASE_BEFORE_BUILD_TASK_ID]: (taskContext) =>
       releaseBeforeBuildWorkflowTask({ ...taskContext, services }),
-    "pipelab-cloud:upload": createPipelabCloudUploadTask(services.context),
+    "pipelab-cloud:upload": createPipelabCloudUploadTask(services),
   };
 };
 

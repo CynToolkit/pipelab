@@ -632,6 +632,16 @@ const browserProviderSpecs = {
           notes: "",
         },
       },
+      {
+        id: "@pipelab/pipelab-cloud/destination",
+        label: "Pipelab Cloud",
+        description: "Store selected build artifacts in your private Pipelab Cloud storage.",
+        accepts: {
+          kind: "application",
+          container: ["file", "directory", "archive"],
+        },
+        defaultConfig: {},
+      },
     ],
   },
   providers: [
@@ -778,6 +788,17 @@ const browserProviderSpecs = {
       description: "Godot Release provider",
       isOfficial: true,
       packageName: "@pipelab/plugin-godot",
+    },
+    {
+      id: "@pipelab/pipelab-cloud",
+      name: "Pipelab Cloud",
+      icon: {
+        type: "icon",
+        icon: "mdi-cloud-upload-outline",
+      },
+      description: "Store and share selected Pipelab build artifacts.",
+      isOfficial: true,
+      packageName: "@pipelab/providers",
     },
   ],
 } satisfies BrowserProviderSpecs;
