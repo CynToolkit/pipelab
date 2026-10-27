@@ -128,6 +128,10 @@ run = '''
 supabase functions deploy pipelab-cloud-reconcile --project-ref "$SUPABASE_PROJECT_REF"
 '''
 
+[tasks."deploy:browser-billing"]
+description = "Deploy browser billing functions and their server-side secrets to the explicitly selected Supabase project"
+run = "node scripts/deploy-browser-billing.mjs"
+
 [tasks."local:app"]
 description = "Run the desktop app against local Supabase and Pipelab Cloud"
 run = '''

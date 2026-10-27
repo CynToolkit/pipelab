@@ -67,6 +67,28 @@ POLAR_ALLOWED_ORIGINS=http://127.0.0.1:5185,http://localhost:5185
 
 `POLAR_ALLOWED_ORIGINS` is an exact comma-separated origin list; wildcards are rejected. Without it, only the local Editor origins above are allowed. Add each required hosted Editor or Website origin explicitly in the server-side configuration for that nonproduction deployment.
 
+### Deploy browser billing to an approved nonproduction project
+
+The browser billing functions currently call Polar sandbox only. Do not use this
+deployment task to enable production billing. After the exact nonproduction
+Supabase project is approved, load these values from the deployment environment:
+
+- `SUPABASE_PROJECT_REF`: the approved project's ref; the task never uses a linked-project default.
+- `SUPABASE_ACCESS_TOKEN`: the Supabase CLI access token.
+- `PIPELAB_BILLING_DEPLOY_APPROVED=true`: explicit confirmation for this target.
+- `POLAR_TOKEN`, `POLAR_ORGANIZATION_ID`, and `POLAR_ALLOWED_ORIGINS`: the sandbox credentials and exact HTTPS origins for the hosted UI.
+
+Then run `mise run deploy:browser-billing`. The task validates the organization
+ID and origins, writes only the three Polar values to a short-lived,
+owner-readable environment file, sets those Supabase function secrets, and
+deploys `polar-available-plans`, `polar-user-plan`, `customer-portal`, and
+`checkout` to `SUPABASE_PROJECT_REF`. The temporary file is removed on success
+or failure. If the function deployment fails after secrets are set, the new
+secrets remain on the project; rerun the task after addressing the deployment
+error. This does not enable billing in the UI build; set
+`VITE_PIPELAB_BILLING_ENABLED=true` separately only after the hosted backend
+passes acceptance.
+
 Start the local stack and serve the functions with the ignored local env file:
 
 ```sh

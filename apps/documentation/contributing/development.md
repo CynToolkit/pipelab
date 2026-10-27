@@ -37,6 +37,15 @@ deployment workflow explicitly sets the flag to `false`; do not enable a
 hosted build until its billing backend and configuration are deliberately
 validated.
 
+For hosted sandbox acceptance, deploy the browser billing functions to an
+approved nonproduction Supabase project with `mise run deploy:browser-billing`.
+The task binds its target through `SUPABASE_PROJECT_REF`, uses
+`SUPABASE_ACCESS_TOKEN` for CLI authentication, requires
+`PIPELAB_BILLING_DEPLOY_APPROVED=true`, and reads the Polar sandbox token,
+organization ID, and exact HTTPS origins from environment variables. It does
+not enable the UI billing flag. See the repository's `supabase/README.md` for
+the required variables and deployment behavior.
+
 To run the UI as a hosted browser shell without starting an agent connection,
 set `VITE_PIPELAB_MODE=hosted` for the UI build. This only skips agent
 discovery at startup; later pairing can attach an agent in the same session.
