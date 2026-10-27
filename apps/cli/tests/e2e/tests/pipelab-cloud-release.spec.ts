@@ -31,7 +31,8 @@ vi.mock("../../../../../packages/core-node/src/pipelab-cloud-auth.ts", () => ({
 
 const output = (container: "file" | "directory") => ({
   kind: "application" as const,
-  platform: "fixture",
+  technology: "electron",
+  platform: "windows",
   container,
 });
 
@@ -298,6 +299,11 @@ describe("Pipelab Cloud Release destination in the CLI workflow host", () => {
         "file",
         "folder",
         "quota",
+      ]);
+      expect(uploadRequests.map((request) => request.artifactOutputId)).toEqual([
+        "electron.windows",
+        "electron.windows",
+        "electron.windows",
       ]);
       expect(uploadRequests.find((request) => request.buildTargetId === "file")?.artifactKind).toBe(
         "file",

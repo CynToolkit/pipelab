@@ -124,7 +124,7 @@ Deno.test("local R2 worker reports missing objects and missing keys", async () =
   assertEquals(missingKey.status, 400);
 });
 
-Deno.test("local R2 worker forwards checksum and create-only conditions", async () => {
+Deno.test("local R2 worker converts checksum and forwards create-only conditions", async () => {
   const md5 = "kAFQmDzST7DWlj99KOF/cg==";
   let receivedOptions: { md5?: string; onlyIf?: Headers } | undefined;
   const bucket = {
@@ -156,6 +156,6 @@ Deno.test("local R2 worker forwards checksum and create-only conditions", async 
   );
 
   assertEquals(response.status, 412);
-  assertEquals(receivedOptions?.md5, md5);
+  assertEquals(receivedOptions?.md5, "900150983cd24fb0d6963f7d28e17f72");
   assertEquals(receivedOptions?.onlyIf?.get("if-none-match"), "*");
 });

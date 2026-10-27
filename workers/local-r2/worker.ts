@@ -68,8 +68,14 @@ export async function handleRequest(request: Request, env: Env): Promise<Respons
         customMetadata[name.slice(prefix.length)] = value;
       }
     }
+    const encodedMd5 = request.headers.get("content-md5");
+    const md5 = encodedMd5
+      ? Array.from(atob(encodedMd5), (byte) =>
+          byte.charCodeAt(0).toString(16).padStart(2, "0"),
+        ).join("")
+      : undefined;
     const result = await env.BUCKET.put(key, request.body ?? new Uint8Array(), {
-      md5: request.headers.get("content-md5") ?? undefined,
+      md5,
       onlyIf: request.headers,
       httpMetadata: {
         contentType: request.headers.get("content-type") ?? "application/octet-stream",

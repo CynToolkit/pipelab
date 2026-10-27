@@ -211,7 +211,7 @@ async function resolveCloudPlan(
       "Content-Type": "application/json",
     },
     body: "{}",
-    redirect: "error",
+    redirect: "manual",
     signal: AbortSignal.timeout(8_000),
   });
   if (!response.ok) throw new Error("Pipelab Cloud billing lookup failed");
@@ -1106,7 +1106,7 @@ export async function cleanupExpiredArtifacts(env: Env) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ userIds }),
-        redirect: "error",
+        redirect: "manual",
         signal: AbortSignal.timeout(30_000),
       });
       if (!response.ok) throw new Error("Pipelab Cloud entitlement reconciliation failed");

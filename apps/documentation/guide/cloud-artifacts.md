@@ -4,6 +4,9 @@ Pipelab Cloud stores selected Release workflow build outputs in private object
 storage. Desktop and an interactive local CLI can upload artifacts from a
 signed-in Pipelab account. CI uploads and CI tokens are deferred.
 
+Cloud currently supports web HTML5 and Electron or Tauri builds for Windows,
+Linux, and macOS arm64.
+
 ## Add Cloud as a Release Destination
 
 In the Release workflow editor, add **Pipelab Cloud** under **Destinations**
@@ -43,9 +46,12 @@ owner approved using the internal four-target Electron sample as synthetic
 quota evidence: its ZIPs total 575,081,265 bytes, leaving 498,660,559 bytes of
 headroom under the limit. This sample validates packaged-byte accounting but
 does not represent customer game sizes. Plan limits and retention are matched
-by Polar product ID on the server. The Basic limit is not active until its
-exact Polar product ID is configured; an account without a matching plan row
-fails closed. Higher-tier numeric allowances remain unset.
+by Polar product ID on the server. A database migration seeds the Basic limit
+for the production Indie product if no row already exists. The current billing
+functions use Polar sandbox, so sandbox subscriptions need their own matching
+plan row; the production row alone does not enable production billing. An
+account without a matching enabled plan row cannot upload. Higher-tier numeric
+allowances remain unset.
 
 Uploads are rejected when the object and active upload reservations would
 exceed the allowance. Pipelab Cloud does not silently evict artifacts or

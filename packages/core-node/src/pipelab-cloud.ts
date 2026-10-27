@@ -16,6 +16,19 @@ type PreparedUpload = {
   | { multipart: true; uploadId: string; partSize: number }
 );
 
+const cloudArtifactOutputId = (artifact: WorkflowArtifactInstance) => {
+  const { kind, technology, platform, architecture } = artifact.descriptor;
+  if (kind !== "application")
+    throw new Error("Pipelab Cloud requires a supported application build output");
+  if (platform === "web") return "web.html5";
+  if (technology !== "electron" && technology !== "tauri")
+    throw new Error(`Pipelab Cloud does not support ${technology || "this"} build outputs yet`);
+  if (platform === "windows") return `${technology}.windows`;
+  if (platform === "linux") return `${technology}.linux`;
+  if (platform === "macos" && architecture === "arm64") return `${technology}.macos.arm64`;
+  throw new Error(`Pipelab Cloud does not support ${technology} ${platform} build outputs yet`);
+};
+
 export const createCloudArtifactUploadMetadata = (
   artifact: Pick<WorkflowArtifactInstance, "id" | "artifact"> & {
     version: string;
@@ -248,7 +261,7 @@ export const createPipelabCloudUploadTask =
       const uploadMetadata = createCloudArtifactUploadMetadata(
         {
           id: artifactId,
-          artifact: artifactName,
+          artifact: cloudArtifactOutputId(artifact),
           version,
           originalName: basename(sourcePath),
           artifactKind,
