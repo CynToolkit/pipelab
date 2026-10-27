@@ -13,6 +13,8 @@ interface R2Bucket {
     options?: {
       httpMetadata?: { contentType?: string };
       customMetadata?: Record<string, string>;
+      md5?: string;
+      onlyIf?: Headers;
     },
   ): Promise<unknown>;
   head(key: string): Promise<R2ObjectMetadata | null>;
@@ -41,10 +43,7 @@ function getObjectKey(pathname: string, expectedBucket: string): string | null {
   }
 }
 
-export async function handleRequest(
-  request: Request,
-  env: Env,
-): Promise<Response> {
+export async function handleRequest(request: Request, env: Env): Promise<Response> {
   if (!["PUT", "HEAD", "DELETE"].includes(request.method)) {
     return response(405, { Allow: "PUT, HEAD, DELETE" });
   }
@@ -69,21 +68,26 @@ export async function handleRequest(
         customMetadata[name.slice(prefix.length)] = value;
       }
     }
+    const encodedMd5 = request.headers.get("content-md5");
+    const md5 = encodedMd5
+      ? Array.from(atob(encodedMd5), (byte) =>
+          byte.charCodeAt(0).toString(16).padStart(2, "0"),
+        ).join("")
+      : undefined;
     const result = await env.BUCKET.put(key, request.body ?? new Uint8Array(), {
+      md5,
+      onlyIf: request.headers,
       httpMetadata: {
-        contentType: request.headers.get("content-type") ??
-          "application/octet-stream",
+        contentType: request.headers.get("content-type") ?? "application/octet-stream",
       },
       customMetadata,
     });
-    const etag = result && typeof result === "object" && "etag" in result &&
-        typeof result.etag === "string"
-      ? result.etag
-      : undefined;
-    return response(
-      200,
-      etag ? { ETag: `"${etag.replaceAll('"', "")}"` } : undefined,
-    );
+    if (!result) return response(412);
+    const etag =
+      result && typeof result === "object" && "etag" in result && typeof result.etag === "string"
+        ? result.etag
+        : undefined;
+    return response(200, etag ? { ETag: `"${etag.replaceAll('"', "")}"` } : undefined);
   }
 
   if (request.method === "HEAD") {
@@ -91,8 +95,7 @@ export async function handleRequest(
     if (!object) return response(404);
     const headers = new Headers({
       "Content-Length": String(object.size),
-      "Content-Type": object.httpMetadata?.contentType ??
-        "application/octet-stream",
+      "Content-Type": object.httpMetadata?.contentType ?? "application/octet-stream",
     });
     if (object.etag) {
       headers.set("ETag", `"${object.etag.replaceAll('"', "")}"`);

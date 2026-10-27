@@ -47,6 +47,9 @@ export default defineConfig((env) => {
           "utf-8-validate",
           "playwright",
           "playwright-core",
+          // Cloud CLI auth uses this optional native dependency, while Desktop
+          // auth comes from the authenticated bootstrap session. Leave it lazy.
+          "@napi-rs/keyring",
         ],
       },
     },

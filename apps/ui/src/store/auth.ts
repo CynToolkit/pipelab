@@ -168,6 +168,17 @@ export const useAuth = defineStore("auth", () => {
     }
   };
 
+  const getCloudAccessToken = async () => {
+    if (isBrowserRuntime) {
+      if (!browserClient) return null;
+      const { data, error } = await browserClient.auth.getSession();
+      return error || data.session?.user.is_anonymous ? null : (data.session?.access_token ?? null);
+    }
+    if (!isReady.value) return null;
+    const result = await api.execute("auth:getCloudAccessToken");
+    return result.type === "success" ? result.result.accessToken : null;
+  };
+
   const fetchSubscription = async () => {
     const currentUser = user.value;
     if (!currentUser || currentUser.is_anonymous) {
@@ -747,6 +758,7 @@ export const useAuth = defineStore("auth", () => {
     completeAuthCallback,
     fetchSubscription,
     invokeFunction,
+    getCloudAccessToken,
 
     displayAuthModal,
     hideAuthModal,

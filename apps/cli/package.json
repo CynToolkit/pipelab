@@ -22,7 +22,7 @@
     "watch": "tsdown --watch",
     "start": "tsx src/index.ts",
     "test": "vitest run -c tests/e2e/vitest.config.mts",
-    "test:release-platforms": "vitest run -c tests/e2e/vitest.config.mts tests/e2e/tests/releases.spec.ts tests/e2e/tests/workflows.spec.ts tests/e2e/tests/release-provider-integration.spec.ts tests/e2e/tests/provider-flow-audit.spec.ts",
+    "test:release-platforms": "vitest run -c tests/e2e/vitest.config.mts tests/e2e/tests/releases.spec.ts tests/e2e/tests/cloud-auth.spec.ts tests/e2e/tests/pipelab-cloud-release.spec.ts tests/e2e/tests/workflows.spec.ts tests/e2e/tests/release-provider-integration.spec.ts tests/e2e/tests/provider-flow-audit.spec.ts",
     "test:construct-live": "node scripts/run-construct-live.mjs",
     "format": "oxfmt .",
     "lint": "oxlint .",

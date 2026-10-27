@@ -2,43 +2,105 @@ import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { supabase } from "@pipelab/shared";
+import { basename, join } from "node:path";
 import type { WorkflowArtifactInstance, WorkflowTask } from "@pipelab/workflow-runtime";
 import type { PipelabContext } from "./context";
-import { JsonFileStorage } from "./utils/storage";
+import type { ProviderServices } from "./workflow-tasks";
+import { createPipelabCloudAuthClient } from "./pipelab-cloud-auth";
 import { zipFolder } from "./utils/fs-extras";
 
 type PreparedUpload = {
-  storageKey: string;
+  reservationId: string;
 } & (
   | { uploadUrl: string; headers: Record<string, string> }
   | { multipart: true; uploadId: string; partSize: number }
 );
 
+const cloudArtifactOutputId = (artifact: WorkflowArtifactInstance) => {
+  const { kind, technology, platform, architecture } = artifact.descriptor;
+  if (kind !== "application")
+    throw new Error("Pipelab Cloud requires a supported application build output");
+  if (platform === "web") return "web.html5";
+  if (technology !== "electron" && technology !== "tauri")
+    throw new Error(`Pipelab Cloud does not support ${technology || "this"} build outputs yet`);
+  if (platform === "windows") return `${technology}.windows`;
+  if (platform === "linux") return `${technology}.linux`;
+  if (platform === "macos" && architecture === "arm64") return `${technology}.macos.arm64`;
+  throw new Error(`Pipelab Cloud does not support ${technology} ${platform} build outputs yet`);
+};
+
 export const createCloudArtifactUploadMetadata = (
-  artifact: Pick<WorkflowArtifactInstance, "id" | "artifact"> & { version: string },
+  artifact: Pick<WorkflowArtifactInstance, "id" | "artifact"> & {
+    version: string;
+    originalName: string;
+    artifactKind: "file" | "directory";
+  },
+  identity: { projectId: string; buildProfileId: string; buildTargetId: string },
   size: number,
   checksum: string,
 ) => ({
   artifactId: artifact.id,
   artifactOutputId: artifact.artifact,
   version: artifact.version,
+  originalName: artifact.originalName,
+  artifactKind: artifact.artifactKind,
+  ...identity,
   size,
   checksum,
 });
 
-const hashFile = async (path: string, signal: AbortSignal) => {
-  const hash = createHash("sha256");
-  for await (const chunk of createReadStream(path, { signal })) hash.update(chunk as Buffer);
-  return hash.digest("hex");
+export const hashPipelabCloudArtifact = async (
+  path: string,
+  signal: AbortSignal,
+  partSize?: number,
+) => {
+  if (partSize !== undefined && (!Number.isSafeInteger(partSize) || partSize < 1)) {
+    throw new Error("Pipelab Cloud returned an invalid multipart upload part size");
+  }
+  const sha256 = createHash("sha256");
+  const contentMd5 = createHash("md5");
+  const partChecksums: string[] = [];
+  let partMd5 = partSize === undefined ? undefined : createHash("md5");
+  let bytesInPart = 0;
+
+  for await (const chunk of createReadStream(path, { signal })) {
+    const bytes = chunk as Buffer;
+    sha256.update(bytes);
+    contentMd5.update(bytes);
+
+    if (partSize === undefined || !partMd5) continue;
+    let offset = 0;
+    while (offset < bytes.length) {
+      const length = Math.min(partSize - bytesInPart, bytes.length - offset);
+      partMd5.update(bytes.subarray(offset, offset + length));
+      bytesInPart += length;
+      offset += length;
+      if (bytesInPart === partSize) {
+        partChecksums.push(partMd5.digest("base64"));
+        partMd5 = createHash("md5");
+        bytesInPart = 0;
+      }
+    }
+  }
+
+  if (partMd5 && bytesInPart > 0) partChecksums.push(partMd5.digest("base64"));
+  return {
+    checksum: sha256.digest("hex"),
+    contentMd5: contentMd5.digest("base64"),
+    partChecksums,
+  };
+};
+
+const multipartPartSizeFor = (size: number) => {
+  const mib = 1024 * 1024;
+  return Math.ceil(Math.max(64 * mib, size / 10_000) / mib) * mib;
 };
 
 const readPreparedUpload = (value: unknown): PreparedUpload => {
   if (!value || typeof value !== "object")
     throw new Error("Pipelab Cloud returned an invalid upload response");
   const data = value as Record<string, unknown>;
-  if (typeof data.storageKey !== "string")
+  if (typeof data.reservationId !== "string" || !/^[0-9a-f-]{36}$/i.test(data.reservationId))
     throw new Error("Pipelab Cloud returned an invalid upload response");
 
   if (data.multipart === true) {
@@ -50,7 +112,7 @@ const readPreparedUpload = (value: unknown): PreparedUpload => {
       throw new Error("Pipelab Cloud returned an invalid multipart upload response");
     }
     return {
-      storageKey: data.storageKey,
+      reservationId: data.reservationId,
       uploadId: data.uploadId,
       partSize: Number(data.partSize),
       multipart: true,
@@ -72,7 +134,11 @@ const readPreparedUpload = (value: unknown): PreparedUpload => {
       throw new Error("Pipelab Cloud returned invalid upload headers");
     headers[key] = headerValue;
   }
-  return { uploadUrl: data.uploadUrl, storageKey: data.storageKey, headers };
+  return {
+    uploadUrl: data.uploadUrl,
+    reservationId: data.reservationId,
+    headers,
+  };
 };
 
 const getCloudWorkerUrl = () => {
@@ -126,14 +192,7 @@ export const getPipelabCloudDownloadUrl = async (
   context: PipelabContext,
   hostedArtifactId: string,
 ) => {
-  const client = supabase({
-    auth: {
-      storage: new JsonFileStorage("auth-session.json", context),
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: false,
-    },
-  });
+  const client = createPipelabCloudAuthClient(context);
   if (!client) throw new Error("Pipelab Cloud is not configured");
   const {
     data: { session },
@@ -151,8 +210,8 @@ export const getPipelabCloudDownloadUrl = async (
 };
 
 export const createPipelabCloudUploadTask =
-  (context: PipelabContext): WorkflowTask =>
-  async ({ delivery, log, signal }) => {
+  (services: ProviderServices): WorkflowTask =>
+  async ({ delivery, log, signal, step }) => {
     const artifact = delivery?.artifact;
     if (!artifact) {
       throw new Error("Pipelab Cloud upload requires a resolved workflow delivery artifact");
@@ -161,15 +220,18 @@ export const createPipelabCloudUploadTask =
     if (!sourcePath || !artifactId || !artifactName || !version) {
       throw new Error("Pipelab Cloud upload received incomplete artifact metadata");
     }
+    const buildProfileId = step.with?.buildProfileId;
+    const buildTargetId = step.with?.buildTargetId;
+    if (typeof buildProfileId !== "string" || typeof buildTargetId !== "string") {
+      throw new Error("Pipelab Cloud upload requires stable Build Profile and target IDs");
+    }
+    const identity = {
+      projectId: services.run.projectId,
+      buildProfileId,
+      buildTargetId,
+    };
 
-    const client = supabase({
-      auth: {
-        storage: new JsonFileStorage("auth-session.json", context),
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: false,
-      },
-    });
+    const client = createPipelabCloudAuthClient(services.context);
     if (!client) throw new Error("Pipelab Cloud requires Supabase to be configured");
     const {
       data: { session },
@@ -184,6 +246,7 @@ export const createPipelabCloudUploadTask =
     let temporaryDirectory: string | undefined;
     try {
       const sourceStats = await stat(sourcePath);
+      const artifactKind = sourceStats.isDirectory() ? "directory" : "file";
       if (sourceStats.isDirectory()) {
         temporaryDirectory = await mkdtemp(join(tmpdir(), "pipelab-cloud-upload-"));
         uploadPath = join(temporaryDirectory, "artifact.zip");
@@ -193,33 +256,62 @@ export const createPipelabCloudUploadTask =
       }
 
       const { size } = await stat(uploadPath);
-      const checksum = await hashFile(uploadPath, signal);
+      const multipartPartSize = size > 5 * 1024 ** 3 ? multipartPartSizeFor(size) : undefined;
+      const checksums = await hashPipelabCloudArtifact(uploadPath, signal, multipartPartSize);
       const uploadMetadata = createCloudArtifactUploadMetadata(
-        { id: artifactId, artifact: artifactName, version },
+        {
+          id: artifactId,
+          artifact: cloudArtifactOutputId(artifact),
+          version,
+          originalName: basename(sourcePath),
+          artifactKind,
+        },
+        identity,
         size,
-        checksum,
+        checksums.checksum,
       );
       log(`Preparing ${artifactName} for Pipelab Cloud (${size} bytes)`);
 
       const prepareData = await invokeCloudWorker(cloudWorkerUrl, session.access_token, {
         action: "prepareUpload",
         ...uploadMetadata,
+        contentMd5: checksums.contentMd5,
+        ...(multipartPartSize === undefined ? {} : { partSize: multipartPartSize }),
       });
       const prepared = readPreparedUpload(prepareData);
+      const preparedAsMultipart = "multipart" in prepared;
+      if (
+        preparedAsMultipart !== (multipartPartSize !== undefined) ||
+        (preparedAsMultipart && prepared.partSize !== multipartPartSize)
+      ) {
+        await invokeCloudWorker(cloudWorkerUrl, session.access_token, {
+          action: "abortUpload",
+          reservationId: prepared.reservationId,
+        }).catch((): undefined => undefined);
+        throw new Error("Pipelab Cloud returned an unexpected multipart part size");
+      }
 
       log(`Uploading ${artifactName} to Pipelab Cloud`);
       let multipartParts: Array<{ PartNumber: number; ETag: string }> | undefined;
       if ("uploadUrl" in prepared) {
-        const uploadResponse = await fetch(prepared.uploadUrl, {
-          method: "PUT",
-          headers: { ...prepared.headers, "content-length": String(size) },
-          body: createReadStream(uploadPath, { signal }),
-          signal,
-          duplex: "half",
-        } as unknown as RequestInit & { duplex: "half" });
-        if (!uploadResponse.ok) {
-          const detail = (await uploadResponse.text()).slice(0, 500);
-          throw new Error(`Pipelab Cloud upload failed (${uploadResponse.status}): ${detail}`);
+        try {
+          const uploadResponse = await fetch(prepared.uploadUrl, {
+            method: "PUT",
+            headers: { ...prepared.headers, "content-length": String(size) },
+            body: createReadStream(uploadPath, { signal }),
+            signal,
+            duplex: "half",
+          } as unknown as RequestInit & { duplex: "half" });
+          if (!uploadResponse.ok) {
+            const detail = (await uploadResponse.text()).slice(0, 500);
+            throw new Error(`Pipelab Cloud upload failed (${uploadResponse.status}): ${detail}`);
+          }
+        } catch (error) {
+          await invokeCloudWorker(cloudWorkerUrl, session.access_token, {
+            action: "abortUpload",
+            reservationId: prepared.reservationId,
+          }).catch((): undefined => undefined);
+          throw error;
         }
       } else {
         const partCount = Math.ceil(size / prepared.partSize);
@@ -232,9 +324,13 @@ export const createPipelabCloudUploadTask =
             );
             const signedData = await invokeCloudWorker(cloudWorkerUrl, session.access_token, {
               action: "signParts",
-              storageKey: prepared.storageKey,
-              uploadId: prepared.uploadId,
+              reservationId: prepared.reservationId,
               partNumbers,
+              partChecksums: partNumbers.map((partNumber) => {
+                const contentMd5 = checksums.partChecksums[partNumber - 1];
+                if (!contentMd5) throw new Error("Pipelab Cloud part checksum is missing");
+                return { partNumber, contentMd5 };
+              }),
             });
             const signedParts = (signedData as { parts?: unknown } | null)?.parts;
             if (!Array.isArray(signedParts) || signedParts.length !== partNumbers.length) {
@@ -245,9 +341,21 @@ export const createPipelabCloudUploadTask =
               signedParts.map(async (entry, index) => {
                 if (!entry || typeof entry !== "object")
                   throw new Error("Pipelab Cloud returned invalid multipart upload URLs");
-                const signed = entry as { partNumber?: unknown; url?: unknown };
+                const signed = entry as {
+                  partNumber?: unknown;
+                  url?: unknown;
+                  headers?: unknown;
+                };
                 const partNumber = partNumbers[index];
-                if (signed.partNumber !== partNumber || typeof signed.url !== "string") {
+                const expectedMd5 = checksums.partChecksums[partNumber - 1];
+                if (
+                  signed.partNumber !== partNumber ||
+                  typeof signed.url !== "string" ||
+                  !signed.headers ||
+                  typeof signed.headers !== "object" ||
+                  Array.isArray(signed.headers) ||
+                  (signed.headers as Record<string, unknown>)["content-md5"] !== expectedMd5
+                ) {
                   throw new Error("Pipelab Cloud returned invalid multipart upload URLs");
                 }
                 const start = (partNumber - 1) * prepared.partSize;
@@ -255,7 +363,10 @@ export const createPipelabCloudUploadTask =
                 const partLength = end - start + 1;
                 const response = await fetch(signed.url, {
                   method: "PUT",
-                  headers: { "content-length": String(partLength) },
+                  headers: {
+                    ...(signed.headers as Record<string, string>),
+                    "content-length": String(partLength),
+                  },
                   body: createReadStream(uploadPath, { start, end, signal }),
                   signal,
                   duplex: "half",
@@ -274,8 +385,7 @@ export const createPipelabCloudUploadTask =
         } catch (error) {
           await invokeCloudWorker(cloudWorkerUrl, session.access_token, {
             action: "abortUpload",
-            storageKey: prepared.storageKey,
-            uploadId: prepared.uploadId,
+            reservationId: prepared.reservationId,
           }).catch((): undefined => undefined);
           throw error;
         }
@@ -285,8 +395,7 @@ export const createPipelabCloudUploadTask =
       try {
         completionData = await invokeCloudWorker(cloudWorkerUrl, session.access_token, {
           action: "completeUpload",
-          ...uploadMetadata,
-          storageKey: prepared.storageKey,
+          reservationId: prepared.reservationId,
           ...(multipartParts
             ? {
                 uploadId: (prepared as Extract<PreparedUpload, { multipart: true }>).uploadId,
@@ -298,8 +407,7 @@ export const createPipelabCloudUploadTask =
         if ("multipart" in prepared) {
           await invokeCloudWorker(cloudWorkerUrl, session.access_token, {
             action: "abortUpload",
-            storageKey: prepared.storageKey,
-            uploadId: prepared.uploadId,
+            reservationId: prepared.reservationId,
           }).catch((): undefined => undefined);
         }
         const message =
@@ -331,8 +439,7 @@ export const createPipelabCloudUploadTask =
         artifactId,
         artifactName,
         size,
-        checksum,
-        storageKey: prepared.storageKey,
+        checksum: checksums.checksum,
         cloud: {
           hostedArtifactId: uploaded.id,
           uploadedAt: uploaded.uploaded_at,

@@ -104,8 +104,9 @@ export R2_ACCOUNT_ID="local"
 export R2_ACCESS_KEY_ID="local"
 export R2_SECRET_ACCESS_KEY="local"
 export R2_BUCKET_NAME="pipelab-cloud-local"
+export PIPELAB_CLOUD_LINK_ENCRYPTION_KEY="${PIPELAB_CLOUD_LINK_ENCRYPTION_KEY:-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA}"
 export CLOUDFLARE_INCLUDE_PROCESS_ENV="true"
-pnpm --filter @pipelab/cloud-workers dev
+pnpm --filter @pipelab/cloud-workers dev --var "R2_ENDPOINT_URL:${R2_ENDPOINT_URL}"
 '''
 
 [tasks."local:cleanup"]
@@ -119,6 +120,13 @@ run = [
   "pnpm --filter @pipelab/cloud-workers deploy:secrets",
 ]
 depends = ["install"]
+
+[tasks."deploy:cloud-reconcile"]
+description = "Deploy the internal Pipelab Cloud entitlement reconciler to an explicitly selected Supabase project"
+run = '''
+: "${SUPABASE_PROJECT_REF:?Set SUPABASE_PROJECT_REF to the approved Supabase project}"
+supabase functions deploy pipelab-cloud-reconcile --project-ref "$SUPABASE_PROJECT_REF"
+'''
 
 [tasks."local:app"]
 description = "Run the desktop app against local Supabase and Pipelab Cloud"

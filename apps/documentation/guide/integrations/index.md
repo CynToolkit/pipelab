@@ -15,7 +15,7 @@ Connections screen. There is no runtime provider installation or enablement swit
 | ------------ | ------------------------------------------------------------ | -------------------------------------------------------------------------------- |
 | Sources      | Folder, Web app folder, ZIP, Web app ZIP, Construct 3, Godot | Bring local project files or an exported Construct/Godot project into a workflow |
 | Producers    | Passthrough, Extract ZIP, Godot, Electron, Tauri             | Transform an input or build a desktop/web artifact                               |
-| Destinations | Folder, ZIP, Steam, itch.io, Poki                            | Copy, archive, or publish an artifact                                            |
+| Destinations | Folder, ZIP, Pipelab Cloud, Steam, itch.io, Poki             | Copy, archive, store, or publish an artifact                                     |
 
 Core folder and ZIP sources, producers, and destinations are provided by
 Pipelab; see [Folder and ZIP providers](./folder-zip). Provider details:
@@ -26,6 +26,8 @@ Pipelab; see [Folder and ZIP providers](./folder-zip). Provider details:
 - [Electron](./electron) packages web applications and previews app URLs.
 - [Tauri](./tauri) packages web applications and previews app URLs. Installer
   creation is unavailable in this beta.
+- [Pipelab Cloud](../cloud-artifacts) stores selected outputs privately and
+  provides optional revocable share links.
 - [Steam](../publishing/steam), [itch.io](../publishing/itch), and
   [Poki](../publishing/poki) document account and destination setup.
 

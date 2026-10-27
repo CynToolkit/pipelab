@@ -64,6 +64,7 @@ describe("core Release filesystem providers", () => {
       "@pipelab/plugin-steam/destination",
       "@pipelab/plugin-itch/destination",
       "@pipelab/plugin-poki/destination",
+      "@pipelab/pipelab-cloud/destination",
     ]);
     expect(registry.producers.map((producer) => producer.id)).toEqual([
       "@pipelab/core/passthrough",

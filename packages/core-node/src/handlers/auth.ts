@@ -44,6 +44,9 @@ export const registerAuthHandlers = (context: PipelabContext) => {
         },
       });
     });
+    handle("auth:getCloudAccessToken", async (_, { send }) => {
+      return send({ type: "end", data: { type: "success", result: { accessToken: null } } });
+    });
     return;
   }
 
@@ -67,6 +70,20 @@ export const registerAuthHandlers = (context: PipelabContext) => {
       return send({ type: "end", data: { type: "success", result: { user: data.user } } });
     } catch (e) {
       return send({ type: "end", data: { type: "success", result: { user: null } } });
+    }
+  });
+
+  handle("auth:getCloudAccessToken", async (_, { send }) => {
+    try {
+      const {
+        data: { session },
+        error,
+      } = await client.auth.getSession();
+      const accessToken =
+        !error && session && !session.user.is_anonymous ? session.access_token : null;
+      return send({ type: "end", data: { type: "success", result: { accessToken } } });
+    } catch {
+      return send({ type: "end", data: { type: "success", result: { accessToken: null } } });
     }
   });
 

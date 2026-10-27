@@ -147,8 +147,8 @@ The planner checks provider compatibility and can insert a provider-declared
 transform, such as extracting an archive when a producer requires a folder. A
 workflow can use one build output in more than one destination. Provider
 requirements are documented on their own pages, for example
-[Steam](/guide/publishing/steam), [itch.io](/guide/publishing/itch), and
-[Poki](/guide/publishing/poki).
+[Pipelab Cloud](/guide/cloud-artifacts), [Steam](/guide/publishing/steam),
+[itch.io](/guide/publishing/itch), and [Poki](/guide/publishing/poki).
 
 ## Inspect a workflow without running it
 

@@ -22,6 +22,7 @@ export { buildCoreReleaseRegistry } from "./release/registry";
 export * from "./release/workflow-value-requirements";
 export * from "./server";
 export * from "./desktop-bootstrap";
+export * from "./pipelab-cloud-auth";
 export * from "./utils";
 export * from "./utils/github";
 export * from "./fs-utils";

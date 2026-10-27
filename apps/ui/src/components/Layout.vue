@@ -125,6 +125,18 @@
           <span v-show="!isSidebarCollapsed" class="nav-label">{{ $t("home.connections") }}</span>
         </router-link>
 
+        <router-link
+          to="/cloud-files"
+          class="sidebar-nav-item"
+          aria-label="Cloud files"
+          :class="{ active: route.path === '/cloud-files' }"
+          :aria-current="route.path === '/cloud-files' ? 'page' : undefined"
+          v-tooltip.right="isSidebarCollapsed ? 'Cloud files' : undefined"
+        >
+          <i class="mdi mdi-cloud-outline nav-icon" aria-hidden="true" />
+          <span v-show="!isSidebarCollapsed" class="nav-label">Cloud files</span>
+        </router-link>
+
         <div
           class="sidebar-nav-item disabled"
           v-tooltip.right="

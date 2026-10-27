@@ -3,20 +3,16 @@ import worker from "./worker.ts";
 function assertEquals<T>(actual: T, expected: T) {
   const normalize = (value: unknown): unknown =>
     value && typeof value === "object"
-      ? Array.isArray(value) ? value.map(normalize) : Object.fromEntries(
-        Object.entries(value).sort(([left], [right]) =>
-          left.localeCompare(right)
-        ).map(
-          ([key, nested]) => [key, normalize(nested)],
-        ),
-      )
+      ? Array.isArray(value)
+        ? value.map(normalize)
+        : Object.fromEntries(
+            Object.entries(value)
+              .sort(([left], [right]) => left.localeCompare(right))
+              .map(([key, nested]) => [key, normalize(nested)]),
+          )
       : value;
-  if (
-    JSON.stringify(normalize(actual)) !== JSON.stringify(normalize(expected))
-  ) {
-    throw new Error(
-      `Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`,
-    );
+  if (JSON.stringify(normalize(actual)) !== JSON.stringify(normalize(expected))) {
+    throw new Error(`Expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`);
   }
 }
 
@@ -34,27 +30,30 @@ Deno.test("local R2 worker stores metadata, verifies it with HEAD, and deletes o
         customMetadata?: Record<string, string>;
       },
     ) {
-      const bytes = body instanceof ReadableStream
-        ? new Uint8Array(await new Response(body).arrayBuffer())
-        : body instanceof Uint8Array
-        ? body
-        : new Uint8Array(body);
+      const bytes =
+        body instanceof ReadableStream
+          ? new Uint8Array(await new Response(body).arrayBuffer())
+          : body instanceof Uint8Array
+            ? body
+            : new Uint8Array(body);
       objects.set(key, {
         body: bytes,
-        contentType: options.httpMetadata?.contentType ??
-          "application/octet-stream",
+        contentType: options.httpMetadata?.contentType ?? "application/octet-stream",
         metadata: options.customMetadata ?? {},
       });
+      return { etag: "local-etag" };
     },
     head(key: string) {
       const object = objects.get(key);
-      return Promise.resolve(object
-        ? {
-          size: object.body.byteLength,
-          httpMetadata: { contentType: object.contentType },
-          customMetadata: object.metadata,
-        }
-        : null);
+      return Promise.resolve(
+        object
+          ? {
+              size: object.body.byteLength,
+              httpMetadata: { contentType: object.contentType },
+              customMetadata: object.metadata,
+            }
+          : null,
+      );
     },
     delete(key: string) {
       objects.delete(key);
@@ -100,7 +99,9 @@ Deno.test("local R2 worker stores metadata, verifies it with HEAD, and deletes o
 
 Deno.test("local R2 worker reports missing objects and missing keys", async () => {
   const bucket = {
-    async put() {},
+    async put() {
+      return { etag: "local-etag" };
+    },
     head() {
       return Promise.resolve(null);
     },
@@ -121,4 +122,40 @@ Deno.test("local R2 worker reports missing objects and missing keys", async () =
 
   assertEquals(missingObject.status, 404);
   assertEquals(missingKey.status, 400);
+});
+
+Deno.test("local R2 worker converts checksum and forwards create-only conditions", async () => {
+  const md5 = "kAFQmDzST7DWlj99KOF/cg==";
+  let receivedOptions: { md5?: string; onlyIf?: Headers } | undefined;
+  const bucket = {
+    async put(
+      _key: string,
+      _body: ReadableStream<Uint8Array> | ArrayBuffer | ArrayBufferView | string,
+      options: { md5?: string; onlyIf?: Headers },
+    ) {
+      receivedOptions = options;
+      return null;
+    },
+    async head() {
+      return null;
+    },
+    async delete() {},
+  };
+
+  const response = await worker.fetch(
+    new Request("http://localhost:8787/pipelab-cloud-local/user/artifact", {
+      method: "PUT",
+      headers: {
+        "content-length": "5",
+        "content-md5": md5,
+        "if-none-match": "*",
+      },
+      body: "bytes",
+    }),
+    { BUCKET: bucket, BUCKET_NAME: "pipelab-cloud-local" },
+  );
+
+  assertEquals(response.status, 412);
+  assertEquals(receivedOptions?.md5, "900150983cd24fb0d6963f7d28e17f72");
+  assertEquals(receivedOptions?.onlyIf?.get("if-none-match"), "*");
 });
