@@ -36,18 +36,14 @@ Deno.test("reads the existing Polar access-token secret and supports the previou
   );
 });
 
-Deno.test("uses POLAR_SERVER when an explicit API base URL is not set", () => {
+Deno.test("does not treat the Polar SDK server mode as an API base URL", () => {
   assertEquals(
     getPolarEndpoints((name) => ({
-      POLAR_SERVER: "https://api.example.test/v2",
+      POLAR_SERVER: "production",
       POLAR_FRONTEND_BASE_URL: localValues.POLAR_FRONTEND_BASE_URL,
       POLAR_CHECKOUT_LINK_BASE_URL: localValues.POLAR_CHECKOUT_LINK_BASE_URL,
     })[name]),
-    {
-      apiBaseUrl: "https://api.example.test/v2",
-      frontendBaseUrl: localValues.POLAR_FRONTEND_BASE_URL,
-      checkoutLinkBaseUrl: localValues.POLAR_CHECKOUT_LINK_BASE_URL,
-    },
+    undefined,
   );
 });
 
