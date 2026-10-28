@@ -8,6 +8,8 @@ const env = (name: string) =>
     POLAR_TOKEN: "polar-token",
     POLAR_ORGANIZATION_ID: "organization-id",
   })[name];
+const configuredEnvironment = (environment: string) => (name: string) =>
+  name === "POLAR_ENVIRONMENT" ? environment : env(name);
 
 Deno.test("reconciles an active paid subscription into account state", async () => {
   const originalFetch = globalThis.fetch;
@@ -46,11 +48,16 @@ Deno.test("reconciles an active paid subscription into account state", async () 
     const response = await handler(
       new Request("http://worker/functions/pipelab-cloud-reconcile", {
         method: "POST",
-        headers: { Authorization: "Bearer service-role-key", "Content-Type": "application/json" },
+        headers: {
+          Authorization: "Bearer service-role-key",
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ userIds: [userId] }),
       }),
     );
-    if (response.status !== 200) throw new Error(`Unexpected response ${response.status}`);
+    if (response.status !== 200) {
+      throw new Error(`Unexpected response ${response.status}`);
+    }
     if (!calls.some((call) => call.url.endsWith("/rpc/set_pipelab_cloud_active_entitlement"))) {
       throw new Error("Active entitlement RPC was not called");
     }
@@ -71,9 +78,80 @@ Deno.test("rejects requests without the Worker service-role bearer", async () =>
   const response = await handler(
     new Request("http://worker/functions/pipelab-cloud-reconcile", {
       method: "POST",
-      headers: { Authorization: "Bearer user-token", "Content-Type": "application/json" },
+      headers: {
+        Authorization: "Bearer user-token",
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({ userIds: [userId] }),
     }),
   );
-  if (response.status !== 401) throw new Error(`Expected 401, received ${response.status}`);
+  if (response.status !== 401) {
+    throw new Error(`Expected 401, received ${response.status}`);
+  }
+});
+
+Deno.test("uses the production Polar API when configured", async () => {
+  const originalFetch = globalThis.fetch;
+  const calls: string[] = [];
+  globalThis.fetch = async (input) => {
+    const url = String(input);
+    calls.push(url);
+    if (url.startsWith("https://api.polar.sh/v1/subscriptions/")) {
+      return Response.json({ items: [] });
+    }
+    throw new Error(`Unexpected request: ${url}`);
+  };
+
+  try {
+    const handler = createReconcileHandler(configuredEnvironment("production"));
+    const response = await handler(
+      new Request("http://worker/functions/pipelab-cloud-reconcile", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer service-role-key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userIds: [userId] }),
+      }),
+    );
+    if (response.status !== 200) {
+      throw new Error(`Unexpected response ${response.status}`);
+    }
+    if (!calls[0]?.startsWith("https://api.polar.sh/v1/subscriptions/")) {
+      throw new Error("The production Polar API was not used");
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+Deno.test("rejects an invalid Polar environment before provider access", async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls++;
+    return Response.json({ items: [] });
+  };
+
+  try {
+    const handler = createReconcileHandler(configuredEnvironment("preview"));
+    const response = await handler(
+      new Request("http://worker/functions/pipelab-cloud-reconcile", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer service-role-key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userIds: [userId] }),
+      }),
+    );
+    if (response.status !== 503) {
+      throw new Error(`Expected 503, received ${response.status}`);
+    }
+    if (calls !== 0) {
+      throw new Error("Provider fetch was called with an invalid environment");
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

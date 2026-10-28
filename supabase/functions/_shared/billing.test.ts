@@ -154,6 +154,37 @@ Deno.test("plans map safe public catalog fields and use the Polar sandbox API", 
   assertEquals(JSON.stringify(body).includes("benefit-private-data"), false);
 });
 
+Deno.test("production billing uses the Polar production API when configured", async () => {
+  const calls: Array<{ url: URL; init: RequestInit }> = [];
+  const handler = createBillingHandler(
+    "polar-available-plans",
+    dependencies(
+      mockFetch(() => json({ items: [product()] }), calls),
+      { env: { POLAR_ENVIRONMENT: "production" } },
+    ),
+  );
+  const response = await handler(request("polar-available-plans"));
+  assertEquals(response.status, 200);
+  assertEquals(calls[0].url.origin, "https://api.polar.sh");
+});
+
+Deno.test("invalid Polar environment fails before a provider request", async () => {
+  let calls = 0;
+  const handler = createBillingHandler(
+    "polar-available-plans",
+    dependencies(
+      mockFetch(() => {
+        calls++;
+        return json({ items: [] });
+      }),
+      { env: { POLAR_ENVIRONMENT: "preview" } },
+    ),
+  );
+  const response = await handler(request("polar-available-plans"));
+  assertEquals(response.status, 503);
+  assertEquals(calls, 0);
+});
+
 Deno.test("empty plan catalog returns an empty array", async () => {
   const handler = createBillingHandler(
     "polar-available-plans",
@@ -424,6 +455,35 @@ Deno.test("customer portal accepts only the exact sandbox host", async () => {
   }
 });
 
+Deno.test("production customer portal accepts Polar's production portal host", async () => {
+  const handler = createBillingHandler(
+    "customer-portal",
+    dependencies(
+      mockFetch((url) =>
+        url.pathname.includes("/customers/external/")
+          ? json({
+              id: CUSTOMER_ID,
+              external_id: USER_A,
+              organization_id: ORG_ID,
+              deleted_at: null,
+            })
+          : json({
+              customer_portal_url: "https://polar.sh/acme/portal/session",
+            }),
+      ),
+      { env: { POLAR_ENVIRONMENT: "production" } },
+    ),
+  );
+  const response = await handler(
+    request("customer-portal", { authorization: "Bearer valid-token" }),
+  );
+  assertEquals(response.status, 200);
+  assertEquals(
+    (await responseJson(response)).customerPortal,
+    "https://polar.sh/acme/portal/session",
+  );
+});
+
 Deno.test("checkout rejects products outside the active public catalog", async () => {
   let checkoutCalls = 0;
   const handler = createBillingHandler(
@@ -504,6 +564,61 @@ Deno.test("checkout rejects production Polar URLs", async () => {
     }),
   );
   assertEquals(response.status, 502);
+});
+
+Deno.test("production checkout accepts only Polar's production checkout hosts", async () => {
+  for (const destination of [
+    "https://polar.sh/checkout/session-secret",
+    "https://buy.polar.sh/polar_cl_live",
+    "https://api.polar.sh/v1/checkout-links/polar_cl_live/redirect",
+  ]) {
+    const handler = createBillingHandler(
+      "checkout",
+      dependencies(
+        mockFetch((url) =>
+          url.pathname.endsWith("/products/")
+            ? json({ items: [product()] })
+            : json({ url: destination }, 201),
+        ),
+        { env: { POLAR_ENVIRONMENT: "production" } },
+      ),
+    );
+    const response = await handler(
+      request("checkout", {
+        authorization: "Bearer valid-token",
+        body: JSON.stringify({ itemIds: [PRODUCT_ID] }),
+      }),
+    );
+    assertEquals(response.status, 200);
+    assertEquals((await responseJson(response)).checkoutURL, destination);
+  }
+
+  for (const destination of [
+    "https://api.attacker.example/v1/checkout-links/id/redirect",
+    "https://polar.sh.attacker.example/checkout/session-secret",
+    "https://polar.sh/checkout/session-secret/other",
+    "https://polar.sh/checkout/session-secret?next=https://attacker.example",
+    "https://buy.polar.sh/checkout/session",
+  ]) {
+    const handler = createBillingHandler(
+      "checkout",
+      dependencies(
+        mockFetch((url) =>
+          url.pathname.endsWith("/products/")
+            ? json({ items: [product()] })
+            : json({ url: destination }, 201),
+        ),
+        { env: { POLAR_ENVIRONMENT: "production" } },
+      ),
+    );
+    const response = await handler(
+      request("checkout", {
+        authorization: "Bearer valid-token",
+        body: JSON.stringify({ itemIds: [PRODUCT_ID] }),
+      }),
+    );
+    assertEquals(response.status, 502);
+  }
 });
 
 Deno.test("untrusted origins and malformed requests fail before provider access", async () => {

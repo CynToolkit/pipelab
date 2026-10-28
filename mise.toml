@@ -128,6 +128,16 @@ run = '''
 supabase functions deploy pipelab-cloud-reconcile --project-ref "$SUPABASE_PROJECT_REF"
 '''
 
+[tasks."deploy:browser-billing"]
+description = "Deploy browser billing Edge Functions to an explicitly selected Supabase project"
+run = '''
+set -eu
+: "${SUPABASE_PROJECT_REF:?Set SUPABASE_PROJECT_REF to the approved Supabase project}"
+for function in polar-available-plans polar-user-plan customer-portal checkout; do
+  supabase functions deploy "$function" --project-ref "$SUPABASE_PROJECT_REF"
+done
+'''
+
 [tasks."local:app"]
 description = "Run the desktop app against local Supabase and Pipelab Cloud"
 run = '''

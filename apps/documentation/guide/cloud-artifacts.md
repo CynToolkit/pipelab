@@ -47,11 +47,12 @@ quota evidence: its ZIPs total 575,081,265 bytes, leaving 498,660,559 bytes of
 headroom under the limit. This sample validates packaged-byte accounting but
 does not represent customer game sizes. Plan limits and retention are matched
 by Polar product ID on the server. A database migration seeds the Basic limit
-for the production Indie product if no row already exists. The current billing
-functions use Polar sandbox, so sandbox subscriptions need their own matching
-plan row; the production row alone does not enable production billing. An
-account without a matching enabled plan row cannot upload. Higher-tier numeric
-allowances remain unset.
+for the production Indie product if no row already exists. Billing functions
+use Polar sandbox by default; production subscriptions and Cloud entitlement
+reconciliation use the production product ID when `POLAR_ENVIRONMENT=production`
+is set on the Supabase functions. Sandbox subscriptions need their own matching
+plan row. An account without a matching enabled plan row cannot upload.
+Higher-tier numeric allowances remain unset.
 
 Uploads are rejected when the object and active upload reservations would
 exceed the allowance. Pipelab Cloud does not silently evict artifacts or
