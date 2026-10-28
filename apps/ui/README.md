@@ -72,9 +72,8 @@ and portal calls are blocked. The UI does not treat unavailable billing as a
 Free plan. Desktop keeps its existing IPC auth and billing transport.
 
 Local browser validation can set the flag manually and uses mocked billing
-responses; it does not contact Polar. Hosted Edge Functions select Polar
-sandbox by default and use production only when `POLAR_ENVIRONMENT=production`
-is set in the Supabase function environment. See the repository's
+responses; it does not contact Polar. Hosted Edge Functions always use Polar
+production. See the repository's
 [`supabase/README.md`](../../supabase/README.md) for production configuration
 and function deployment instructions. Keep Polar credentials server-side.
 

@@ -128,7 +128,7 @@ Deno.test("private functions reject missing and expired bearer tokens before pro
   assertEquals(providerCalls, 0);
 });
 
-Deno.test("plans map safe public catalog fields and use the Polar sandbox API", async () => {
+Deno.test("plans map safe public catalog fields and use the Polar production API", async () => {
   const calls: Array<{ url: URL; init: RequestInit }> = [];
   const handler = createBillingHandler(
     "polar-available-plans",
@@ -142,7 +142,7 @@ Deno.test("plans map safe public catalog fields and use the Polar sandbox API", 
   const firstPrice = (plans[0].prices as Array<Record<string, unknown>>)[0];
   assertEquals(response.status, 200);
   assertEquals(response.headers.get("Access-Control-Allow-Origin"), ORIGIN);
-  assertEquals(calls[0].url.origin, "https://sandbox-api.polar.sh");
+  assertEquals(calls[0].url.origin, "https://api.polar.sh");
   assertEquals(calls[0].init.redirect, "error");
   assertEquals(calls[0].url.searchParams.get("organization_id"), ORG_ID);
   assertEquals(plans[0].id, PRODUCT_ID);
@@ -152,37 +152,6 @@ Deno.test("plans map safe public catalog fields and use the Polar sandbox API", 
   assertEquals(firstPrice.priceCurrency, "usd");
   assertEquals(plans[0].benefits, [{ description: "Unlimited projects" }]);
   assertEquals(JSON.stringify(body).includes("benefit-private-data"), false);
-});
-
-Deno.test("production billing uses the Polar production API when configured", async () => {
-  const calls: Array<{ url: URL; init: RequestInit }> = [];
-  const handler = createBillingHandler(
-    "polar-available-plans",
-    dependencies(
-      mockFetch(() => json({ items: [product()] }), calls),
-      { env: { POLAR_ENVIRONMENT: "production" } },
-    ),
-  );
-  const response = await handler(request("polar-available-plans"));
-  assertEquals(response.status, 200);
-  assertEquals(calls[0].url.origin, "https://api.polar.sh");
-});
-
-Deno.test("invalid Polar environment fails before a provider request", async () => {
-  let calls = 0;
-  const handler = createBillingHandler(
-    "polar-available-plans",
-    dependencies(
-      mockFetch(() => {
-        calls++;
-        return json({ items: [] });
-      }),
-      { env: { POLAR_ENVIRONMENT: "preview" } },
-    ),
-  );
-  const response = await handler(request("polar-available-plans"));
-  assertEquals(response.status, 503);
-  assertEquals(calls, 0);
 });
 
 Deno.test("empty plan catalog returns an empty array", async () => {
@@ -222,7 +191,7 @@ Deno.test("Polar API requests fail closed on redirects", async () => {
   assertEquals(await response.text(), '{"error":"billing_provider_unavailable"}');
 });
 
-Deno.test("missing sandbox configuration fails before a provider request", async () => {
+Deno.test("missing Polar configuration fails before a provider request", async () => {
   let calls = 0;
   const handler = createBillingHandler(
     "polar-available-plans",
@@ -370,7 +339,7 @@ Deno.test("customer portal resolves only the authenticated user's customer", asy
         if (url.pathname.endsWith("/customer-sessions/")) {
           return json(
             {
-              customer_portal_url: "https://sandbox.polar.sh/portal/session",
+              customer_portal_url: "https://polar.sh/portal/session",
             },
             201,
           );
@@ -394,7 +363,7 @@ Deno.test("customer portal resolves only the authenticated user's customer", asy
   assertEquals(sessionBody.customer_id, CUSTOMER_ID);
   assertEquals(sessionBody.return_url, ORIGIN + "/");
   assertEquals(body, {
-    customerPortal: "https://sandbox.polar.sh/portal/session",
+    customerPortal: "https://polar.sh/portal/session",
   });
 });
 
@@ -414,7 +383,7 @@ Deno.test("customer portal refuses a mismatched external customer ID", async () 
         }
         sessionCalls++;
         return json({
-          customer_portal_url: "https://sandbox.polar.sh/portal/session",
+          customer_portal_url: "https://polar.sh/portal/session",
         });
       }),
     ),
@@ -426,9 +395,9 @@ Deno.test("customer portal refuses a mismatched external customer ID", async () 
   assertEquals(sessionCalls, 0);
 });
 
-Deno.test("customer portal accepts only the exact sandbox host", async () => {
+Deno.test("customer portal rejects non-production Polar hosts", async () => {
   for (const destination of [
-    "https://polar.sh/portal/session",
+    "https://sandbox.polar.sh/portal/session",
     "https://sandbox.attacker.polar.sh/portal/session",
     "https://attacker.sandbox.polar.sh/portal/session",
     "https://sandbox-attacker.polar.sh/portal/session",
@@ -455,7 +424,7 @@ Deno.test("customer portal accepts only the exact sandbox host", async () => {
   }
 });
 
-Deno.test("production customer portal accepts Polar's production portal host", async () => {
+Deno.test("customer portal accepts Polar's production portal host", async () => {
   const handler = createBillingHandler(
     "customer-portal",
     dependencies(
@@ -471,7 +440,6 @@ Deno.test("production customer portal accepts Polar's production portal host", a
               customer_portal_url: "https://polar.sh/acme/portal/session",
             }),
       ),
-      { env: { POLAR_ENVIRONMENT: "production" } },
     ),
   );
   const response = await handler(
@@ -494,7 +462,7 @@ Deno.test("checkout rejects products outside the active public catalog", async (
           return json({ items: [product()] });
         }
         checkoutCalls++;
-        return json({ url: "https://sandbox.polar.sh/checkout/session" }, 201);
+        return json({ url: "https://polar.sh/checkout/session" }, 201);
       }),
     ),
   );
@@ -508,7 +476,7 @@ Deno.test("checkout rejects products outside the active public catalog", async (
   assertEquals(checkoutCalls, 0);
 });
 
-Deno.test("checkout uses the authenticated user and only returns a sandbox checkout URL", async () => {
+Deno.test("checkout uses the authenticated user and returns a production checkout URL", async () => {
   const calls: Array<{ url: URL; init: RequestInit }> = [];
   const handler = createBillingHandler(
     "checkout",
@@ -517,7 +485,7 @@ Deno.test("checkout uses the authenticated user and only returns a sandbox check
         (url) =>
           url.pathname.endsWith("/products/")
             ? json({ items: [product()] })
-            : json({ url: "https://sandbox.polar.sh/checkout/session" }, 201),
+            : json({ url: "https://polar.sh/checkout/session" }, 201),
         calls,
       ),
     ),
@@ -537,23 +505,23 @@ Deno.test("checkout uses the authenticated user and only returns a sandbox check
   const checkoutBody = JSON.parse(String(calls[1].init.body)) as Record<string, unknown>;
   assertEquals(response.status, 200);
   assertEquals(body, {
-    checkoutURL: "https://sandbox.polar.sh/checkout/session",
+    checkoutURL: "https://polar.sh/checkout/session",
   });
   assertEquals(checkoutBody.products, [PRODUCT_ID]);
   assertEquals(checkoutBody.external_customer_id, USER_A);
   assertEquals(checkoutBody.success_url, ORIGIN + "/?billing=success");
   assertEquals(checkoutBody.customer_email, undefined);
-  assertEquals(calls[1].url.origin, "https://sandbox-api.polar.sh");
+  assertEquals(calls[1].url.origin, "https://api.polar.sh");
 });
 
-Deno.test("checkout rejects production Polar URLs", async () => {
+Deno.test("checkout rejects non-Polar checkout URLs", async () => {
   const handler = createBillingHandler(
     "checkout",
     dependencies(
       mockFetch((url) =>
         url.pathname.endsWith("/products/")
           ? json({ items: [product()] })
-          : json({ url: "https://buy.polar.sh/checkout/session" }, 201),
+          : json({ url: "https://checkout.attacker.example/checkout/session" }, 201),
       ),
     ),
   );
@@ -566,7 +534,7 @@ Deno.test("checkout rejects production Polar URLs", async () => {
   assertEquals(response.status, 502);
 });
 
-Deno.test("production checkout accepts only Polar's production checkout hosts", async () => {
+Deno.test("checkout accepts only Polar's production checkout hosts", async () => {
   for (const destination of [
     "https://polar.sh/checkout/session-secret",
     "https://buy.polar.sh/polar_cl_live",
@@ -580,7 +548,6 @@ Deno.test("production checkout accepts only Polar's production checkout hosts", 
             ? json({ items: [product()] })
             : json({ url: destination }, 201),
         ),
-        { env: { POLAR_ENVIRONMENT: "production" } },
       ),
     );
     const response = await handler(
@@ -608,7 +575,6 @@ Deno.test("production checkout accepts only Polar's production checkout hosts", 
             ? json({ items: [product()] })
             : json({ url: destination }, 201),
         ),
-        { env: { POLAR_ENVIRONMENT: "production" } },
       ),
     );
     const response = await handler(
@@ -786,7 +752,7 @@ Deno.test("Desktop-style calls without an Origin omit external return URLs", asy
                 deleted_at: null,
               })
             : json({
-                customer_portal_url: "https://sandbox.polar.sh/portal/session",
+                customer_portal_url: "https://polar.sh/portal/session",
               }),
         calls,
       ),
@@ -801,7 +767,7 @@ Deno.test("Desktop-style calls without an Origin omit external return URLs", asy
   assertEquals(sessionBody.return_url, undefined);
 });
 
-Deno.test("sandbox checkout-link redirect URLs from Polar's sandbox API are accepted", async () => {
+Deno.test("checkout-link redirect URLs from Polar's production API are accepted", async () => {
   const handler = createBillingHandler(
     "checkout",
     dependencies(
@@ -810,7 +776,7 @@ Deno.test("sandbox checkout-link redirect URLs from Polar's sandbox API are acce
           ? json({ items: [product()] })
           : json(
               {
-                url: "https://sandbox-api.polar.sh/v1/checkout-links/polar_cl_test/redirect",
+                url: "https://api.polar.sh/v1/checkout-links/polar_cl_test/redirect",
               },
               201,
             ),
@@ -826,7 +792,7 @@ Deno.test("sandbox checkout-link redirect URLs from Polar's sandbox API are acce
   assertEquals(response.status, 200);
   assertEquals(
     (await responseJson(response)).checkoutURL,
-    "https://sandbox-api.polar.sh/v1/checkout-links/polar_cl_test/redirect",
+    "https://api.polar.sh/v1/checkout-links/polar_cl_test/redirect",
   );
 });
 

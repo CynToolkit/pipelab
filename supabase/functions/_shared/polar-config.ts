@@ -1,50 +1,23 @@
-export type PolarEnvironment = "sandbox" | "production";
+const POLAR_API_BASE_URL = "https://api.polar.sh/v1";
+const POLAR_PORTAL_HOST = "polar.sh";
+const POLAR_CHECKOUT_SESSION_HOST = "polar.sh";
+const POLAR_CHECKOUT_LINK_HOST = "buy.polar.sh";
 
-type PolarEnvironmentConfig = {
-  apiBaseUrl: string;
-  portalHost: string;
-  checkoutSessionHost: string;
-  checkoutLinkHost?: string;
-};
-
-const POLAR_CONFIG: Record<PolarEnvironment, PolarEnvironmentConfig> = {
-  sandbox: {
-    apiBaseUrl: "https://sandbox-api.polar.sh/v1",
-    portalHost: "sandbox.polar.sh",
-    checkoutSessionHost: "sandbox.polar.sh",
-  },
-  production: {
-    apiBaseUrl: "https://api.polar.sh/v1",
-    portalHost: "polar.sh",
-    checkoutSessionHost: "polar.sh",
-    checkoutLinkHost: "buy.polar.sh",
-  },
-};
-
-export function getPolarEnvironment(
-  env: (name: string) => string | undefined,
-): PolarEnvironment | undefined {
-  const value = env("POLAR_ENVIRONMENT");
-  if (value === undefined) return "sandbox";
-  return value === "sandbox" || value === "production" ? value : undefined;
+export function polarApiBaseUrl(): string {
+  return POLAR_API_BASE_URL;
 }
 
-export function polarApiBaseUrl(environment: PolarEnvironment): string {
-  return POLAR_CONFIG[environment].apiBaseUrl;
+export function isPolarPortalUrl(value: string): boolean {
+  return hasPolarHost(value, POLAR_PORTAL_HOST);
 }
 
-export function isPolarPortalUrl(value: string, environment: PolarEnvironment): boolean {
-  return hasPolarHost(value, POLAR_CONFIG[environment].portalHost);
-}
-
-export function isPolarCheckoutUrl(value: string, environment: PolarEnvironment): boolean {
-  const config = POLAR_CONFIG[environment];
-  if (isCheckoutSessionUrl(value, config.checkoutSessionHost)) return true;
-  if (config.checkoutLinkHost && isCheckoutLinkUrl(value, config.checkoutLinkHost)) return true;
+export function isPolarCheckoutUrl(value: string): boolean {
+  if (isCheckoutSessionUrl(value, POLAR_CHECKOUT_SESSION_HOST)) return true;
+  if (isCheckoutLinkUrl(value, POLAR_CHECKOUT_LINK_HOST)) return true;
 
   try {
     const url = new URL(value);
-    const apiHost = new URL(config.apiBaseUrl).hostname;
+    const apiHost = new URL(POLAR_API_BASE_URL).hostname;
     return (
       url.protocol === "https:" &&
       url.hostname === apiHost &&

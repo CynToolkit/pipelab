@@ -121,21 +121,12 @@ run = [
 ]
 depends = ["install"]
 
-[tasks."deploy:cloud-reconcile"]
-description = "Deploy the internal Pipelab Cloud entitlement reconciler to an explicitly selected Supabase project"
-run = '''
-: "${SUPABASE_PROJECT_REF:?Set SUPABASE_PROJECT_REF to the approved Supabase project}"
-supabase functions deploy pipelab-cloud-reconcile --project-ref "$SUPABASE_PROJECT_REF"
-'''
-
-[tasks."deploy:browser-billing"]
-description = "Deploy browser billing Edge Functions to an explicitly selected Supabase project"
+[tasks."deploy:supabase-functions"]
+description = "Deploy all Supabase Edge Functions to an explicitly selected project"
 run = '''
 set -eu
 : "${SUPABASE_PROJECT_REF:?Set SUPABASE_PROJECT_REF to the approved Supabase project}"
-for function in polar-available-plans polar-user-plan customer-portal checkout; do
-  supabase functions deploy "$function" --project-ref "$SUPABASE_PROJECT_REF"
-done
+supabase functions deploy --project-ref "$SUPABASE_PROJECT_REF"
 '''
 
 [tasks."local:app"]
