@@ -476,6 +476,7 @@ describe("hosted browser authentication", () => {
     const auth = useAuth();
     activeAuthStore = auth;
     await vi.waitFor(() => expect(auth.subscriptionStatus).toBe("ready"));
+    expect(auth.isAuthTransportReady).toBe(true);
 
     setReady(true);
     await nextTick();
@@ -487,6 +488,7 @@ describe("hosted browser authentication", () => {
     expect(auth.authState).toBe("SIGNED_IN");
     expect(auth.user?.id).toBe("browser-user");
     expect(auth.subscriptions).toEqual([{ id: "browser-plan" }]);
+    expect(auth.isAuthTransportReady).toBe(true);
     expect(browserClient.functions.invoke).toHaveBeenCalledOnce();
     expect(execute).not.toHaveBeenCalled();
   });
@@ -802,6 +804,12 @@ describe("Desktop auth transport compatibility", () => {
     const auth = useAuth();
     activeAuthStore = auth;
     expect(auth.billingEnabled).toBe(true);
+    expect(auth.isAuthTransportReady).toBe(false);
+
+    setReady(true);
+    expect(auth.isAuthTransportReady).toBe(true);
+    setReady(false);
+    expect(auth.isAuthTransportReady).toBe(false);
 
     const result = await auth.login("desktop-user@example.com", "password");
     expect(result.error).toBeNull();
