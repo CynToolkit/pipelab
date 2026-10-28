@@ -56,7 +56,8 @@ The catalog endpoint is public because the upgrade dialog loads plans before sig
 ### Browser billing deployment
 
 The Editor build enables browser billing automatically on pushes to `main`.
-Pull request previews and `develop` remain disabled. The production UI build
+Pull request checks do not publish Pages previews, and `develop` builds keep
+billing disabled. The production UI build
 needs `SUPABASE_URL` plus `SUPABASE_PUBLISHABLE_KEY` (or the temporary
 `SUPABASE_ANON_KEY` fallback) as GitHub secrets. These are public client
 configuration values. The Polar token is never added to the browser build.

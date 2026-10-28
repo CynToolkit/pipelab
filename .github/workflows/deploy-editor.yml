@@ -33,7 +33,8 @@ concurrency:
 
 jobs:
   deploy:
-    if: ${{ github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.head_ref != 'acceptance/local-construct-electron') }}
+    # Keep PR checks in CI without publishing non-production Pages previews.
+    if: ${{ github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -55,7 +56,7 @@ jobs:
           # Browser PR previews run without a paired local agent. Keep this
           # scoped to previews so push builds retain their existing mode.
           VITE_PIPELAB_MODE: ${{ github.event_name == 'pull_request' && 'hosted' || '' }}
-          # Browser previews and develop stay disabled; the main deployment uses production billing.
+          # Develop stays disabled; the main deployment uses production billing.
           VITE_PIPELAB_BILLING_ENABLED: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'true' || 'false' }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY }}

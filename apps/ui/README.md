@@ -64,7 +64,8 @@ The browser client uses `persistSession: true`, `autoRefreshToken: true`,
 the query/hash before exchanging the code and continues to a fixed Dashboard
 route. Browser billing is disabled unless `VITE_PIPELAB_BILLING_ENABLED=true`.
 The Editor deployment workflow enables it automatically for pushes to `main`;
-pull request previews and `develop` builds keep it disabled. When disabled,
+pull requests do not publish Pages previews, and `develop` builds keep billing
+disabled. When disabled,
 browser signup, sign-in, session restoration, and profile access continue to
 work, but subscription status is shown as unavailable and plan lookup, checkout,
 and portal calls are blocked. The UI does not treat unavailable billing as a

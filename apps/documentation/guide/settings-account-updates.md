@@ -29,8 +29,9 @@ actions are available; the app's upgrade dialog shows the current state.
 In the browser app, account sign-in works without the local agent when the
 deployment has Supabase configured. The signed-in browser session keeps
 account and profile access independent of the optional agent. Pull request
-previews and `develop` builds keep plan lookup, checkout, and the billing portal
-disabled. The production Editor build on `main` enables them automatically;
+checks do not publish Editor Pages previews, and `develop` builds keep plan
+lookup, checkout, and the billing portal disabled. The production Editor build
+on `main` enables them automatically;
 those actions require the production Supabase billing functions and Polar
 configuration described in the repository's Supabase setup guide. When
 disabled, the app shows billing as unavailable rather than presenting the
