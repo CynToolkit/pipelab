@@ -1,4 +1,4 @@
-import { polarApiBaseUrl } from "../_shared/polar-config.ts";
+import { getPolarEndpoints } from "../_shared/polar-config.ts";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -215,7 +215,8 @@ export function createReconcileHandler(env: (name: string) => string | undefined
     const baseUrl = env("SUPABASE_URL");
     const polarToken = env("POLAR_TOKEN");
     const organizationId = env("POLAR_ORGANIZATION_ID");
-    if (!baseUrl || !polarToken || !organizationId) {
+    const endpoints = getPolarEndpoints(env);
+    if (!baseUrl || !polarToken || !organizationId || !endpoints) {
       return json({ error: "service_unavailable" }, 503);
     }
 
@@ -244,7 +245,7 @@ export function createReconcileHandler(env: (name: string) => string | undefined
           serviceRoleKey,
           polarToken,
           organizationId,
-          polarApiBaseUrl(),
+          endpoints.apiBaseUrl,
         );
       }
       return json({ reconciled: body.userIds.length });

@@ -1,20 +1,23 @@
 import { createReconcileHandler } from "./index.ts";
 
 const userId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-const env = (name: string) =>
-  ({
-    SUPABASE_URL: "http://127.0.0.1:54321",
-    SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
-    POLAR_TOKEN: "polar-token",
-    POLAR_ORGANIZATION_ID: "organization-id",
-  })[name];
+const values: Record<string, string | undefined> = {
+  SUPABASE_URL: "http://127.0.0.1:54321",
+  SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
+  POLAR_TOKEN: "polar-token",
+  POLAR_ORGANIZATION_ID: "organization-id",
+  POLAR_API_BASE_URL: "http://127.0.0.1:8787/v1",
+  POLAR_FRONTEND_BASE_URL: "http://127.0.0.1:8788",
+  POLAR_CHECKOUT_LINK_BASE_URL: "http://127.0.0.1:8789",
+};
+const env = (name: string) => values[name];
 Deno.test("reconciles an active paid subscription into account state", async () => {
   const originalFetch = globalThis.fetch;
   const calls: Array<{ url: string; init?: RequestInit }> = [];
   globalThis.fetch = async (input, init) => {
     const url = String(input);
     calls.push({ url, init });
-    if (url.startsWith("https://api.polar.sh/v1/subscriptions/")) {
+    if (url.startsWith("http://127.0.0.1:8787/v1/subscriptions/")) {
       return Response.json({
         items: [
           {
@@ -58,8 +61,8 @@ Deno.test("reconciles an active paid subscription into account state", async () 
     if (!calls.some((call) => call.url.endsWith("/rpc/set_pipelab_cloud_active_entitlement"))) {
       throw new Error("Active entitlement RPC was not called");
     }
-    if (!calls[0]?.url.startsWith("https://api.polar.sh/v1/subscriptions/")) {
-      throw new Error("The production Polar API was not used");
+    if (!calls[0]?.url.startsWith("http://127.0.0.1:8787/v1/subscriptions/")) {
+      throw new Error("The configured Polar API endpoint was not used");
     }
     const rpcCall = calls.find((call) =>
       call.url.endsWith("/rpc/set_pipelab_cloud_active_entitlement"),
@@ -87,5 +90,38 @@ Deno.test("rejects requests without the Worker service-role bearer", async () =>
   );
   if (response.status !== 401) {
     throw new Error(`Expected 401, received ${response.status}`);
+  }
+});
+
+Deno.test("requires Polar endpoint settings before reconciliation requests", async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls++;
+    return Response.json({ items: [] });
+  };
+
+  try {
+    const handler = createReconcileHandler((name) =>
+      name === "POLAR_API_BASE_URL" ? undefined : env(name)
+    );
+    const response = await handler(
+      new Request("http://worker/functions/pipelab-cloud-reconcile", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer service-role-key",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ userIds: [userId] }),
+      }),
+    );
+    if (response.status !== 503) {
+      throw new Error(`Expected 503, received ${response.status}`);
+    }
+    if (calls !== 0) {
+      throw new Error("Fetch was called without the required Polar endpoint settings");
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
   }
 });

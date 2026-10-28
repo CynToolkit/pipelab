@@ -1,7 +1,8 @@
 import {
+  getPolarEndpoints,
   isPolarCheckoutUrl,
   isPolarPortalUrl,
-  polarApiBaseUrl,
+  type PolarEndpoints,
 } from "./polar-config.ts";
 
 export type BillingOperation =
@@ -17,10 +18,9 @@ export type BillingDependencies = {
   resolveUser: (accessToken: string) => Promise<BillingUser | null>;
 };
 
-type PolarConfig = {
+type PolarConfig = PolarEndpoints & {
   token: string;
   organizationId: string;
-  apiBaseUrl: string;
 };
 type CorsContext = { allowed: boolean; origin?: string };
 
@@ -176,7 +176,7 @@ export function createBillingHandler(
           if (
             !isRecord(session) ||
             typeof session.customer_portal_url !== "string" ||
-            !isPolarPortalUrl(session.customer_portal_url)
+            !isPolarPortalUrl(session.customer_portal_url, config)
           ) {
             throw new PolarPayloadError();
           }
@@ -216,7 +216,7 @@ export function createBillingHandler(
           if (
             !isRecord(checkout) ||
             typeof checkout.url !== "string" ||
-            !isPolarCheckoutUrl(checkout.url)
+            !isPolarCheckoutUrl(checkout.url, config)
           ) {
             throw new PolarPayloadError();
           }
@@ -251,13 +251,14 @@ export function createBillingHandler(
 function polarConfig(env: BillingDependencies["env"]): PolarConfig {
   const token = env("POLAR_TOKEN")?.trim();
   const organizationId = env("POLAR_ORGANIZATION_ID")?.trim();
-  if (!token || !organizationId || !UUID_PATTERN.test(organizationId)) {
+  const endpoints = getPolarEndpoints(env);
+  if (!token || !organizationId || !UUID_PATTERN.test(organizationId) || !endpoints) {
     throw new BillingConfigurationError();
   }
   return {
     token,
     organizationId,
-    apiBaseUrl: polarApiBaseUrl(),
+    ...endpoints,
   };
 }
 

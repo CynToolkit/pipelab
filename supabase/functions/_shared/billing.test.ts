@@ -11,6 +11,16 @@ const ORG_ID = "33333333-3333-4333-8333-333333333333";
 const PRODUCT_ID = "44444444-4444-4444-8444-444444444444";
 const CUSTOMER_ID = "55555555-5555-4555-8555-555555555555";
 const ORIGIN = "https://editor.example.test";
+const LOCAL_POLAR_ENDPOINTS = {
+  POLAR_API_BASE_URL: "http://127.0.0.1:8787/v1",
+  POLAR_FRONTEND_BASE_URL: "http://127.0.0.1:8788",
+  POLAR_CHECKOUT_LINK_BASE_URL: "http://127.0.0.1:8789",
+};
+const PRODUCTION_POLAR_ENDPOINTS = {
+  POLAR_API_BASE_URL: "https://api.polar.sh/v1",
+  POLAR_FRONTEND_BASE_URL: "https://polar.sh",
+  POLAR_CHECKOUT_LINK_BASE_URL: "https://buy.polar.sh",
+};
 
 function assertEquals(actual: unknown, expected: unknown): void {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
@@ -70,7 +80,8 @@ function dependencies(
   } = {},
 ): BillingDependencies {
   const env: Record<string, string | undefined> = {
-    POLAR_TOKEN: "mock-sandbox-token",
+    ...LOCAL_POLAR_ENDPOINTS,
+    POLAR_TOKEN: "mock-polar-token",
     POLAR_ORGANIZATION_ID: ORG_ID,
     POLAR_ALLOWED_ORIGINS: ORIGIN,
     ...options.env,
@@ -128,7 +139,7 @@ Deno.test("private functions reject missing and expired bearer tokens before pro
   assertEquals(providerCalls, 0);
 });
 
-Deno.test("plans map safe public catalog fields and use the Polar production API", async () => {
+Deno.test("plans map safe public fields and use the configured API endpoint", async () => {
   const calls: Array<{ url: URL; init: RequestInit }> = [];
   const handler = createBillingHandler(
     "polar-available-plans",
@@ -142,7 +153,7 @@ Deno.test("plans map safe public catalog fields and use the Polar production API
   const firstPrice = (plans[0].prices as Array<Record<string, unknown>>)[0];
   assertEquals(response.status, 200);
   assertEquals(response.headers.get("Access-Control-Allow-Origin"), ORIGIN);
-  assertEquals(calls[0].url.origin, "https://api.polar.sh");
+  assertEquals(calls[0].url.origin, "http://127.0.0.1:8787");
   assertEquals(calls[0].init.redirect, "error");
   assertEquals(calls[0].url.searchParams.get("organization_id"), ORG_ID);
   assertEquals(plans[0].id, PRODUCT_ID);
@@ -207,6 +218,25 @@ Deno.test("missing Polar configuration fails before a provider request", async (
   assertEquals(response.status, 503);
   assertEquals(await response.text(), '{"error":"billing_unavailable"}');
   assertEquals(calls, 0);
+});
+
+Deno.test("missing Polar endpoint settings fail before a provider request", async () => {
+  for (const name of Object.keys(LOCAL_POLAR_ENDPOINTS)) {
+    let calls = 0;
+    const handler = createBillingHandler(
+      "polar-available-plans",
+      dependencies(
+        mockFetch(() => {
+          calls++;
+          return json({ items: [] });
+        }),
+        { env: { [name]: undefined } },
+      ),
+    );
+    const response = await handler(request("polar-available-plans"));
+    assertEquals(response.status, 503);
+    assertEquals(calls, 0);
+  }
 });
 
 Deno.test("authenticated billing functions fail closed without Polar config", async () => {
@@ -339,7 +369,7 @@ Deno.test("customer portal resolves only the authenticated user's customer", asy
         if (url.pathname.endsWith("/customer-sessions/")) {
           return json(
             {
-              customer_portal_url: "https://polar.sh/portal/session",
+              customer_portal_url: "http://127.0.0.1:8788/portal/session",
             },
             201,
           );
@@ -363,7 +393,7 @@ Deno.test("customer portal resolves only the authenticated user's customer", asy
   assertEquals(sessionBody.customer_id, CUSTOMER_ID);
   assertEquals(sessionBody.return_url, ORIGIN + "/");
   assertEquals(body, {
-    customerPortal: "https://polar.sh/portal/session",
+    customerPortal: "http://127.0.0.1:8788/portal/session",
   });
 });
 
@@ -383,7 +413,7 @@ Deno.test("customer portal refuses a mismatched external customer ID", async () 
         }
         sessionCalls++;
         return json({
-          customer_portal_url: "https://polar.sh/portal/session",
+          customer_portal_url: "http://127.0.0.1:8788/portal/session",
         });
       }),
     ),
@@ -395,12 +425,14 @@ Deno.test("customer portal refuses a mismatched external customer ID", async () 
   assertEquals(sessionCalls, 0);
 });
 
-Deno.test("customer portal rejects non-production Polar hosts", async () => {
+Deno.test("customer portal rejects URLs outside the configured frontend endpoint", async () => {
   for (const destination of [
+    "https://polar.sh/portal/session",
     "https://sandbox.polar.sh/portal/session",
     "https://sandbox.attacker.polar.sh/portal/session",
     "https://attacker.sandbox.polar.sh/portal/session",
     "https://sandbox-attacker.polar.sh/portal/session",
+    "http://127.0.0.1:8789/portal/session",
   ]) {
     const handler = createBillingHandler(
       "customer-portal",
@@ -424,7 +456,7 @@ Deno.test("customer portal rejects non-production Polar hosts", async () => {
   }
 });
 
-Deno.test("customer portal accepts Polar's production portal host", async () => {
+Deno.test("customer portal accepts the configured production frontend endpoint", async () => {
   const handler = createBillingHandler(
     "customer-portal",
     dependencies(
@@ -440,6 +472,7 @@ Deno.test("customer portal accepts Polar's production portal host", async () => 
               customer_portal_url: "https://polar.sh/acme/portal/session",
             }),
       ),
+      { env: PRODUCTION_POLAR_ENDPOINTS },
     ),
   );
   const response = await handler(
@@ -462,7 +495,7 @@ Deno.test("checkout rejects products outside the active public catalog", async (
           return json({ items: [product()] });
         }
         checkoutCalls++;
-        return json({ url: "https://polar.sh/checkout/session" }, 201);
+        return json({ url: "http://127.0.0.1:8788/checkout/session" }, 201);
       }),
     ),
   );
@@ -476,7 +509,7 @@ Deno.test("checkout rejects products outside the active public catalog", async (
   assertEquals(checkoutCalls, 0);
 });
 
-Deno.test("checkout uses the authenticated user and returns a production checkout URL", async () => {
+Deno.test("checkout uses the authenticated user and returns its configured URL", async () => {
   const calls: Array<{ url: URL; init: RequestInit }> = [];
   const handler = createBillingHandler(
     "checkout",
@@ -485,7 +518,7 @@ Deno.test("checkout uses the authenticated user and returns a production checkou
         (url) =>
           url.pathname.endsWith("/products/")
             ? json({ items: [product()] })
-            : json({ url: "https://polar.sh/checkout/session" }, 201),
+            : json({ url: "http://127.0.0.1:8788/checkout/session" }, 201),
         calls,
       ),
     ),
@@ -505,16 +538,16 @@ Deno.test("checkout uses the authenticated user and returns a production checkou
   const checkoutBody = JSON.parse(String(calls[1].init.body)) as Record<string, unknown>;
   assertEquals(response.status, 200);
   assertEquals(body, {
-    checkoutURL: "https://polar.sh/checkout/session",
+    checkoutURL: "http://127.0.0.1:8788/checkout/session",
   });
   assertEquals(checkoutBody.products, [PRODUCT_ID]);
   assertEquals(checkoutBody.external_customer_id, USER_A);
   assertEquals(checkoutBody.success_url, ORIGIN + "/?billing=success");
   assertEquals(checkoutBody.customer_email, undefined);
-  assertEquals(calls[1].url.origin, "https://api.polar.sh");
+  assertEquals(calls[1].url.origin, "http://127.0.0.1:8787");
 });
 
-Deno.test("checkout rejects non-Polar checkout URLs", async () => {
+Deno.test("checkout rejects URLs outside configured Polar endpoints", async () => {
   const handler = createBillingHandler(
     "checkout",
     dependencies(
@@ -534,7 +567,7 @@ Deno.test("checkout rejects non-Polar checkout URLs", async () => {
   assertEquals(response.status, 502);
 });
 
-Deno.test("checkout accepts only Polar's production checkout hosts", async () => {
+Deno.test("checkout accepts only configured production checkout endpoints", async () => {
   for (const destination of [
     "https://polar.sh/checkout/session-secret",
     "https://buy.polar.sh/polar_cl_live",
@@ -548,6 +581,7 @@ Deno.test("checkout accepts only Polar's production checkout hosts", async () =>
             ? json({ items: [product()] })
             : json({ url: destination }, 201),
         ),
+        { env: PRODUCTION_POLAR_ENDPOINTS },
       ),
     );
     const response = await handler(
@@ -575,6 +609,7 @@ Deno.test("checkout accepts only Polar's production checkout hosts", async () =>
             ? json({ items: [product()] })
             : json({ url: destination }, 201),
         ),
+        { env: PRODUCTION_POLAR_ENDPOINTS },
       ),
     );
     const response = await handler(
@@ -752,7 +787,7 @@ Deno.test("Desktop-style calls without an Origin omit external return URLs", asy
                 deleted_at: null,
               })
             : json({
-                customer_portal_url: "https://polar.sh/portal/session",
+                customer_portal_url: "http://127.0.0.1:8788/portal/session",
               }),
         calls,
       ),
@@ -767,7 +802,7 @@ Deno.test("Desktop-style calls without an Origin omit external return URLs", asy
   assertEquals(sessionBody.return_url, undefined);
 });
 
-Deno.test("checkout-link redirect URLs from Polar's production API are accepted", async () => {
+Deno.test("checkout-link redirect URLs from the configured API are accepted", async () => {
   const handler = createBillingHandler(
     "checkout",
     dependencies(
@@ -776,7 +811,7 @@ Deno.test("checkout-link redirect URLs from Polar's production API are accepted"
           ? json({ items: [product()] })
           : json(
               {
-                url: "https://api.polar.sh/v1/checkout-links/polar_cl_test/redirect",
+                url: "http://127.0.0.1:8787/v1/checkout-links/polar_cl_test/redirect",
               },
               201,
             ),
@@ -792,7 +827,7 @@ Deno.test("checkout-link redirect URLs from Polar's production API are accepted"
   assertEquals(response.status, 200);
   assertEquals(
     (await responseJson(response)).checkoutURL,
-    "https://api.polar.sh/v1/checkout-links/polar_cl_test/redirect",
+    "http://127.0.0.1:8787/v1/checkout-links/polar_cl_test/redirect",
   );
 });
 
