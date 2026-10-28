@@ -30,12 +30,13 @@ mise run local ui-no-cloud
 
 This mode clears Supabase and Pipelab Cloud configuration for the processes it starts, so authentication, billing, telemetry, and cloud artifact requests are unavailable. Use `mise run local ui` when you need local Supabase or Pipelab Cloud features.
 
-Browser billing is disabled by default. For local-only billing acceptance, start
-the local Supabase functions with Polar sandbox configuration and set
-`VITE_PIPELAB_BILLING_ENABLED=true` for the Editor build. The automated Editor
-deployment workflow explicitly sets the flag to `false`; do not enable a
-hosted build until its billing backend and configuration are deliberately
-validated.
+Browser billing is disabled by default, including in the automated Editor
+deployment workflow. To validate billing locally, use the mocked function tests
+in `supabase/README.md` and the browser journeys in
+`apps/ui/tests/browser/README.md`. The browser failure checks use synthetic
+responses with `VITE_PIPELAB_BILLING_ENABLED=true`; they need no Polar account,
+credentials, or external Polar calls. They do not exercise a live provider or
+customer portal.
 
 To run the UI as a hosted browser shell without starting an agent connection,
 set `VITE_PIPELAB_MODE=hosted` for the UI build. This only skips agent

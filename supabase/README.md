@@ -53,30 +53,11 @@ The catalog endpoint is public because the upgrade dialog loads plans before sig
 
 Polar requests are pinned to `https://sandbox-api.polar.sh/v1`; there is no production endpoint override, and API/Auth fetches reject redirects so bearer credentials cannot be forwarded to another host. Portal URLs must use the exact `https://sandbox.polar.sh` host. Checkout URLs must use that host or Polar's exact sandbox API checkout-link redirect path. Provider errors and payloads are neither logged nor returned to clients. Checkout creates a sandbox checkout session only when invoked; no checkout was invoked during implementation or testing.
 
-### Local sandbox configuration
+### Local validation
 
-Keep these server-only values in the ignored file `supabase/functions/.env.local`. Do not add a `VITE_` prefix:
-
-```dotenv
-POLAR_TOKEN=
-POLAR_ORGANIZATION_ID=
-POLAR_ALLOWED_ORIGINS=http://127.0.0.1:5185,http://localhost:5185
-```
-
-`POLAR_TOKEN` must be an organization access token for Polar sandbox. `POLAR_ORGANIZATION_ID` must be that sandbox organization's UUID. Grant the token only the scopes this integration needs: `products:read`, `subscriptions:read`, `customers:read`, `customer_sessions:write`, and `checkouts:write`. See Polar's [product listing](https://polar.sh/docs/api-reference/products/list), [subscription listing](https://polar.sh/docs/api-reference/subscriptions/list), [customer lookup](https://polar.sh/docs/api-reference/customers/get-external), [customer session](https://polar.sh/docs/api-reference/customer-portal/sessions/create), and [checkout session](https://polar.sh/docs/api-reference/checkouts/create-session) API references.
-
-`POLAR_ALLOWED_ORIGINS` is an exact comma-separated origin list; wildcards are rejected. Without it, only the local Editor origins above are allowed. Add each required hosted Editor or Website origin explicitly in the server-side configuration for that nonproduction deployment.
-
-Start the local stack and serve the functions with the ignored local env file:
-
-```sh
-supabase start
-supabase functions serve --env-file supabase/functions/.env.local
-```
-
-If the token or organization ID is absent, billing functions fail closed with `billing_unavailable`. Live sandbox plan, subscription, and portal acceptance requires a verified sandbox token, organization, public recurring products, and a customer linked with the user's Supabase ID. Checkout must remain uncalled during read-only acceptance. No deployed-service inventory or alternate backend source was available for this task; confirm function ownership before deploying to any hosted project.
-
-Run the isolated function tests without credentials or network access:
+Run the isolated function tests without credentials or network access. The
+billing tests inject fake configuration and mock provider and Auth responses;
+they do not contact Polar or require a Polar sandbox account:
 
 ```sh
 deno check supabase/functions/polar-user-plan/index.ts supabase/functions/polar-available-plans/index.ts supabase/functions/customer-portal/index.ts supabase/functions/checkout/index.ts
@@ -87,4 +68,4 @@ mise exec -- supabase test db
 mise exec -- node supabase/tests/pipelab_cloud_quota_concurrency.mjs
 ```
 
-The database tests use only the local Supabase project. The concurrency check requires `supabase start` and opens two independent local database connections. The mocked function tests validate handler behavior and do not replace live sandbox acceptance. Configure secrets only in the intended nonproduction Supabase Edge Function environment. Never put `POLAR_TOKEN` in frontend builds, GitHub build variables, or browser-visible environment files.
+The database tests use only the local Supabase project. The concurrency check requires `supabase start` and opens two independent local database connections. The mocked function tests validate handler behavior; they do not exercise a live Polar provider or customer portal. See `apps/ui/tests/browser/README.md` for local browser auth and mocked billing UI journeys. Never put `POLAR_TOKEN` in frontend builds, GitHub build variables, or browser-visible environment files.

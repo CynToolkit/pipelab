@@ -119,48 +119,36 @@ functions are requested. For signed-in Billing UI failure handling, start the
 local Vite server with `VITE_PIPELAB_BILLING_ENABLED=true` and set
 `EXPECT_BILLING_DISABLED=0` together with `EXPECT_PLAN_FAILURE_UI=1` or
 `EXPECT_PORTAL_FAILURE_UI=1`; these modes use synthetic browser responses and
-do not replace live billing acceptance.
+stay on local URLs without calling Polar.
 
-## Auth and billing acceptance (manual, nonproduction)
+## Local auth and mocked billing validation
 
-Use local Supabase, local Mailpit, and Polar sandbox. There is no hosted
-nonproduction Supabase project. Unit tests and failure-UI intercepts are useful
-UI checks; they are not real Supabase, email-delivery, Polar, or Desktop
-integration tests.
+Use the local Supabase stack and Mailpit for auth journeys. Billing tests use
+mocked Polar and Supabase responses; they need no Polar account, sandbox
+credentials, hosted Supabase project, or external provider calls. Do not serve
+the billing functions with real Polar credentials for these checks.
 
-Record the local environment/build and observed result in the PR acceptance
-notes:
+Run the focused automated tests from the repository root:
 
-1. **Signup:** register a local test account with a Mailpit inbox.
-   Confirm the UI reports that verification is required and the account is not
-   treated as verified before following the email link.
-2. **Email verification:** open the Mailpit link, confirm it returns to the
-   local `/auth/callback`, shows success, and continues to a signed-in
-   dashboard. Verify the account can sign in after verification.
-3. **Password reset:** sign out, request a reset for that account, use the
-   delivered link, set a new password, and verify the new password signs in
-   while the old password no longer does.
-4. **Session restore:** reload the signed-in local page and open it again in a
-   fresh tab. Confirm the current account is restored.
-5. **Profile:** open Settings → Profile. Confirm the displayed email matches
-   the test account. With billing disabled, confirm the tier is shown as
-   unavailable rather than Free; with the local billing flag enabled, confirm
-   the tier agrees with the verified subscription response.
-6. **Plan/subscription:** with `VITE_PIPELAB_BILLING_ENABLED=true` and local
-   billing functions serving, open Settings → Billing. Confirm the existing
-   sandbox subscription name, status, amount/currency, interval, and period
-   dates; verify a no-subscription account's returned empty state separately.
-   A mocked `polar-user-plan` response does not satisfy this check.
-7. **Polar customer portal:** from Billing, open Manage Subscription and
-   confirm the real `sandbox.polar.sh` portal opens for that customer. Do not create,
-   change, or cancel a purchase unless separately approved. A mocked portal
-   error only checks error UI.
-8. **Signout:** sign out, confirm account controls disappear, reload, and verify
-   the session remains signed out.
-9. **Desktop compatibility:** separately verify the existing Desktop sign-in,
-   restored session, and sign-out path over its normal IPC transport. Browser
-   no-agent behavior does not establish Desktop compatibility.
+```sh
+pnpm --filter @pipelab/ui exec vitest run src/store/auth.test.ts
+deno test supabase/functions/_shared/billing.test.ts
+```
 
-No hosted credentials or service secrets belong in this file. Do not use
-production credentials, perform production changes, or initiate any purchase,
-subscription change, or cancellation during acceptance.
+The browser auth journey above additionally needs Docker running so local
+Supabase and Mailpit are available. It exercises real local signup, email
+verification, password recovery, session restore, sign-in, and sign-out. The
+billing-disabled browser path checks that billing controls and requests remain
+off by default. The signed-in billing failure modes intercept function
+responses locally to check error UI.
+
+For broader local-only checks, the Supabase function checks are listed in
+`supabase/README.md`. Record which local command ran and its result in the PR
+acceptance notes. Do not report mocked provider responses as live Polar
+checkout or customer-portal validation.
+
+These local runs do not exercise live checkout, a Polar customer portal, or
+Desktop IPC. The Edge Functions currently pin real provider requests to Polar
+sandbox; this fact does not make sandbox access a prerequisite for local tests.
+Never put `POLAR_TOKEN` in frontend builds or browser-visible environment
+files.
