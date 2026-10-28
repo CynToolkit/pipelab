@@ -97,22 +97,21 @@ Deno.test("portal URLs must use the configured frontend origin", () => {
   assertEquals(isPolarPortalUrl("https://billing.example.test/portal/session", endpoints), false);
 });
 
-Deno.test("checkout URLs must match a configured endpoint and path", () => {
+Deno.test("checkout URLs must use a configured endpoint origin", () => {
   const endpoints = configuredEndpoints();
   if (!endpoints) throw new Error("Local Polar endpoint settings were rejected");
   for (const url of [
     "http://127.0.0.1:8788/checkout/session-secret",
     "http://127.0.0.1:8789/polar_cl_test",
     "http://127.0.0.1:8787/v1/checkout-links/polar_cl_test/redirect",
+    "http://127.0.0.1:8788/new-provider-checkout-format?session=test",
   ]) {
     assertEquals(isPolarCheckoutUrl(url, endpoints), true);
   }
   for (const url of [
     "http://127.0.0.1:8790/checkout/session-secret",
-    "http://127.0.0.1:8788/checkout/session-secret/other",
-    "http://127.0.0.1:8788/checkout/session-secret?next=https://attacker.example",
-    "http://127.0.0.1:8789/polar_cl_test/other",
-    "http://127.0.0.1:8787/v1/checkout-links/polar_cl_test/redirect?next=other",
+    "http://user:password@127.0.0.1:8788/checkout/session-secret",
+    "https://attacker.example/checkout/session-secret",
   ]) {
     assertEquals(isPolarCheckoutUrl(url, endpoints), false);
   }

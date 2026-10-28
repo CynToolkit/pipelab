@@ -597,9 +597,6 @@ Deno.test("checkout accepts only configured production checkout endpoints", asyn
   for (const destination of [
     "https://api.attacker.example/v1/checkout-links/id/redirect",
     "https://polar.sh.attacker.example/checkout/session-secret",
-    "https://polar.sh/checkout/session-secret/other",
-    "https://polar.sh/checkout/session-secret?next=https://attacker.example",
-    "https://buy.polar.sh/checkout/session",
   ]) {
     const handler = createBillingHandler(
       "checkout",

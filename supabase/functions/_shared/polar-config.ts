@@ -27,9 +27,11 @@ export function isPolarPortalUrl(value: string, endpoints: PolarEndpoints): bool
 }
 
 export function isPolarCheckoutUrl(value: string, endpoints: PolarEndpoints): boolean {
-  if (isCheckoutSessionUrl(value, endpoints.frontendBaseUrl)) return true;
-  if (isCheckoutLinkUrl(value, endpoints.checkoutLinkBaseUrl)) return true;
-  return isApiCheckoutRedirect(value, endpoints.apiBaseUrl);
+  return [
+    endpoints.frontendBaseUrl,
+    endpoints.checkoutLinkBaseUrl,
+    endpoints.apiBaseUrl,
+  ].some((baseUrl) => urlOnOrigin(value, baseUrl) !== undefined);
 }
 
 function configuredUrl(value: string | undefined, originOnly: boolean): string | undefined {
@@ -53,30 +55,6 @@ function configuredUrl(value: string | undefined, originOnly: boolean): string |
   } catch {
     return undefined;
   }
-}
-
-function isCheckoutSessionUrl(value: string, frontendBaseUrl: string): boolean {
-  const url = urlOnOrigin(value, frontendBaseUrl);
-  return !!url && /^\/checkout\/[^/]{1,256}$/.test(url.pathname) && !url.search && !url.hash;
-}
-
-function isCheckoutLinkUrl(value: string, checkoutLinkBaseUrl: string): boolean {
-  const url = urlOnOrigin(value, checkoutLinkBaseUrl);
-  return !!url && /^\/polar_cl_[A-Za-z0-9_-]{1,128}\/?$/.test(url.pathname) && !url.hash;
-}
-
-function isApiCheckoutRedirect(value: string, apiBaseUrl: string): boolean {
-  const url = urlOnOrigin(value, apiBaseUrl);
-  if (!url) return false;
-
-  const basePath = new URL(apiBaseUrl).pathname.replace(/\/+$/, "");
-  if (basePath && !url.pathname.startsWith(basePath + "/")) return false;
-  const checkoutPath = url.pathname.slice(basePath.length);
-  return (
-    /^\/checkout-links\/[A-Za-z0-9_-]{1,128}\/redirect\/?$/.test(checkoutPath) &&
-    !url.search &&
-    !url.hash
-  );
 }
 
 function urlOnOrigin(value: string, baseUrl: string): URL | undefined {
