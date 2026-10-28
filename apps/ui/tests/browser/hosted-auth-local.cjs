@@ -28,6 +28,18 @@ if (!supabaseUrl || !["127.0.0.1", "localhost", "::1"].includes(new URL(supabase
 }
 
 const isLocalUrl = (value) => ["127.0.0.1", "localhost", "::1"].includes(new URL(value).hostname);
+const viteHmrOrigin = new URL(baseUrl);
+viteHmrOrigin.protocol = viteHmrOrigin.protocol === "https:" ? "wss:" : "ws:";
+
+const isViteHmrSocket = (value) => {
+  const url = new URL(value);
+  return (
+    url.origin === viteHmrOrigin.origin &&
+    url.pathname === "/" &&
+    url.searchParams.has("token") &&
+    [...url.searchParams.keys()].every((key) => key === "token")
+  );
+};
 
 const readMailpitMessages = async () => {
   assert.ok(mailpitUrl, "MAILPIT_URL is required for local email journeys.");
@@ -105,7 +117,12 @@ let failureContext = "";
       billingFunctionRequests.push(path);
     }
   });
-  page.on("websocket", (socket) => webSocketConnections.push(socket.url()));
+  page.on("websocket", (socket) => {
+    const url = new URL(socket.url());
+    if (!isViteHmrSocket(url.href)) {
+      webSocketConnections.push(`${url.origin}${url.pathname}`);
+    }
+  });
   page.on("framenavigated", (frame) => {
     if (frame !== page.mainFrame()) return;
     const url = new URL(frame.url());
