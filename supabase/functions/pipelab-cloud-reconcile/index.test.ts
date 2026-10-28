@@ -4,7 +4,7 @@ const userId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const values: Record<string, string | undefined> = {
   SUPABASE_URL: "http://127.0.0.1:54321",
   SUPABASE_SERVICE_ROLE_KEY: "service-role-key",
-  POLAR_TOKEN: "polar-token",
+  POLAR_ACCESS_TOKEN: "polar-token",
   POLAR_ORGANIZATION_ID: "organization-id",
   POLAR_API_BASE_URL: "http://127.0.0.1:8787/v1",
   POLAR_FRONTEND_BASE_URL: "http://127.0.0.1:8788",

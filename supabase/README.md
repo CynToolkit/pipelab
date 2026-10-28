@@ -67,7 +67,8 @@ For the production Supabase project, configure these Edge Function values:
 - `POLAR_API_BASE_URL=https://api.polar.sh/v1`
 - `POLAR_FRONTEND_BASE_URL=https://polar.sh`
 - `POLAR_CHECKOUT_LINK_BASE_URL=https://buy.polar.sh`
-- `POLAR_TOKEN` from the production Polar organization
+- `POLAR_ACCESS_TOKEN` from the production Polar organization (`POLAR_TOKEN` is also accepted for existing deployments)
+- `POLAR_SERVER` may supply the API base URL when it contains a full URL, including its version path; otherwise set `POLAR_API_BASE_URL`
 - `POLAR_ORGANIZATION_ID` for that organization
 - `POLAR_ALLOWED_ORIGINS` as the comma-separated exact HTTPS origins allowed
   to call browser billing functions
@@ -100,4 +101,4 @@ mise exec -- supabase test db
 mise exec -- node supabase/tests/pipelab_cloud_quota_concurrency.mjs
 ```
 
-The database tests use only the local Supabase project. The concurrency check requires `supabase start` and opens two independent local database connections. The mocked function tests configure all three endpoint variables to loopback URLs and replace `fetch`, so they make no network requests and need no Polar account or credentials. For `supabase functions serve`, set the three endpoint variables in the ignored `supabase/functions/.env` or pass an env file to the CLI; use local mock endpoints when exercising billing calls. See `apps/ui/tests/browser/README.md` for local browser auth and mocked billing UI journeys. Never put `POLAR_TOKEN` in frontend builds, GitHub build variables, or browser-visible environment files.
+The database tests use only the local Supabase project. The concurrency check requires `supabase start` and opens two independent local database connections. The mocked function tests configure all endpoint variables to loopback URLs and replace `fetch`, so they make no network requests and need no Polar account or credentials. For `supabase functions serve`, set the API endpoint and frontend/checkout endpoints in the ignored `supabase/functions/.env` or pass an env file to the CLI; an existing `POLAR_SERVER` can provide the API base URL if it is a full URL with its version path. Use local mock endpoints when exercising billing calls. See `apps/ui/tests/browser/README.md` for local browser auth and mocked billing UI journeys. Never put `POLAR_ACCESS_TOKEN` or legacy `POLAR_TOKEN` in frontend builds, GitHub build variables, or browser-visible environment files.

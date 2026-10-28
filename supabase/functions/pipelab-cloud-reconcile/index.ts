@@ -1,4 +1,4 @@
-import { getPolarEndpoints } from "../_shared/polar-config.ts";
+import { getPolarAccessToken, getPolarEndpoints } from "../_shared/polar-config.ts";
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -213,7 +213,7 @@ export function createReconcileHandler(env: (name: string) => string | undefined
     }
 
     const baseUrl = env("SUPABASE_URL");
-    const polarToken = env("POLAR_TOKEN");
+    const polarToken = getPolarAccessToken(env);
     const organizationId = env("POLAR_ORGANIZATION_ID");
     const endpoints = getPolarEndpoints(env);
     if (!baseUrl || !polarToken || !organizationId || !endpoints) {

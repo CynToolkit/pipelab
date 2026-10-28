@@ -81,7 +81,7 @@ function dependencies(
 ): BillingDependencies {
   const env: Record<string, string | undefined> = {
     ...LOCAL_POLAR_ENDPOINTS,
-    POLAR_TOKEN: "mock-polar-token",
+    POLAR_ACCESS_TOKEN: "mock-polar-token",
     POLAR_ORGANIZATION_ID: ORG_ID,
     POLAR_ALLOWED_ORIGINS: ORIGIN,
     ...options.env,
@@ -211,7 +211,7 @@ Deno.test("missing Polar configuration fails before a provider request", async (
         calls++;
         return json({ items: [] });
       }),
-      { env: { POLAR_TOKEN: undefined } },
+      { env: { POLAR_ACCESS_TOKEN: undefined, POLAR_TOKEN: undefined } },
     ),
   );
   const response = await handler(request("polar-available-plans"));
@@ -249,7 +249,7 @@ Deno.test("authenticated billing functions fail closed without Polar config", as
           calls++;
           return json({});
         }),
-        { env: { POLAR_TOKEN: undefined } },
+        { env: { POLAR_ACCESS_TOKEN: undefined, POLAR_TOKEN: undefined } },
       ),
     );
     const response = await handler(

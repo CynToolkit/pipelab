@@ -1,4 +1,5 @@
 import {
+  getPolarAccessToken,
   getPolarEndpoints,
   isPolarCheckoutUrl,
   isPolarPortalUrl,
@@ -249,7 +250,7 @@ export function createBillingHandler(
 }
 
 function polarConfig(env: BillingDependencies["env"]): PolarConfig {
-  const token = env("POLAR_TOKEN")?.trim();
+  const token = getPolarAccessToken(env);
   const organizationId = env("POLAR_ORGANIZATION_ID")?.trim();
   const endpoints = getPolarEndpoints(env);
   if (!token || !organizationId || !UUID_PATTERN.test(organizationId) || !endpoints) {

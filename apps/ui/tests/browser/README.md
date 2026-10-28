@@ -148,7 +148,7 @@ acceptance notes. Do not report mocked provider responses as live Polar
 checkout or customer-portal validation.
 
 These local runs do not exercise live checkout, a Polar customer portal, or
-Desktop IPC. The Edge Functions currently pin real provider requests to Polar
-sandbox; this fact does not make sandbox access a prerequisite for local tests.
-Never put `POLAR_TOKEN` in frontend builds or browser-visible environment
-files.
+Desktop IPC. Edge Function endpoint URLs come from server-side environment
+variables, and local tests stub provider requests, so they do not need Polar
+credentials or a Polar deployment. Never put `POLAR_ACCESS_TOKEN` or legacy
+`POLAR_TOKEN` in frontend builds or browser-visible environment files.

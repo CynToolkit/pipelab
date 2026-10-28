@@ -1,4 +1,5 @@
 import {
+  getPolarAccessToken,
   getPolarEndpoints,
   isPolarCheckoutUrl,
   isPolarPortalUrl,
@@ -21,6 +22,34 @@ function assertEquals(actual: unknown, expected: unknown): void {
 function configuredEndpoints(values: Record<string, string | undefined> = localValues) {
   return getPolarEndpoints((name) => values[name]);
 }
+
+Deno.test("reads the existing Polar access-token secret and supports the previous name", () => {
+  assertEquals(
+    getPolarAccessToken((name) =>
+      ({ POLAR_ACCESS_TOKEN: " access-token ", POLAR_TOKEN: "legacy-token" })[name]
+    ),
+    "access-token",
+  );
+  assertEquals(
+    getPolarAccessToken((name) => ({ POLAR_TOKEN: " legacy-token " })[name]),
+    "legacy-token",
+  );
+});
+
+Deno.test("uses POLAR_SERVER when an explicit API base URL is not set", () => {
+  assertEquals(
+    getPolarEndpoints((name) => ({
+      POLAR_SERVER: "https://api.example.test/v2",
+      POLAR_FRONTEND_BASE_URL: localValues.POLAR_FRONTEND_BASE_URL,
+      POLAR_CHECKOUT_LINK_BASE_URL: localValues.POLAR_CHECKOUT_LINK_BASE_URL,
+    })[name]),
+    {
+      apiBaseUrl: "https://api.example.test/v2",
+      frontendBaseUrl: localValues.POLAR_FRONTEND_BASE_URL,
+      checkoutLinkBaseUrl: localValues.POLAR_CHECKOUT_LINK_BASE_URL,
+    },
+  );
+});
 
 Deno.test("reads Polar endpoints from the supplied environment", () => {
   assertEquals(configuredEndpoints(), {
