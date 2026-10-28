@@ -28,6 +28,18 @@ if (!supabaseUrl || !["127.0.0.1", "localhost", "::1"].includes(new URL(supabase
 }
 
 const isLocalUrl = (value) => ["127.0.0.1", "localhost", "::1"].includes(new URL(value).hostname);
+const viteHmrOrigin = new URL(baseUrl);
+viteHmrOrigin.protocol = viteHmrOrigin.protocol === "https:" ? "wss:" : "ws:";
+
+const isViteHmrSocket = (value) => {
+  const url = new URL(value);
+  return (
+    url.origin === viteHmrOrigin.origin &&
+    url.pathname === "/" &&
+    url.searchParams.has("token") &&
+    [...url.searchParams.keys()].every((key) => key === "token")
+  );
+};
 
 const readMailpitMessages = async () => {
   assert.ok(mailpitUrl, "MAILPIT_URL is required for local email journeys.");
@@ -77,7 +89,7 @@ let failureContext = "";
   const consoleErrors = [];
   const failedResponses = [];
   const billingFunctionRequests = [];
-  const appSockets = [];
+  const webSocketConnections = [];
   const callbackNavigations = [];
 
   page.on("pageerror", (error) => pageErrors.push(error.message));
@@ -106,7 +118,10 @@ let failureContext = "";
     }
   });
   page.on("websocket", (socket) => {
-    if (!new URL(socket.url()).searchParams.has("token")) appSockets.push(socket.url());
+    const url = new URL(socket.url());
+    if (!isViteHmrSocket(url.href)) {
+      webSocketConnections.push(`${url.origin}${url.pathname}`);
+    }
   });
   page.on("framenavigated", (frame) => {
     if (frame !== page.mainFrame()) return;
@@ -201,6 +216,22 @@ let failureContext = "";
     } else {
       stage = "wait for signed-in account";
       await page.getByText(email, { exact: true }).waitFor({ timeout: 15000 });
+    }
+
+    if (expectPlanFailureUi) {
+      stage = "show the cloud plan error in the sidebar without an agent";
+      await page
+        .locator(".sidebar-bottom")
+        .getByText("Plan unavailable", { exact: true })
+        .waitFor({ timeout: 10000 });
+      stage = "retry the cloud plan lookup from the sidebar without an agent";
+      const retriedSidebarPlanLookup = page.waitForResponse(
+        (response) =>
+          response.status() === 500 &&
+          new URL(response.url()).pathname === "/functions/v1/polar-user-plan",
+      );
+      await page.getByRole("button", { name: "Retry plan check", exact: true }).click();
+      await retriedSidebarPlanLookup;
     }
 
     stage = "open authenticated profile";
@@ -309,7 +340,11 @@ let failureContext = "";
       await page.getByText(email, { exact: true }).waitFor({ timeout: 15000 });
     }
 
-    assert.deepEqual(appSockets, [], `hosted auth opened app WebSockets: ${appSockets.join(", ")}`);
+    assert.deepEqual(
+      webSocketConnections,
+      [],
+      `hosted no-agent auth opened WebSockets: ${webSocketConnections.join(", ")}`,
+    );
     assert.deepEqual(pageErrors, [], `browser had page errors: ${pageErrors.join("; ")}`);
     assert.deepEqual(consoleErrors, [], `browser had console errors: ${consoleErrors.join("; ")}`);
     assert.ok(
@@ -323,7 +358,7 @@ let failureContext = "";
       `local auth journey had unexpected HTTP failures: ${JSON.stringify(failedResponses)}`,
     );
     console.log(
-      `Local hosted auth passed: signup${expectEmailConfirmation ? ", email verification" : ""}${expectPasswordReset ? ", password reset" : ""}, refresh restore, sign-out, sign-in, no agent socket. Unavailable local plan function responses: ${failedResponses.length}.`,
+      `Local hosted auth passed: signup${expectEmailConfirmation ? ", email verification" : ""}${expectPasswordReset ? ", password reset" : ""}, refresh restore, sign-out, sign-in, no WebSocket connections. Unavailable local plan function responses: ${failedResponses.length}.`,
     );
   } catch (error) {
     const path = new URL(page.url()).pathname;

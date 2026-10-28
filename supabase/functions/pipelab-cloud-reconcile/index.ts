@@ -1,4 +1,5 @@
-const POLAR_API = "https://sandbox-api.polar.sh/v1";
+import { getPolarAccessToken, getPolarEndpoints } from "../_shared/polar-config.ts";
+
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type PlanLimit = {
@@ -16,7 +17,10 @@ type Subscription = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+    },
   });
 
 function bearerMatches(request: Request, expected: string) {
@@ -27,7 +31,9 @@ function bearerMatches(request: Request, expected: string) {
   const secret = new TextEncoder().encode(expected);
   if (actual.length !== secret.length) return false;
   let difference = 0;
-  for (let index = 0; index < actual.length; index++) difference |= actual[index] ^ secret[index];
+  for (let index = 0; index < actual.length; index++) {
+    difference |= actual[index] ^ secret[index];
+  }
   return difference === 0;
 }
 
@@ -77,8 +83,9 @@ async function planForProduct(
     !Number.isInteger(plan.history_retention_days) ||
     Number(plan.history_retention_days) < 1 ||
     Number(plan.history_retention_days) > 3650
-  )
+  ) {
     return null;
+  }
   return {
     product_id: plan.product_id,
     quota_bytes: quota.toString(),
@@ -104,7 +111,9 @@ async function setEntitlement(
       p_paid_through_at: paidThroughAt,
     }),
   });
-  if (!response.ok) throw new Error("Could not update Pipelab Cloud entitlement state");
+  if (!response.ok) {
+    throw new Error("Could not update Pipelab Cloud entitlement state");
+  }
 }
 
 async function reconcileUser(
@@ -113,17 +122,23 @@ async function reconcileUser(
   serviceRoleKey: string,
   polarToken: string,
   organizationId: string,
+  polarApiBaseUrl: string,
 ) {
-  const subscriptionsUrl = new URL(`${POLAR_API}/subscriptions/`);
+  const subscriptionsUrl = new URL(`${polarApiBaseUrl}/subscriptions/`);
   subscriptionsUrl.searchParams.set("organization_id", organizationId);
   subscriptionsUrl.searchParams.set("external_customer_id", userId);
   subscriptionsUrl.searchParams.set("limit", "100");
   const response = await fetch(subscriptionsUrl, {
-    headers: { Authorization: `Bearer ${polarToken}`, Accept: "application/json" },
+    headers: {
+      Authorization: `Bearer ${polarToken}`,
+      Accept: "application/json",
+    },
     redirect: "error",
     signal: AbortSignal.timeout(8_000),
   });
-  if (!response.ok) throw new Error("Pipelab Cloud billing reconciliation failed");
+  if (!response.ok) {
+    throw new Error("Pipelab Cloud billing reconciliation failed");
+  }
   const payload: unknown = await response.json();
   if (
     !payload ||
@@ -145,16 +160,18 @@ async function reconcileUser(
       (item.status !== "active" && item.status !== "canceled") ||
       typeof paidThroughAt !== "string" ||
       !Number.isFinite(Date.parse(paidThroughAt))
-    )
+    ) {
       continue;
+    }
     if (!limits.has(productId)) {
       limits.set(productId, await planForProduct(baseUrl, serviceRoleKey, productId));
     }
     const plan = limits.get(productId);
     if (!plan) continue;
     const candidate = { plan, paidThroughAt };
-    if (item.status === "active" && Date.parse(paidThroughAt) > Date.now()) active.push(candidate);
-    else if (item.status === "canceled") expired.push(candidate);
+    if (item.status === "active" && Date.parse(paidThroughAt) > Date.now()) {
+      active.push(candidate);
+    } else if (item.status === "canceled") expired.push(candidate);
   }
 
   const byQuota = (left: (typeof active)[number], right: (typeof active)[number]) =>
@@ -186,16 +203,22 @@ async function reconcileUser(
 
 export function createReconcileHandler(env: (name: string) => string | undefined) {
   return async (request: Request) => {
-    if (request.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+    if (request.method !== "POST") {
+      return json({ error: "method_not_allowed" }, 405);
+    }
     const serviceRoleKey = env("SUPABASE_SERVICE_ROLE_KEY");
     if (!serviceRoleKey) return json({ error: "service_unavailable" }, 503);
-    if (!bearerMatches(request, serviceRoleKey)) return json({ error: "unauthorized" }, 401);
+    if (!bearerMatches(request, serviceRoleKey)) {
+      return json({ error: "unauthorized" }, 401);
+    }
 
     const baseUrl = env("SUPABASE_URL");
-    const polarToken = env("POLAR_TOKEN");
+    const polarToken = getPolarAccessToken(env);
     const organizationId = env("POLAR_ORGANIZATION_ID");
-    if (!baseUrl || !polarToken || !organizationId)
+    const endpoints = getPolarEndpoints(env);
+    if (!baseUrl || !polarToken || !organizationId || !endpoints) {
       return json({ error: "service_unavailable" }, 503);
+    }
 
     let body: unknown;
     try {
@@ -210,12 +233,20 @@ export function createReconcileHandler(env: (name: string) => string | undefined
       !Array.isArray(body.userIds) ||
       body.userIds.length > 100 ||
       !body.userIds.every((id) => typeof id === "string" && uuidPattern.test(id))
-    )
+    ) {
       return json({ error: "invalid_request" }, 400);
+    }
 
     try {
       for (const userId of [...new Set(body.userIds as string[])]) {
-        await reconcileUser(userId, baseUrl, serviceRoleKey, polarToken, organizationId);
+        await reconcileUser(
+          userId,
+          baseUrl,
+          serviceRoleKey,
+          polarToken,
+          organizationId,
+          endpoints.apiBaseUrl,
+        );
       }
       return json({ reconciled: body.userIds.length });
     } catch {

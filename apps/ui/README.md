@@ -62,19 +62,21 @@ JavaScript-readable token risk remains documented below.
 The browser client uses `persistSession: true`, `autoRefreshToken: true`,
 `flowType: "pkce"`, and `detectSessionInUrl: false`; the callback route clears
 the query/hash before exchanging the code and continues to a fixed Dashboard
-route. Browser billing is disabled by default and must be explicitly enabled
-at build time with `VITE_PIPELAB_BILLING_ENABLED=true`. When disabled, browser
-signup, sign-in, session restoration, and profile access continue to work, but
-subscription status is shown as unavailable and plan lookup, checkout, and
-portal calls are blocked. The UI does not treat unavailable billing as a Free
-plan. Desktop keeps its existing IPC auth and billing transport.
+route. Browser billing is disabled unless `VITE_PIPELAB_BILLING_ENABLED=true`.
+The Editor deployment workflow enables it automatically for pushes to `main`;
+pull requests do not publish Pages previews, and `develop` builds keep billing
+disabled. When disabled,
+browser signup, sign-in, session restoration, and profile access continue to
+work, but subscription status is shown as unavailable and plan lookup, checkout,
+and portal calls are blocked. The UI does not treat unavailable billing as a
+Free plan. Desktop keeps its existing IPC auth and billing transport.
 
-For local integration only, enable the flag after starting local Supabase and
-the local billing functions with Polar sandbox configuration. Do not enable it
-for a hosted build until that environment's billing functions and checkout
-configuration have been deliberately deployed and validated. The Edge
-Functions currently in the repository are sandbox-only and do not enable
-production billing.
+Local browser validation can set the flag manually and uses mocked billing
+responses; it does not contact Polar. Hosted Edge Functions read the Polar API,
+frontend, and checkout-link URLs from server-side environment variables. The
+production values are documented in the repository's
+[`supabase/README.md`](../../supabase/README.md) for production configuration
+and function deployment instructions. Keep Polar credentials server-side.
 
 Supabase JS uses `localStorage` by default, which remains readable by
 same-origin JavaScript, so automatic refresh does not protect a token from XSS.

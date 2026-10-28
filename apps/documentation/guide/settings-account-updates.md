@@ -28,24 +28,26 @@ actions are available; the app's upgrade dialog shows the current state.
 
 In the browser app, account sign-in works without the local agent when the
 deployment has Supabase configured. The signed-in browser session keeps
-account and profile access independent of the optional agent. Plan lookup,
-checkout, and the billing portal are disabled by default until billing is
-explicitly enabled for a configured deployment. While disabled, the app shows
-billing as unavailable rather than presenting the account as a Free plan.
-Subscription-based premium actions are unavailable until billing is enabled
-with a validated backend.
+account and profile access independent of the optional agent. Pull request
+checks do not publish Editor Pages previews, and `develop` builds keep plan
+lookup, checkout, and the billing portal disabled. The production Editor build
+on `main` enables them automatically;
+those actions require the production Supabase billing functions and Polar
+configuration described in the repository's Supabase setup guide. When
+disabled, the app shows billing as unavailable rather than presenting the
+account as a Free plan. Subscription-based premium actions remain unavailable
+until a configured backend responds.
 When enabled, these requests go through authenticated cloud functions; failures
 show a retryable error instead of an endless loading state. Allow pop-ups in
 the browser to open the billing portal or continue to checkout.
 
 Browser deployments need `SUPABASE_URL` and the public
 `SUPABASE_PUBLISHABLE_KEY` at UI build time. `SUPABASE_ANON_KEY` remains a
-temporary fallback for older build environments. Billing is enabled in a
-browser build only when `VITE_PIPELAB_BILLING_ENABLED=true`; keep it unset or
-false until the target backend is deliberately configured and validated. The
-Editor deployment workflow sets it to false. Configure the deployed HTTPS
-origin as an allowed Supabase Auth redirect URL and serve the UI's
-`/auth/callback` route through the SPA fallback.
+temporary fallback for older build environments. The Editor deployment
+workflow sets `VITE_PIPELAB_BILLING_ENABLED=true` only for pushes to `main`; it
+requires the public Supabase values to be configured as GitHub secrets.
+Configure the deployed HTTPS origin as an allowed Supabase Auth redirect URL
+and serve the UI's `/auth/callback` route through the SPA fallback.
 Email verification returns to the hosted app, while password-reset links open a
 page to choose a new password. Desktop keeps its `pipelab://` verification
 return flow. Privileged Supabase and billing secrets stay on the server and

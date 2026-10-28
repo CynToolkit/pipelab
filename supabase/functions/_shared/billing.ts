@@ -1,3 +1,11 @@
+import {
+  getPolarAccessToken,
+  getPolarEndpoints,
+  isPolarCheckoutUrl,
+  isPolarPortalUrl,
+  type PolarEndpoints,
+} from "./polar-config.ts";
+
 export type BillingOperation =
   | "polar-available-plans"
   | "polar-user-plan"
@@ -11,10 +19,12 @@ export type BillingDependencies = {
   resolveUser: (accessToken: string) => Promise<BillingUser | null>;
 };
 
-type PolarConfig = { token: string; organizationId: string };
+type PolarConfig = PolarEndpoints & {
+  token: string;
+  organizationId: string;
+};
 type CorsContext = { allowed: boolean; origin?: string };
 
-const POLAR_SANDBOX_API = "https://sandbox-api.polar.sh/v1";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LOCAL_ORIGINS = ["http://127.0.0.1:5185", "http://localhost:5185"];
 const LOCAL_SUPABASE_HOSTS = ["localhost", "127.0.0.1", "kong", "host.docker.internal"];
@@ -134,7 +144,7 @@ export function createBillingHandler(
         }
         case "polar-user-plan": {
           if (!user) throw new BillingConfigurationError();
-          const url = new URL(POLAR_SANDBOX_API + "/subscriptions/");
+          const url = new URL(config.apiBaseUrl + "/subscriptions/");
           url.searchParams.set("organization_id", config.organizationId);
           url.searchParams.set("external_customer_id", user.id);
           url.searchParams.set("limit", "100");
@@ -159,7 +169,7 @@ export function createBillingHandler(
           const returnUrl = safeReturnUrl(cors.origin);
           if (returnUrl) sessionBody.return_url = returnUrl;
           const session = await polarRequest(
-            new URL(POLAR_SANDBOX_API + "/customer-sessions/"),
+            new URL(config.apiBaseUrl + "/customer-sessions/"),
             config,
             dependencies.fetcher,
             { method: "POST", body: JSON.stringify(sessionBody) },
@@ -167,9 +177,10 @@ export function createBillingHandler(
           if (
             !isRecord(session) ||
             typeof session.customer_portal_url !== "string" ||
-            !isSandboxPolarUrl(session.customer_portal_url)
-          )
+            !isPolarPortalUrl(session.customer_portal_url, config)
+          ) {
             throw new PolarPayloadError();
+          }
           return jsonResponse(
             200,
             {
@@ -198,7 +209,7 @@ export function createBillingHandler(
             requestBody.return_url = returnUrl;
           }
           const checkout = await polarRequest(
-            new URL(POLAR_SANDBOX_API + "/checkouts/"),
+            new URL(config.apiBaseUrl + "/checkouts/"),
             config,
             dependencies.fetcher,
             { method: "POST", body: JSON.stringify(requestBody) },
@@ -206,9 +217,10 @@ export function createBillingHandler(
           if (
             !isRecord(checkout) ||
             typeof checkout.url !== "string" ||
-            !isSandboxCheckoutUrl(checkout.url)
-          )
+            !isPolarCheckoutUrl(checkout.url, config)
+          ) {
             throw new PolarPayloadError();
+          }
           return jsonResponse(200, { checkoutURL: checkout.url }, cors.origin);
         }
       }
@@ -238,12 +250,17 @@ export function createBillingHandler(
 }
 
 function polarConfig(env: BillingDependencies["env"]): PolarConfig {
-  const token = env("POLAR_TOKEN")?.trim();
+  const token = getPolarAccessToken(env);
   const organizationId = env("POLAR_ORGANIZATION_ID")?.trim();
-  if (!token || !organizationId || !UUID_PATTERN.test(organizationId)) {
+  const endpoints = getPolarEndpoints(env);
+  if (!token || !organizationId || !UUID_PATTERN.test(organizationId) || !endpoints) {
     throw new BillingConfigurationError();
   }
-  return { token, organizationId };
+  return {
+    token,
+    organizationId,
+    ...endpoints,
+  };
 }
 
 function getCorsContext(request: Request, env: BillingDependencies["env"]): CorsContext {
@@ -277,8 +294,9 @@ function parseOrigin(value: string): string | undefined {
       url.pathname !== "/" ||
       url.search ||
       url.hash
-    )
+    ) {
       return undefined;
+    }
     if (url.protocol === "http:" && url.hostname !== "localhost" && url.hostname !== "127.0.0.1") {
       return undefined;
     }
@@ -341,8 +359,9 @@ function checkoutItemIds(body: unknown): string[] {
     !Array.isArray(body.itemIds) ||
     body.itemIds.length < 1 ||
     body.itemIds.length > 5
-  )
+  ) {
     throw new InvalidRequestError("invalid_products");
+  }
   const ids = body.itemIds;
   if (ids.some((id) => typeof id !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(id))) {
     throw new InvalidRequestError("invalid_products");
@@ -358,7 +377,7 @@ async function listProducts(
   config: PolarConfig,
   fetcher: typeof fetch,
 ): Promise<Record<string, unknown>[]> {
-  const url = new URL(POLAR_SANDBOX_API + "/products/");
+  const url = new URL(config.apiBaseUrl + "/products/");
   url.searchParams.set("organization_id", config.organizationId);
   url.searchParams.set("is_archived", "false");
   url.searchParams.set("is_recurring", "true");
@@ -431,8 +450,9 @@ function mapSubscription(
     !isRecord(value.customer) ||
     value.customer.external_id !== userId ||
     value.customer.organization_id !== organizationId
-  )
+  ) {
     return null;
+  }
   return {
     id: value.id,
     status: value.status,
@@ -453,9 +473,7 @@ async function getCustomer(
   config: PolarConfig,
   fetcher: typeof fetch,
 ): Promise<{ id: string }> {
-  const url = new URL(
-    POLAR_SANDBOX_API + "/customers/external/" + encodeURIComponent(userId),
-  );
+  const url = new URL(config.apiBaseUrl + "/customers/external/" + encodeURIComponent(userId));
   const customer = await polarRequest(url, config, fetcher);
   if (
     !isRecord(customer) ||
@@ -463,8 +481,9 @@ async function getCustomer(
     customer.external_id !== userId ||
     customer.organization_id !== config.organizationId ||
     customer.deleted_at !== null
-  )
+  ) {
     throw new PolarApiError(404);
+  }
   return { id: customer.id };
 }
 
@@ -500,41 +519,6 @@ async function polarRequest(
 
 function safeReturnUrl(origin?: string): string | undefined {
   return origin ? origin + "/" : undefined;
-}
-
-function isSandboxPolarUrl(value: string): boolean {
-  try {
-    const url = new URL(value);
-    const host = url.hostname.toLowerCase();
-    return (
-      url.protocol === "https:" &&
-      !url.username &&
-      !url.password &&
-      !url.port &&
-      host === "sandbox.polar.sh"
-    );
-  } catch {
-    return false;
-  }
-}
-
-function isSandboxCheckoutUrl(value: string): boolean {
-  if (isSandboxPolarUrl(value)) return true;
-  try {
-    const url = new URL(value);
-    return (
-      url.protocol === "https:" &&
-      url.hostname === "sandbox-api.polar.sh" &&
-      !url.username &&
-      !url.password &&
-      !url.port &&
-      /^\/v1\/checkout-links\/[A-Za-z0-9_-]{1,128}\/redirect\/?$/.test(url.pathname) &&
-      !url.search &&
-      !url.hash
-    );
-  } catch {
-    return false;
-  }
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
