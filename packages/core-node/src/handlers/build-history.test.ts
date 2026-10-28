@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { spawn } from "node:child_process";
 import { afterEach, describe, expect, it } from "vitest";
 import { PipelabContext } from "../context";
@@ -298,4 +298,183 @@ describe("BuildHistoryStorage workflow runs", () => {
       "run-process-b",
     ]);
   }, 15_000);
+
+  it("clears project history and its managed run artifacts without touching other projects", async () => {
+    const root = await mkdtemp(join(tmpdir(), "pipelab-runs-"));
+    workspaces.push(root);
+    const context = new PipelabContext({ userDataPath: root });
+    const storage = new BuildHistoryStorage(context);
+    await storage.save({ ...entry("run-project-1", "workflow-a", 10), status: "failed" });
+    await storage.save({
+      ...entry("run-project-2", "workflow-b", 20),
+      projectId: "project-2",
+      status: "completed",
+    });
+
+    const firstRunWorkspace = join(context.getArtifactsPath("workflow", "run-project-1"), "file");
+    const secondRunWorkspace = join(context.getArtifactsPath("workflow", "run-project-2"), "file");
+    const firstStagingArtifact = join(
+      context.getArtifactsPath("project-1", "workflow-staging", "run-project-1"),
+      "file",
+    );
+    const secondStagingArtifact = join(
+      context.getArtifactsPath("project-2", "workflow-staging", "run-project-2"),
+      "file",
+    );
+    for (const path of [
+      firstRunWorkspace,
+      secondRunWorkspace,
+      firstStagingArtifact,
+      secondStagingArtifact,
+    ]) {
+      await mkdir(dirname(path), { recursive: true });
+      await writeFile(path, "generated artifact");
+    }
+
+    await storage.clearByProject("project-1");
+
+    await expect(readFile(firstRunWorkspace, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(readFile(firstStagingArtifact, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(readFile(secondRunWorkspace, "utf8")).resolves.toBe("generated artifact");
+    await expect(readFile(secondStagingArtifact, "utf8")).resolves.toBe("generated artifact");
+    expect(await storage.get("run-project-1", "project-1")).toBeUndefined();
+    expect(await storage.get("run-project-2", "project-2")).toMatchObject({ status: "completed" });
+  });
+
+  it("clears run workspace artifacts with all history", async () => {
+    const root = await mkdtemp(join(tmpdir(), "pipelab-runs-"));
+    workspaces.push(root);
+    const context = new PipelabContext({ userDataPath: root });
+    const storage = new BuildHistoryStorage(context);
+    await storage.save({ ...entry("run-a", "workflow-a", 10), status: "failed" });
+    await storage.save({ ...entry("run-b", "workflow-b", 20), status: "completed" });
+    const artifact = join(context.getArtifactsPath("workflow", "run-a"), "source.zip");
+    await mkdir(dirname(artifact), { recursive: true });
+    await writeFile(artifact, "generated artifact");
+
+    await storage.clear();
+
+    await expect(readFile(artifact, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    expect(await storage.getAll()).toEqual([]);
+  });
+
+  it("preserves a workflow workspace created after all-history cleanup snapshots records", async () => {
+    const root = await mkdtemp(join(tmpdir(), "pipelab-runs-"));
+    workspaces.push(root);
+    const context = new PipelabContext({ userDataPath: root });
+    const storage = new BuildHistoryStorage(context);
+    await storage.save({ ...entry("run-old", "workflow-a", 10), status: "failed" });
+
+    let continueCleanup!: () => void;
+    let signalSnapshot!: () => void;
+    const cleanupGate = new Promise<void>((resolve) => {
+      continueCleanup = resolve;
+    });
+    const snapshotReady = new Promise<void>((resolve) => {
+      signalSnapshot = resolve;
+    });
+    const getAllProjectFiles = Reflect.get(storage, "getAllProjectFiles");
+    if (typeof getAllProjectFiles !== "function") throw new Error("History listing method missing");
+    const readProjectFiles = getAllProjectFiles.bind(storage) as () => Promise<string[]>;
+    Reflect.set(storage, "getAllProjectFiles", async () => {
+      const files = await readProjectFiles();
+      signalSnapshot();
+      await cleanupGate;
+      return files;
+    });
+
+    const clearing = storage.clear();
+    try {
+      await snapshotReady;
+      await storage.save({
+        ...entry("run-new", "workflow-b", 20),
+        projectId: "project-2",
+        status: "running",
+      });
+      const artifact = join(context.getArtifactsPath("workflow", "run-new"), "file");
+      await mkdir(dirname(artifact), { recursive: true });
+      await writeFile(artifact, "active run workspace");
+    } finally {
+      continueCleanup();
+      Reflect.deleteProperty(storage, "getAllProjectFiles");
+    }
+    await clearing;
+
+    const artifact = join(context.getArtifactsPath("workflow", "run-new"), "file");
+    expect(await storage.get("run-new", "project-2")).toMatchObject({ status: "running" });
+    await expect(readFile(artifact, "utf8")).resolves.toBe("active run workspace");
+  });
+
+  it("keeps history and artifacts when clearing a project with a running workflow", async () => {
+    const root = await mkdtemp(join(tmpdir(), "pipelab-runs-"));
+    workspaces.push(root);
+    const context = new PipelabContext({ userDataPath: root });
+    const storage = new BuildHistoryStorage(context);
+    await storage.save(entry("run-active", "workflow-a", 10));
+    const artifact = join(
+      context.getArtifactsPath("project-1", "workflow-staging", "run-active"),
+      "file",
+    );
+    await mkdir(dirname(artifact), { recursive: true });
+    await writeFile(artifact, "generated artifact");
+
+    await expect(storage.clearByProject("project-1")).rejects.toThrow(/workflow is running/i);
+
+    expect(await storage.get("run-active", "project-1")).toMatchObject({ status: "running" });
+    await expect(readFile(artifact, "utf8")).resolves.toBe("generated artifact");
+  });
+
+  it("keeps all history and artifacts when clearing while a workflow is running", async () => {
+    const root = await mkdtemp(join(tmpdir(), "pipelab-runs-"));
+    workspaces.push(root);
+    const context = new PipelabContext({ userDataPath: root });
+    const storage = new BuildHistoryStorage(context);
+    await storage.save(entry("run-active", "workflow-a", 10));
+    await storage.save({
+      ...entry("run-completed", "workflow-b", 20),
+      projectId: "project-2",
+      status: "completed",
+    });
+    const artifact = join(context.getArtifactsPath("workflow", "run-active"), "file");
+    await mkdir(dirname(artifact), { recursive: true });
+    await writeFile(artifact, "generated artifact");
+
+    await expect(storage.clear()).rejects.toThrow(/workflow is running/i);
+
+    expect(await storage.getAll()).toHaveLength(2);
+    await expect(readFile(artifact, "utf8")).resolves.toBe("generated artifact");
+  });
+
+  it("does not follow unsafe run IDs outside managed artifact storage", async () => {
+    const root = await mkdtemp(join(tmpdir(), "pipelab-runs-"));
+    workspaces.push(root);
+    const context = new PipelabContext({ userDataPath: root });
+    const storage = new BuildHistoryStorage(context);
+    await storage.save({ ...entry("../../outside", "workflow-a", 10), status: "failed" });
+    const outsideArtifact = join(root, "outside", "file");
+    await mkdir(dirname(outsideArtifact), { recursive: true });
+    await writeFile(outsideArtifact, "user file");
+
+    await storage.clearByProject("project-1");
+
+    await expect(readFile(outsideArtifact, "utf8")).resolves.toBe("user file");
+  });
+
+  it("keeps history when clearing fails to resolve a run artifact path", async () => {
+    const root = await mkdtemp(join(tmpdir(), "pipelab-runs-"));
+    workspaces.push(root);
+    const context = new PipelabContext({ userDataPath: root });
+    const storage = new BuildHistoryStorage(context);
+    await storage.save({ ...entry("run-cleanup-error", "workflow-a", 10), status: "failed" });
+    const getArtifactsPath = context.getArtifactsPath.bind(context);
+    Reflect.set(context, "getArtifactsPath", (...paths: string[]) => {
+      if (paths[0] === "workflow") throw new Error("permission denied");
+      return getArtifactsPath(...paths);
+    });
+
+    await expect(storage.clearByProject("project-1")).rejects.toThrow(/permission denied/i);
+    expect(await storage.get("run-cleanup-error", "project-1")).toMatchObject({
+      status: "failed",
+    });
+  });
 });

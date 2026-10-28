@@ -2,7 +2,8 @@
 
 Release workflow history is available from the workflow's **Runs** tab. Open a
 run to inspect its summary, task steps, logs, produced artifacts, and delivery
-results.
+results. The dashboard's **Recent executions** and each workflow's Runs tab
+read the same Build History records; they do not keep separate run histories.
 
 The workflow's **Artifacts** tab collects artifact records across its runs for
 discovery. It links each artifact to the originating run; the run detail page
@@ -45,8 +46,25 @@ jump to that step's output. Expand **Technical details** to inspect the provider
 original error and error code.
 
 Artifacts remain available from the **Artifacts** tab, including when a later
-delivery step fails. Pipelab does not show a user-facing retry action in the run
-detail screen; after addressing the cause, start a new workflow run.
+delivery step fails. For a completed, failed, or cancelled run, choose **Run
+again** to open the saved workflow's Ship confirmation. This starts a new full
+run, including every enabled step and delivery, so previously successful
+destinations may run again. Review the version and destinations before
+confirming.
+
+## History retention and cleanup
+
+Pipelab retains run records and Pipelab-managed run artifacts by default; there
+is no automatic age-based deletion. In Desktop, open **Settings →
+Advanced → Clear all run history** to remove run history and Pipelab-managed
+workflow artifacts associated with saved runs for every project. The operation
+is confirmed first and is blocked while a workflow is running. It does not
+remove source files or output files outside Pipelab's artifact storage.
+
+The CLI also supports `pipelab purge --force` to clear all history, or
+`pipelab purge <project-id> --force` to clear one project's history and managed
+artifacts. See the [CLI reference](/cli/reference#build-history-and-maintenance)
+for details.
 
 To inspect a workflow plan without running provider tasks, use
 [`pipelab workflow run <id-or-name> --dry-run`](/cli/reference#run-a-release-workflow).

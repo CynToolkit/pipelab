@@ -262,20 +262,40 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     try {
       await this.ensureStoragePath();
       const files = await this.getAllProjectFiles();
-      const cachePathsToDelete = new Set<string>();
+      const histories = await Promise.all(
+        files.map(async (file) => {
+          const projectId = this.parseProjectIdFromFilename(file);
+          return projectId
+            ? { projectId, entries: await this.loadProjectHistory(projectId) }
+            : null;
+        }),
+      );
+      if (histories.some((history) => history?.entries.some((entry) => entry.status === "running")))
+        throw new Error("Cannot clear build history while a workflow is running.");
 
       for (const file of files) {
         const projectId = this.parseProjectIdFromFilename(file);
         if (!projectId) continue;
         await serializeFileMutation(this.getProjectPath(projectId), async () => {
           const entries = await this.loadProjectHistory(projectId);
+          if (entries.some((entry) => entry.status === "running"))
+            throw new Error("Cannot clear build history while a workflow is running.");
+
+          const cachePathsToDelete = new Set<string>();
           for (const entry of entries) {
             if (entry.cachePath) cachePathsToDelete.add(entry.cachePath);
           }
-          await rm(this.context.getArtifactsPath(projectId), {
-            recursive: true,
-            force: true,
-          }).catch(() => {});
+
+          for (const cachePath of cachePathsToDelete)
+            await rm(cachePath, { recursive: true, force: true });
+          for (const entry of entries) {
+            if (isSafePersistedId(entry.id))
+              await rm(this.context.getArtifactsPath("workflow", entry.id), {
+                recursive: true,
+                force: true,
+              });
+          }
+          await rm(this.context.getArtifactsPath(projectId), { recursive: true, force: true });
           await unlink(join(this.getStoragePath(), file)).catch((error) => {
             if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
           });
@@ -283,10 +303,6 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       }
 
       this.logger.logger().info("Cleared all build history");
-
-      for (const cachePath of cachePathsToDelete) {
-        await rm(cachePath, { recursive: true, force: true }).catch(() => {});
-      }
     } catch (error) {
       this.logger.logger().error("Failed to clear build history:", error);
       throw new Error(`Failed to clear build history: ${error}`);
@@ -298,21 +314,28 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       await serializeFileMutation(this.getProjectPath(projectId), async () => {
         const historyPath = this.getProjectPath(projectId);
         const entries = await this.loadProjectHistory(projectId);
-        await unlink(historyPath).catch((error) => {
-          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-        });
-        this.logger.logger().info(`Cleared history for project "${projectId}"`);
+        if (entries.some((entry) => entry.status === "running"))
+          throw new Error("Cannot clear build history while a workflow is running.");
 
         const cachePathsToDelete = new Set<string>();
         for (const entry of entries) {
           if (entry.cachePath) cachePathsToDelete.add(entry.cachePath);
         }
-        for (const cachePath of cachePathsToDelete) {
-          await rm(cachePath, { recursive: true, force: true }).catch(() => {});
+        for (const cachePath of cachePathsToDelete)
+          await rm(cachePath, { recursive: true, force: true });
+        for (const entry of entries) {
+          if (isSafePersistedId(entry.id)) {
+            await rm(this.context.getArtifactsPath("workflow", entry.id), {
+              recursive: true,
+              force: true,
+            });
+          }
         }
-        await rm(this.context.getArtifactsPath(projectId), { recursive: true, force: true }).catch(
-          () => {},
-        );
+        await rm(this.context.getArtifactsPath(projectId), { recursive: true, force: true });
+        await unlink(historyPath).catch((error) => {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+        });
+        this.logger.logger().info(`Cleared history for project "${projectId}"`);
       });
     } catch (error: any) {
       if (error.code === "ENOENT") {
