@@ -751,10 +751,10 @@ describe("workflow CLI task statuses", () => {
     const run = listr.run();
 
     await new Promise((resolve) => setTimeout(resolve, 150));
-    expect(listr.tasks[0]?.subtasks[1]?.title).toMatch(/^Save run history · /);
+    expect(listr.tasks[0]?.subtasks[1]?.title).toMatch(/^Finalizing · /);
     finishExecution();
     await run;
-    expect(listr.tasks[0]?.subtasks[1]?.title).toMatch(/^Save run history · /);
+    expect(listr.tasks[0]?.subtasks[1]?.title).toMatch(/^Finalizing · /);
   });
 
   test("reports a single failed step and failed workflow", async () => {

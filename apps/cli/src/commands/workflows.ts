@@ -67,18 +67,18 @@ export const createWorkflowListr = (
                   }),
               },
               {
-                title: "Save run history",
+                title: "Finalizing",
                 task: async (_ctx: unknown, resultTask: ListrTaskWrapper<any, any, any>) => {
                   const startedAt = performance.now();
                   const timer = setInterval(() => {
-                    resultTask.title = `Save run history · ${formatWorkflowStepElapsed(performance.now() - startedAt)}`;
+                    resultTask.title = `Finalizing · ${formatWorkflowStepElapsed(performance.now() - startedAt)}`;
                   }, 100);
                   try {
                     await execution;
                   } finally {
                     clearInterval(timer);
                   }
-                  resultTask.title = `Save run history · ${formatWorkflowStepElapsed(performance.now() - startedAt)}`;
+                  resultTask.title = `Finalizing · ${formatWorkflowStepElapsed(performance.now() - startedAt)}`;
                 },
               },
             ],

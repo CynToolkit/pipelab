@@ -49,7 +49,7 @@ the workflow file's directory. The `workflows` group alias is accepted.
 
 In an interactive terminal, running workflow tasks show a live elapsed timer
 and the one live output line below the running task or active phase. After the
-workflow steps finish, a final **Save run history** row shows elapsed time while
+workflow steps finish, a final **Finalizing** row shows elapsed time while
 the run record is written. The workflow name shows total elapsed time, and the
 completed task list keeps each task's final duration visible. Non-interactive
 output shows the final durations without repeated timer updates. Use `--verbose` to print the
