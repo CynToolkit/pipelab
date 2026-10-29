@@ -1,6 +1,9 @@
 import { describe, expect, test } from "vitest";
 import { workflowStepTitle } from "../../../src/commands/workflow-task-title";
-import { workflowTaskOutputLines } from "../../../src/commands/workflow-task-output";
+import {
+  createWorkflowTaskOutputBuffer,
+  workflowTaskOutputLines,
+} from "../../../src/commands/workflow-task-output";
 
 describe("workflow CLI task titles", () => {
   test("uses readable names for source, build, and destination steps", () => {
@@ -57,5 +60,15 @@ describe("workflow CLI task titles", () => {
       "second line",
       "third line",
     ]);
+  });
+
+  test("buffers split log chunks until a complete live line arrives", () => {
+    const output = createWorkflowTaskOutputBuffer();
+
+    expect(output.push("Checking package ")).toEqual([]);
+    expect(output.push("manager version\r")).toEqual(["Checking package manager version"]);
+    expect(output.push("Finalizing package")).toEqual([]);
+    expect(output.flush()).toEqual(["Finalizing package"]);
+    expect(output.flush()).toEqual([]);
   });
 });

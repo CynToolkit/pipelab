@@ -21,7 +21,7 @@ import { getDefaultUserDataPath } from "../paths";
 import { parseWorkflowConnectionOverrides } from "./workflow-connection-overrides";
 import { createWorkflowTaskGroups, type WorkflowStepTask } from "./workflow-task-groups";
 import { workflowStepTitle } from "./workflow-task-title";
-import { workflowTaskOutputLines } from "./workflow-task-output";
+import { createWorkflowTaskOutputBuffer, workflowTaskOutputLines } from "./workflow-task-output";
 
 export const formatWorkflowStepElapsed = (durationMs: number) =>
   durationMs < 1_000 ? `${Math.round(durationMs)} ms` : `${(durationMs / 1_000).toFixed(2)} s`;
@@ -342,6 +342,7 @@ export async function runWorkflowCommand(
   const phaseWaiters = new Map<string, Promise<void>>();
   const phaseControls = new Map<string, ListrTaskWrapper<any, any, any>>();
   const phaseTaskLogs = new Map<string, string[]>();
+  const taskOutputBuffers = new Map<string, ReturnType<typeof createWorkflowTaskOutputBuffer>>();
   const activePhaseByStep = new Map<string, string>();
   const phaseStates = new Map<string, ListrTaskState>();
   const phaseTitles = new Map<string, string>();
@@ -410,12 +411,14 @@ export async function runWorkflowCommand(
   };
   const clearTaskOutput = (stepId: string) => {
     taskLogs.delete(stepId);
+    taskOutputBuffers.delete(stepId);
     const task = taskControls.get(stepId);
     if (task) task.task.outputReset$ = null;
   };
   const clearPhaseOutput = (stepId: string, phaseId: string) => {
     const key = phaseKey(stepId, phaseId);
     phaseTaskLogs.delete(key);
+    taskOutputBuffers.delete(key);
     if (activePhaseByStep.get(stepId) === phaseId) activePhaseByStep.delete(stepId);
   };
   const clearActivePhaseOutput = (stepId: string) => {
@@ -434,11 +437,17 @@ export async function runWorkflowCommand(
         ? `${title}\n› ${workflowPhaseOutputLine(line)}`
         : title;
   };
-  const updateTaskOutput = (stepId: string, output: string) => {
-    const outputLines = workflowTaskOutputLines(output)
+  const updateTaskOutput = (stepId: string, output: string, flush = false) => {
+    const activePhaseId = activePhaseByStep.get(stepId);
+    const outputKey = activePhaseId ? phaseKey(stepId, activePhaseId) : stepId;
+    let outputBuffer = taskOutputBuffers.get(outputKey);
+    if (!outputBuffer) {
+      outputBuffer = createWorkflowTaskOutputBuffer();
+      taskOutputBuffers.set(outputKey, outputBuffer);
+    }
+    const outputLines = [...outputBuffer.push(output), ...(flush ? outputBuffer.flush() : [])]
       .map(cleanseAnsi)
       .filter((line) => line.trim().length > 0);
-    const activePhaseId = activePhaseByStep.get(stepId);
     if (activePhaseId) {
       const key = phaseKey(stepId, activePhaseId);
       const lines = [...(phaseTaskLogs.get(key) || []), ...outputLines].slice(
@@ -615,7 +624,7 @@ export async function runWorkflowCommand(
         settledSteps.add(event.stepId);
         finishTaskTimer(event.stepId);
         clearActivePhaseOutput(event.stepId);
-        updateTaskOutput(event.stepId, `Skipped (blocked by ${event.blockedBy.join(", ")})`);
+        updateTaskOutput(event.stepId, `Skipped (blocked by ${event.blockedBy.join(", ")})`, true);
         updateTask(event.stepId, ListrTaskState.SKIPPED);
         completion.get(event.stepId)?.resolve();
       } else if (
@@ -651,7 +660,9 @@ export async function runWorkflowCommand(
           case "phase.started":
             activePhaseByStep.set(event.stepId, event.phaseId);
             clearTaskOutput(event.stepId);
-            phaseTaskLogs.delete(phaseKey(event.stepId, event.phaseId));
+            const key = phaseKey(event.stepId, event.phaseId);
+            phaseTaskLogs.delete(key);
+            taskOutputBuffers.delete(key);
             updatePhase(event.stepId, event.phaseId, ListrTaskState.STARTED, `${title} · Running`);
             break;
           case "phase.completed":
