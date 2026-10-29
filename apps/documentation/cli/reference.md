@@ -48,12 +48,12 @@ Relative provider file and directory settings in a JSON workflow resolve from
 the workflow file's directory. The `workflows` group alias is accepted.
 
 In an interactive terminal, running workflow tasks show a live elapsed timer
-and the latest task output lines below each task. The workflow result row also
+and the one live output line below the running task or active phase. The workflow result row also
 shows elapsed time while the runtime is finishing the run. The completed task
 list keeps each task's final duration visible. Non-interactive output shows the
 final durations without repeated timer updates. Use `--verbose` to print the
 full captured task logs after the run; without it, the interactive view keeps
-the latest six output lines per task. The workflow name also shows the wall-clock
+one live output line below the running task or active phase. The workflow name also shows the wall-clock
 time for the full run; this is elapsed time, not a sum of the individual task
 durations.
 
@@ -62,14 +62,14 @@ Source and build tasks are nested under their provider or profile. Destinations
 with a single default slot appear directly under **Destinations**; destinations
 with named or multiple slots group uploads under the destination and slot names.
 
-| Option                             | Behavior                                                                                                                |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `--user-data <path>`               | Use a custom user-data directory.                                                                                       |
-| `-o, --output <path>`              | Write the run result JSON; with `--dry-run`, write the prepared config and plan instead.                                |
-| `--dry-run`                        | Validate and prepare the workflow without executing deployment tasks.                                                   |
-| `--fail-on-error`                  | Exit nonzero if the workflow completes with errors.                                                                     |
-| `-v, --verbose`                    | Print all captured workflow task logs after the run completes. The interactive view still shows the latest six output lines under each running task. |
-| `--connection <alias.field=VALUE>` | Override one provider Connection field for this run. Repeat the option for additional fields.                           |
+| Option                             | Behavior                                                                                                                                                     |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--user-data <path>`               | Use a custom user-data directory.                                                                                                                            |
+| `-o, --output <path>`              | Write the run result JSON; with `--dry-run`, write the prepared config and plan instead.                                                                     |
+| `--dry-run`                        | Validate and prepare the workflow without executing deployment tasks.                                                                                        |
+| `--fail-on-error`                  | Exit nonzero if the workflow completes with errors.                                                                                                          |
+| `-v, --verbose`                    | Print all captured workflow task logs after the run completes. The interactive view still shows one live output line under the running task or active phase. |
+| `--connection <alias.field=VALUE>` | Override one provider Connection field for this run. Repeat the option for additional fields.                                                                |
 
 Use the workflow alias and the field key defined by its provider. `env:NAME`
 reads `NAME` from the environment of the client that starts the run;
