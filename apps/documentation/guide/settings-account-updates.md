@@ -28,24 +28,20 @@ actions are available; the app's upgrade dialog shows the current state.
 
 In the browser app, account sign-in works without the local agent when the
 deployment has Supabase configured. The signed-in browser session keeps
-account and profile access independent of the optional agent. Pull request
-checks do not publish Editor Pages previews, and `develop` builds keep plan
-lookup, checkout, and the billing portal disabled. The production Editor build
-on `main` enables them automatically;
-those actions require the production Supabase billing functions and Polar
-configuration described in the repository's Supabase setup guide. When
-disabled, the app shows billing as unavailable rather than presenting the
-account as a Free plan. Subscription-based premium actions remain unavailable
-until a configured backend responds.
-When enabled, these requests go through authenticated cloud functions; failures
-show a retryable error instead of an endless loading state. Allow pop-ups in
+account and profile access independent of the optional agent. Billing is
+available in every Editor build. Plan lookup, checkout, and the billing portal
+use Supabase Edge Functions; account-specific operations require authentication
+and the configured billing backend described in the repository's Supabase
+setup guide. Missing configuration, network failures, and authorization errors
+appear with a retry action instead of an endless loading state or an assumed
+Free plan. Allow pop-ups in
 the browser to open the billing portal or continue to checkout.
 
 Browser deployments need `SUPABASE_URL` and the public
 `SUPABASE_PUBLISHABLE_KEY` at UI build time. `SUPABASE_ANON_KEY` remains a
-temporary fallback for older build environments. The Editor deployment
-workflow sets `VITE_PIPELAB_BILLING_ENABLED=true` only for pushes to `main`; it
-requires the public Supabase values to be configured as GitHub secrets.
+temporary fallback for older build environments. Every Editor build uses the
+same billing behavior; public Supabase values must be configured for browser
+account and billing requests to succeed.
 Configure the deployed HTTPS origin as an allowed Supabase Auth redirect URL
 and serve the UI's `/auth/callback` route through the SPA fallback.
 Email verification returns to the hosted app, while password-reset links open a
@@ -53,10 +49,9 @@ page to choose a new password. Desktop keeps its `pipelab://` verification
 return flow. Privileged Supabase and billing secrets stay on the server and
 must not be added to UI build settings.
 
-If account data fails to load, check the connection and retry. A missing
-Supabase configuration disables browser sign-in and shows an unavailable
-state; disabled billing does not prevent browser sign-in or profile access and
-does not affect the local settings file.
+If account data fails to load, check the connection and retry. Missing Supabase
+configuration shows an actionable setup error. Billing errors do not prevent
+profile access or affect the local settings file.
 
 ## Desktop updates
 

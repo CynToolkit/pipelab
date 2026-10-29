@@ -1,4 +1,9 @@
 import { useLogger, isSupabaseAvailable, supabase } from "@pipelab/shared";
+import {
+  FunctionsFetchError,
+  FunctionsHttpError,
+  FunctionsRelayError,
+} from "@supabase/supabase-js";
 import type { Subscription } from "@polar-sh/sdk/models/components/subscription";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { useAPI } from "@renderer/composables/api";
@@ -10,7 +15,7 @@ import { createEventHook } from "@vueuse/core";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 import { withRequestTimeout } from "@renderer/utils/request-timeout";
 
-export type SubscriptionStatus = "idle" | "loading" | "ready" | "error" | "disabled";
+export type SubscriptionStatus = "idle" | "loading" | "ready" | "error";
 type AuthActionResponse = {
   data: { user: User | null; session: Session | null };
   error: Error | null;
@@ -43,9 +48,6 @@ export const useAuth = defineStore("auth", () => {
   let authRequestId = 0;
   const { isReady } = useAgentAvailability();
   const isBrowserRuntime = uiEnvironment === "browser";
-  const billingEnabled = ref(
-    !isBrowserRuntime || import.meta.env.VITE_PIPELAB_BILLING_ENABLED === "true",
-  );
   const browserClient = isBrowserRuntime
     ? supabase({
         auth: {
@@ -135,22 +137,68 @@ export const useAuth = defineStore("auth", () => {
     errorMessage.value = null;
   };
 
+  const billingFunctionError = async (error: unknown) => {
+    if (error instanceof FunctionsHttpError) {
+      let code: string | undefined;
+      const response = error.context instanceof Response ? error.context : undefined;
+      if (response) {
+        try {
+          const body: unknown = await response.clone().json();
+          if (
+            body &&
+            typeof body === "object" &&
+            "error" in body &&
+            typeof body.error === "string"
+          ) {
+            code = body.error;
+          }
+        } catch {
+          // Keep the status-based message when the error body is not JSON.
+        }
+      }
+
+      const messages: Record<string, string> = {
+        unauthorized: "Your sign-in session may have expired. Sign in again and retry.",
+        origin_not_allowed: "This Editor address is not allowed to use billing. Contact support.",
+        billing_unavailable: "Billing is not configured on the server. Contact support and retry.",
+        authentication_unavailable:
+          "Billing could not verify your session. Check your connection and retry.",
+        billing_provider_unavailable:
+          "The billing provider is temporarily unavailable. Try again shortly.",
+        billing_customer_not_found:
+          "No billing customer was found for this account. Contact support.",
+        invalid_products: "The selected plan is no longer available. Refresh plans and retry.",
+      };
+      return new Error(
+        messages[code ?? ""] ??
+          `Billing request failed with status ${response?.status ?? "unknown"}. Check your connection and retry.`,
+      );
+    }
+    if (error instanceof FunctionsFetchError || error instanceof FunctionsRelayError) {
+      return new Error("Unable to reach the billing service. Check your connection and retry.");
+    }
+    return error instanceof Error ? error : new Error("Billing request failed. Please retry.");
+  };
+
   const invokeFunction = async (name: string, options?: { body?: Record<string, unknown> }) => {
     try {
-      if (
-        !billingEnabled.value &&
-        isBrowserRuntime &&
-        ["polar-user-plan", "polar-available-plans", "customer-portal", "checkout"].includes(name)
-      ) {
-        return { data: null, error: new Error("Billing is not enabled for this deployment.") };
-      }
       if (isBrowserRuntime) {
-        if (!browserClient) return { data: null, error: new Error("Supabase is not configured.") };
+        if (!browserClient) {
+          return {
+            data: null,
+            error: new Error(
+              "Billing needs SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY configured for this Editor build.",
+            ),
+          };
+        }
         const result = await withRequestTimeout(
           browserClient.functions.invoke(name, options),
           "Cloud request timed out. Please try again.",
         );
-        return { data: result.data, error: result.error };
+        return {
+          data: result.data,
+          error: result.error ? await billingFunctionError(result.error) : null,
+        };
       }
       if (!isReady.value)
         return { data: null, error: new Error("Desktop agent is not connected.") };
@@ -185,13 +233,6 @@ export const useAuth = defineStore("auth", () => {
       subscriptions.value = [];
       subscriptionError.value = undefined;
       subscriptionStatus.value = currentUser ? "ready" : "idle";
-      onSubscriptionChanged.trigger({ subscriptions: subscriptions.value });
-      return;
-    }
-    if (!billingEnabled.value) {
-      subscriptions.value = [];
-      subscriptionError.value = undefined;
-      subscriptionStatus.value = "disabled";
       onSubscriptionChanged.trigger({ subscriptions: subscriptions.value });
       return;
     }
@@ -737,7 +778,6 @@ export const useAuth = defineStore("auth", () => {
     isAuthenticating,
     hasLoginProvider,
     isAuthTransportReady,
-    billingEnabled,
     errorMessage,
     subscriptions: readonly(subscriptions),
     subscriptionError: readonly(subscriptionError),

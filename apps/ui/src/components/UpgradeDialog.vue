@@ -1,15 +1,12 @@
 <template>
-  <p v-if="!auth.billingEnabled" role="status">
-    Billing is not enabled for this deployment. Your account remains available.
-  </p>
-  <p v-else-if="!auth.isAuthTransportReady" role="status">
+  <p v-if="!auth.isAuthTransportReady" role="status">
     {{
       auth.hasLoginProvider
         ? "Reconnect the Desktop agent to load plans or upgrade."
         : "Browser authentication is not configured for this deployment."
     }}
   </p>
-  <div v-if="auth.billingEnabled" class="upgrade-dialog" :inert="!auth.isAuthTransportReady">
+  <div class="upgrade-dialog" :inert="!auth.isAuthTransportReady">
     <div class="dialog-header">
       <h2>Upgrade Your Plan</h2>
       <p>Choose the plan that works best for you</p>
@@ -99,7 +96,7 @@ const error = ref<string | null>(null);
 
 // Function to fetch plans from polar.sh using the actual cloud function
 const fetchPlansFromPolar = async () => {
-  if (!auth.billingEnabled || !auth.isAuthTransportReady) return;
+  if (!auth.isAuthTransportReady) return;
   try {
     isLoading.value = true;
     error.value = null;
@@ -110,8 +107,9 @@ const fetchPlansFromPolar = async () => {
       throw new Error("Invalid plans response");
     }
     plans.value = data.plans as Plan[];
-  } catch {
-    error.value = "Failed to fetch plans. Please try again later.";
+  } catch (cause) {
+    error.value =
+      cause instanceof Error ? cause.message : "Unable to load plans. Please try again.";
   } finally {
     isLoading.value = false;
   }
@@ -133,8 +131,7 @@ const isCurrentPlan = (plan: any) => {
 };
 
 const isPlanDisabled = (plan: any) => {
-  if (!auth.billingEnabled || !auth.isAuthTransportReady || auth.subscriptionStatus !== "ready")
-    return true;
+  if (!auth.isAuthTransportReady || auth.subscriptionStatus !== "ready") return true;
   // Always disable if it's the current plan
   if (isCurrentPlan(plan)) return true;
 
@@ -163,7 +160,6 @@ const getPlanButtonText = (plan: any) => {
 };
 
 const handlePlanAction = (plan: any) => {
-  if (!auth.billingEnabled) return;
   if (!auth.isLoggedIn) {
     if (auth.hasLoginProvider) {
       auth.displayAuthModal("Login Required", "Please login or register to upgrade your plan.");
@@ -175,9 +171,9 @@ const handlePlanAction = (plan: any) => {
 };
 
 const upgradeToPlan = async (plan: any) => {
-  if (!auth.billingEnabled || !auth.isAuthTransportReady || auth.subscriptionStatus !== "ready")
-    return;
+  if (!auth.isAuthTransportReady || auth.subscriptionStatus !== "ready") return;
   error.value = null;
+  let requestError: string | undefined;
   const result = await openAsyncUrl(async () => {
     const { data, error: invokeError } = await auth.invokeFunction("checkout", {
       body: { itemIds: [plan.id] },
@@ -185,6 +181,7 @@ const upgradeToPlan = async (plan: any) => {
     const checkoutUrl =
       data && typeof data === "object" && "checkoutURL" in data ? data.checkoutURL : undefined;
     if (invokeError || typeof checkoutUrl !== "string") {
+      requestError = invokeError?.message;
       return undefined;
     }
     return checkoutUrl;
@@ -193,15 +190,15 @@ const upgradeToPlan = async (plan: any) => {
     error.value =
       result === "blocked"
         ? "Allow pop-ups to continue to checkout, then try again."
-        : "Unable to start checkout. Please try again.";
+        : (requestError ?? "Unable to start checkout. Please try again.");
   }
 };
 
 // Fetch plans when component is mounted
 watch(
-  [() => auth.isAuthTransportReady, () => auth.billingEnabled],
-  ([ready, billingEnabled]) => {
-    if (ready && billingEnabled) void fetchPlansFromPolar();
+  () => auth.isAuthTransportReady,
+  (ready) => {
+    if (ready) void fetchPlansFromPolar();
   },
   { immediate: true },
 );

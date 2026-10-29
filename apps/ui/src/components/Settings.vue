@@ -578,10 +578,7 @@
           <p class="description">Manage your account billing details and premium subscriptions.</p>
         </div>
 
-        <p v-if="!billingEnabled" role="status">
-          Billing is not enabled for this deployment. Your account remains available.
-        </p>
-        <div v-else-if="subscriptionStatus !== 'ready'" role="status">
+        <div v-if="subscriptionStatus !== 'ready'" role="status">
           <p>
             {{ subscriptionStatus === "error" ? "Unable to check your plan." : "Checking plan…" }}
           </p>
@@ -748,7 +745,7 @@
             <div class="setting-action flex items-center gap-2">
               <span class="text-sm font-semibold">
                 {{
-                  billingEnabled && subscriptionStatus === "ready"
+                  subscriptionStatus === "ready"
                     ? subscriptions.length > 0 && subscriptions[0].status === "active"
                       ? subscriptions[0].product.name
                       : "Free Tier"
@@ -759,11 +756,11 @@
                 class="installed-badge"
                 :class="{
                   'bg-green-100 text-green-800':
-                    billingEnabled && subscriptionStatus === 'ready' && subscriptions.length > 0,
+                    subscriptionStatus === 'ready' && subscriptions.length > 0,
                 }"
               >
                 {{
-                  !billingEnabled || subscriptionStatus !== "ready"
+                  subscriptionStatus !== "ready"
                     ? "Unavailable"
                     : subscriptions.length > 0 && subscriptions[0].status === "active"
                       ? "Premium"
@@ -917,7 +914,7 @@ const {
   status: settingsStatus,
   error: settingsError,
 } = storeToRefs(appSettings);
-const { subscriptions, user, subscriptionStatus, billingEnabled } = storeToRefs(authStore);
+const { subscriptions, user, subscriptionStatus } = storeToRefs(authStore);
 const { storageInfo } = storeToRefs(buildHistoryStore);
 
 const loadSettings = () => appSettings.load().catch(() => {});
@@ -985,23 +982,27 @@ const isBillingPortalUrlLoading = ref(false);
 const billingPortalError = ref("");
 
 const openBillingPortal = async () => {
-  if (!authStore.billingEnabled || !authStore.isAuthTransportReady || !user.value) return;
+  if (!authStore.isAuthTransportReady || !user.value) return;
   isBillingPortalUrlLoading.value = true;
   billingPortalError.value = "";
+  let requestError: string | undefined;
   const result = await openAsyncUrl(async () => {
     const { data, error } = await authStore.invokeFunction("customer-portal");
     const portalUrl =
       data && typeof data === "object" && "customerPortal" in data
         ? data.customerPortal
         : undefined;
-    if (error || typeof portalUrl !== "string") return undefined;
+    if (error || typeof portalUrl !== "string") {
+      requestError = error?.message;
+      return undefined;
+    }
     return portalUrl;
   });
   if (result !== "opened") {
     billingPortalError.value =
       result === "blocked"
         ? "Allow pop-ups to open the billing portal, then try again."
-        : "Unable to open the billing portal. Please try again.";
+        : (requestError ?? "Unable to open the billing portal. Please try again.");
   }
   isBillingPortalUrlLoading.value = false;
 };

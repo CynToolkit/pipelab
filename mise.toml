@@ -167,7 +167,6 @@ env = {
   SUPABASE_PUBLISHABLE_KEY = "",
   SUPABASE_SERVICE_ROLE_KEY = "",
   SUPABASE_URL = "",
-  VITE_PIPELAB_BILLING_ENABLED = "false",
   VITE_PIPELAB_MODE = "",
 }
 run = "pnpm exec turbo run dev:remote --filter=@pipelab/cli --filter=@pipelab/ui"

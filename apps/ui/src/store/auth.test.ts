@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createPinia, setActivePinia, storeToRefs } from "pinia";
+import { createPinia, setActivePinia } from "pinia";
 import { nextTick } from "vue";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import { AUTH_REQUEST_TIMEOUT_MS } from "@renderer/utils/request-timeout";
 
@@ -349,17 +350,14 @@ describe("hosted browser authentication", () => {
       .mockResolvedValue({ data: { subscriptions: [] }, error: null });
     createBrowserClient.mockClear();
     createBrowserClient.mockReturnValue(browserClient);
-    vi.stubEnv("VITE_PIPELAB_BILLING_ENABLED", "true");
   });
 
   afterEach(() => {
-    vi.unstubAllEnvs();
     activeAuthStore?.$dispose();
     activeAuthStore = undefined;
   });
 
-  it("keeps browser auth usable and billing unavailable when the build flag is absent", async () => {
-    vi.stubEnv("VITE_PIPELAB_BILLING_ENABLED", "");
+  it("loads billing for a signed-in browser without a build flag", async () => {
     const user = makeUser("browser-user");
     browserClient.auth.getSession.mockResolvedValue({
       data: { session: { user, access_token: "access-token", refresh_token: "refresh-token" } },
@@ -369,33 +367,28 @@ describe("hosted browser authentication", () => {
     const auth = useAuth();
     activeAuthStore = auth;
     await vi.waitFor(() => expect(auth.authState).toBe("SIGNED_IN"));
-    await vi.waitFor(() => expect(auth.subscriptionStatus).toBe("disabled"));
+    await vi.waitFor(() => expect(auth.subscriptionStatus).toBe("ready"));
 
     expect(auth.user?.id).toBe(user.id);
-    expect(auth.billingEnabled).toBe(false);
     expect(auth.subscriptions).toEqual([]);
-    expect(browserClient.functions.invoke).not.toHaveBeenCalled();
+    expect(browserClient.functions.invoke).toHaveBeenCalledWith("polar-user-plan", undefined);
 
     const result = await auth.invokeFunction("checkout", { body: { itemIds: ["product"] } });
-    expect(result.error?.message).toMatch(/billing is not enabled/i);
-    expect(browserClient.functions.invoke).not.toHaveBeenCalled();
+    expect(result.error).toBeNull();
+    expect(browserClient.functions.invoke).toHaveBeenCalledWith("checkout", {
+      body: { itemIds: ["product"] },
+    });
   });
 
-  it.each([
-    ["browser billing disabled", "browser", "", false],
-    ["browser billing enabled", "browser", "true", true],
-    ["Desktop billing remains enabled", "desktop", "", true],
-  ] as const)("exposes %s through Pinia refs", async (_label, environment, billingFlag, expected) => {
-    runtimeEnvironment.value = environment;
-    vi.stubEnv("VITE_PIPELAB_BILLING_ENABLED", billingFlag);
+  it("reports missing billing configuration through the request error", async () => {
+    createBrowserClient.mockReturnValue(null);
     const auth = useAuth();
     activeAuthStore = auth;
-    if (environment === "browser") {
-      await vi.waitFor(() => expect(auth.authState).toBe("SIGNED_OUT"));
-    }
-    posthog.reset.mockClear();
 
-    expect(storeToRefs(auth).billingEnabled.value).toBe(expected);
+    const result = await auth.invokeFunction("polar-user-plan");
+
+    expect(result.error?.message).toMatch(/SUPABASE_URL.*SUPABASE_PUBLISHABLE_KEY/i);
+    expect(browserClient.functions.invoke).not.toHaveBeenCalled();
   });
 
   it("restores browser sessions and loads subscriptions without agent IPC", async () => {
@@ -411,7 +404,6 @@ describe("hosted browser authentication", () => {
     await vi.waitFor(() => expect(auth.subscriptionStatus).toBe("ready"));
 
     expect(auth.user?.id).toBe("browser-user");
-    expect(auth.billingEnabled).toBe(true);
     expect(posthog.identify).not.toHaveBeenCalled();
     expect(posthog.reset).not.toHaveBeenCalled();
     expect(execute).not.toHaveBeenCalled();
@@ -676,11 +668,42 @@ describe("hosted browser authentication", () => {
     const auth = useAuth();
     activeAuthStore = auth;
     await vi.waitFor(() => expect(auth.subscriptionStatus).toBe("error"));
+    expect(auth.authState).toBe("SIGNED_IN");
+    expect(auth.user?.id).toBe(user.id);
     expect(auth.subscriptionError).toBe("Plan endpoint unavailable");
 
     await auth.fetchSubscription();
     expect(auth.subscriptionStatus).toBe("ready");
     expect(browserClient.functions.invoke).toHaveBeenCalledTimes(2);
+  });
+
+  it("explains a server billing configuration error without signing the user out", async () => {
+    const user = makeUser("browser-user");
+    browserClient.auth.getSession.mockResolvedValue({
+      data: {
+        session: { user, access_token: "access-token", refresh_token: "refresh-token" },
+      },
+      error: null,
+    });
+    browserClient.functions.invoke.mockResolvedValue({
+      data: null,
+      error: new FunctionsHttpError(
+        new Response(JSON.stringify({ error: "billing_unavailable" }), {
+          status: 503,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    });
+
+    const auth = useAuth();
+    activeAuthStore = auth;
+    await vi.waitFor(() => expect(auth.subscriptionStatus).toBe("error"));
+
+    expect(auth.subscriptionError).toBe(
+      "Billing is not configured on the server. Contact support and retry.",
+    );
+    expect(auth.authState).toBe("SIGNED_IN");
+    expect(auth.user?.id).toBe(user.id);
   });
 
   it("times out a stalled plan lookup and settles its loading state", async () => {
@@ -786,13 +809,11 @@ describe("Desktop auth transport compatibility", () => {
   });
 
   afterEach(() => {
-    vi.unstubAllEnvs();
     activeAuthStore?.$dispose();
     activeAuthStore = undefined;
   });
 
   it("keeps sign-in and sign-out on the existing agent IPC channels", async () => {
-    vi.stubEnv("VITE_PIPELAB_BILLING_ENABLED", "");
     const user = makeUser("desktop-user");
     execute.mockImplementation(async (channel: string) => {
       if (channel === "auth:signInWithPassword") {
@@ -803,7 +824,6 @@ describe("Desktop auth transport compatibility", () => {
     });
     const auth = useAuth();
     activeAuthStore = auth;
-    expect(auth.billingEnabled).toBe(true);
     expect(auth.isAuthTransportReady).toBe(false);
 
     setReady(true);

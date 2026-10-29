@@ -54,7 +54,6 @@
     "SUPABASE_PROJECT_ID",
     "PIPELAB_CLOUD_WORKER_URL",
     "POSTHOG_API_KEY",
-    "VITE_PIPELAB_BILLING_ENABLED",
     "VITE_PIPELAB_MODE"
   ],
   "globalPassThroughEnv": [

@@ -11,18 +11,12 @@ const expectEmailConfirmation = process.env.EXPECT_EMAIL_CONFIRMATION === "1";
 const expectPasswordReset = process.env.EXPECT_PASSWORD_RESET === "1";
 const expectPlanFailureUi = process.env.EXPECT_PLAN_FAILURE_UI === "1";
 const expectPortalFailureUi = process.env.EXPECT_PORTAL_FAILURE_UI === "1";
-const expectBillingDisabled = process.env.EXPECT_BILLING_DISABLED !== "0";
 const mailpitUrl = process.env.MAILPIT_URL;
 
 assert.ok(
   !(expectPlanFailureUi && expectPortalFailureUi),
   "Run plan-failure and portal-failure UI checks separately.",
 );
-assert.ok(
-  !(expectBillingDisabled && (expectPlanFailureUi || expectPortalFailureUi)),
-  "Enable VITE_PIPELAB_BILLING_ENABLED for billing failure UI checks.",
-);
-
 if (!supabaseUrl || !["127.0.0.1", "localhost", "::1"].includes(new URL(supabaseUrl).hostname)) {
   throw new Error("This smoke test only supports a local Supabase URL.");
 }
@@ -155,7 +149,7 @@ let failureContext = "";
           status: 500,
           headers: corsHeaders,
           contentType: "application/json",
-          body: JSON.stringify({ message: "Plan lookup unavailable for this test." }),
+          body: JSON.stringify({ error: "billing_unavailable" }),
         });
       }
       if (path === "/functions/v1/polar-user-plan" && expectPortalFailureUi) {
@@ -182,7 +176,7 @@ let failureContext = "";
           status: 500,
           headers: corsHeaders,
           contentType: "application/json",
-          body: JSON.stringify({ message: "Portal unavailable for this test." }),
+          body: JSON.stringify({ error: "billing_provider_unavailable" }),
         });
       }
       return route.continue();
@@ -239,24 +233,6 @@ let failureContext = "";
     await page.locator(".settings-sidebar .sidebar-item").filter({ hasText: "Profile" }).click();
     await page.getByRole("dialog").getByText(email, { exact: true }).waitFor({ timeout: 10000 });
 
-    if (expectBillingDisabled) {
-      stage = "verify billing is unavailable without the build flag";
-      const profilePlanStatus = page
-        .locator(".setting-item")
-        .filter({ hasText: "Your subscription plan status." });
-      const unavailablePlanLabels = profilePlanStatus.getByText("Unavailable", { exact: true });
-      await unavailablePlanLabels.first().waitFor();
-      assert.equal(await unavailablePlanLabels.count(), 2);
-      await page.locator(".settings-sidebar .sidebar-item").filter({ hasText: "Billing" }).click();
-      await page
-        .getByText("Billing is not enabled for this deployment. Your account remains available.", {
-          exact: true,
-        })
-        .waitFor();
-      assert.equal(await page.locator(".plan-button, .manage-portal-btn").count(), 0);
-      assert.deepEqual(billingFunctionRequests, []);
-    }
-
     stage = "restore session after refresh";
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByText(email, { exact: true }).waitFor({ timeout: 15000 });
@@ -277,7 +253,11 @@ let failureContext = "";
       await page.getByText("Unable to check your plan.", { exact: true }).waitFor();
       const planError = page.locator(".settings-panel [role='alert']");
       await planError.waitFor();
-      assert.ok((await planError.innerText()).trim(), "billing shows the plan lookup error");
+      await planError
+        .getByText("Billing is not configured on the server. Contact support and retry.", {
+          exact: true,
+        })
+        .waitFor();
 
       stage = "retry subscription lookup from billing settings";
       const retriedPlanLookup = page.waitForResponse(
@@ -303,7 +283,7 @@ let failureContext = "";
       await portalFailure;
       await page
         .getByRole("alert")
-        .filter({ hasText: "Unable to open the billing portal. Please try again." })
+        .filter({ hasText: "The billing provider is temporarily unavailable. Try again shortly." })
         .waitFor();
     }
 
@@ -345,11 +325,14 @@ let failureContext = "";
       [],
       `hosted no-agent auth opened WebSockets: ${webSocketConnections.join(", ")}`,
     );
+    assert.ok(
+      billingFunctionRequests.includes("/functions/v1/polar-user-plan"),
+      "signed-in browser did not request its plan",
+    );
     assert.deepEqual(pageErrors, [], `browser had page errors: ${pageErrors.join("; ")}`);
     assert.deepEqual(consoleErrors, [], `browser had console errors: ${consoleErrors.join("; ")}`);
     assert.ok(
       failedResponses.every(({ status, path }) => {
-        if (expectBillingDisabled) return false;
         if (expectPlanFailureUi) return status === 500 && path === "/functions/v1/polar-user-plan";
         if (expectPortalFailureUi)
           return status === 500 && path === "/functions/v1/customer-portal";
