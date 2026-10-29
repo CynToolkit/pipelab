@@ -142,7 +142,7 @@ pipelab purge [project-id]
 
 - `history <project-id>` prints workflow run history for one project. `--limit <number>` defaults to `10`; `--user-data <path>` selects a different store. Use `--get <build-id>` to print one JSON history record, optionally scoped by project ID. Without either a project ID or `--get`, the command exits with an error. The current implementation's ordering should not be read as a guaranteed newest-first listing.
 - `usage` reports workflow-history entry count, projects with history, history size, oldest/newest timestamps, user-data path, and cache path. It is not a general disk-usage report. It accepts `--user-data <path>`.
-- `purge [project-id]` requires `-f, --force`. It removes workflow history and associated recorded artifacts/cache data for that project, or all recognized build history when no ID is supplied. It accepts `--user-data <path>`.
+- `purge [project-id]` requires `-f, --force`. It removes workflow history and run-associated Pipelab-managed workspace, staging, and canonical cache folders for that project, or for all projects when no ID is supplied. Unrelated artifact and cache content is retained. It accepts `--user-data <path>`.
 
 ### Setup wizard
 

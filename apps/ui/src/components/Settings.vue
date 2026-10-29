@@ -350,6 +350,30 @@
           </div>
         </div>
 
+        <div class="settings-group mt-4">
+          <div class="setting-item">
+            <div class="setting-content">
+              <span class="setting-title">Run History and Artifacts</span>
+              <span class="setting-description">
+                Run history and associated Pipelab-managed run files are kept until you clear them.
+                Cleanup removes each run’s managed workspace, staging, and cache folders. Unrelated
+                files are kept.
+              </span>
+            </div>
+            <div class="setting-action">
+              <Button
+                label="Clear all run history"
+                severity="danger"
+                size="small"
+                outlined
+                icon="pi pi-trash"
+                :loading="clearingBuildHistory"
+                @click="clearBuildHistory"
+              />
+            </div>
+          </div>
+        </div>
+
         <!-- Cache Cleanup Group -->
         <div class="settings-group mt-4">
           <div class="setting-item">
@@ -1005,6 +1029,40 @@ const refreshStorageInfo = async () => {
 };
 
 const cleaningPackages = ref(false);
+const clearingBuildHistory = ref(false);
+
+const clearBuildHistory = () => {
+  confirm.require({
+    message:
+      "This permanently removes saved run history and each run’s Pipelab-managed workspace, staging, and cache folders. Unrelated files are kept.",
+    header: "Clear Run History and Artifacts",
+    icon: "pi pi-exclamation-triangle",
+    rejectClass: "p-button-secondary p-button-outlined",
+    acceptClass: "p-button-danger",
+    accept: async () => {
+      clearingBuildHistory.value = true;
+      try {
+        await buildHistoryStore.clearHistory();
+        await buildHistoryStore.refreshStorageInfo();
+        toast.add({
+          severity: "success",
+          summary: t("base.success", "Success"),
+          detail: "Run history and Pipelab-managed run artifacts were cleared.",
+          life: 5000,
+        });
+      } catch (error) {
+        toast.add({
+          severity: "error",
+          summary: t("base.error", "Error"),
+          detail: error instanceof Error ? error.message : String(error),
+          life: 5000,
+        });
+      } finally {
+        clearingBuildHistory.value = false;
+      }
+    },
+  });
+};
 
 const cleanPackagesCache = () => {
   confirm.require({
