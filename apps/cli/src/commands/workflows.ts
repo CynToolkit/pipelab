@@ -42,7 +42,6 @@ export const createWorkflowListr = (
   execution: Promise<unknown>,
   onWorkflowTask: (task: ListrTaskWrapper<any, any, any>) => void = () => undefined,
   onExecutionFailure: (error: unknown) => void = () => undefined,
-  isSavingHistory: () => boolean = () => false,
 ) => {
   void execution.catch(onExecutionFailure);
   return new Listr(
@@ -68,19 +67,18 @@ export const createWorkflowListr = (
                   }),
               },
               {
-                title: "Workflow result",
+                title: "Save run history",
                 task: async (_ctx: unknown, resultTask: ListrTaskWrapper<any, any, any>) => {
                   const startedAt = performance.now();
                   const timer = setInterval(() => {
-                    const title = isSavingHistory() ? "Saving run history" : "Workflow result";
-                    resultTask.title = `${title} · ${formatWorkflowStepElapsed(performance.now() - startedAt)}`;
+                    resultTask.title = `Save run history · ${formatWorkflowStepElapsed(performance.now() - startedAt)}`;
                   }, 100);
                   try {
                     await execution;
                   } finally {
                     clearInterval(timer);
                   }
-                  resultTask.title = `Workflow result · ${formatWorkflowStepElapsed(performance.now() - startedAt)}`;
+                  resultTask.title = `Save run history · ${formatWorkflowStepElapsed(performance.now() - startedAt)}`;
                 },
               },
             ],
@@ -368,7 +366,6 @@ export async function runWorkflowCommand(
     ? setInterval(() => updateWorkflowTitle(), 100)
     : undefined;
   const workflowLogs: Array<{ stepTitle: string; message: string }> = [];
-  let savingHistory = false;
   const phaseKey = (stepId: string, phaseId: string) => `${stepId}\0${phaseId}`;
   const updateTask = (stepId: string, state: ListrTaskState) => {
     taskStates.set(stepId, state);
@@ -582,9 +579,6 @@ export async function runWorkflowCommand(
       error: (...args) => console.error(...args),
     },
     onEvent: (event: WorkflowEvent) => {
-      if (event.type === "workflow.completed" || event.type === "workflow.failed") {
-        savingHistory = true;
-      }
       if (event.type === "step.started") {
         startTaskTimer(event.stepId);
         updateTask(event.stepId, ListrTaskState.STARTED);
@@ -735,7 +729,6 @@ export async function runWorkflowCommand(
         completion.get(step.id)?.resolve();
       }
     },
-    () => savingHistory,
   );
   const listRun = listr.run();
   const result = await execution.catch(async (error: unknown) => {

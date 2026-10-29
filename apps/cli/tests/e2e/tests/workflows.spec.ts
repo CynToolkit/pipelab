@@ -742,30 +742,19 @@ describe("workflow CLI task durations", () => {
 });
 
 describe("workflow CLI task statuses", () => {
-  test("shows elapsed time and reports when it is saving run history", async () => {
+  test("shows the final run-history row and its elapsed time", async () => {
     let finishExecution!: () => void;
-    let savingHistory = false;
     const execution = new Promise<void>((resolve) => {
       finishExecution = resolve;
     });
-    const listr = createWorkflowListr(
-      "Release",
-      [],
-      execution,
-      undefined,
-      undefined,
-      () => savingHistory,
-    );
+    const listr = createWorkflowListr("Release", [], execution);
     const run = listr.run();
 
     await new Promise((resolve) => setTimeout(resolve, 150));
-    expect(listr.tasks[0]?.subtasks[1]?.title).toMatch(/^Workflow result · /);
-    savingHistory = true;
-    await new Promise((resolve) => setTimeout(resolve, 150));
-    expect(listr.tasks[0]?.subtasks[1]?.title).toMatch(/^Saving run history · /);
+    expect(listr.tasks[0]?.subtasks[1]?.title).toMatch(/^Save run history · /);
     finishExecution();
     await run;
-    expect(listr.tasks[0]?.subtasks[1]?.title).toMatch(/^Workflow result · /);
+    expect(listr.tasks[0]?.subtasks[1]?.title).toMatch(/^Save run history · /);
   });
 
   test("reports a single failed step and failed workflow", async () => {
