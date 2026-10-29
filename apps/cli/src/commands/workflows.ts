@@ -26,6 +26,8 @@ import { workflowTaskOutputLines } from "./workflow-task-output";
 export const formatWorkflowStepElapsed = (durationMs: number) =>
   durationMs < 1_000 ? `${Math.round(durationMs)} ms` : `${(durationMs / 1_000).toFixed(2)} s`;
 
+const workflowTaskOutputLineLimit = 6;
+
 const contextFor = (userDataPath = getDefaultUserDataPath()) =>
   new PipelabContext({ userDataPath });
 
@@ -59,7 +61,20 @@ export const createWorkflowListr = (
                     },
                   }),
               },
-              { title: "Workflow result", task: () => execution },
+              {
+                title: "Workflow result",
+                task: async (_ctx: unknown, resultTask: ListrTaskWrapper<any, any, any>) => {
+                  const startedAt = performance.now();
+                  const timer = setInterval(() => {
+                    resultTask.title = `Workflow result · ${formatWorkflowStepElapsed(performance.now() - startedAt)}`;
+                  }, 100);
+                  try {
+                    await execution;
+                  } finally {
+                    clearInterval(timer);
+                  }
+                },
+              },
             ],
             {
               concurrent: false,
@@ -391,7 +406,9 @@ export async function runWorkflowCommand(
     if (task) task.output = "";
   };
   const updateTaskOutput = (stepId: string, output: string) => {
-    const lines = [...(taskLogs.get(stepId) || []), ...workflowTaskOutputLines(output)].slice(-1);
+    const lines = [...(taskLogs.get(stepId) || []), ...workflowTaskOutputLines(output)].slice(
+      -workflowTaskOutputLineLimit,
+    );
     taskLogs.set(stepId, lines);
     const task = taskControls.get(stepId);
     if (task) for (const line of workflowTaskOutputLines(output)) task.output = line;
@@ -452,7 +469,7 @@ export async function runWorkflowCommand(
     stepTitleById.set(step.id, step.title);
     return {
       title: step.title,
-      rendererOptions: { outputBar: 1 },
+      rendererOptions: { outputBar: workflowTaskOutputLineLimit },
       task: (_ctx: unknown, task: ListrTaskWrapper<any, any, any>) => {
         taskControls.set(step.id, task);
         task.task.state$ = taskStates.get(step.id) || ListrTaskState.WAITING;

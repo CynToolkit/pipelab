@@ -742,6 +742,21 @@ describe("workflow CLI task durations", () => {
 });
 
 describe("workflow CLI task statuses", () => {
+  test("shows elapsed time while the workflow result is still pending", async () => {
+    let finishExecution!: () => void;
+    const execution = new Promise<void>((resolve) => {
+      finishExecution = resolve;
+    });
+    const listr = createWorkflowListr("Release", [], execution);
+    const run = listr.run();
+
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    const resultTitle = listr.tasks[0]?.subtasks[1]?.title;
+    finishExecution();
+    await run;
+    expect(resultTitle).toMatch(/^Workflow result · /);
+  });
+
   test("reports a single failed step and failed workflow", async () => {
     const failedStep = Promise.reject(new Error("hook failed"));
     const listr = createWorkflowListr("Release", [step("Hook", () => failedStep)], failedStep);
