@@ -56,18 +56,12 @@ jobs:
           # Browser PR previews run without a paired local agent. Keep this
           # scoped to previews so push builds retain their existing mode.
           VITE_PIPELAB_MODE: ${{ github.event_name == 'pull_request' && 'hosted' || '' }}
-          # Develop stays disabled; the main deployment uses production billing.
-          VITE_PIPELAB_BILLING_ENABLED: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'true' || 'false' }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY }}
           SUPABASE_KEY_SOURCE: ${{ secrets.SUPABASE_PUBLISHABLE_KEY != '' && 'SUPABASE_PUBLISHABLE_KEY' || 'SUPABASE_ANON_KEY' }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           POSTHOG_API_KEY: ${{ secrets.POSTHOG_API_KEY }}
         run: |
-          if [[ "$VITE_PIPELAB_BILLING_ENABLED" == "true" ]]; then
-            : "${SUPABASE_URL:?Set the production SUPABASE_URL GitHub secret before enabling browser billing}"
-            : "${SUPABASE_PUBLISHABLE_KEY:?Set the production SUPABASE_PUBLISHABLE_KEY or SUPABASE_ANON_KEY GitHub secret before enabling browser billing}"
-          fi
           if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
             echo "Preview Supabase key source: $SUPABASE_KEY_SOURCE"
           fi

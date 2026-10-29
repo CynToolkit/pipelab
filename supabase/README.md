@@ -55,10 +55,8 @@ Billing and entitlement reconciliation read endpoint URLs from the server-side S
 
 ### Browser billing deployment
 
-The Editor build enables browser billing automatically on pushes to `main`.
-Pull request checks do not publish Pages previews, and `develop` builds keep
-billing disabled. The production UI build
-needs `SUPABASE_URL` plus `SUPABASE_PUBLISHABLE_KEY` (or the temporary
+Billing is available in every Editor build, including `develop` and previews.
+The UI needs `SUPABASE_URL` plus `SUPABASE_PUBLISHABLE_KEY` (or the temporary
 `SUPABASE_ANON_KEY` fallback) as GitHub secrets. These are public client
 configuration values. The Polar token is never added to the browser build.
 
