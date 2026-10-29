@@ -372,7 +372,6 @@ describe("BuildHistoryStorage workflow runs", () => {
     const runCache = context.getCachePath("pipelines", "project-1", "run-a");
     await storage.save({
       ...entry("run-a", "workflow-a", 10),
-      cachePath: runCache,
       status: "failed",
     });
     await storage.save({ ...entry("run-b", "workflow-b", 20), status: "completed" });

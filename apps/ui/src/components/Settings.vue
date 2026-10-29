@@ -356,7 +356,8 @@
               <span class="setting-title">Run History and Artifacts</span>
               <span class="setting-description">
                 Run history and associated Pipelab-managed run files are kept until you clear them.
-                Clearing history does not delete files outside Pipelab’s artifact storage.
+                Cleanup removes each run’s managed workspace, staging, and cache folders. Unrelated
+                files are kept.
               </span>
             </div>
             <div class="setting-action">
@@ -1033,7 +1034,7 @@ const clearingBuildHistory = ref(false);
 const clearBuildHistory = () => {
   confirm.require({
     message:
-      "This permanently removes saved run history and associated Pipelab-managed run artifacts for every project. Source files and output files outside Pipelab’s artifact storage are kept.",
+      "This permanently removes saved run history and each run’s Pipelab-managed workspace, staging, and cache folders. Unrelated files are kept.",
     header: "Clear Run History and Artifacts",
     icon: "pi pi-exclamation-triangle",
     rejectClass: "p-button-secondary p-button-outlined",

@@ -271,7 +271,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     });
 
     const runCachePath = this.context.getCachePath(CacheFolder.Pipelines, projectId, entry.id);
-    if (entry.cachePath === runCachePath) await rm(runCachePath, { recursive: true, force: true });
+    await rm(runCachePath, { recursive: true, force: true });
   }
 
   async clear(): Promise<void> {
