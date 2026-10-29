@@ -272,6 +272,7 @@ describe("workflow CLI result output", () => {
     expect(rendered).toContain("Package");
     expect(rendered).toContain("Skipped: No install needed");
     expect(rendered).toContain("Not reported");
+    expect(rendered).toContain("SKIPPED");
   });
 
   test("warns about literal Connection values before returning from dry-run", async () => {

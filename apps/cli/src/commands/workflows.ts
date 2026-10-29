@@ -402,8 +402,16 @@ export async function runWorkflowCommand(
     phaseTitles.set(key, title);
     const task = phaseControls.get(key);
     if (task) {
-      task.title = title;
-      task.task.state$ = state;
+      if (state === ListrTaskState.SKIPPED) {
+        task.title =
+          workflow.steps
+            .find((step) => step.id === stepId)
+            ?.phases?.find((phase) => phase.id === phaseId)?.title || title;
+        task.skip(title);
+      } else {
+        task.title = title;
+        task.task.state$ = state;
+      }
     }
   };
   const waitForPhase = (stepId: string, phaseId: string) => {
@@ -478,7 +486,12 @@ export async function runWorkflowCommand(
           {
             concurrent: true,
             exitOnError: false,
-            rendererOptions: { collapseSubtasks: false, showErrorMessage: true },
+            rendererOptions: {
+              collapseSubtasks: false,
+              collapseSkips: false,
+              showErrorMessage: true,
+              showSkipMessage: true,
+            },
           },
         );
         return nested;
