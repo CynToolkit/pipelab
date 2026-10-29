@@ -1,4 +1,4 @@
-import { PipelabContext } from "../context";
+import { CacheFolder, PipelabContext } from "../context";
 import { join } from "node:path";
 import { writeFile, readFile, unlink, mkdir, stat, readdir, rename, rm } from "node:fs/promises";
 import { randomUUID } from "node:crypto";
@@ -258,6 +258,22 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     });
   }
 
+  private async removeRunArtifacts(projectId: string, entry: BuildHistoryEntry): Promise<void> {
+    if (!isSafePersistedId(projectId) || !isSafePersistedId(entry.id)) return;
+
+    await rm(this.context.getArtifactsPath("workflow", entry.id), {
+      recursive: true,
+      force: true,
+    });
+    await rm(this.context.getArtifactsPath(projectId, "workflow-staging", entry.id), {
+      recursive: true,
+      force: true,
+    });
+
+    const runCachePath = this.context.getCachePath(CacheFolder.Pipelines, projectId, entry.id);
+    if (entry.cachePath === runCachePath) await rm(runCachePath, { recursive: true, force: true });
+  }
+
   async clear(): Promise<void> {
     try {
       await this.ensureStoragePath();
@@ -281,21 +297,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
           if (entries.some((entry) => entry.status === "running"))
             throw new Error("Cannot clear build history while a workflow is running.");
 
-          const cachePathsToDelete = new Set<string>();
-          for (const entry of entries) {
-            if (entry.cachePath) cachePathsToDelete.add(entry.cachePath);
-          }
-
-          for (const cachePath of cachePathsToDelete)
-            await rm(cachePath, { recursive: true, force: true });
-          for (const entry of entries) {
-            if (isSafePersistedId(entry.id))
-              await rm(this.context.getArtifactsPath("workflow", entry.id), {
-                recursive: true,
-                force: true,
-              });
-          }
-          await rm(this.context.getArtifactsPath(projectId), { recursive: true, force: true });
+          for (const entry of entries) await this.removeRunArtifacts(projectId, entry);
           await unlink(join(this.getStoragePath(), file)).catch((error) => {
             if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
           });
@@ -317,21 +319,7 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
         if (entries.some((entry) => entry.status === "running"))
           throw new Error("Cannot clear build history while a workflow is running.");
 
-        const cachePathsToDelete = new Set<string>();
-        for (const entry of entries) {
-          if (entry.cachePath) cachePathsToDelete.add(entry.cachePath);
-        }
-        for (const cachePath of cachePathsToDelete)
-          await rm(cachePath, { recursive: true, force: true });
-        for (const entry of entries) {
-          if (isSafePersistedId(entry.id)) {
-            await rm(this.context.getArtifactsPath("workflow", entry.id), {
-              recursive: true,
-              force: true,
-            });
-          }
-        }
-        await rm(this.context.getArtifactsPath(projectId), { recursive: true, force: true });
+        for (const entry of entries) await this.removeRunArtifacts(projectId, entry);
         await unlink(historyPath).catch((error) => {
           if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
         });

@@ -660,10 +660,6 @@
     :style="dialogStyle"
     @update:visible="(visible) => !visible && cancelReleaseDetails()"
     ><div class="settings-grid">
-      <Message v-if="runAgainNotice" severity="warn" :closable="false" role="status">
-        This starts a new full run. All enabled steps and deliveries run again, including any that
-        succeeded before. Review the version and destinations before continuing.
-      </Message>
       <ReleaseDestinationAccountPreview :previews="shippingConnectionPreviews" />
       <div class="release-field">
         <label for="release-version">Version</label
@@ -851,7 +847,6 @@ const slotSettingsVisible = ref(false);
 const releaseDetailsVisible = ref(false);
 const dashboardRecoveryVisible = ref(true);
 const dashboardShipIntentCancelled = ref(false);
-const runAgainNotice = ref(false);
 const dashboardRecoveryMessage = computed(() =>
   dashboardShipIntentCancelled.value
     ? t("home.dashboard-ship-cancelled")
@@ -961,7 +956,6 @@ watch(
       }
       const query = { ...route.query };
       delete query.ship;
-      delete query.retry;
       void router.replace({ path: route.path, query, hash: route.hash }).catch(() => {});
       return;
     }
@@ -976,7 +970,6 @@ watch(
       }
       const query = { ...route.query };
       delete query.ship;
-      delete query.retry;
       void router
         .replace({ path: route.path, query, hash: route.hash })
         .then(() => {
@@ -998,7 +991,6 @@ watch(
     });
     if (action === "wait") return;
 
-    runAgainNotice.value = !props.dashboardMode && action === "ship" && route.query.retry === "1";
     dashboardShipIntentHandled = true;
     const requestedFlowId = flowId.value;
     const requestedProjectId = projectId.value;
@@ -1017,7 +1009,6 @@ watch(
     }
     const query = { ...route.query };
     delete query.ship;
-    delete query.retry;
     void router
       .replace({ path: route.path, query, hash: route.hash })
       .then(() => {
@@ -1877,7 +1868,6 @@ const ship = async () => {
   }
 };
 const cancelReleaseDetails = () => {
-  runAgainNotice.value = false;
   if (props.dashboardMode) emit("closeDashboard");
   else releaseDetailsVisible.value = false;
 };
@@ -1892,7 +1882,6 @@ const openDashboardWorkflow = () => {
 const runShip = async () => {
   if (!flow.value || !canShip.value) return;
   releaseDetailsVisible.value = false;
-  runAgainNotice.value = false;
   running.value = true;
   try {
     await runAfterSuccessfulSave(save, async () => {

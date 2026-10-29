@@ -65,15 +65,6 @@ export const isRunContextValid = (
   projectId: string,
 ) => entry.projectId === projectId && entry.workflowId === flowId;
 
-export const runAgainLocation = (entry: BuildHistoryEntry) => {
-  if (entry.status === "running" || !entry.workflowId) return undefined;
-  return {
-    name: "Workflow",
-    params: { flowId: entry.workflowId, projectId: entry.projectId },
-    query: { ship: "1", retry: "1" },
-  };
-};
-
 const mergeLogs = (current: BuildHistoryEntry["logs"], persisted: BuildHistoryEntry["logs"]) => {
   const groups = new Map<
     string,

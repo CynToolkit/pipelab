@@ -2,4 +2,4 @@
 "@pipelab/core-node": patch
 ---
 
-Clear associated Pipelab-managed workflow artifacts with run history, and keep history intact while a workflow is running or cleanup fails.
+Clear each run's Pipelab-managed workspace, staging, and canonical cache folders with its history, while retaining unrelated content and preserving history when a workflow is active or cleanup fails.

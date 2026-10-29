@@ -4,7 +4,6 @@ import {
   applyWorkflowEventToRunEntry,
   buildRunFailureDiagnostics,
   reconcileRunEntry,
-  runAgainLocation,
   runFailureArtifactSummary,
 } from "./run-detail-state";
 
@@ -34,23 +33,6 @@ const entry = (): BuildHistoryEntry => ({
   logs: [],
   createdAt: 1,
   updatedAt: 1,
-});
-
-describe("runAgainLocation", () => {
-  it("opens the saved workflow's ship confirmation for a new full run", () => {
-    expect(runAgainLocation({ ...entry(), status: "failed" })).toEqual({
-      name: "Workflow",
-      params: { flowId: "flow-1", projectId: "project-1" },
-      query: { ship: "1", retry: "1" },
-    });
-  });
-
-  it("does not offer a rerun for an active or legacy run without a workflow", () => {
-    expect(runAgainLocation(entry())).toBeUndefined();
-    expect(
-      runAgainLocation({ ...entry(), status: "failed", workflowId: undefined }),
-    ).toBeUndefined();
-  });
 });
 
 describe("applyWorkflowEventToRunEntry", () => {

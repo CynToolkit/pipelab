@@ -43,25 +43,15 @@
             </div>
           </div>
         </div>
-        <div class="run-header-actions">
-          <Button
-            v-if="runAgainTarget"
-            label="Run again"
-            icon="mdi mdi-replay"
-            outlined
-            :disabled="!agent.isReady.value"
-            @click="runAgain"
-          />
-          <Button
-            v-if="entry.status === 'running'"
-            label="Cancel run"
-            icon="pi pi-stop-circle"
-            severity="danger"
-            outlined
-            :loading="cancelling"
-            @click="cancel"
-          />
-        </div>
+        <Button
+          v-if="entry.status === 'running'"
+          label="Cancel run"
+          icon="pi pi-stop-circle"
+          severity="danger"
+          outlined
+          :loading="cancelling"
+          @click="cancel"
+        />
       </header>
       <section
         v-for="diagnostic in failureDiagnostics"
@@ -364,7 +354,6 @@ import {
   deliveryDisplayMetadata,
   isRunContextValid,
   resetRunStepSelectionState,
-  runAgainLocation,
   runFailureArtifactSummary,
   reconcileRunEntry,
   workflowCancellationFeedback,
@@ -380,7 +369,6 @@ const router = useRouter();
 const api = useAPI();
 const agent = useAgentAvailability();
 const entry = ref<BuildHistoryEntry>();
-const runAgainTarget = computed(() => (entry.value ? runAgainLocation(entry.value) : undefined));
 const error = ref("");
 const cancelFeedback = ref("");
 const stepSelection = reactive(createRunStepSelectionState());
@@ -548,9 +536,6 @@ const destinationIcon = (serviceId: string) =>
       ? "mdi mdi-controller-classic"
       : "mdi mdi-folder-upload-outline";
 const backToRuns = () => router.push(`/workflows/${flowId.value}/${projectId.value}/runs`);
-const runAgain = () => {
-  if (runAgainTarget.value) void router.push(runAgainTarget.value);
-};
 const copyVideoPath = async () => {
   if (!playwrightVideoPath.value) return;
   try {
@@ -760,12 +745,6 @@ onUnmounted(() => {
   gap: 16px;
   padding: 0 0 16px;
   border-bottom: 1px solid var(--p-surface-200, var(--surface-border));
-}
-.run-header-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
 }
 .run-title-row {
   display: flex;
@@ -1375,10 +1354,6 @@ onUnmounted(() => {
 @media (max-width: 450px) {
   .run-header {
     align-items: flex-start;
-  }
-  .run-header-actions {
-    flex-direction: column;
-    align-items: flex-end;
   }
   .run-summary {
     gap: 8px 12px;

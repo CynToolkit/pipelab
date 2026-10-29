@@ -304,7 +304,12 @@ describe("BuildHistoryStorage workflow runs", () => {
     workspaces.push(root);
     const context = new PipelabContext({ userDataPath: root });
     const storage = new BuildHistoryStorage(context);
-    await storage.save({ ...entry("run-project-1", "workflow-a", 10), status: "failed" });
+    const firstRunCache = context.getCachePath("pipelines", "project-1", "run-project-1");
+    await storage.save({
+      ...entry("run-project-1", "workflow-a", 10),
+      cachePath: firstRunCache,
+      status: "failed",
+    });
     await storage.save({
       ...entry("run-project-2", "workflow-b", 20),
       projectId: "project-2",
@@ -317,8 +322,18 @@ describe("BuildHistoryStorage workflow runs", () => {
       context.getArtifactsPath("project-1", "workflow-staging", "run-project-1"),
       "file",
     );
+    const firstRunCacheArtifact = join(firstRunCache, "cache-file");
     const secondStagingArtifact = join(
       context.getArtifactsPath("project-2", "workflow-staging", "run-project-2"),
+      "file",
+    );
+    const unrelatedProjectArtifact = join(
+      context.getArtifactsPath("project-1"),
+      "unrelated",
+      "file",
+    );
+    const unrelatedWorkflowArtifact = join(
+      context.getArtifactsPath("workflow", "unrelated-run"),
       "file",
     );
     for (const path of [
@@ -326,6 +341,9 @@ describe("BuildHistoryStorage workflow runs", () => {
       secondRunWorkspace,
       firstStagingArtifact,
       secondStagingArtifact,
+      firstRunCacheArtifact,
+      unrelatedProjectArtifact,
+      unrelatedWorkflowArtifact,
     ]) {
       await mkdir(dirname(path), { recursive: true });
       await writeFile(path, "generated artifact");
@@ -335,8 +353,13 @@ describe("BuildHistoryStorage workflow runs", () => {
 
     await expect(readFile(firstRunWorkspace, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
     await expect(readFile(firstStagingArtifact, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(readFile(firstRunCacheArtifact, "utf8")).rejects.toMatchObject({
+      code: "ENOENT",
+    });
     await expect(readFile(secondRunWorkspace, "utf8")).resolves.toBe("generated artifact");
     await expect(readFile(secondStagingArtifact, "utf8")).resolves.toBe("generated artifact");
+    await expect(readFile(unrelatedProjectArtifact, "utf8")).resolves.toBe("generated artifact");
+    await expect(readFile(unrelatedWorkflowArtifact, "utf8")).resolves.toBe("generated artifact");
     expect(await storage.get("run-project-1", "project-1")).toBeUndefined();
     expect(await storage.get("run-project-2", "project-2")).toMatchObject({ status: "completed" });
   });
@@ -346,15 +369,48 @@ describe("BuildHistoryStorage workflow runs", () => {
     workspaces.push(root);
     const context = new PipelabContext({ userDataPath: root });
     const storage = new BuildHistoryStorage(context);
-    await storage.save({ ...entry("run-a", "workflow-a", 10), status: "failed" });
+    const runCache = context.getCachePath("pipelines", "project-1", "run-a");
+    await storage.save({
+      ...entry("run-a", "workflow-a", 10),
+      cachePath: runCache,
+      status: "failed",
+    });
     await storage.save({ ...entry("run-b", "workflow-b", 20), status: "completed" });
     const artifact = join(context.getArtifactsPath("workflow", "run-a"), "source.zip");
-    await mkdir(dirname(artifact), { recursive: true });
-    await writeFile(artifact, "generated artifact");
+    const stagingArtifact = join(
+      context.getArtifactsPath("project-1", "workflow-staging", "run-a"),
+      "staged.zip",
+    );
+    const runCacheArtifact = join(runCache, "cache-file");
+    const unrelatedProjectArtifact = join(context.getArtifactsPath("project-1"), "keep.txt");
+    const unrelatedWorkflowArtifact = join(
+      context.getArtifactsPath("workflow", "unowned"),
+      "keep.txt",
+    );
+    const unrelatedCacheArtifact = join(
+      context.getCachePath("pipelines", "project-1", "keep"),
+      "keep.txt",
+    );
+    for (const path of [
+      artifact,
+      stagingArtifact,
+      runCacheArtifact,
+      unrelatedProjectArtifact,
+      unrelatedWorkflowArtifact,
+      unrelatedCacheArtifact,
+    ]) {
+      await mkdir(dirname(path), { recursive: true });
+      await writeFile(path, "generated artifact");
+    }
 
     await storage.clear();
 
     await expect(readFile(artifact, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(readFile(stagingArtifact, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(readFile(runCacheArtifact, "utf8")).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(readFile(unrelatedProjectArtifact, "utf8")).resolves.toBe("generated artifact");
+    await expect(readFile(unrelatedWorkflowArtifact, "utf8")).resolves.toBe("generated artifact");
+    await expect(readFile(unrelatedCacheArtifact, "utf8")).resolves.toBe("generated artifact");
     expect(await storage.getAll()).toEqual([]);
   });
 
@@ -458,6 +514,26 @@ describe("BuildHistoryStorage workflow runs", () => {
     await storage.clearByProject("project-1");
 
     await expect(readFile(outsideArtifact, "utf8")).resolves.toBe("user file");
+  });
+
+  it("does not delete an unsafe persisted cache path", async () => {
+    const root = await mkdtemp(join(tmpdir(), "pipelab-runs-"));
+    workspaces.push(root);
+    const context = new PipelabContext({ userDataPath: root });
+    const storage = new BuildHistoryStorage(context);
+    const outsideCacheArtifact = join(root, "unmanaged-cache", "file");
+    await storage.save({
+      ...entry("run-unsafe-cache", "workflow-a", 10),
+      cachePath: dirname(outsideCacheArtifact),
+      status: "failed",
+    });
+    await mkdir(dirname(outsideCacheArtifact), { recursive: true });
+    await writeFile(outsideCacheArtifact, "user cache");
+
+    await storage.clearByProject("project-1");
+
+    await expect(readFile(outsideCacheArtifact, "utf8")).resolves.toBe("user cache");
+    expect(await storage.get("run-unsafe-cache", "project-1")).toBeUndefined();
   });
 
   it("keeps history when clearing fails to resolve a run artifact path", async () => {
