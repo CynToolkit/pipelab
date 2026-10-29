@@ -14,6 +14,11 @@ import {
   type WorkflowStepResult,
   type WorkflowEnvironment,
   type WorkflowTaskRegistry,
+  type WorkflowPhaseDefinition,
+  type WorkflowPhaseOutcome,
+  type WorkflowPhaseResult,
+  type WorkflowPhaseRunner,
+  type WorkflowPhaseTools,
 } from "./types";
 import { RUN_COMMAND_TASK_ID, runCommandTask } from "./tasks/run-command";
 import type { WorkflowArtifactReference } from "./types";
@@ -481,6 +486,59 @@ const resolveArtifactInputs = (
   return resolved;
 };
 
+const validatePhaseDefinitions = (stepId: string, phases: unknown): void => {
+  if (!Array.isArray(phases)) {
+    throw new Error(`Workflow step ${stepId} phases must be an array`);
+  }
+  const ids = new Set<string>();
+  for (const [index, phase] of phases.entries()) {
+    if (
+      !isRecord(phase) ||
+      typeof phase.id !== "string" ||
+      !phase.id.trim() ||
+      typeof phase.title !== "string" ||
+      !phase.title.trim()
+    ) {
+      throw new Error(
+        `Workflow step ${stepId} phase ${index + 1} must have a non-empty id and title`,
+      );
+    }
+    if (ids.has(phase.id)) {
+      throw new Error(`Workflow step ${stepId} has duplicate phase id: ${phase.id}`);
+    }
+    ids.add(phase.id);
+  }
+};
+
+const normalizePhaseOutcome = (value: unknown): WorkflowPhaseOutcome | undefined => {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) throw new Error("Workflow phase callback returned an invalid outcome");
+  if (value.status === "completed") {
+    if (value.message !== undefined && typeof value.message !== "string") {
+      throw new Error("Workflow phase callback returned an invalid outcome");
+    }
+    return typeof value.message === "string"
+      ? { status: "completed", message: value.message }
+      : { status: "completed" };
+  }
+  if (value.status === "skipped" && typeof value.reason === "string" && value.reason.trim()) {
+    return { status: "skipped", reason: value.reason };
+  }
+  throw new Error("Workflow phase callback returned an invalid outcome");
+};
+
+const samePhaseCatalog = (
+  left: readonly WorkflowPhaseDefinition[] | undefined,
+  right: readonly WorkflowPhaseDefinition[],
+): boolean =>
+  Boolean(
+    left &&
+    left.length === right.length &&
+    left.every(
+      (phase, index) => phase.id === right[index]?.id && phase.title === right[index]?.title,
+    ),
+  );
+
 const validateWorkflow = (workflow: Workflow): void => {
   if (!isRecord(workflow) || workflow.version !== WORKFLOW_VERSION) {
     throw new Error(`Unsupported workflow version: ${String(workflow?.version)}`);
@@ -510,6 +568,7 @@ const validateWorkflow = (workflow: Workflow): void => {
     if (step.with !== undefined && !isRecord(step.with)) {
       throw new Error(`Workflow step ${step.id} inputs must be an object`);
     }
+    if (step.phases !== undefined) validatePhaseDefinitions(step.id, step.phases);
     if (step.artifactInputs !== undefined && !isRecord(step.artifactInputs)) {
       throw new Error(`Workflow step ${step.id} artifact inputs must be an object`);
     }
@@ -665,7 +724,68 @@ export const runWorkflow = async <TServices = unknown>(
     const runStep = async (step: WorkflowStep): Promise<void> => {
       const stepStartedAt = Date.now();
       const stepArtifacts: Array<WorkflowArtifact | WorkflowArtifactInstance> = [];
+      const phaseResults = new Map<string, WorkflowPhaseResult>(
+        (step.phases ?? []).map((phase) => [
+          phase.id,
+          { ...phase, status: "pending", warnings: [] as string[] },
+        ]),
+      );
+      const phaseDiagnostics: string[] = [];
       let deliveryArtifact: WorkflowArtifactInstance | undefined;
+      const phaseSnapshot = (): WorkflowPhaseResult[] =>
+        [...phaseResults.values()].map((phase) => ({ ...phase, warnings: [...phase.warnings] }));
+      const phaseCalls = new Set<Promise<void>>();
+      const reportPhaseWarning = (phaseId: string, message: string, diagnostic = false): void => {
+        const phase = phaseResults.get(phaseId);
+        if (phase) phase.warnings.push(redact(message));
+        if (diagnostic) phaseDiagnostics.push(redact(message));
+        emit({
+          type: "phase.warning",
+          stepId: step.id,
+          phaseId,
+          message,
+          ...(diagnostic ? { diagnostic: true } : {}),
+        });
+      };
+      const finishPhases = (successful: boolean, parentError?: WorkflowError): void => {
+        for (const phase of phaseResults.values()) {
+          if (phase.status === "running" && !successful) {
+            const completedAt = Date.now();
+            phase.status = "failed";
+            phase.completedAt = completedAt;
+            phase.duration = completedAt - (phase.startedAt ?? completedAt);
+            phase.error = parentError ?? { name: "Error", message: "Workflow step failed" };
+            emit({
+              type: "phase.failed",
+              stepId: step.id,
+              phaseId: phase.id,
+              error: phase.error,
+              duration: phase.duration,
+            });
+            continue;
+          }
+          if (phase.status !== "pending") continue;
+          phase.status = successful ? "not-reported" : "not-reached";
+          if (successful) {
+            const message = "Declared phase was not reported by the provider.";
+            phase.warnings.push(message);
+            phaseDiagnostics.push(message);
+            emit({
+              type: "phase.warning",
+              stepId: step.id,
+              phaseId: phase.id,
+              message,
+              diagnostic: true,
+            });
+          }
+          emit({
+            type: successful ? "phase.not-reported" : "phase.not-reached",
+            stepId: step.id,
+            phaseId: phase.id,
+            title: phase.title,
+          });
+        }
+      };
       emit({ type: "step.started", stepId: step.id, uses: step.uses });
 
       try {
@@ -690,8 +810,161 @@ export const runWorkflow = async <TServices = unknown>(
           warn: (...args: unknown[]) => context.host.logger.warn(redact(formatLog(args))),
           error: (...args: unknown[]) => context.host.logger.error(redact(formatLog(args))),
         };
-        const result =
-          (await task({
+        const withPhases = <const T extends readonly WorkflowPhaseDefinition[]>(
+          catalog: T,
+        ): WorkflowPhaseRunner<T[number]["id"]> => {
+          const matches = samePhaseCatalog(step.phases, catalog);
+          if (!matches) {
+            const declaredIds = new Set(step.phases?.map((phase) => phase.id) ?? []);
+            const boundIds = new Set(catalog.map((phase) => phase.id));
+            for (const phase of step.phases ?? []) {
+              const bound = catalog.find((candidate) => candidate.id === phase.id);
+              if (!bound || bound.title !== phase.title) {
+                reportPhaseWarning(
+                  phase.id,
+                  `Bound phase catalog does not match the compiled definition for '${phase.id}'.`,
+                  true,
+                );
+              }
+            }
+            for (const phase of catalog) {
+              if (!declaredIds.has(phase.id)) {
+                reportPhaseWarning(
+                  phase.id,
+                  `Phase '${phase.id}' is not declared on compiled workflow step ${step.id}.`,
+                  true,
+                );
+              }
+            }
+            const orderDiffers =
+              step.phases?.length === catalog.length &&
+              step.phases.some((phase, index) => phase.id !== catalog[index]?.id);
+            if (
+              step.phases &&
+              (catalog.length !== step.phases.length || orderDiffers) &&
+              boundIds.size === declaredIds.size
+            ) {
+              reportPhaseWarning(
+                "catalog",
+                "Bound phase catalog has a different order or duplicate entries than the compiled definition.",
+                true,
+              );
+            }
+          }
+
+          const phase = <Id extends T[number]["id"]>(
+            phaseId: Id,
+            callback: (
+              tools: WorkflowPhaseTools,
+            ) => WorkflowPhaseOutcome | void | Promise<WorkflowPhaseOutcome | void>,
+          ): Promise<void> => {
+            const id = String(phaseId);
+            const phaseResult = phaseResults.get(id);
+            const tracked = Boolean(phaseResult && phaseResult.status === "pending");
+            if (!phaseResult) {
+              reportPhaseWarning(
+                id,
+                `Phase '${id}' is not declared on compiled workflow step ${step.id}.`,
+                true,
+              );
+            } else if (!tracked) {
+              reportPhaseWarning(id, `Phase '${id}' was invoked more than once.`, true);
+            }
+
+            const startedAt = Date.now();
+            if (tracked && phaseResult) {
+              phaseResult.status = "running";
+              phaseResult.startedAt = startedAt;
+              emit({
+                type: "phase.started",
+                stepId: step.id,
+                phaseId: id,
+                title: phaseResult.title,
+              });
+            }
+
+            const tools: WorkflowPhaseTools = {
+              skip: (reason) => {
+                if (typeof reason !== "string" || !reason.trim()) {
+                  throw new Error(`Workflow phase ${id} requires a skip reason`);
+                }
+                return { status: "skipped", reason };
+              },
+              success: (message) => ({ status: "completed", message }),
+              fail: (errorOrMessage): never => {
+                throw toError(errorOrMessage);
+              },
+              warn: (message) => {
+                if (typeof message !== "string" || !message.trim()) {
+                  throw new Error(`Workflow phase ${id} requires a warning message`);
+                }
+                reportPhaseWarning(id, message);
+              },
+            };
+
+            const execution = (async () => {
+              try {
+                const outcome = normalizePhaseOutcome(await callback(tools));
+                if (!tracked || !phaseResult) return;
+                const completedAt = Date.now();
+                const wasSkipped = outcome?.status === "skipped";
+                phaseResult.status = wasSkipped ? "skipped" : "completed";
+                phaseResult.completedAt = completedAt;
+                phaseResult.duration = completedAt - startedAt;
+                if (outcome?.status === "skipped") {
+                  phaseResult.message = redact(outcome.reason);
+                  emit({
+                    type: "phase.skipped",
+                    stepId: step.id,
+                    phaseId: id,
+                    reason: outcome.reason,
+                    duration: phaseResult.duration,
+                  });
+                } else {
+                  const message = outcome?.status === "completed" ? outcome.message : undefined;
+                  if (message !== undefined) phaseResult.message = redact(message);
+                  emit({
+                    type: "phase.completed",
+                    stepId: step.id,
+                    phaseId: id,
+                    ...(message !== undefined ? { message } : {}),
+                    duration: phaseResult.duration,
+                  });
+                }
+              } catch (error) {
+                if (tracked && phaseResult) {
+                  const completedAt = Date.now();
+                  const serialized = serializeError(error, redact);
+                  phaseResult.status = "failed";
+                  phaseResult.completedAt = completedAt;
+                  phaseResult.duration = completedAt - startedAt;
+                  phaseResult.error = serialized;
+                  emit({
+                    type: "phase.failed",
+                    stepId: step.id,
+                    phaseId: id,
+                    error: serialized,
+                    duration: phaseResult.duration,
+                  });
+                }
+                throw error;
+              }
+            })();
+            phaseCalls.add(execution);
+            void execution
+              .finally((): void => {
+                phaseCalls.delete(execution);
+              })
+              .catch((): undefined => undefined);
+            return execution;
+          };
+
+          return { phase };
+        };
+
+        let taskResult: Record<string, unknown> | void;
+        try {
+          taskResult = await task({
             step,
             inputs,
             connectionValues: valueResolver.connectionValues,
@@ -755,7 +1028,12 @@ export const runWorkflow = async <TServices = unknown>(
                 }) as WorkflowArtifactInstance,
               );
             },
-          })) ?? {};
+            withPhases,
+          });
+        } finally {
+          await Promise.allSettled(phaseCalls);
+        }
+        const result = taskResult ?? {};
         ensureNotAborted(signal);
         if (!isRecord(result))
           throw new Error(`Workflow task ${step.uses} returned invalid outputs`);
@@ -771,6 +1049,7 @@ export const runWorkflow = async <TServices = unknown>(
         }
 
         const completedAt = Date.now();
+        finishPhases(true);
         const stepResult: WorkflowStepResult = {
           id: step.id,
           uses: step.uses,
@@ -780,6 +1059,8 @@ export const runWorkflow = async <TServices = unknown>(
           startedAt: stepStartedAt,
           completedAt,
           duration: completedAt - stepStartedAt,
+          ...(phaseResults.size > 0 ? { phases: phaseSnapshot() } : {}),
+          ...(phaseDiagnostics.length > 0 ? { diagnostics: [...phaseDiagnostics] } : {}),
         };
         if (step.delivery && resolvedDeliveryArtifact) {
           stepResult.delivery = {
@@ -817,6 +1098,7 @@ export const runWorkflow = async <TServices = unknown>(
         const normalized = signal.aborted ? abortError(signal.reason) : toError(error);
         const completedAt = Date.now();
         const serialized = serializeError(normalized, redact);
+        finishPhases(false, serialized);
         const failedStep: WorkflowStepResult = {
           id: step.id,
           uses: step.uses,
@@ -827,6 +1109,8 @@ export const runWorkflow = async <TServices = unknown>(
           completedAt,
           duration: completedAt - stepStartedAt,
           error: serialized,
+          ...(phaseResults.size > 0 ? { phases: phaseSnapshot() } : {}),
+          ...(phaseDiagnostics.length > 0 ? { diagnostics: [...phaseDiagnostics] } : {}),
         };
         if (step.delivery && deliveryArtifact) {
           failedStep.delivery = {
@@ -873,9 +1157,26 @@ export const runWorkflow = async <TServices = unknown>(
           completedAt: now,
           duration: 0,
           blockedBy,
+          ...(step.phases?.length
+            ? {
+                phases: step.phases.map((phase) => ({
+                  ...phase,
+                  status: "not-reached" as const,
+                  warnings: [] as string[],
+                })),
+              }
+            : {}),
         };
         steps[step.id] = skippedStep;
         pending.delete(step.id);
+        for (const phase of step.phases ?? []) {
+          emit({
+            type: "phase.not-reached",
+            stepId: step.id,
+            phaseId: phase.id,
+            title: phase.title,
+          });
+        }
         emit({ type: "step.skipped", stepId: step.id, uses: step.uses, blockedBy });
       }
       if (pending.size === 0) break;
@@ -913,9 +1214,26 @@ export const runWorkflow = async <TServices = unknown>(
             completedAt: now,
             duration: 0,
             blockedBy: [failedStepId],
+            ...(step.phases?.length
+              ? {
+                  phases: step.phases.map((phase) => ({
+                    ...phase,
+                    status: "not-reached" as const,
+                    warnings: [] as string[],
+                  })),
+                }
+              : {}),
           };
           steps[step.id] = skippedStep;
           pending.delete(step.id);
+          for (const phase of step.phases ?? []) {
+            emit({
+              type: "phase.not-reached",
+              stepId: step.id,
+              phaseId: phase.id,
+              title: phase.title,
+            });
+          }
           emit({
             type: "step.skipped",
             stepId: step.id,
@@ -945,6 +1263,17 @@ export const runWorkflow = async <TServices = unknown>(
   } catch (error) {
     const normalized = signal.aborted ? abortError(signal.reason) : toError(error);
     const serialized = serializeError(normalized, redact);
+    for (const step of workflow.steps) {
+      if (steps[step.id]) continue;
+      for (const phase of step.phases ?? []) {
+        emit({
+          type: "phase.not-reached",
+          stepId: step.id,
+          phaseId: phase.id,
+          title: phase.title,
+        });
+      }
+    }
     emit({
       type: "workflow.failed",
       error: serialized,

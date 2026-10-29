@@ -18,6 +18,58 @@ export interface WorkflowStep {
   artifacts?: Record<string, WorkflowArtifactDefinition>;
   artifactInputs?: Record<string, WorkflowArtifactReference>;
   delivery?: WorkflowDeliveryDefinition;
+  /** Ordered, serializable progress phases reported by the task at runtime. */
+  phases?: readonly WorkflowPhaseDefinition[];
+}
+
+export interface WorkflowPhaseDefinition {
+  id: string;
+  title: string;
+}
+
+/** Preserve a phase catalog's literal IDs so task calls can be checked by TypeScript. */
+export const definePhases = <const T extends readonly WorkflowPhaseDefinition[]>(phases: T): T =>
+  phases;
+
+export type PhaseIds<T extends readonly WorkflowPhaseDefinition[]> = T[number]["id"];
+
+export type WorkflowPhaseStatus =
+  | "pending"
+  | "running"
+  | "completed"
+  | "skipped"
+  | "failed"
+  | "not-reached"
+  | "not-reported";
+
+export interface WorkflowPhaseResult extends WorkflowPhaseDefinition {
+  status: WorkflowPhaseStatus;
+  startedAt?: number;
+  completedAt?: number;
+  duration?: number;
+  message?: string;
+  error?: WorkflowError;
+  warnings: string[];
+}
+
+export type WorkflowPhaseOutcome =
+  | { status: "completed"; message?: string }
+  | { status: "skipped"; reason: string };
+
+export interface WorkflowPhaseTools {
+  skip(reason: string): WorkflowPhaseOutcome;
+  success(message?: string): WorkflowPhaseOutcome;
+  fail(errorOrMessage: unknown): never;
+  warn(message: string): void;
+}
+
+export interface WorkflowPhaseRunner<Id extends string> {
+  phase(
+    id: Id,
+    callback: (
+      tools: WorkflowPhaseTools,
+    ) => WorkflowPhaseOutcome | void | Promise<WorkflowPhaseOutcome | void>,
+  ): Promise<void>;
 }
 
 export interface WorkflowArtifactDefinition {
@@ -104,6 +156,9 @@ export interface WorkflowTaskContext<TServices = unknown> {
     path: string,
     metadata?: { checksum?: string; size?: number; name?: string },
   ): void;
+  withPhases<const T extends readonly WorkflowPhaseDefinition[]>(
+    phases: T,
+  ): WorkflowPhaseRunner<PhaseIds<T>>;
 }
 
 export interface WorkflowTaskDeliveryContext {
@@ -155,6 +210,8 @@ export interface WorkflowStepResult {
   error?: WorkflowError;
   blockedBy?: string[];
   delivery?: WorkflowDeliveryResult;
+  phases?: WorkflowPhaseResult[];
+  diagnostics?: string[];
 }
 
 export interface WorkflowDeliveryResult {
@@ -216,6 +273,46 @@ export type WorkflowEventInput =
       stepId: string;
       uses: string;
       blockedBy: string[];
+    }
+  | {
+      type: "phase.started";
+      stepId: string;
+      phaseId: string;
+      title: string;
+    }
+  | {
+      type: "phase.completed";
+      stepId: string;
+      phaseId: string;
+      message?: string;
+      duration: number;
+    }
+  | {
+      type: "phase.skipped";
+      stepId: string;
+      phaseId: string;
+      reason: string;
+      duration: number;
+    }
+  | {
+      type: "phase.failed";
+      stepId: string;
+      phaseId: string;
+      error: WorkflowError;
+      duration: number;
+    }
+  | {
+      type: "phase.warning";
+      stepId: string;
+      phaseId: string;
+      message: string;
+      diagnostic?: boolean;
+    }
+  | {
+      type: "phase.not-reached" | "phase.not-reported";
+      stepId: string;
+      phaseId: string;
+      title: string;
     }
   | {
       type: "workflow.completed";

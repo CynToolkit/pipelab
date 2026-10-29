@@ -64,6 +64,7 @@ describe("release beforeBuild task", () => {
         log: vi.fn(),
         logStream: vi.fn(),
         setArtifact: vi.fn(),
+        withPhases: () => ({ phase: async () => undefined }),
       };
 
       await expect(releaseBeforeBuildWorkflowTask(taskContext)).rejects.toThrow(

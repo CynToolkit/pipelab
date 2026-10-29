@@ -2,6 +2,7 @@
 import { SandboxFolder } from "@pipelab/constants";
 import type {
   ArtifactInstance as WorkflowArtifactInstance,
+  WorkflowPhaseResult,
   WorkflowDeliveryResult,
 } from "@pipelab/workflow-runtime";
 import type { ArtifactDescriptor } from "./release/types";
@@ -22,6 +23,8 @@ export interface ExecutionStep {
   destinationName?: string;
   slotId?: string;
   artifact?: string;
+  phases?: WorkflowPhaseResult[];
+  diagnostics?: string[];
 }
 
 export interface ExecutionError {
@@ -134,6 +137,41 @@ const parseLog = (value: unknown, path: string): void => {
     throw new BuildHistoryParseError(`${path}.source`, "must be a string");
   if (value.data !== undefined && !isRecord(value.data))
     throw new BuildHistoryParseError(`${path}.data`, "must be an object");
+};
+
+const parsePhase = (value: unknown, path: string): void => {
+  const statuses = [
+    "pending",
+    "running",
+    "completed",
+    "skipped",
+    "failed",
+    "not-reached",
+    "not-reported",
+  ];
+  if (
+    !isRecord(value) ||
+    !isNonEmptyString(value.id) ||
+    !isNonEmptyString(value.title) ||
+    typeof value.status !== "string" ||
+    !statuses.includes(value.status) ||
+    !Array.isArray(value.warnings) ||
+    value.warnings.some((warning) => typeof warning !== "string")
+  )
+    throw new BuildHistoryParseError(path, "phase has an invalid shape");
+  for (const key of ["startedAt", "completedAt", "duration"])
+    if (value[key] !== undefined && !isFiniteNumber(value[key]))
+      throw new BuildHistoryParseError(`${path}.${key}`, "must be a finite number");
+  if (value.message !== undefined && typeof value.message !== "string")
+    throw new BuildHistoryParseError(`${path}.message`, "must be a string");
+  if (value.error !== undefined) {
+    if (
+      !isRecord(value.error) ||
+      !isNonEmptyString(value.error.name) ||
+      typeof value.error.message !== "string"
+    )
+      throw new BuildHistoryParseError(`${path}.error`, "has an invalid shape");
+  }
 };
 
 const parseArtifactDescriptor = (value: unknown, path: string): void => {
@@ -276,6 +314,22 @@ const assertEntry: (value: unknown, path: string) => asserts value is BuildHisto
     if (step.output !== undefined && !isRecord(step.output))
       throw new BuildHistoryParseError(`${path}.steps.${index}.output`, "must be an object");
     if (step.error !== undefined) parseError(step.error, `${path}.steps.${index}.error`);
+    if (step.phases !== undefined) {
+      if (!Array.isArray(step.phases))
+        throw new BuildHistoryParseError(`${path}.steps.${index}.phases`, "must be an array");
+      step.phases.forEach((phase, phaseIndex) =>
+        parsePhase(phase, `${path}.steps.${index}.phases.${phaseIndex}`),
+      );
+    }
+    if (
+      step.diagnostics !== undefined &&
+      (!Array.isArray(step.diagnostics) ||
+        step.diagnostics.some((item) => typeof item !== "string"))
+    )
+      throw new BuildHistoryParseError(
+        `${path}.steps.${index}.diagnostics`,
+        "must be an array of strings",
+      );
     step.logs.forEach((log, logIndex) => parseLog(log, `${path}.steps.${index}.logs.${logIndex}`));
   });
   value.logs.forEach((log, index) => parseLog(log, `${path}.logs.${index}`));

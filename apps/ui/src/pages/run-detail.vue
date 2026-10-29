@@ -173,24 +173,62 @@
             ><small>{{ allLogs.length }}</small>
           </button>
           <div v-if="!entry.steps.length" class="step-empty">Waiting for steps…</div>
-          <button
-            v-for="(step, index) in entry.steps"
-            :key="step.id"
-            class="step-item"
-            :class="[{ selected: selectedStep === step.id }, `step-${step.status}`]"
-            :aria-pressed="selectedStep === step.id"
-            @click="selectStep(step.id)"
-          >
-            <span class="step-icon" :class="`status-${step.status}`"
-              ><i :class="statusIcon(step.status)" aria-hidden="true"
-            /></span>
-            <span class="step-label"
-              ><strong>{{ step.name }}</strong
-              ><small>{{ stepDuration(step) }}</small></span
+          <div v-for="(step, index) in entry.steps" :key="step.id" class="step-group">
+            <button
+              class="step-item"
+              :class="[{ selected: selectedStep === step.id }, `step-${step.status}`]"
+              :aria-pressed="selectedStep === step.id"
+              @click="selectStep(step.id)"
             >
-            <small class="log-count">{{ step.logs.length }}</small>
-            <span class="sr-only">Step {{ index + 1 }}, {{ statusLabel(step.status) }}</span>
-          </button>
+              <span class="step-icon" :class="`status-${step.status}`"
+                ><i :class="statusIcon(step.status)" aria-hidden="true"
+              /></span>
+              <span class="step-label"
+                ><strong>{{ step.name }}</strong
+                ><small>{{ stepDuration(step) }}</small></span
+              >
+              <small class="log-count">{{ step.logs.length }}</small>
+              <span class="sr-only">Step {{ index + 1 }}, {{ statusLabel(step.status) }}</span>
+            </button>
+            <ol
+              v-if="step.phases?.length"
+              class="phase-checklist"
+              :aria-label="`${step.name} phases`"
+            >
+              <li v-for="phase in step.phases" :key="phase.id" :class="`phase-${phase.status}`">
+                <span class="phase-status" :aria-label="phaseStatusLabel(phase.status)">
+                  <i :class="statusIcon(phase.status)" aria-hidden="true" />
+                </span>
+                <span class="phase-detail">
+                  <strong>{{ phase.title }}</strong>
+                  <small>
+                    {{ phaseStatusLabel(phase.status) }}
+                    <template v-if="phase.duration !== undefined">
+                      · {{ formatDurationMs(phase.duration) }}
+                    </template>
+                  </small>
+                  <small v-if="phase.message" class="phase-message">{{ phase.message }}</small>
+                  <small v-if="phase.error" class="phase-message phase-error">
+                    {{ phase.error.message }}
+                  </small>
+                  <small
+                    v-for="(warning, warningIndex) in phase.warnings"
+                    :key="`${phase.id}-warning-${warningIndex}`"
+                    class="phase-message phase-warning"
+                  >
+                    {{ warning }}
+                  </small>
+                </span>
+              </li>
+            </ol>
+            <small
+              v-for="(diagnostic, diagnosticIndex) in step.diagnostics"
+              :key="`${step.id}-diagnostic-${diagnosticIndex}`"
+              class="phase-message phase-warning step-diagnostic"
+            >
+              {{ diagnostic }}
+            </small>
+          </div>
         </aside>
         <div class="log-panel">
           <header class="log-heading">
@@ -508,6 +546,16 @@ const stepDuration = (step: ExecutionStep) =>
       : step.status === "pending"
         ? "Pending"
         : "—";
+const phaseStatusLabel = (status: string) =>
+  ({
+    pending: "Pending",
+    running: "Running",
+    completed: "Completed",
+    skipped: "Skipped",
+    failed: "Failed",
+    "not-reached": "Not reached",
+    "not-reported": "Not reported",
+  })[status] || status;
 const statusIcon = (status: string) =>
   ({
     pending: "mdi mdi-circle-outline",
@@ -517,6 +565,8 @@ const statusIcon = (status: string) =>
     failed: "mdi mdi-close-circle",
     cancelled: "mdi mdi-cancel",
     skipped: "mdi mdi-skip-next-circle",
+    "not-reached": "mdi mdi-arrow-down-circle-outline",
+    "not-reported": "mdi mdi-help-circle-outline",
   })[status] || "mdi mdi-circle-outline";
 const statusLabel = (status: string) => status.replaceAll("-", " ");
 const statusSeverity = (status: string) =>
@@ -890,6 +940,9 @@ onUnmounted(() => {
   border-right: 1px solid var(--p-surface-200, var(--surface-border));
   background: var(--p-surface-50, var(--surface-ground));
 }
+.step-group + .step-group {
+  margin-top: 3px;
+}
 .sidebar-heading {
   display: flex;
   justify-content: space-between;
@@ -971,6 +1024,53 @@ onUnmounted(() => {
   padding: 14px 8px;
   color: var(--p-text-muted-color, var(--text-color-secondary));
   font-size: 0.78rem;
+}
+.phase-checklist {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 9px 14px;
+  padding: 0 0 0 10px;
+  border-left: 1px solid var(--p-surface-300, var(--surface-border));
+  list-style: none;
+}
+.phase-checklist li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 6px;
+  padding: 4px 3px;
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.68rem;
+}
+.phase-status {
+  padding-top: 1px;
+  text-align: center;
+}
+.phase-detail {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.phase-detail strong {
+  color: var(--text-color);
+  font-size: 0.68rem;
+  font-weight: 550;
+}
+.phase-detail small {
+  font-size: 0.63rem;
+}
+.phase-message {
+  overflow-wrap: anywhere;
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+}
+.phase-error {
+  color: var(--p-red-500, #ef4444) !important;
+}
+.phase-warning {
+  color: var(--p-orange-500, #f97316) !important;
+}
+.step-diagnostic {
+  display: block;
+  margin: 0 8px 7px 34px;
 }
 .log-panel {
   display: flex;

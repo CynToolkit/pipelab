@@ -4,7 +4,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { ListrTaskState, type ListrTask } from "listr2";
 import { createSandbox } from "@pipelab/test-utils";
 import { createReleaseConfig, type ReleaseConfig } from "@pipelab/shared";
-import type { WorkflowResult } from "@pipelab/workflow-runtime";
+import type { WorkflowEvent, WorkflowResult } from "@pipelab/workflow-runtime";
 import * as coreNode from "@pipelab/core-node";
 import {
   createWorkflowListr,
@@ -166,6 +166,112 @@ describe("workflow CLI result output", () => {
 
     expect(submittedName).toBe("workflows/portable-release.json.json");
     expect(submittedConfig).toEqual(config);
+  });
+
+  test("renders and settles nested phase tasks from runtime events", async () => {
+    sandbox = await createSandbox("workflow-cli-phases");
+    const config = createReleaseConfig({
+      id: "phase-workflow",
+      project: "cli-project",
+      name: "Phase workflow",
+      source: { provider: "@pipelab/core/source/folder", config: { path: sandbox.path } },
+    });
+    await persistWorkflowFixture(sandbox, config);
+    const originalPrepare = coreNode.prepareReleaseWorkflow;
+    const prepare = vi.spyOn(coreNode, "prepareReleaseWorkflow");
+    prepare.mockImplementation((flow) => {
+      const prepared = originalPrepare(flow);
+      return {
+        ...prepared,
+        workflow: {
+          ...prepared.workflow,
+          steps: prepared.workflow.steps.map((candidate, index) =>
+            index === 0
+              ? {
+                  ...candidate,
+                  phases: [
+                    { id: "prepare", title: "Prepare" },
+                    { id: "install", title: "Install" },
+                    { id: "package", title: "Package" },
+                  ],
+                }
+              : candidate,
+          ),
+        },
+      };
+    });
+    const result: WorkflowResult = {
+      status: "completed",
+      outputs: {},
+      artifacts: [],
+      deliveries: [],
+      steps: {},
+    };
+    const stepId = "release-folder-source";
+    const receivedEvents: string[] = [];
+    const renderedOutput: string[] = [];
+    vi.spyOn(process.stdout, "write").mockImplementation((chunk) => {
+      renderedOutput.push(Buffer.isBuffer(chunk) ? chunk.toString() : String(chunk));
+      return true;
+    });
+    vi.spyOn(coreNode, "executeWorkflow").mockImplementation(async (_context, _name, options) => {
+      const emit = (event: WorkflowEvent) => {
+        receivedEvents.push(event.type);
+        options?.onEvent?.(event);
+      };
+      emit({ type: "step.started", stepId, uses: "filesystem:copy", timestamp: 1 });
+      emit({ type: "phase.started", stepId, phaseId: "prepare", title: "Prepare", timestamp: 2 });
+      emit({
+        type: "phase.completed",
+        stepId,
+        phaseId: "prepare",
+        message: "Ready",
+        duration: 1,
+        timestamp: 3,
+      });
+      emit({
+        type: "phase.skipped",
+        stepId,
+        phaseId: "install",
+        reason: "No install needed",
+        duration: 0,
+        timestamp: 4,
+      });
+      emit({
+        type: "phase.not-reported",
+        stepId,
+        phaseId: "package",
+        title: "Package",
+        timestamp: 5,
+      });
+      emit({
+        type: "step.completed",
+        stepId,
+        uses: "filesystem:copy",
+        outputs: {},
+        artifacts: [],
+        duration: 1,
+        timestamp: 6,
+      });
+      return { result, safeResult: result, runId: "phase-run" };
+    });
+
+    await runWorkflowCommand(config.id, { userData: sandbox.paths.userData });
+
+    expect(receivedEvents).toEqual([
+      "step.started",
+      "phase.started",
+      "phase.completed",
+      "phase.skipped",
+      "phase.not-reported",
+      "step.completed",
+    ]);
+    const rendered = renderedOutput.join("");
+    expect(rendered).toContain("Prepare");
+    expect(rendered).toContain("Install");
+    expect(rendered).toContain("Package");
+    expect(rendered).toContain("Skipped: No install needed");
+    expect(rendered).toContain("Not reported");
   });
 
   test("warns about literal Connection values before returning from dry-run", async () => {

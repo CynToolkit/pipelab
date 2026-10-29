@@ -3,9 +3,11 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runWorkflowTask } from "@pipelab/test-utils";
+import { createLocalHost, runWorkflow } from "@pipelab/workflow-runtime";
 import type { ElectronWorkflowTaskServices } from "../../package-v2";
 import { electronPackageWorkflowTaskFactory } from "../../package-v2";
 import { forge } from "../../forge";
+import { electronPhases } from "../../phases";
 
 vi.mock("../../forge", () => ({ forge: vi.fn() }));
 
@@ -103,6 +105,56 @@ describe("Electron native workflow task", () => {
       ).rejects.toThrow("test cancellation");
     } finally {
       clearTimeout(cancellation);
+    }
+  });
+
+  it("tracks phases independently for concurrent Electron targets", async () => {
+    const workspacePath = await workspace();
+    const events: Array<{ type: string; stepId?: string; phaseId?: string }> = [];
+    forgeMock.mockImplementation(async (_action, _appFolder, execution) => {
+      await execution.phase("prepare", ({ success }) => success("Ready"));
+      await execution.phase("install", ({ success }) => success("Installed"));
+      await execution.phase("package", ({ success }) => success("Packaged"));
+      await execution.phase("patch", ({ skip }) => skip("Patching disabled"));
+      const folder = `/build/${String(execution.inputs.platform)}`;
+      execution.setArtifact("electron-build", folder);
+      return { folder, binary: undefined };
+    });
+    const result = await runWorkflow(
+      {
+        version: 1,
+        steps: ["win32", "linux"].map((platform) => ({
+          id: `electron-${platform}`,
+          uses: "test:electron",
+          needs: [],
+          phases: electronPhases,
+          artifacts,
+          with: { "input-folder": "/input", platform, arch: "x64", name: "App" },
+        })),
+      },
+      {
+        host: createLocalHost(workspacePath),
+        tasks: { "test:electron": electronPackageWorkflowTaskFactory(services) },
+        services,
+        onEvent: (event) => events.push(event),
+      },
+    );
+
+    for (const platform of ["win32", "linux"]) {
+      const phases = result.steps[`electron-${platform}`]?.phases;
+      expect(phases?.map((phase) => phase.status)).toEqual([
+        "completed",
+        "completed",
+        "completed",
+        "skipped",
+      ]);
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "phase.completed",
+          stepId: `electron-${platform}`,
+          phaseId: "package",
+        }),
+      );
     }
   });
 });

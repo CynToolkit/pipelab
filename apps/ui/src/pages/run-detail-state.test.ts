@@ -24,6 +24,11 @@ const entry = (): BuildHistoryEntry => ({
       status: "pending",
       startTime: 0,
       logs: [],
+      phases: [
+        { id: "prepare", title: "Prepare", status: "pending", warnings: [] },
+        { id: "install", title: "Install", status: "pending", warnings: [] },
+        { id: "package", title: "Package", status: "pending", warnings: [] },
+      ],
     },
   ],
   totalSteps: 1,
@@ -112,6 +117,116 @@ describe("applyWorkflowEventToRunEntry", () => {
     expect(run.artifacts?.[0]).not.toHaveProperty("size");
     expect(run.deliveries).toHaveLength(1);
     expect(run.steps[0]).toMatchObject({ id: "build", status: "completed", duration: 6 });
+  });
+
+  it("restores live phase outcomes, warnings, and skipped versus unreported states", () => {
+    const run = entry();
+    applyWorkflowEventToRunEntry(run, {
+      type: "phase.started",
+      stepId: "build",
+      phaseId: "prepare",
+      title: "Prepare",
+      timestamp: 10,
+    });
+    applyWorkflowEventToRunEntry(run, {
+      type: "phase.warning",
+      stepId: "build",
+      phaseId: "prepare",
+      message: "Using fallback",
+      timestamp: 11,
+    });
+    applyWorkflowEventToRunEntry(run, {
+      type: "phase.completed",
+      stepId: "build",
+      phaseId: "prepare",
+      message: "Ready",
+      duration: 2,
+      timestamp: 12,
+    });
+    applyWorkflowEventToRunEntry(run, {
+      type: "phase.skipped",
+      stepId: "build",
+      phaseId: "install",
+      reason: "Dependencies cached",
+      duration: 0,
+      timestamp: 12,
+    });
+    applyWorkflowEventToRunEntry(run, {
+      type: "phase.not-reported",
+      stepId: "build",
+      phaseId: "package",
+      title: "Package",
+      timestamp: 12,
+    });
+
+    expect(run.steps[0]?.phases).toEqual([
+      {
+        id: "prepare",
+        title: "Prepare",
+        status: "completed",
+        warnings: ["Using fallback"],
+        startedAt: 10,
+        completedAt: 12,
+        duration: 2,
+        message: "Ready",
+      },
+      {
+        id: "install",
+        title: "Install",
+        status: "skipped",
+        warnings: [],
+        completedAt: 12,
+        duration: 0,
+        message: "Dependencies cached",
+      },
+      {
+        id: "package",
+        title: "Package",
+        status: "not-reported",
+        warnings: [],
+        completedAt: 12,
+      },
+    ]);
+  });
+
+  it("restores failed phase diagnostics from live events", () => {
+    const run = entry();
+    applyWorkflowEventToRunEntry(run, {
+      type: "phase.started",
+      stepId: "build",
+      phaseId: "prepare",
+      title: "Prepare",
+      timestamp: 10,
+    });
+    applyWorkflowEventToRunEntry(run, {
+      type: "phase.failed",
+      stepId: "build",
+      phaseId: "prepare",
+      error: { name: "Error", message: "Preparation failed" },
+      duration: 5,
+      timestamp: 15,
+    });
+
+    expect(run.steps[0]?.phases?.[0]).toMatchObject({
+      status: "failed",
+      error: { message: "Preparation failed" },
+      duration: 5,
+    });
+  });
+
+  it("keeps live phase snapshots when persisted history still has pending phases", () => {
+    const live = entry();
+    live.steps[0]!.phases![0]!.status = "completed";
+    live.steps[0]!.phases![0]!.completedAt = 20;
+    const persisted = entry();
+    persisted.steps[0]!.phases![0]!.status = "pending";
+
+    const merged = reconcileRunEntry(live, persisted);
+
+    expect(merged.steps[0]?.phases?.[0]).toMatchObject({
+      status: "completed",
+      completedAt: 20,
+    });
   });
 });
 
