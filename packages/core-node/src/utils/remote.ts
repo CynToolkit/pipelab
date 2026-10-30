@@ -57,7 +57,7 @@ export async function ensureNodeJS(context: PipelabContext, version = DEFAULT_NO
     return finalNodePath;
   }
 
-  const lockKey = `node:${version}`;
+  const lockKey = `node:${nodeDir}`;
   return withLock(lockKey, async () => {
     if (isNodeJSComplete(finalNodePath)) return finalNodePath;
 
@@ -149,7 +149,7 @@ export async function ensurePNPM(context: PipelabContext, version = DEFAULT_PNPM
     return pnpmPath;
   }
 
-  const lockKey = `pnpm:${version}`;
+  const lockKey = `pnpm:${pnpmDir}`;
   return withLock(lockKey, async () => {
     if (existsSync(pnpmPath)) return pnpmPath;
     sendStartupProgress(`Checking PNPM v${version}...`);

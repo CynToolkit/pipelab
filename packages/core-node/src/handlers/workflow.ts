@@ -11,7 +11,9 @@ import {
   type WorkflowResult,
 } from "@pipelab/workflow-runtime";
 import { nanoid } from "nanoid";
-import { mkdir } from "node:fs/promises";
+import { mkdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   buildReleaseCatalog,
   compileReleasePlan,
@@ -237,6 +239,7 @@ export const executeWorkflow = async (
     env?: WorkflowEnvironment;
     connectionValues?: WorkflowConnectionValues;
     connectionOverrides?: readonly WorkflowConnectionOverride[];
+    persist?: boolean;
     signal?: AbortSignal;
     onEvent?: (event: WorkflowEvent) => void;
     onRunCreated?: (id: string) => void | Promise<void>;
@@ -280,33 +283,37 @@ export const executeWorkflow = async (
   const { logger } = useLogger();
   const buildId = nanoid();
   const history = new BuildHistoryStorage(context);
+  const persistHistory = options.persist !== false;
   const startTime = Date.now();
   const projectId = config.project;
   const liveSteps: ExecutionStep[] = executionPlan(workflow);
   const liveLogs: LogEntry[] = [];
-  await history.save({
-    id: buildId,
-    projectId,
-    workflowId: config.id,
-    workflowName: config.name,
-    projectName: storedEntity?.project.name ?? stored.project,
-    status: "running",
-    version,
-    startTime,
-    steps: liveSteps,
-    totalSteps: workflow.steps.length,
-    completedSteps: 0,
-    failedSteps: 0,
-    cancelledSteps: 0,
-    logs: [],
-    artifacts: [],
-    deliveries: [],
-    createdAt: startTime,
-    updatedAt: startTime,
-  });
+  if (persistHistory) {
+    await history.save({
+      id: buildId,
+      projectId,
+      workflowId: config.id,
+      workflowName: config.name,
+      projectName: storedEntity?.project.name ?? stored.project,
+      status: "running",
+      version,
+      startTime,
+      steps: liveSteps,
+      totalSteps: workflow.steps.length,
+      completedSteps: 0,
+      failedSteps: 0,
+      cancelledSteps: 0,
+      logs: [],
+      artifacts: [],
+      deliveries: [],
+      createdAt: startTime,
+      updatedAt: startTime,
+    });
+  }
   let historyWriteTimer: ReturnType<typeof setTimeout> | undefined;
   let historyWriteTail: Promise<void> = Promise.resolve();
   const writeLiveHistory = () => {
+    if (!persistHistory) return;
     const steps = liveSteps.map((step) => ({ ...step, logs: [...step.logs] }));
     const logs = [...liveLogs];
     historyWriteTail = historyWriteTail
@@ -358,22 +365,40 @@ export const executeWorkflow = async (
       );
     if (event.type === "step.skipped") observedSteps.set(event.stepId, "skipped" as const);
     applyWorkflowEventToHistory(liveSteps, liveLogs, event);
-    scheduleLiveHistory();
+    if (persistHistory) scheduleLiveHistory();
     options.onEvent?.(event);
   };
+  const temporaryRunRoot =
+    options.persist === false
+      ? await new PipelabContext({
+          userDataPath: context.userDataPath,
+          temporaryDirectory: tmpdir(),
+        }).createTempFolder("pipelab-workflow-")
+      : undefined;
   let result: WorkflowResult;
   try {
     await options.onRunCreated?.(buildId);
-    const workspaceRoot = context.getArtifactsPath("workflow", buildId);
-    const buildStagingRoot = context.getArtifactsPath(config.project, "workflow-staging", buildId);
+    const workspaceRoot = temporaryRunRoot
+      ? join(temporaryRunRoot, "workspace")
+      : context.getArtifactsPath("workflow", buildId);
+    const buildStagingRoot = temporaryRunRoot
+      ? join(temporaryRunRoot, "staging")
+      : context.getArtifactsPath(config.project, "workflow-staging", buildId);
     await Promise.all([
       mkdir(workspaceRoot, { recursive: true }),
       ...(hasEnabledBeforeBuildHooks ? [mkdir(buildStagingRoot, { recursive: true })] : []),
     ]);
-    const node = await ensureNodeJS(context);
-    const pnpm = await ensurePNPM(context);
+    const workflowContext = temporaryRunRoot
+      ? new PipelabContext({
+          userDataPath: context.userDataPath,
+          releaseTag: context.releaseTag,
+          temporaryDirectory: temporaryRunRoot,
+        })
+      : context;
+    const node = await ensureNodeJS(workflowContext);
+    const pnpm = await ensurePNPM(workflowContext);
     const services: ProviderServices = {
-      context,
+      context: workflowContext,
       executables: { node, pnpm },
       run: {
         id: buildId,
@@ -381,7 +406,9 @@ export const executeWorkflow = async (
         projectId: config.project,
         releaseVersion: version,
       },
-      workflowCachePath: context.getCachePath(CacheFolder.Pipelines, config.project, buildId),
+      workflowCachePath: temporaryRunRoot
+        ? join(temporaryRunRoot, "cache")
+        : context.getCachePath(CacheFolder.Pipelines, config.project, buildId),
     };
     const tasks = createPipelabWorkflowTasks(
       services,
@@ -436,32 +463,35 @@ export const executeWorkflow = async (
     const errorMessage = valueResolver.redactString(
       error instanceof Error ? error.message : String(error),
     );
-    await history.update(
-      buildId,
-      {
-        status: finalStatus,
-        endTime: Date.now(),
-        duration: Date.now() - startTime,
-        steps,
-        logs: [...liveLogs],
-        completedSteps: steps.filter((step) => step.status === "completed").length,
-        failedSteps: steps.filter((step) => step.status === "failed" || step.status === "skipped")
-          .length,
-        cancelledSteps: steps.filter((step) => step.status === "cancelled").length,
-        error: {
-          message: errorMessage,
-          code: finalStatus === "cancelled" ? "CANCELLED" : "FAILED",
-          timestamp: Date.now(),
+    if (persistHistory) {
+      await history.update(
+        buildId,
+        {
+          status: finalStatus,
+          endTime: Date.now(),
+          duration: Date.now() - startTime,
+          steps,
+          logs: [...liveLogs],
+          completedSteps: steps.filter((step) => step.status === "completed").length,
+          failedSteps: steps.filter((step) => step.status === "failed" || step.status === "skipped")
+            .length,
+          cancelledSteps: steps.filter((step) => step.status === "cancelled").length,
+          error: {
+            message: errorMessage,
+            code: finalStatus === "cancelled" ? "CANCELLED" : "FAILED",
+            timestamp: Date.now(),
+          },
         },
-      },
-      projectId,
-    );
+        projectId,
+      );
+    }
     const safeError = new Error(errorMessage);
     if (error instanceof Error) safeError.name = valueResolver.redactString(error.name);
     throw safeError;
   } finally {
     if (historyWriteTimer) clearTimeout(historyWriteTimer);
     await historyWriteTail;
+    if (temporaryRunRoot) await rm(temporaryRunRoot, { recursive: true, force: true });
   }
   await flushLiveHistory();
   const historyUpdate = valueResolver.redactObject({
@@ -495,7 +525,9 @@ export const executeWorkflow = async (
     ).length,
     cancelledSteps: 0,
   });
-  await history.update(buildId, historyUpdate, projectId);
+  if (persistHistory) {
+    await history.update(buildId, historyUpdate, projectId);
+  }
   return {
     result,
     safeResult: valueResolver.redactObject(result),

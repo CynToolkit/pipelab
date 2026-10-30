@@ -113,6 +113,10 @@ export const workflowRunOptions = [
   new Option("--user-data <path>", "Custom user-data directory"),
   new Option("-o, --output <path>", "Path to write the result file"),
   new Option("--dry-run", "Validate the workflow without executing deployments"),
+  new Option(
+    "--skip-persistence",
+    "Use temporary files instead of saving run history, outputs, or package/cache data",
+  ),
   new Option("--fail-on-error", "Exit nonzero when a deployment fails"),
   new Option("-v, --verbose", "Show workflow logs after completion"),
   new Option("--connection <alias.field=VALUE>", "Override a Connection field for this run")
@@ -292,6 +296,7 @@ export async function runWorkflowCommand(
     output?: string;
     failOnError?: boolean;
     dryRun?: boolean;
+    skipPersistence?: boolean;
     verbose?: boolean;
     connection?: readonly string[];
   },
@@ -589,6 +594,7 @@ export async function runWorkflowCommand(
     release: { version: "", description: "" },
     ...(workflowInput.kind === "file" ? { workflowConfig: workflowInput.config } : {}),
     connectionOverrides,
+    persist: !options.skipPersistence,
     logger: {
       info: () => undefined,
       warn: (...args) => console.warn(...args),
