@@ -22,6 +22,7 @@ The run detail page shows:
 
 - overall status and summary;
 - each workflow step and its status;
+- provider phases nested under steps, including skipped, failed, and unreported work;
 - step logs, which can be filtered by step;
 - artifacts produced by build steps;
 - destination delivery results.

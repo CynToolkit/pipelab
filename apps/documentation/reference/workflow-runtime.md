@@ -42,6 +42,7 @@ This shape comes from the runtime artifact/delivery test. Each step has a unique
 | `artifacts`      | Named artifact declarations, each with a descriptor.                                                                                                                                                      |
 | `artifactInputs` | Maps task input names to `{ stepId, artifact }` references. The runtime supplies the produced artifact path as that input.                                                                                |
 | `delivery`       | `{ destinationId, slotId, artifact: { stepId, artifact } }` context for a destination task.                                                                                                               |
+| `phases`         | Ordered `{ id, title }` progress items reported by the provider task. Phase IDs are scoped to their step.                                                                                                 |
 
 The runtime checks version `1`, step IDs, dependency IDs, input object shape, and artifact references before execution. Cyclic dependency graphs cannot make progress and are rejected as workflow failures.
 
@@ -118,6 +119,26 @@ Artifact descriptors have `kind` (`project`, `application`, or `files`) and `con
 
 `artifactInputs` passes a referenced artifact's filesystem path to the consumer task. `delivery` instead makes destination ID, slot ID, and artifact instance available in the task's `delivery` context. Results include artifacts and delivery records; this low-level context does not itself define a provider's compatibility or publishing behavior.
 
+## Provider phases
+
+Providers can expose a fixed phase catalog on a workflow step and bind that
+catalog in the task with `context.withPhases(catalog)`. Use
+`definePhases([... ] as const)` so TypeScript infers valid phase IDs; the
+returned `phase` function rejects unknown IDs during typechecking. Each phase
+callback can return `success(message)`, `skip(reason)`, or throw / call
+`fail(error)`. `warn(message)` records a warning while the callback continues.
+The runtime marks callbacks completed automatically, records thrown errors as
+failed phases, and marks phases left over after success as not reported. Phases
+on blocked work are not reached. Phase helpers report task progress and do not
+schedule workflow steps.
+
+Phase lifecycle events include `phase.started`, `phase.completed`,
+`phase.skipped`, `phase.failed`, `phase.warning`, `phase.not-reached`, and
+`phase.not-reported`. Phase results and warnings are included in each step's
+result. Hosts may persist those snapshots for run history. Mismatched catalogs,
+duplicate calls, and missing reports produce diagnostics so a provider's
+progress tree can be compared with its execution.
+
 ## Host and task contracts
 
 `runWorkflow(workflow, context)` receives a host with:
@@ -135,4 +156,4 @@ Ready steps can execute concurrently. A failed prerequisite causes dependent ste
 
 An aborted signal prevents queued work from starting and is passed to running tasks. The runtime emits lifecycle and log events such as `workflow.started`, `step.started`, `step.log`, `step.completed`, `step.failed`, `step.skipped`, and `workflow.completed`. Event records include timestamps. The returned result carries overall status (`completed` or `completed-with-errors`), per-step status and outputs, artifacts, deliveries, timing, and serialized errors. Invalid workflow structure or unsupported versions can reject before a result is returned.
 
-These semantics are exercised by `packages/workflow-runtime/src/runtime.test.ts`; Pipelab's release workflow CLI behavior is covered in `apps/cli/tests/e2e/tests/releases.spec.ts`.
+These semantics are exercised by `packages/workflow-runtime/src/runtime.test.ts`; Pipelab's release workflow CLI behavior is covered in `apps/cli/tests/e2e/tests/workflows.spec.ts`.

@@ -10,6 +10,7 @@ import { kebabCase } from "change-case";
 import semver from "semver";
 import { pathToFileURL } from "node:url";
 import { patchExecutableWithGpupatch } from "./gpupatch";
+import type { ElectronPhaseRunner } from "./phases";
 
 // TODO: https://js.electronforge.io/modules/_electron_forge_core.html
 
@@ -25,6 +26,7 @@ export interface ForgeExecutionContext {
   inputs: Record<string, unknown>;
   paths: { node: string; pnpm: string };
   abortSignal: AbortSignal;
+  phase: ElectronPhaseRunner["phase"];
   context: Parameters<typeof runPnpm>[1]["context"];
   setOutput?: (key: "output", value: string) => void;
   setArtifact: (
@@ -37,18 +39,30 @@ export interface ForgeExecutionContext {
 export const forge = async (
   action: "make" | "package" | "preview",
   appFolder: string | undefined,
-  { cwd, log, inputs, paths, abortSignal, context, setArtifact, setOutput }: ForgeExecutionContext,
+  {
+    cwd,
+    log,
+    inputs,
+    paths,
+    abortSignal,
+    phase,
+    context,
+    setArtifact,
+    setOutput,
+  }: ForgeExecutionContext,
   completeConfiguration: DesktopApp.Electron,
 ): Promise<{ folder: string; binary: string | undefined } | undefined> => {
   log("Building electron");
-
-  if (action !== "preview") {
-    await detectRuntime(appFolder, log);
-  }
-
   const { node } = paths;
-  const destinationFolder = await context.createTempFolder("electron-forge-");
-  log(`Staging build in ${destinationFolder}`);
+  let destinationFolder = "";
+  await phase("prepare", async ({ success }) => {
+    if (action !== "preview") {
+      await detectRuntime(appFolder, log);
+    }
+    destinationFolder = await context.createTempFolder("electron-forge-");
+    log(`Staging build in ${destinationFolder}`);
+    return success("Runtime checked and staging folder created");
+  });
   let dependencyInstallError: unknown;
   let packageTemporaryFolder: string | undefined;
 
@@ -196,29 +210,33 @@ export const forge = async (
         ? "Installing Electron dependencies and custom packages in one pnpm invocation"
         : "Installing Electron dependencies in one pnpm invocation",
     );
-    const installStartedAt = Date.now();
-    try {
-      const { all } = await runPnpm(destinationFolder, {
-        args: installArgs,
-        signal: abortSignal,
-        context,
-      });
-      if (all) log(all);
-    } catch (error) {
-      dependencyInstallError = error;
-      const wasCanceled =
-        abortSignal.aborted ||
-        (error instanceof Error && (error.name === "AbortError" || error.name === "CancelError")) ||
-        (typeof error === "object" &&
-          error !== null &&
-          "isCanceled" in error &&
-          error.isCanceled === true);
-      log(
-        `Electron dependency installation ${wasCanceled ? "canceled" : "failed"} after ${Date.now() - installStartedAt}ms`,
-      );
-      throw error;
-    }
-    log(`Electron dependency installation completed in ${Date.now() - installStartedAt}ms`);
+    await phase("install", async ({ success }) => {
+      const installStartedAt = Date.now();
+      try {
+        const { all } = await runPnpm(destinationFolder, {
+          args: installArgs,
+          signal: abortSignal,
+          context,
+        });
+        if (all) log(all);
+      } catch (error) {
+        dependencyInstallError = error;
+        const wasCanceled =
+          abortSignal.aborted ||
+          (error instanceof Error &&
+            (error.name === "AbortError" || error.name === "CancelError")) ||
+          (typeof error === "object" &&
+            error !== null &&
+            "isCanceled" in error &&
+            error.isCanceled === true);
+        log(
+          `Electron dependency installation ${wasCanceled ? "canceled" : "failed"} after ${Date.now() - installStartedAt}ms`,
+        );
+        throw error;
+      }
+      log(`Electron dependency installation completed in ${Date.now() - installStartedAt}ms`);
+      return success("Dependencies installed");
+    });
 
     if (customElectronSpec !== undefined) {
       const installedElectron = JSON.parse(
@@ -340,32 +358,35 @@ export const forge = async (
       log("finalPlatform", finalPlatform);
       const finalArch = inputArch ?? osArch() ?? "";
 
-      await runWithLiveLogs(
-        node,
-        [forge, action, /* '--', */ "--arch", finalArch, "--platform", finalPlatform],
-        {
-          cwd: destinationFolder,
-          env: {
-            DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
-            ELECTRON_NO_ASAR: "1",
-            PATH: `${shimDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`,
-            TMP: packageTemporaryFolder,
-            TEMP: packageTemporaryFolder,
-            TMPDIR: packageTemporaryFolder,
-            // DEBUG: "electron-packager"
+      await phase("package", async ({ success }) => {
+        await runWithLiveLogs(
+          node,
+          [forge, action, /* '--', */ "--arch", finalArch, "--platform", finalPlatform],
+          {
+            cwd: destinationFolder,
+            env: {
+              DEBUG: completeConfiguration.enableExtraLogging ? "*" : "",
+              ELECTRON_NO_ASAR: "1",
+              PATH: `${shimDir}${delimiter}${dirname(node)}${delimiter}${process.env.PATH}`,
+              TMP: packageTemporaryFolder,
+              TEMP: packageTemporaryFolder,
+              TMPDIR: packageTemporaryFolder,
+              // DEBUG: "electron-packager"
+            },
+            cancelSignal: abortSignal,
           },
-          cancelSignal: abortSignal,
-        },
-        log,
-        {
-          onStderr(data) {
-            log(data);
+          log,
+          {
+            onStderr(data) {
+              log(data);
+            },
+            onStdout(data) {
+              log(data);
+            },
           },
-          onStdout(data) {
-            log(data);
-          },
-        },
-      );
+        );
+        return success("Electron Forge packaging finished");
+      });
 
       if (action !== "preview") {
         const originalNoAsar = process.noAsar;
@@ -386,11 +407,19 @@ export const forge = async (
               outName,
               getBinName(completeConfiguration.name, finalPlatform),
             );
-            await patchExecutableWithGpupatch(binary, finalPlatform as NodeJS.Platform, {
-              context,
-              log,
-              abortSignal,
+            await phase("patch", async ({ skip, success }) => {
+              if (finalPlatform !== "win32") {
+                return skip("Executable patching is only supported on Windows");
+              }
+              await patchExecutableWithGpupatch(binary, finalPlatform as NodeJS.Platform, {
+                context,
+                log,
+                abortSignal,
+              });
+              return success("Executable patched");
             });
+          } else {
+            await phase("patch", ({ skip }) => skip("Executable patching is disabled"));
           }
           await cp(outDir, join(cwd, "out"), { recursive: true, verbatimSymlinks: true });
         } finally {

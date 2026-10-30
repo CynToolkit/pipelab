@@ -12,7 +12,7 @@ import {
   type ReleaseFieldDefinition,
   type SaveLocationWorkflow,
 } from "@pipelab/shared";
-import { Listr, ListrTaskState, type ListrTask, type ListrTaskWrapper } from "listr2";
+import { cleanseAnsi, Listr, ListrTaskState, type ListrTask, type ListrTaskWrapper } from "listr2";
 import type { WorkflowEvent } from "@pipelab/workflow-runtime";
 import { Option } from "commander";
 import { readFile, stat } from "node:fs/promises";
@@ -21,10 +21,17 @@ import { getDefaultUserDataPath } from "../paths";
 import { parseWorkflowConnectionOverrides } from "./workflow-connection-overrides";
 import { createWorkflowTaskGroups, type WorkflowStepTask } from "./workflow-task-groups";
 import { workflowStepTitle } from "./workflow-task-title";
-import { workflowTaskOutputLines } from "./workflow-task-output";
+import { createWorkflowTaskOutputBuffer, workflowTaskOutputLines } from "./workflow-task-output";
 
 export const formatWorkflowStepElapsed = (durationMs: number) =>
   durationMs < 1_000 ? `${Math.round(durationMs)} ms` : `${(durationMs / 1_000).toFixed(2)} s`;
+
+const workflowTaskOutputLineLimit = 1;
+const workflowPhaseOutputLine = (line: string) => {
+  const characters = Array.from(line);
+  const maxLength = Math.max(1, (process.stdout.columns || 80) - 20);
+  return characters.length > maxLength ? `${characters.slice(0, maxLength - 1).join("")}…` : line;
+};
 
 const contextFor = (userDataPath = getDefaultUserDataPath()) =>
   new PipelabContext({ userDataPath });
@@ -59,7 +66,21 @@ export const createWorkflowListr = (
                     },
                   }),
               },
-              { title: "Workflow result", task: () => execution },
+              {
+                title: "Finalizing",
+                task: async (_ctx: unknown, resultTask: ListrTaskWrapper<any, any, any>) => {
+                  const startedAt = performance.now();
+                  const timer = setInterval(() => {
+                    resultTask.title = `Finalizing · ${formatWorkflowStepElapsed(performance.now() - startedAt)}`;
+                  }, 100);
+                  try {
+                    await execution;
+                  } finally {
+                    clearInterval(timer);
+                  }
+                  resultTask.title = `Finalizing · ${formatWorkflowStepElapsed(performance.now() - startedAt)}`;
+                },
+              },
             ],
             {
               concurrent: false,
@@ -322,6 +343,16 @@ export async function runWorkflowCommand(
   const workflow = prepared.workflow;
   const completion = new Map<string, { resolve: () => void; reject: (error: Error) => void }>();
   const waiters = new Map<string, Promise<void>>();
+  const phaseCompletion = new Map<string, () => void>();
+  const phaseWaiters = new Map<string, Promise<void>>();
+  const phaseControls = new Map<string, ListrTaskWrapper<any, any, any>>();
+  const phaseTaskLogs = new Map<string, string[]>();
+  const taskOutputBuffers = new Map<string, ReturnType<typeof createWorkflowTaskOutputBuffer>>();
+  const activePhaseByStep = new Map<string, string>();
+  const phaseStates = new Map<string, ListrTaskState>();
+  const phaseTitles = new Map<string, string>();
+  const phaseWarnings = new Map<string, string[]>();
+  const phaseSettled = new Set<string>();
   const settledSteps = new Set<string>();
   const taskControls = new Map<string, ListrTaskWrapper<any, any, any>>();
   const taskStates = new Map<string, ListrTaskState>();
@@ -341,6 +372,7 @@ export async function runWorkflowCommand(
     ? setInterval(() => updateWorkflowTitle(), 100)
     : undefined;
   const workflowLogs: Array<{ stepTitle: string; message: string }> = [];
+  const phaseKey = (stepId: string, phaseId: string) => `${stepId}\0${phaseId}`;
   const updateTask = (stepId: string, state: ListrTaskState) => {
     taskStates.set(stepId, state);
     const task = taskControls.get(stepId);
@@ -383,15 +415,93 @@ export async function runWorkflowCommand(
     return elapsed;
   };
   const clearTaskOutput = (stepId: string) => {
+    if (!activePhaseByStep.has(stepId)) updateTaskOutput(stepId, "", true);
     taskLogs.delete(stepId);
+    taskOutputBuffers.delete(stepId);
     const task = taskControls.get(stepId);
-    if (task) task.output = "";
+    if (task) task.task.outputReset$ = null;
   };
-  const updateTaskOutput = (stepId: string, output: string) => {
-    const lines = [...(taskLogs.get(stepId) || []), ...workflowTaskOutputLines(output)].slice(-1);
+  const clearPhaseOutput = (stepId: string, phaseId: string) => {
+    const key = phaseKey(stepId, phaseId);
+    if (activePhaseByStep.get(stepId) === phaseId) updateTaskOutput(stepId, "", true);
+    phaseTaskLogs.delete(key);
+    taskOutputBuffers.delete(key);
+    if (activePhaseByStep.get(stepId) === phaseId) activePhaseByStep.delete(stepId);
+  };
+  const clearActivePhaseOutput = (stepId: string) => {
+    const phaseId = activePhaseByStep.get(stepId);
+    if (phaseId) clearPhaseOutput(stepId, phaseId);
+  };
+  const updatePhaseTaskTitle = (stepId: string, phaseId: string) => {
+    const key = phaseKey(stepId, phaseId);
+    const task = phaseControls.get(key);
+    if (!task) return;
+    const title = phaseTitles.get(key);
+    if (!title) return;
+    const line = phaseTaskLogs.get(key)?.at(-1);
+    task.title =
+      line && activePhaseByStep.get(stepId) === phaseId
+        ? `${title}\n› ${workflowPhaseOutputLine(line)}`
+        : title;
+  };
+  const updateTaskOutput = (stepId: string, output: string, flush = false, chunk = false) => {
+    const activePhaseId = activePhaseByStep.get(stepId);
+    const outputKey = activePhaseId ? phaseKey(stepId, activePhaseId) : stepId;
+    let outputBuffer = taskOutputBuffers.get(outputKey);
+    if (!outputBuffer) {
+      outputBuffer = createWorkflowTaskOutputBuffer();
+      taskOutputBuffers.set(outputKey, outputBuffer);
+    }
+    const outputLines = [
+      ...(chunk
+        ? outputBuffer.push(output)
+        : [...outputBuffer.flush(), ...outputBuffer.pushMessage(output)]),
+      ...(flush ? outputBuffer.flush() : []),
+    ]
+      .map(cleanseAnsi)
+      .filter((line) => line.trim().length > 0);
+    if (activePhaseId) {
+      const key = phaseKey(stepId, activePhaseId);
+      const lines = [...(phaseTaskLogs.get(key) || []), ...outputLines].slice(
+        -workflowTaskOutputLineLimit,
+      );
+      phaseTaskLogs.set(key, lines);
+      updatePhaseTaskTitle(stepId, activePhaseId);
+      return;
+    }
+    const lines = [...(taskLogs.get(stepId) || []), ...outputLines].slice(
+      -workflowTaskOutputLineLimit,
+    );
     taskLogs.set(stepId, lines);
     const task = taskControls.get(stepId);
-    if (task) for (const line of workflowTaskOutputLines(output)) task.output = line;
+    if (task) for (const line of outputLines) task.output = workflowPhaseOutputLine(line);
+  };
+  const updatePhase = (stepId: string, phaseId: string, state: ListrTaskState, title: string) => {
+    const key = phaseKey(stepId, phaseId);
+    phaseStates.set(key, state);
+    phaseTitles.set(key, title);
+    const task = phaseControls.get(key);
+    if (task) {
+      if (state === ListrTaskState.SKIPPED) {
+        task.title =
+          workflow.steps
+            .find((step) => step.id === stepId)
+            ?.phases?.find((phase) => phase.id === phaseId)?.title || title;
+        task.skip(title);
+      } else {
+        task.title = title;
+        task.task.state$ = state;
+      }
+    }
+  };
+  const waitForPhase = (stepId: string, phaseId: string) => {
+    const key = phaseKey(stepId, phaseId);
+    const existing = phaseWaiters.get(key);
+    if (existing) return existing;
+    const promise = new Promise<void>((resolve) => phaseCompletion.set(key, resolve));
+    phaseWaiters.set(key, promise);
+    if (phaseSettled.has(key)) phaseCompletion.get(key)?.();
+    return promise;
   };
   const printWorkflowLogs = () => {
     if (!options.verbose || workflowLogs.length === 0) return;
@@ -422,7 +532,7 @@ export async function runWorkflowCommand(
     stepTitleById.set(step.id, step.title);
     return {
       title: step.title,
-      rendererOptions: { outputBar: 1 },
+      rendererOptions: { outputBar: workflowTaskOutputLineLimit },
       task: (_ctx: unknown, task: ListrTaskWrapper<any, any, any>) => {
         taskControls.set(step.id, task);
         task.task.state$ = taskStates.get(step.id) || ListrTaskState.WAITING;
@@ -430,9 +540,43 @@ export async function runWorkflowCommand(
         const elapsed = taskElapsed.get(step.id);
         if (startedAt !== undefined) updateTaskTitle(step.id, performance.now() - startedAt);
         else if (elapsed !== undefined) updateTaskTitle(step.id, elapsed);
-        const lines = taskLogs.get(step.id);
+        const lines = activePhaseByStep.has(step.id) ? undefined : taskLogs.get(step.id);
         if (lines?.length) for (const line of lines) task.output = line;
-        return waitFor(step.id);
+        if (!step.step.phases?.length) return waitFor(step.id);
+        const nested = task.newListr(
+          [
+            ...step.step.phases.map((phase) => ({
+              title: phase.title,
+              skip: () => {
+                const key = phaseKey(step.id, phase.id);
+                return phaseStates.get(key) === ListrTaskState.SKIPPED
+                  ? phaseTitles.get(key) || "Skipped"
+                  : false;
+              },
+              task: (_phaseContext: unknown, phaseTask: ListrTaskWrapper<any, any, any>) => {
+                const key = phaseKey(step.id, phase.id);
+                phaseControls.set(key, phaseTask);
+                phaseTask.title = phaseTitles.get(key) || phase.title;
+                if (phaseTaskLogs.get(key)?.length) updatePhaseTaskTitle(step.id, phase.id);
+                phaseTask.task.state$ = phaseStates.get(key) || ListrTaskState.WAITING;
+                return waitForPhase(step.id, phase.id);
+              },
+            })),
+            { task: () => waitFor(step.id) },
+          ],
+          {
+            concurrent: true,
+            exitOnError: false,
+            rendererOptions: {
+              collapseSubtasks: false,
+              collapseSkips: false,
+              outputBar: workflowTaskOutputLineLimit,
+              showErrorMessage: true,
+              showSkipMessage: true,
+            },
+          },
+        );
+        return nested;
       },
     };
   };
@@ -467,17 +611,20 @@ export async function runWorkflowCommand(
             message: event.message,
           });
         }
-        if (process.stdout.isTTY) updateTaskOutput(event.stepId, event.message);
+        if (process.stdout.isTTY)
+          updateTaskOutput(event.stepId, event.message, false, event.chunk === true);
         updateTask(event.stepId, taskStates.get(event.stepId) || ListrTaskState.STARTED);
       } else if (event.type === "step.completed") {
         settledSteps.add(event.stepId);
         finishTaskTimer(event.stepId, event.duration);
+        clearActivePhaseOutput(event.stepId);
         clearTaskOutput(event.stepId);
         updateTask(event.stepId, ListrTaskState.COMPLETED);
         completion.get(event.stepId)?.resolve();
       } else if (event.type === "step.failed") {
         settledSteps.add(event.stepId);
         finishTaskTimer(event.stepId, event.duration);
+        clearActivePhaseOutput(event.stepId);
         clearTaskOutput(event.stepId);
         updateTask(event.stepId, ListrTaskState.FAILED);
         const task = taskControls.get(event.stepId);
@@ -490,9 +637,81 @@ export async function runWorkflowCommand(
       } else if (event.type === "step.skipped") {
         settledSteps.add(event.stepId);
         finishTaskTimer(event.stepId);
-        updateTaskOutput(event.stepId, `Skipped (blocked by ${event.blockedBy.join(", ")})`);
+        clearActivePhaseOutput(event.stepId);
+        updateTaskOutput(event.stepId, `Skipped (blocked by ${event.blockedBy.join(", ")})`, true);
         updateTask(event.stepId, ListrTaskState.SKIPPED);
         completion.get(event.stepId)?.resolve();
+      } else if (
+        event.type === "phase.started" ||
+        event.type === "phase.completed" ||
+        event.type === "phase.skipped" ||
+        event.type === "phase.failed" ||
+        event.type === "phase.warning" ||
+        event.type === "phase.not-reached" ||
+        event.type === "phase.not-reported"
+      ) {
+        const phase = workflow.steps
+          .find((candidate) => candidate.id === event.stepId)
+          ?.phases?.find((candidate) => candidate.id === event.phaseId);
+        const title = phase?.title || event.phaseId;
+        const elapsed =
+          "duration" in event ? ` · ${formatWorkflowStepElapsed(event.duration)}` : "";
+        const settlePhase = (state: ListrTaskState, detail: string) => {
+          const key = phaseKey(event.stepId, event.phaseId);
+          phaseSettled.add(key);
+          const warnings = phaseWarnings.get(key) || [];
+          const warningDetail = warnings.length ? ` · Warning: ${warnings.join("; ")}` : "";
+          updatePhase(
+            event.stepId,
+            event.phaseId,
+            state,
+            `${title} · ${detail}${warningDetail}${elapsed}`,
+          );
+          clearPhaseOutput(event.stepId, event.phaseId);
+          phaseCompletion.get(key)?.();
+        };
+        switch (event.type) {
+          case "phase.started":
+            clearTaskOutput(event.stepId);
+            activePhaseByStep.set(event.stepId, event.phaseId);
+            const key = phaseKey(event.stepId, event.phaseId);
+            phaseTaskLogs.delete(key);
+            taskOutputBuffers.delete(key);
+            updatePhase(event.stepId, event.phaseId, ListrTaskState.STARTED, `${title} · Running`);
+            break;
+          case "phase.completed":
+            settlePhase(ListrTaskState.COMPLETED, event.message || "Completed");
+            break;
+          case "phase.skipped":
+            settlePhase(ListrTaskState.SKIPPED, `Skipped: ${event.reason}`);
+            break;
+          case "phase.failed": {
+            settlePhase(ListrTaskState.FAILED, `Failed: ${event.error.message}`);
+            const control = phaseControls.get(phaseKey(event.stepId, event.phaseId));
+            if (control) control.task.message$ = { error: event.error.message };
+            break;
+          }
+          case "phase.warning": {
+            const key = phaseKey(event.stepId, event.phaseId);
+            const warnings = phaseWarnings.get(key) || [];
+            warnings.push(event.message);
+            phaseWarnings.set(key, warnings);
+            updatePhase(
+              event.stepId,
+              event.phaseId,
+              phaseStates.get(key) || ListrTaskState.STARTED,
+              `${title} · Warning: ${warnings.join("; ")}`,
+            );
+            updatePhaseTaskTitle(event.stepId, event.phaseId);
+            break;
+          }
+          case "phase.not-reached":
+            settlePhase(ListrTaskState.SKIPPED, "Not reached");
+            break;
+          case "phase.not-reported":
+            settlePhase(ListrTaskState.SKIPPED, "Not reported");
+            break;
+        }
       }
     },
   });
@@ -524,6 +743,13 @@ export async function runWorkflowCommand(
         finishTaskTimer(step.id);
         updateTaskOutput(step.id, "Not started because workflow execution failed");
         updateTask(step.id, ListrTaskState.SKIPPED);
+        for (const phase of step.step.phases || []) {
+          const key = phaseKey(step.id, phase.id);
+          if (phaseSettled.has(key)) continue;
+          phaseSettled.add(key);
+          updatePhase(step.id, phase.id, ListrTaskState.SKIPPED, `${phase.title} · Not reached`);
+          phaseCompletion.get(key)?.();
+        }
         settledSteps.add(step.id);
         completion.get(step.id)?.resolve();
       }
