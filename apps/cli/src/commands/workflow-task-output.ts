@@ -5,6 +5,9 @@ export const createWorkflowTaskOutputBuffer = () => {
   let pending = "";
 
   return {
+    pushMessage(message: string) {
+      return workflowTaskOutputLines(message);
+    },
     push(message: string) {
       const lines = `${pending}${message}`.split(/\r\n|\n|\r/);
       pending = lines.pop() || "";

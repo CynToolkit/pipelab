@@ -71,4 +71,13 @@ describe("workflow CLI task titles", () => {
     expect(output.flush()).toEqual(["Finalizing package"]);
     expect(output.flush()).toEqual([]);
   });
+
+  test("keeps complete task messages separate from buffered stream chunks", () => {
+    const output = createWorkflowTaskOutputBuffer();
+
+    expect(output.pushMessage("first message")).toEqual(["first message"]);
+    expect(output.pushMessage("second message")).toEqual(["second message"]);
+    expect(output.push("partial ")).toEqual([]);
+    expect(output.flush()).toEqual(["partial "]);
+  });
 });

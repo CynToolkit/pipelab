@@ -252,6 +252,7 @@ export type WorkflowEventInput =
       stepId: string;
       stream: WorkflowLogStream;
       message: string;
+      chunk?: boolean;
     }
   | {
       type: "step.completed";

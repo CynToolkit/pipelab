@@ -735,6 +735,7 @@ export const runWorkflow = async <TServices = unknown>(
       const phaseSnapshot = (): WorkflowPhaseResult[] =>
         [...phaseResults.values()].map((phase) => ({ ...phase, warnings: [...phase.warnings] }));
       const phaseCalls = new Set<Promise<void>>();
+      const phaseCallErrors: unknown[] = [];
       const reportPhaseWarning = (phaseId: string, message: string, diagnostic = false): void => {
         const phase = phaseResults.get(phaseId);
         if (phase) phase.warnings.push(redact(message));
@@ -951,6 +952,9 @@ export const runWorkflow = async <TServices = unknown>(
               }
             })();
             phaseCalls.add(execution);
+            void execution.catch((error: unknown) => {
+              phaseCallErrors.push(error);
+            });
             void execution
               .finally((): void => {
                 phaseCalls.delete(execution);
@@ -998,7 +1002,7 @@ export const runWorkflow = async <TServices = unknown>(
             logStream: (stream, ...args) => {
               const message = redact(formatLog(args));
               context.host.logger.info(message);
-              emit({ type: "step.log", stepId: step.id, stream, message });
+              emit({ type: "step.log", stepId: step.id, stream, message, chunk: true });
             },
             setArtifact: (outputId, path, metadata) => {
               const definition = step.artifacts?.[outputId];
@@ -1033,6 +1037,7 @@ export const runWorkflow = async <TServices = unknown>(
         } finally {
           await Promise.allSettled(phaseCalls);
         }
+        if (phaseCallErrors.length) throw phaseCallErrors[0];
         const result = taskResult ?? {};
         ensureNotAborted(signal);
         if (!isRecord(result))

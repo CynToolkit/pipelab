@@ -410,6 +410,7 @@ export async function runWorkflowCommand(
     return elapsed;
   };
   const clearTaskOutput = (stepId: string) => {
+    if (!activePhaseByStep.has(stepId)) updateTaskOutput(stepId, "", true);
     taskLogs.delete(stepId);
     taskOutputBuffers.delete(stepId);
     const task = taskControls.get(stepId);
@@ -417,6 +418,7 @@ export async function runWorkflowCommand(
   };
   const clearPhaseOutput = (stepId: string, phaseId: string) => {
     const key = phaseKey(stepId, phaseId);
+    if (activePhaseByStep.get(stepId) === phaseId) updateTaskOutput(stepId, "", true);
     phaseTaskLogs.delete(key);
     taskOutputBuffers.delete(key);
     if (activePhaseByStep.get(stepId) === phaseId) activePhaseByStep.delete(stepId);
@@ -437,7 +439,7 @@ export async function runWorkflowCommand(
         ? `${title}\n› ${workflowPhaseOutputLine(line)}`
         : title;
   };
-  const updateTaskOutput = (stepId: string, output: string, flush = false) => {
+  const updateTaskOutput = (stepId: string, output: string, flush = false, chunk = false) => {
     const activePhaseId = activePhaseByStep.get(stepId);
     const outputKey = activePhaseId ? phaseKey(stepId, activePhaseId) : stepId;
     let outputBuffer = taskOutputBuffers.get(outputKey);
@@ -445,7 +447,12 @@ export async function runWorkflowCommand(
       outputBuffer = createWorkflowTaskOutputBuffer();
       taskOutputBuffers.set(outputKey, outputBuffer);
     }
-    const outputLines = [...outputBuffer.push(output), ...(flush ? outputBuffer.flush() : [])]
+    const outputLines = [
+      ...(chunk
+        ? outputBuffer.push(output)
+        : [...outputBuffer.flush(), ...outputBuffer.pushMessage(output)]),
+      ...(flush ? outputBuffer.flush() : []),
+    ]
       .map(cleanseAnsi)
       .filter((line) => line.trim().length > 0);
     if (activePhaseId) {
@@ -598,7 +605,8 @@ export async function runWorkflowCommand(
             message: event.message,
           });
         }
-        if (process.stdout.isTTY) updateTaskOutput(event.stepId, event.message);
+        if (process.stdout.isTTY)
+          updateTaskOutput(event.stepId, event.message, false, event.chunk === true);
         updateTask(event.stepId, taskStates.get(event.stepId) || ListrTaskState.STARTED);
       } else if (event.type === "step.completed") {
         settledSteps.add(event.stepId);
@@ -658,8 +666,8 @@ export async function runWorkflowCommand(
         };
         switch (event.type) {
           case "phase.started":
-            activePhaseByStep.set(event.stepId, event.phaseId);
             clearTaskOutput(event.stepId);
+            activePhaseByStep.set(event.stepId, event.phaseId);
             const key = phaseKey(event.stepId, event.phaseId);
             phaseTaskLogs.delete(key);
             taskOutputBuffers.delete(key);

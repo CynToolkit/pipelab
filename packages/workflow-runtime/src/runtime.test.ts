@@ -1192,6 +1192,49 @@ describe("artifact-aware workflow runtime", () => {
     );
   });
 
+  it("fails the step when an unawaited phase callback rejects", async () => {
+    const phases = definePhases([{ id: "build", title: "Build" }]);
+    await expect(
+      runWorkflow(
+        { version: 1, steps: [{ id: "build-step", uses: "test:build", phases }] },
+        {
+          host,
+          tasks: {
+            "test:build": async (task) => {
+              const { phase } = task.withPhases(phases);
+              void phase("build", async () => {
+                await Promise.resolve();
+                throw new Error("async phase failed");
+              });
+              return { ready: true };
+            },
+          },
+        },
+      ),
+    ).rejects.toThrow("async phase failed");
+  });
+
+  it("keeps the task error when an unawaited phase callback also rejects", async () => {
+    const phases = definePhases([{ id: "build", title: "Build" }]);
+    await expect(
+      runWorkflow(
+        { version: 1, steps: [{ id: "build-step", uses: "test:build", phases }] },
+        {
+          host,
+          tasks: {
+            "test:build": async (task) => {
+              const { phase } = task.withPhases(phases);
+              void phase("build", () => {
+                throw new Error("phase error");
+              });
+              throw new Error("parent error");
+            },
+          },
+        },
+      ),
+    ).rejects.toThrow("parent error");
+  });
+
   it("marks phases on dependency-skipped steps as not-reached", async () => {
     const phases = definePhases([{ id: "publish", title: "Publish" }]);
     const events: { type: string; phaseId?: string }[] = [];
