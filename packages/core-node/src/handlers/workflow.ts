@@ -91,7 +91,7 @@ const executionPlan = (workflow: Workflow) =>
           phases: step.phases.map((phase) => ({
             ...phase,
             status: "pending" as const,
-            warnings: [],
+            warnings: [] as string[],
           })),
         }
       : {}),
