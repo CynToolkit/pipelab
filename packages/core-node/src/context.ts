@@ -63,6 +63,8 @@ export type CacheFolderType = (typeof CacheFolder)[keyof typeof CacheFolder];
 export interface PipelabContextOptions {
   userDataPath: string;
   releaseTag?: string;
+  /** Base directory for package, runtime, cache, and output paths scoped to one run. */
+  temporaryDirectory?: string;
 }
 
 type Join<T extends string[], D extends string> = T extends []
@@ -76,10 +78,12 @@ type Join<T extends string[], D extends string> = T extends []
 export class PipelabContext {
   public readonly userDataPath: string;
   public readonly releaseTag: string;
+  private readonly temporaryDirectory?: string;
 
   constructor(options: PipelabContextOptions) {
     this.userDataPath = options.userDataPath;
     this.releaseTag = options.releaseTag || "latest";
+    this.temporaryDirectory = options.temporaryDirectory;
   }
 
   async ensureNodeJS(): Promise<string> {
@@ -99,12 +103,17 @@ export class PipelabContext {
 
   getPackagesPath<S extends string[]>(...subpaths: S): `PACKAGES/${Join<S, "/">}`;
   getPackagesPath(...subpaths: string[]): string {
-    return join(this.userDataPath, "packages", ...subpaths);
+    return join(this.temporaryDirectory || this.userDataPath, "packages", ...subpaths);
   }
 
   getThirdPartyPath<S extends string[]>(...subpaths: S): `THIRDPARTY/${Join<S, "/">}`;
   getThirdPartyPath(...subpaths: string[]): string {
-    return join(this.userDataPath, "thirdparty", ...subpaths);
+    // Keep provider-owned state on its normal path, while treating Node as a run-scoped cache.
+    const base =
+      this.temporaryDirectory && subpaths[0] === "node"
+        ? this.temporaryDirectory
+        : this.userDataPath;
+    return join(base, "thirdparty", ...subpaths);
   }
 
   getConfigPath<S extends string[]>(...subpaths: S): `CONFIG/${Join<S, "/">}`;
@@ -149,7 +158,9 @@ export class PipelabContext {
   getTempPath<S extends string[]>(...subpaths: S): `TEMP/${Join<S, "/">}`;
   getTempPath(...subpaths: string[]): string {
     const settings = this.getSettings();
-    const base = settings?.tempFolder || join(this.userDataPath, "temp");
+    const base = this.temporaryDirectory
+      ? join(this.temporaryDirectory, "temp")
+      : settings?.tempFolder || join(this.userDataPath, "temp");
     return join(base, ...subpaths);
   }
 
@@ -168,7 +179,9 @@ export class PipelabContext {
   ): `CACHE/${F}/${Join<S, "/">}`;
   getCachePath(folder?: CacheFolderType, ...subpaths: string[]): string {
     const settings = this.getSettings();
-    const base = settings?.cacheFolder || join(this.userDataPath, "cache");
+    const base = this.temporaryDirectory
+      ? join(this.temporaryDirectory, "cache")
+      : settings?.cacheFolder || join(this.userDataPath, "cache");
     if (!folder) {
       return base;
     }
@@ -177,17 +190,17 @@ export class PipelabContext {
 
   getPnpmPath<S extends string[]>(...subpaths: S): `PNPM/${Join<S, "/">}`;
   getPnpmPath(...subpaths: string[]): string {
-    return join(this.userDataPath, "pnpm", ...subpaths);
+    return join(this.temporaryDirectory || this.userDataPath, "pnpm", ...subpaths);
   }
 
   getBuildHistoryPath<S extends string[]>(...subpaths: S): `BUILD_HISTORY/${Join<S, "/">}`;
   getBuildHistoryPath(...subpaths: string[]): string {
-    return join(this.userDataPath, "build-history", ...subpaths);
+    return join(this.temporaryDirectory || this.userDataPath, "build-history", ...subpaths);
   }
 
   getArtifactsPath<S extends string[]>(...subpaths: S): `ARTIFACTS/${Join<S, "/">}`;
   getArtifactsPath(...subpaths: string[]): string {
-    return join(this.userDataPath, "artifacts", ...subpaths);
+    return join(this.temporaryDirectory || this.userDataPath, "artifacts", ...subpaths);
   }
 
   getNodePath<V extends string = typeof DEFAULT_NODE_VERSION>(
