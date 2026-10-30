@@ -64,6 +64,7 @@ with named or multiple slots group uploads under the destination and slot names.
 | `--user-data <path>`               | Use a custom user-data directory.                                                                                       |
 | `-o, --output <path>`              | Write the run result JSON; with `--dry-run`, write the prepared config and plan instead.                                |
 | `--dry-run`                        | Validate and prepare the workflow without executing deployment tasks.                                                   |
+| `--skip-persistence`               | Keep run history, run outputs, and package/cache data out of the Pipelab user-data store. They use temporary paths. |
 | `--fail-on-error`                  | Exit nonzero if the workflow completes with errors.                                                                     |
 | `-v, --verbose`                    | Print captured workflow task logs after the run completes. Without it, full task logs are not printed after completion. |
 | `--connection <alias.field=VALUE>` | Override one provider Connection field for this run. Repeat the option for additional fields.                           |
@@ -95,8 +96,16 @@ pipelab workflow list --user-data <user-data-path>
 pipelab workflow run "Command workflow" --user-data <user-data-path> --dry-run
 pipelab workflow run <workflow-id> --user-data <user-data-path> --dry-run --output plan.json
 pipelab workflow run <workflow-id> --user-data <user-data-path>
+pipelab workflow run <workflow-id> --skip-persistence
 pipelab workflow run ./release.json --connection itch-production.apiKey=env:WORK_ITCH_KEY
 ```
+
+Use `--skip-persistence` for one-off checks when you do not need to keep run
+history, outputs, or package/cache data. Run-scoped directories and Node/pnpm
+runtime installs use temporary paths. Workflow configuration, credentials, and
+shared provider state keep their normal paths. A file written with `--output`
+remains, though artifact paths inside it will no longer exist after the run.
+Workflow steps and configured destination deliveries still execute normally.
 
 See the [Release workflow guide](/guide/release-workflows) for a GitHub
 Actions example that passes a secret through an environment variable.

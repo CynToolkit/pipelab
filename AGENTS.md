@@ -105,6 +105,18 @@ integration tests that must not execute providers should use
 mocked provider boundaries when a third-party service is not the subject of
 the test.
 
+Tests must use isolated temporary fixtures and clean them up through the test
+runner's teardown hooks. For one-off manual testing, app runs, or recordings
+that create persisted history, artifacts, or other app-managed data, identify
+the data created by that run and remove it after verification (including when
+the run fails). Do not leave disposable test or recording data for normal
+retention policies to clean up later. Keep cleanup scoped to data created for
+the current task; do not remove pre-existing or user data, and do not disable
+or change normal app retention behavior just to hide test output. For one-off
+CLI workflow checks, use `--skip-persistence` when retaining the run's
+artifacts is unnecessary; run history, outputs, and run-scoped caches then use
+temporary storage that is removed when the run ends.
+
 Record what was actually checked, relevant omissions, and remaining risks.
 Never claim checks passed unless they ran successfully.
 
