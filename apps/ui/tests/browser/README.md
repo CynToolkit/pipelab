@@ -113,13 +113,10 @@ node apps/ui/tests/browser/hosted-auth-local.cjs
 The smoke rejects nonlocal Supabase and Mailpit URLs. With both optional modes
 enabled, it verifies signup, email verification, password recovery, session
 restoration, sign-out, sign-in with the reset password, and no agent WebSocket.
-With `VITE_PIPELAB_BILLING_ENABLED` unset, it also verifies Billing is clearly
-unavailable, no plan/portal/checkout controls are shown, and no billing
-functions are requested. For signed-in Billing UI failure handling, start the
-local Vite server with `VITE_PIPELAB_BILLING_ENABLED=true` and set
-`EXPECT_BILLING_DISABLED=0` together with `EXPECT_PLAN_FAILURE_UI=1` or
-`EXPECT_PORTAL_FAILURE_UI=1`; these modes use synthetic browser responses and
-stay on local URLs without calling Polar.
+It also confirms that a signed-in browser requests its plan from the billing
+function. For signed-in Billing UI failure handling, set
+`EXPECT_PLAN_FAILURE_UI=1` or `EXPECT_PORTAL_FAILURE_UI=1`; these modes use
+synthetic browser responses and stay on local URLs without calling Polar.
 
 ## Local auth and mocked billing validation
 
@@ -138,9 +135,9 @@ deno test supabase/functions/_shared/billing.test.ts
 The browser auth journey above additionally needs Docker running so local
 Supabase and Mailpit are available. It exercises real local signup, email
 verification, password recovery, session restore, sign-in, and sign-out. The
-billing-disabled browser path checks that billing controls and requests remain
-off by default. The signed-in billing failure modes intercept function
-responses locally to check error UI.
+Billing is always available in Editor builds. The signed-in billing failure
+modes intercept function responses locally to check actionable error and retry
+UI.
 
 For broader local-only checks, the Supabase function checks are listed in
 `supabase/README.md`. Record which local command ran and its result in the PR

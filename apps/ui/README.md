@@ -62,19 +62,16 @@ JavaScript-readable token risk remains documented below.
 The browser client uses `persistSession: true`, `autoRefreshToken: true`,
 `flowType: "pkce"`, and `detectSessionInUrl: false`; the callback route clears
 the query/hash before exchanging the code and continues to a fixed Dashboard
-route. Browser billing is disabled unless `VITE_PIPELAB_BILLING_ENABLED=true`.
-The Editor deployment workflow enables it automatically for pushes to `main`;
-pull requests do not publish Pages previews, and `develop` builds keep billing
-disabled. When disabled,
-browser signup, sign-in, session restoration, and profile access continue to
-work, but subscription status is shown as unavailable and plan lookup, checkout,
-and portal calls are blocked. The UI does not treat unavailable billing as a
-Free plan. Desktop keeps its existing IPC auth and billing transport.
+route. Billing is available in every Editor build. Browser plan, checkout, and
+portal requests use Supabase Edge Functions; account-specific operations are
+authenticated. Configuration, network, and authorization failures appear as
+errors with retry controls. Auth and profile remain usable when billing fails.
+Desktop keeps its existing IPC auth and billing transport.
 
-Local browser validation can set the flag manually and uses mocked billing
-responses; it does not contact Polar. Hosted Edge Functions read the Polar API,
-frontend, and checkout-link URLs from server-side environment variables. The
-production values are documented in the repository's
+Local browser validation uses mocked billing responses; it does not contact
+Polar. Hosted Edge Functions read the Polar API, frontend, and checkout-link
+URLs from server-side environment variables. The production values are
+documented in the repository's
 [`supabase/README.md`](../../supabase/README.md) for production configuration
 and function deployment instructions. Keep Polar credentials server-side.
 
