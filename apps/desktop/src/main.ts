@@ -263,6 +263,15 @@ function createWindow(): void {
     }
 
     if (isE2ESmokeTest) {
+      const exitAfterStoppingServer = (exitCode: number) => {
+        void stopServerOnce()
+          .then(() => app.exit(exitCode))
+          .catch((error) => {
+            console.error("[E2E] CLI server shutdown failed:", error);
+            app.exit(1);
+          });
+      };
+
       void mainWindow.webContents
         .executeJavaScript(
           e2eHistoryPath
@@ -271,13 +280,6 @@ function createWindow(): void {
               const expectedRuns = ${e2eExpectedRunCount};
               if (!route || !Number.isInteger(expectedRuns) || expectedRuns < 1) {
                 throw new Error("Invalid Desktop history acceptance parameters");
-              }
-              if (window.location.pathname !== route) {
-                const target = new URL(route, window.location.href);
-                const cliPort = new URLSearchParams(window.location.search).get("cliPort");
-                if (cliPort) target.searchParams.set("cliPort", cliPort);
-                window.location.assign(target.href);
-                return "navigating";
               }
               const waitFor = async (read, label) => {
                 const deadline = Date.now() + 45_000;
@@ -290,11 +292,32 @@ function createWindow(): void {
                   path: window.location.pathname,
                   title: document.title,
                   body: document.body?.innerText.slice(0, 1_200) || "<empty body>",
+                  scripts: Array.from(document.scripts, (script) => script.src),
+                  bundles: performance
+                    .getEntriesByType("resource")
+                    .map((entry) => entry.name)
+                    .filter((name) => name.includes("/assets/")),
                 };
                 throw new Error(
                   "Timed out waiting for Desktop " + label + " (" + JSON.stringify(pageState) + ")",
                 );
               };
+              await waitFor(() => document.querySelector("#app > .app"), "UI mount");
+              const runPath = new URL(route, window.location.href).pathname;
+              const runPathSegments = runPath.split("/");
+              const runListPath =
+                runPathSegments.length === 6 &&
+                runPathSegments[1] === "workflows" &&
+                runPathSegments[4] === "runs"
+                  ? runPathSegments.slice(0, 5).join("/")
+                  : null;
+              if (!runListPath) throw new Error("The acceptance route must identify a workflow run");
+              if (window.location.pathname !== runListPath) {
+                const listUrl = new URL(window.location.href);
+                listUrl.pathname = runListPath;
+                window.history.pushState({}, "", listUrl);
+                window.dispatchEvent(new PopStateEvent("popstate"));
+              }
               const rows = await waitFor(() => {
                 const error = document.querySelector('[role="alert"]');
                 if (error) throw new Error(error.textContent || "Could not load workflow runs");
@@ -308,7 +331,9 @@ function createWindow(): void {
                 "run details",
               );
               const status = document.querySelector(".run-page header .status-mark")?.getAttribute("aria-label");
-              if (status !== "completed") throw new Error("Unexpected run status: " + (status || "missing"));
+              if (status !== "completed") {
+                throw new Error("Unexpected run status: " + (status || "missing"));
+              }
               const artifactCountText = Array.from(summary.querySelectorAll("span"))
                 .map((span) => span.textContent || "")
                 .find((value) => /\\d+\\s+artifacts/.test(value));
@@ -326,7 +351,9 @@ function createWindow(): void {
                 "artifact list",
               );
               if (artifactRows.length !== artifactCount) {
-                throw new Error("Expected " + artifactCount + " Desktop artifacts, found " + artifactRows.length);
+                throw new Error(
+                  "Expected " + artifactCount + " Desktop artifacts, found " + artifactRows.length,
+                );
               }
               const openButton = document.querySelector('.artifact-row button[aria-label^="Open "]');
               const artifactPath = openButton?.getAttribute("data-artifact-path");
@@ -339,18 +366,17 @@ function createWindow(): void {
             : "document.readyState === 'complete' && document.body && document.body.innerHTML.trim().length > 0",
         )
         .then((result) => {
-          if (result === "navigating") return;
           if (result !== true && result !== "history-verified") {
             throw new Error("Renderer loaded an empty document");
           }
           console.info(
             e2eHistoryPath ? "[E2E] workflow-history-verified" : "[E2E] renderer-loaded",
           );
-          app.exit(0);
+          exitAfterStoppingServer(0);
         })
         .catch((error) => {
           console.error("[E2E] renderer-load-failed:", error);
-          app.exit(1);
+          exitAfterStoppingServer(1);
         });
     }
   });
