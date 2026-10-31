@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createRequire } from "node:module";
 import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
@@ -264,6 +265,42 @@ describe("Construct UI Ship to running Electron binary", () => {
           browserJourney,
         );
         expect(shipRequest.workflowName).toBe(`workflows/${shipRequest.workflowId}`);
+        const targetId =
+          process.platform === "win32"
+            ? "windows-x64"
+            : process.platform === "darwin"
+              ? "macos-arm64"
+              : "linux-x64";
+        const savedWorkflow = JSON.parse(
+          await readFile(
+            join(userDataPath, "config", "workflows", `${shipRequest.workflowId}.json`),
+            "utf8",
+          ),
+        ) as {
+          id: string;
+          source: { provider: string; config: { path?: string } };
+          builds: Array<{ engine: string; targets: Array<{ id: string }> }>;
+          destinations: Array<{ provider: string; config: { outputDir?: string } }>;
+        };
+        expect(savedWorkflow).toMatchObject({
+          id: shipRequest.workflowId,
+          source: {
+            provider: "@pipelab/plugin-construct/source",
+            config: { path: projectPath },
+          },
+          builds: [
+            {
+              engine: "@pipelab/plugin-electron/producer",
+              targets: [{ id: targetId }],
+            },
+          ],
+          destinations: [
+            {
+              provider: "@pipelab/core/destination/folder",
+              config: { outputDir: join(userDataPath, "artifacts", "local-delivery") },
+            },
+          ],
+        });
 
         let workflowRun;
         try {
@@ -278,6 +315,11 @@ describe("Construct UI Ship to running Electron binary", () => {
           const history = await storage.getByProject(shipRequest.projectId);
           workflowRun = history.find((entry) => entry.workflowId === shipRequest.workflowId);
           expect(workflowRun?.status).toBe("completed");
+          expect(workflowRun?.deliveries).toHaveLength(1);
+          expect(workflowRun?.deliveries?.[0]).toMatchObject({
+            destinationId: "@pipelab/core/destination/folder",
+            status: "completed",
+          });
         } catch (error) {
           const message =
             error instanceof Error ? `${error.name}: ${error.message}` : String(error);
@@ -296,6 +338,15 @@ describe("Construct UI Ship to running Electron binary", () => {
 
         const appPath = await packagedAppPath(electronBuild.path);
         const indexHtml = await readFile(join(appPath, "index.html"), "utf8");
+        const packagedIndexSha256 = createHash("sha256").update(indexHtml).digest("hex");
+        const fixtureIndexHtml = await readFile(
+          join(constructExportFixturePath, "index.html"),
+          "utf8",
+        );
+        expect(packagedIndexSha256).toBe(
+          createHash("sha256").update(fixtureIndexHtml).digest("hex"),
+        );
+        console.info(`Verified packaged Construct index.html SHA-256: ${packagedIndexSha256}`);
         expect(indexHtml).toContain("<title>Guess the Number JavaScript</title>");
         expect(indexHtml).toMatch(
           /<meta\s+name="generator"\s+content="Scirra Construct"\s*\/?\s*>/,
@@ -348,10 +399,18 @@ describe("Construct UI Ship to running Electron binary", () => {
           .first()
           .evaluate((element) => {
             const bounds = element.getBoundingClientRect();
-            return { width: bounds.width, height: bounds.height };
+            const pixel = (element as HTMLCanvasElement)
+              .getContext("2d")
+              ?.getImageData(0, 0, 1, 1).data;
+            return {
+              width: bounds.width,
+              height: bounds.height,
+              pixel: pixel ? Array.from(pixel) : [],
+            };
           });
         expect(canvas.width).toBeGreaterThan(0);
         expect(canvas.height).toBeGreaterThan(0);
+        expect(canvas.pixel).toEqual([0, 0, 0, 255]);
         expect(electronProcess.child.exitCode).toBeNull();
 
         const history = await new BuildHistoryStorage(
