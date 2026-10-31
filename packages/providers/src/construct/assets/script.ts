@@ -14,7 +14,8 @@ const CONSTRUCT_SETTINGS_SEED_TIMEOUT_MS = 15_000;
 const FILE_CHOOSER_TIMEOUT_MS = 5_000;
 const CONSTRUCT_API_TIMEOUT_MS = 30_000;
 const CONSTRUCT_TOKEN_TIMEOUT_MS = 30_000;
-const CONSTRUCT_SESSION_REJECTED_MESSAGE = "Construct did not confirm the prepared account session";
+const CONSTRUCT_SESSION_REJECTED_MESSAGE =
+  "Construct did not confirm a signed-in session. Sign in to the selected browser profile or verify the Construct Account Connection, then retry.";
 const OPEN_RETRY_COUNT = 1;
 const CONSTRUCT_EDITOR_ORIGIN = "https://editor.construct.net";
 

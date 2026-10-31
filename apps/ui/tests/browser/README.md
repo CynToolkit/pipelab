@@ -27,6 +27,28 @@ Configuration captures there for review.
 It also saves representative empty/populated Dashboard and Workflows screenshots
 at desktop and narrow widths in the selected theme.
 
+## Construct workflow to Dashboard Ship
+
+To verify that a Construct workflow created in the visible wizard can be shipped
+from the Dashboard, build and serve the UI, then run the focused journey:
+
+```sh
+NODE_ENV=development pnpm --filter @pipelab/ui build
+pnpm --filter @pipelab/ui preview --host 127.0.0.1 --port 5187
+
+CONSTRUCT_SHIP_E2E=1 \
+UI_BASE_URL=http://127.0.0.1:5187 \
+CHROMIUM_PATH=/usr/bin/chromium \
+node apps/ui/tests/browser/first-run-onboarding.cjs
+```
+
+This journey uses the visible Construct source picker and workflow wizard, saves
+the workflow, opens Dashboard Ship confirmation, and verifies that confirmation
+executes that same workflow and opens its run route. The local engine WebSocket
+responses stub planning and execution; no Construct, Steam, Poki, or other
+third-party API is contacted and no real publish occurs. Use the live CLI
+acceptance separately to verify Construct export and Electron packaging.
+
 To run just the saved-Connection layout regression from the Configuration
 destination editor, use `CONNECTION_LAYOUT_ONLY=1` with the same server and
 Chromium settings. It opens the workflow alias details and checks the selector

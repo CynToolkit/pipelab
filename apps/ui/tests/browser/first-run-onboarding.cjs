@@ -352,6 +352,7 @@ async function journey(
   const expectedTheme = process.env.SCREENSHOT_THEME || (narrow ? "dark" : "light");
   const screenshotViewport = narrow ? "narrow" : "desktop";
   const quickShipBlocked = process.env.QUICK_SHIP_UNREADY === "1";
+  const constructShipE2e = process.env.CONSTRUCT_SHIP_E2E === "1";
   const context = await browser.newContext({
     viewport: { width: narrow ? 390 : 1280, height: 844 },
     colorScheme: expectedTheme,
@@ -360,7 +361,7 @@ async function journey(
     `localStorage.setItem("pipelab.theme", ${JSON.stringify(expectedTheme)})`,
   );
   const testProjectManagement =
-    sourceKey === "construct" && !withSavedSteamAccount && !readinessTiming;
+    sourceKey === "construct" && !withSavedSteamAccount && !readinessTiming && !constructShipE2e;
   if (testProjectManagement) {
     await context.addInitScript(() => {
       localStorage.setItem(
@@ -382,6 +383,7 @@ async function journey(
   let saved;
   let firstSaved;
   let savedConnectionsConfig;
+  let executedWorkflowName;
   const workflowFixtureConfigs = new Map();
   const workflowLoadAttempts = new Map();
   const longWorkflowName =
@@ -626,8 +628,9 @@ async function journey(
               },
             ],
             destinations: [],
+            // The focused Ship journey returns a ready plan without contacting providers.
             issues:
-              quickShipReady && !quickShipBlocked
+              (quickShipReady && !quickShipBlocked) || constructShipE2e
                 ? []
                 : [
                     ...(readinessTiming && phaseOrdinal === 1
@@ -778,6 +781,7 @@ async function journey(
           result = { success: true };
           break;
         case "workflow:execute": {
+          executedWorkflowName = request.data.name;
           if (failNextWorkflowExecution) {
             failNextWorkflowExecution = false;
             apiError = "Fixture execution failed safely.";
@@ -1698,12 +1702,16 @@ async function journey(
     await dialog.locator(".wizard-panel:visible").getByRole("button", { name: "Continue" }).click();
     await dialog.getByRole("heading", { name: "Configure a build" }).waitFor();
     await dialog.locator(".wizard-panel:visible").getByRole("button", { name: "Continue" }).click();
-    const steam = dialog.getByRole("button", { name: /^Steam/ });
-    const itch = dialog.getByRole("button", { name: /^Itch\.io/ });
-    await steam.click();
-    await itch.click();
-    assert.equal(await steam.getAttribute("aria-pressed"), "true");
-    assert.equal(await itch.getAttribute("aria-pressed"), "true");
+    if (constructShipE2e) {
+      await dialog.getByRole("button", { name: /^Poki/ }).click();
+    } else {
+      const steam = dialog.getByRole("button", { name: /^Steam/ });
+      const itch = dialog.getByRole("button", { name: /^Itch\.io/ });
+      await steam.click();
+      await itch.click();
+      assert.equal(await steam.getAttribute("aria-pressed"), "true");
+      assert.equal(await itch.getAttribute("aria-pressed"), "true");
+    }
     if (process.env.SCREENSHOT_DIR)
       await page.screenshot({
         path: join(process.env.SCREENSHOT_DIR, `pipelab-${sourceKey}-destinations.png`),
@@ -1716,11 +1724,15 @@ async function journey(
     await recap.getByText("First release description", { exact: true }).waitFor();
     await recap.getByText(sourceFixtures[sourceKey].label, { exact: true }).waitFor();
     await recap.getByText(sourcePath, { exact: true }).waitFor();
-    await recap.getByText("Steam", { exact: true }).waitFor();
-    await recap.getByText("Itch.io", { exact: true }).waitFor();
+    if (constructShipE2e) {
+      await recap.getByText("Poki", { exact: true }).waitFor();
+    } else {
+      await recap.getByText("Steam", { exact: true }).waitFor();
+      await recap.getByText("Itch.io", { exact: true }).waitFor();
+    }
     assert.equal(
       await recap.locator(".review-destination").count(),
-      2,
+      constructShipE2e ? 1 : 2,
       "recap shows each selected destination separately",
     );
     assert.equal(
@@ -1751,6 +1763,37 @@ async function journey(
       sourcePath,
       "initial source inspection uses the selected project path",
     );
+    if (constructShipE2e) {
+      await page.getByText("Ready to ship", { exact: true }).waitFor();
+      assert.equal(await page.getByRole("button", { name: "Ship" }).isDisabled(), false);
+      await page.getByRole("link", { name: "Dashboard" }).click();
+      const dashboardShip = page.getByRole("button", { name: `Ship ${saved.name}` });
+      await dashboardShip.waitFor();
+      await dashboardShip.click();
+      const releaseDialog = page.getByRole("dialog", { name: /Release details/ });
+      await releaseDialog.waitFor();
+      assert.equal(
+        new URL(page.url()).pathname,
+        "/dashboard",
+        "Dashboard Ship keeps the dashboard route while showing confirmation",
+      );
+      await releaseDialog.getByRole("button", { name: "Ship release" }).click();
+      await waitForRequests(page, calls, "workflow:execute", 1);
+      const runPath = `/workflows/${saved.id}/${saved.project}/runs/dashboard-quick-run`;
+      await page.waitForFunction((path) => window.location.pathname === path, runPath);
+      assert.equal(
+        new URL(page.url()).pathname,
+        runPath,
+        "confirming Ship opens the new workflow run",
+      );
+      assert.equal(
+        executedWorkflowName,
+        `workflows/${saved.id}`,
+        "Dashboard Ship executes the workflow saved by the wizard",
+      );
+      assert.deepEqual(errors, [], `browser has no JS or console errors: ${errors.join("; ")}`);
+      return "Construct workflow wizard saved a ready release and Dashboard Ship opened its run";
+    }
     if (readinessTiming) {
       await waitForRequests(page, calls, "release:source:inspect", 1);
       await waitForRequests(page, calls, "release:plan", 1);
@@ -1850,9 +1893,7 @@ async function journey(
     assert.match(await actionCard.innerText(), /1 of 2/);
     let destinationEditor;
     if (withSavedSteamAccount) {
-      await actionCard
-        .getByRole("button", { name: "Configure Steam — Destination 1" })
-        .click();
+      await actionCard.getByRole("button", { name: "Configure Steam — Destination 1" }).click();
       destinationEditor = page.getByRole("dialog", { name: "Edit destination" });
       await destinationEditor.waitFor();
       assert.equal(
@@ -2225,6 +2266,8 @@ async function journey(
     results.push(await journey("construct", "/test-home/demo.c3p", true));
   } else if (process.env.QUICK_SHIP === "1") {
     results.push(await journey("construct", "/test-home/demo.c3p", false, false, true));
+  } else if (process.env.CONSTRUCT_SHIP_E2E === "1") {
+    results.push(await journey("construct", "/test-home/demo.c3p"));
   } else if (process.env.READINESS_ONLY === "1") {
     results.push(await journey("construct", "/test-home/demo.c3p", false, true));
   } else if (process.env.CONFIG_ONLY === "godot") {
