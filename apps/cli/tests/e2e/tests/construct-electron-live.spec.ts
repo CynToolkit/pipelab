@@ -13,6 +13,7 @@ import {
 } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";
+import { existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { describe, expect, test } from "vitest";
 import { BuildHistoryStorage, PipelabContext } from "@pipelab/core-node";
@@ -242,6 +243,38 @@ describe("authenticated local Construct to Electron CI acceptance", () => {
       const currentRun = runs[0];
       if (!currentRun) throw new Error("Successful run was not written to history.");
       expect(currentRun.artifacts.length).toBeGreaterThan(0);
+      const electronBuild = currentRun.artifacts.find(
+        (artifact) => "descriptor" in artifact && artifact.descriptor.technology === "electron",
+      );
+      if (!electronBuild) throw new Error("Successful run did not record an Electron build.");
+      const packagedAppPathCandidates = [
+        join(electronBuild.path, "resources", "app", "src", "app"),
+        join(electronBuild.path, "Contents", "Resources", "app", "src", "app"),
+        ...(await readdir(electronBuild.path, { withFileTypes: true }))
+          .filter((entry) => entry.isDirectory() && entry.name.endsWith(".app"))
+          .map((entry) =>
+            join(electronBuild.path, entry.name, "Contents", "Resources", "app", "src", "app"),
+          ),
+      ];
+      const packagedAppPath = packagedAppPathCandidates.find((candidate) =>
+        existsSync(join(candidate, "index.html")),
+      );
+      if (!packagedAppPath)
+        throw new Error("Electron build did not contain the packaged Construct application.");
+      const packagedIndexPath = join(packagedAppPath, "index.html");
+      const packagedIndexHtml = await readFile(packagedIndexPath, "utf8");
+      expect(packagedIndexHtml).toContain("<title>Guess the Number JavaScript</title>");
+      expect(packagedIndexHtml).toContain('<meta name="generator" content="Scirra Construct">');
+      const packagedProjectScript = await readFile(
+        join(packagedAppPath, "scripts", "project", "main.js"),
+        "utf8",
+      );
+      expect(packagedProjectScript).toContain("Instances of TextInput and ResultText");
+      const packagedIndexSha256 = createHash("sha256").update(packagedIndexHtml).digest("hex");
+      expect(packagedIndexSha256).toMatch(/^[a-f0-9]{64}$/);
+      console.log(
+        `CI Construct index.html verified inside ${electronBuild.path}: ${packagedIndexSha256}`,
+      );
       console.log(
         `CI Construct Ship recorded ${currentRun.id}: ${Date.now() - startedAt}ms, ${currentRun.artifacts.length} artifacts`,
       );
@@ -253,6 +286,7 @@ describe("authenticated local Construct to Electron CI acceptance", () => {
             artifact: artifact.artifact,
             path: artifact.path,
             digest: await artifactDigest(artifact.path),
+            ...(artifact.path === electronBuild.path ? { packagedIndexSha256 } : {}),
             ...(artifactStat.isDirectory()
               ? { children: await directoryChildDigests(artifact.path) }
               : {}),
