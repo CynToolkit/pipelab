@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const { createRequire } = require("node:module");
-const { mkdirSync, readFileSync } = require("node:fs");
-const { join, resolve } = require("node:path");
+const { mkdirSync, readFileSync, writeFileSync } = require("node:fs");
+const { dirname, join, resolve } = require("node:path");
 const { performance } = require("node:perf_hooks");
 const workspaceRequire = createRequire(resolve(__dirname, "../../../../apps/website/package.json"));
 const { chromium } = workspaceRequire("playwright");
@@ -13,7 +13,7 @@ const godotLogo = `data:image/svg+xml;base64,${readFileSync(
 ).toString("base64")}`;
 
 const baseUrl = process.env.UI_BASE_URL || "http://127.0.0.1:5175";
-const chromiumPath = process.env.CHROMIUM_PATH || "/usr/bin/chromium";
+const chromiumPath = process.env.CHROMIUM_PATH || chromium.executablePath();
 if (process.env.SCREENSHOT_DIR) mkdirSync(process.env.SCREENSHOT_DIR, { recursive: true });
 const captureReviewScreenshot = async (page, path) => {
   await page.mouse.move(0, 0);
@@ -29,6 +29,27 @@ const captureReviewScreenshot = async (page, path) => {
   await cleanup.evaluate((element) => element.remove());
 };
 const projectId = "journey-project";
+const constructBinaryTargetId =
+  process.platform === "win32"
+    ? "windows-x64"
+    : process.platform === "darwin"
+      ? "macos-arm64"
+      : "linux-x64";
+const constructBinaryProducer = {
+  id: "@pipelab/plugin-electron/producer",
+  label: "Electron",
+  icon: { type: "icon", icon: "pi-desktop" },
+  planning: { mode: "build" },
+  defaultConfig: {},
+  targets: [
+    {
+      id: constructBinaryTargetId,
+      label: constructBinaryTargetId,
+      buildType: "desktop",
+      defaultConfig: {},
+    },
+  ],
+};
 const waitForResolverStart = async (started) => {
   let timeout;
   try {
@@ -53,6 +74,28 @@ const waitForRequests = async (page, calls, channel, count) => {
     await page.waitForTimeout(20);
   }
 };
+
+const waitForJsonFile = async (path, timeoutMs = 30 * 60 * 1000) => {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      return JSON.parse(readFileSync(path, "utf8"));
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  throw new Error(`Timed out waiting for the UI Ship bridge result: ${path}`);
+};
+
+const sendApiResponse = (socket, request, data) =>
+  socket.send(
+    JSON.stringify({
+      type: "response",
+      requestId: request.requestId,
+      events: { type: "end", data },
+    }),
+  );
 
 const focusWorkflowControlByKeyboard = async (page, locator, description) => {
   await page.evaluate(
@@ -272,7 +315,7 @@ const catalog = {
     sourceFixtures.construct,
     sourceFixtures.godot,
   ],
-  producers: [],
+  producers: process.env.CONSTRUCT_BINARY_E2E === "1" ? [constructBinaryProducer] : [],
   destinations: [
     {
       id: "@pipelab/plugin-steam/destination",
@@ -352,7 +395,31 @@ async function journey(
   const expectedTheme = process.env.SCREENSHOT_THEME || (narrow ? "dark" : "light");
   const screenshotViewport = narrow ? "narrow" : "desktop";
   const quickShipBlocked = process.env.QUICK_SHIP_UNREADY === "1";
-  const constructShipE2e = process.env.CONSTRUCT_SHIP_E2E === "1";
+  const constructBinaryE2e = process.env.CONSTRUCT_BINARY_E2E === "1";
+  const constructShipE2e = process.env.CONSTRUCT_SHIP_E2E === "1" || constructBinaryE2e;
+  const binaryE2eUserDataPath = process.env.PIPELAB_CI_USER_DATA;
+  const binaryE2eProjectPath = process.env.CONSTRUCT_BINARY_PROJECT_PATH;
+  const binaryE2eProfilePath = process.env.CONSTRUCT_BINARY_PROFILE_PATH;
+  const binaryE2eOutputPath = binaryE2eUserDataPath
+    ? join(binaryE2eUserDataPath, "artifacts", "local-delivery")
+    : undefined;
+  const binaryE2eRequestPath = binaryE2eUserDataPath
+    ? join(binaryE2eUserDataPath, "ui-ship-request.json")
+    : undefined;
+  const binaryE2eResultPath = binaryE2eUserDataPath
+    ? join(binaryE2eUserDataPath, "ui-ship-result.json")
+    : undefined;
+  if (
+    constructBinaryE2e &&
+    (!binaryE2eUserDataPath ||
+      !binaryE2eProjectPath ||
+      !binaryE2eProfilePath ||
+      !binaryE2eOutputPath)
+  ) {
+    throw new Error(
+      "CONSTRUCT_BINARY_E2E requires PIPELAB_CI_USER_DATA, CONSTRUCT_BINARY_PROJECT_PATH, and CONSTRUCT_BINARY_PROFILE_PATH.",
+    );
+  }
   const context = await browser.newContext({
     viewport: { width: narrow ? 390 : 1280, height: 844 },
     colorScheme: expectedTheme,
@@ -371,8 +438,24 @@ async function journey(
     });
   }
   await context.route("**/favicon.ico", (route) => route.fulfill({ status: 204, body: "" }));
+  await context.route(`${baseUrl}/assets/**`, async (route) => {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        await route.fulfill({ response: await route.fetch() });
+        return;
+      } catch (error) {
+        if (
+          attempt > 0 ||
+          !(error instanceof Error) ||
+          !error.message.includes("ERR_NETWORK_CHANGED")
+        ) {
+          throw error;
+        }
+      }
+    }
+  });
   const page = await context.newPage();
-  page.setDefaultTimeout(8000);
+  page.setDefaultTimeout(constructBinaryE2e ? 30_000 : 8000);
   page.setDefaultNavigationTimeout(30000);
   const calls = [];
   const errors = [];
@@ -591,17 +674,19 @@ async function journey(
           }
           result = {
             ...request.data.config,
-            builds: [
-              {
-                id: "fixture-default-build",
-                type: "web",
-                engine: "fixture:web",
-                enabled: true,
-                input: { source: true },
-                config: { mode: "release" },
-                targets: [{ id: "release", enabled: true, config: {} }],
-              },
-            ],
+            builds: constructBinaryE2e
+              ? request.data.config.builds
+              : [
+                  {
+                    id: "fixture-default-build",
+                    type: "web",
+                    engine: "fixture:web",
+                    enabled: true,
+                    input: { source: true },
+                    config: { mode: "release" },
+                    targets: [{ id: "release", enabled: true, config: {} }],
+                  },
+                ],
             destinations: request.data.config.destinations.map((destination) => ({
               ...destination,
               slots: destination.slots.flatMap((slot, index) => {
@@ -662,35 +747,85 @@ async function journey(
           result = { canceled: false, filePaths: [sourcePath] };
           break;
         case "fs:getRoots":
-          result = { roots: [{ name: "Home", path: "/test-home" }] };
-          break;
-        case "fs:listDirectory":
           result = {
-            files: [
-              { name: "demo.c3p", isDirectory: false, isSymbolicLink: false, size: 1, mtime: 0 },
-              { name: "other.c3p", isDirectory: false, isSymbolicLink: false, size: 1, mtime: 0 },
-              { name: "demo.zip", isDirectory: false, isSymbolicLink: false, size: 1, mtime: 0 },
-              { name: "notes.txt", isDirectory: false, isSymbolicLink: false, size: 1, mtime: 0 },
-              {
-                name: "Godot project",
-                isDirectory: true,
-                isSymbolicLink: false,
-                size: 0,
-                mtime: 0,
-              },
-              {
-                name: "Web app folder",
-                isDirectory: true,
-                isSymbolicLink: false,
-                size: 0,
-                mtime: 0,
-              },
+            roots: [
+              { name: "Home", path: "/test-home" },
+              ...(constructBinaryE2e
+                ? [{ name: "Test output", path: dirname(binaryE2eOutputPath) }]
+                : []),
             ],
           };
+          break;
+        case "fs:listDirectory":
+          if (constructBinaryE2e && request.data.path === dirname(binaryE2eOutputPath)) {
+            result = {
+              files: [
+                {
+                  name: "local-delivery",
+                  isDirectory: true,
+                  isSymbolicLink: false,
+                  size: 0,
+                  mtime: 0,
+                },
+              ],
+            };
+          } else {
+            result = {
+              files: [
+                { name: "demo.c3p", isDirectory: false, isSymbolicLink: false, size: 1, mtime: 0 },
+                { name: "other.c3p", isDirectory: false, isSymbolicLink: false, size: 1, mtime: 0 },
+                { name: "demo.zip", isDirectory: false, isSymbolicLink: false, size: 1, mtime: 0 },
+                { name: "notes.txt", isDirectory: false, isSymbolicLink: false, size: 1, mtime: 0 },
+                {
+                  name: "Godot project",
+                  isDirectory: true,
+                  isSymbolicLink: false,
+                  size: 0,
+                  mtime: 0,
+                },
+                {
+                  name: "Web app folder",
+                  isDirectory: true,
+                  isSymbolicLink: false,
+                  size: 0,
+                  mtime: 0,
+                },
+              ],
+            };
+          }
           break;
         case "workflow:save":
           saved = request.data.data;
           firstSaved ||= request.data.data;
+          if (constructBinaryE2e) {
+            saved.source.config.path = binaryE2eProjectPath;
+            saved.source.config.profilePath = binaryE2eProfilePath;
+            const configPath = join(binaryE2eUserDataPath, "config");
+            const workflowConfigPath = join(configPath, "workflows", `${saved.id}.json`);
+            const workflowMetadata = [
+              {
+                id: saved.id,
+                project: projectId,
+                lastModified: new Date().toISOString(),
+                type: "internal-workflow",
+                configName: `workflows/${saved.id}`,
+              },
+            ];
+            mkdirSync(join(configPath, "workflows"), { recursive: true });
+            writeFileSync(workflowConfigPath, JSON.stringify(saved));
+            writeFileSync(
+              join(configPath, "projects.json"),
+              JSON.stringify({
+                version: "3.0.0",
+                projects: [{ id: projectId, name: "Journey project", description: "" }],
+                workflows: workflowMetadata,
+              }),
+            );
+            writeFileSync(
+              join(configPath, "connections.json"),
+              JSON.stringify({ version: "1.0.0", connections: [] }),
+            );
+          }
           {
             const metadata = [
               {
@@ -782,6 +917,41 @@ async function journey(
           break;
         case "workflow:execute": {
           executedWorkflowName = request.data.name;
+          if (constructBinaryE2e) {
+            holdResponse = true;
+            writeFileSync(
+              binaryE2eRequestPath,
+              JSON.stringify({
+                workflowId: saved.id,
+                workflowName: request.data.name,
+                release: request.data.release,
+                projectId,
+              }),
+            );
+            void waitForJsonFile(binaryE2eResultPath)
+              .then((bridgeResult) => {
+                if (bridgeResult.error) {
+                  sendApiResponse(socket, request, {
+                    type: "error",
+                    ipcError: bridgeResult.error,
+                  });
+                  return;
+                }
+                quickRunEntry = bridgeResult.run;
+                historyEntries = bridgeResult.historyEntries;
+                sendApiResponse(socket, request, {
+                  type: "success",
+                  result: { result: "ok", runId: bridgeResult.run.id },
+                });
+              })
+              .catch((error) => {
+                sendApiResponse(socket, request, {
+                  type: "error",
+                  ipcError: error instanceof Error ? error.message : String(error),
+                });
+              });
+            break;
+          }
           if (failNextWorkflowExecution) {
             failNextWorkflowExecution = false;
             apiError = "Fixture execution failed safely.";
@@ -1646,11 +1816,21 @@ async function journey(
 
     await dialog.getByRole("button", { name: "Continue" }).click();
     await dialog.getByRole("heading", { name: "Configure a build" }).waitFor();
-    assert.equal(
-      await dialog.getByText("A build is optional for this draft.", { exact: true }).count(),
-      1,
-      "the hosted workflow draft can continue without an optional build",
-    );
+    if (constructBinaryE2e) {
+      await dialog.getByRole("button", { name: /^Electron/ }).click();
+      await dialog.getByRole("button", { name: new RegExp(`^${constructBinaryTargetId}`) }).click();
+      assert.equal(
+        await dialog.getByRole("button", { name: /^Electron/ }).getAttribute("aria-pressed"),
+        "true",
+        "the workflow wizard selected Electron",
+      );
+    } else {
+      assert.equal(
+        await dialog.getByText("A build is optional for this draft.", { exact: true }).count(),
+        1,
+        "the hosted workflow draft can continue without an optional build",
+      );
+    }
     await dialog.getByRole("button", { name: "Continue" }).click();
     await dialog.getByRole("heading", { name: "Where do you want to ship?" }).waitFor();
     const destinationLabels = (await dialog.locator(".destination-row").allTextContents()).map(
@@ -1671,11 +1851,26 @@ async function journey(
     );
     await dialog.getByRole("button", { name: "Back" }).click();
     await dialog.getByRole("heading", { name: "Configure a build" }).waitFor();
-    assert.equal(
-      await dialog.getByText("A build is optional for this draft.", { exact: true }).count(),
-      1,
-      "Back from destinations returns to the optional build step",
-    );
+    if (constructBinaryE2e) {
+      assert.equal(
+        await dialog.getByRole("button", { name: /^Electron/ }).getAttribute("aria-pressed"),
+        "true",
+        "Back preserves the selected Electron producer",
+      );
+      assert.equal(
+        await dialog
+          .getByRole("button", { name: new RegExp(`^${constructBinaryTargetId}`) })
+          .getAttribute("aria-pressed"),
+        "true",
+        "Back preserves the selected Electron target",
+      );
+    } else {
+      assert.equal(
+        await dialog.getByText("A build is optional for this draft.", { exact: true }).count(),
+        1,
+        "Back from destinations returns to the optional build step",
+      );
+    }
     await dialog.getByRole("button", { name: "Back" }).click();
     assert.equal(
       await sourceCard.getAttribute("aria-pressed"),
@@ -1701,8 +1896,25 @@ async function journey(
     await detailsPanel.getByRole("button", { name: "Continue" }).click();
     await dialog.locator(".wizard-panel:visible").getByRole("button", { name: "Continue" }).click();
     await dialog.getByRole("heading", { name: "Configure a build" }).waitFor();
+    if (constructBinaryE2e) {
+      await dialog.getByRole("button", { name: /^Electron/ }).click();
+      await dialog.getByRole("button", { name: new RegExp(`^${constructBinaryTargetId}`) }).click();
+    }
     await dialog.locator(".wizard-panel:visible").getByRole("button", { name: "Continue" }).click();
-    if (constructShipE2e) {
+    if (constructBinaryE2e) {
+      const fileSystemDestination = dialog
+        .locator(".wizard-panel:visible")
+        .getByRole("button", { name: /^(File system|Folder)/ });
+      await fileSystemDestination.click();
+      await dialog.getByRole("button", { name: "Choose output folder", exact: true }).click();
+      const picker = page.getByRole("dialog").last();
+      await picker.getByRole("button", { name: "Test output", exact: true }).click();
+      await picker.getByRole("row", { name: "local-delivery" }).click();
+      await picker.getByRole("button", { name: "Open", exact: true }).click();
+      const outputFolder = dialog.getByRole("textbox", { name: "Output folder", exact: true });
+      await outputFolder.waitFor();
+      assert.equal(await outputFolder.inputValue(), binaryE2eOutputPath);
+    } else if (constructShipE2e) {
       await dialog.getByRole("button", { name: /^Poki/ }).click();
     } else {
       const steam = dialog.getByRole("button", { name: /^Steam/ });
@@ -1724,7 +1936,20 @@ async function journey(
     await recap.getByText("First release description", { exact: true }).waitFor();
     await recap.getByText(sourceFixtures[sourceKey].label, { exact: true }).waitFor();
     await recap.getByText(sourcePath, { exact: true }).waitFor();
-    if (constructShipE2e) {
+    if (constructBinaryE2e) {
+      const buildSummary = await recap
+        .locator(".review-list > div")
+        .filter({ hasText: "Build" })
+        .textContent();
+      assert.match(buildSummary || "", /Electron/);
+      assert.ok(buildSummary?.includes(constructBinaryTargetId));
+      assert.ok(
+        (await recap.locator(".review-destination").allTextContents()).some((label) =>
+          /^(File system|Folder)$/.test(label.trim()),
+        ),
+        "recap includes the selected local folder destination",
+      );
+    } else if (constructShipE2e) {
       await recap.getByText("Poki", { exact: true }).waitFor();
     } else {
       await recap.getByText("Steam", { exact: true }).waitFor();
@@ -1757,10 +1982,14 @@ async function journey(
     await waitForRequests(page, calls, "release:source:inspect", 1);
     await waitForRequests(page, calls, "release:plan", 1);
     assert.equal(firstSaved.description, "First release description");
-    assert.equal(firstSaved.source.config.path, sourcePath, "creation persists the selected path");
+    assert.equal(
+      firstSaved.source.config.path,
+      constructBinaryE2e ? binaryE2eProjectPath : sourcePath,
+      "creation persists the selected source path",
+    );
     assert.equal(
       sourceInspectionConfigs[0]?.path,
-      sourcePath,
+      constructBinaryE2e ? binaryE2eProjectPath : sourcePath,
       "initial source inspection uses the selected project path",
     );
     if (constructShipE2e) {
@@ -1779,7 +2008,10 @@ async function journey(
       );
       await releaseDialog.getByRole("button", { name: "Ship release" }).click();
       await waitForRequests(page, calls, "workflow:execute", 1);
-      const runPath = `/workflows/${saved.id}/${saved.project}/runs/dashboard-quick-run`;
+      const runId = constructBinaryE2e
+        ? (await waitForJsonFile(binaryE2eResultPath)).run.id
+        : "dashboard-quick-run";
+      const runPath = `/workflows/${saved.id}/${saved.project}/runs/${runId}`;
       await page.waitForFunction((path) => window.location.pathname === path, runPath);
       assert.equal(
         new URL(page.url()).pathname,
@@ -1792,7 +2024,9 @@ async function journey(
         "Dashboard Ship executes the workflow saved by the wizard",
       );
       assert.deepEqual(errors, [], `browser has no JS or console errors: ${errors.join("; ")}`);
-      return "Construct workflow wizard saved a ready release and Dashboard Ship opened its run";
+      return constructBinaryE2e
+        ? "Construct workflow wizard triggered a real Electron build and its running binary was verified"
+        : "Construct workflow wizard saved a ready release and Dashboard Ship opened its run";
     }
     if (readinessTiming) {
       await waitForRequests(page, calls, "release:source:inspect", 1);
@@ -2266,6 +2500,8 @@ async function journey(
     results.push(await journey("construct", "/test-home/demo.c3p", true));
   } else if (process.env.QUICK_SHIP === "1") {
     results.push(await journey("construct", "/test-home/demo.c3p", false, false, true));
+  } else if (process.env.CONSTRUCT_BINARY_E2E === "1") {
+    results.push(await journey("construct", "/test-home/demo.c3p"));
   } else if (process.env.CONSTRUCT_SHIP_E2E === "1") {
     results.push(await journey("construct", "/test-home/demo.c3p"));
   } else if (process.env.READINESS_ONLY === "1") {

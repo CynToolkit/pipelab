@@ -49,6 +49,42 @@ responses stub planning and execution; no Construct, Steam, Poki, or other
 third-party API is contacted and no real publish occurs. Use the live CLI
 acceptance separately to verify Construct export and Electron packaging.
 
+## Construct UI Ship to running Electron binary
+
+Run the deterministic full UI-to-binary acceptance without a Construct account:
+
+```sh
+pnpm --filter @pipelab/cli exec vitest run \
+  -c tests/e2e/vitest.config.mts \
+  tests/e2e/tests/construct-ui-to-binary.spec.ts
+```
+
+The test mocks Construct's external export with a checked-in HTML fixture, then
+drives the visible wizard and Dashboard Ship confirmation. Its browser WebSocket
+bridge persists the workflow payload into isolated test data and forwards the
+Ship request to the real CLI; the production WebSocket save and execute handlers
+are outside this test's boundary. The CLI workflow and Electron packager run for
+real. The test launches the produced binary and checks its packaged
+`index.html`, Construct project marker, and live canvas. It writes test state
+and build artifacts under a temporary user-data directory and removes them when
+the test ends. No publishing destination is configured; the workflow delivers
+only to a temporary local folder. On Linux, the test launches the game under
+`xvfb-run` with Electron's sandbox disabled for the isolated test process.
+
+For an additional live Construct export acceptance, provide a disposable
+authenticated Construct browser profile and run:
+
+```sh
+CONSTRUCT_CI_PROFILE_PATH="/path/to/disposable/Construct/profile" \
+CONSTRUCT_CI_REQUIRED=true \
+CHROMIUM_PATH=/usr/bin/chromium \
+pnpm --filter @pipelab/cli test:construct-live
+```
+
+The live runner executes the authenticated saved-workflow/export acceptance
+before the deterministic UI-to-binary journey, keeping shared local build
+resources serial.
+
 To run just the saved-Connection layout regression from the Configuration
 destination editor, use `CONNECTION_LAYOUT_ONLY=1` with the same server and
 Chromium settings. It opens the workflow alias details and checks the selector

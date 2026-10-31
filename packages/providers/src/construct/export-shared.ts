@@ -8,6 +8,7 @@ import {
   runWithLiveLogs,
   fetchPackage,
 } from "@pipelab/plugin-core";
+import AdmZip from "adm-zip";
 import { constructAccountOrigin, script } from "./assets/script.js";
 import * as v from "valibot";
 import type { BrowserContext, Video } from "playwright";
@@ -440,6 +441,22 @@ export const exportc3p = async (
     projectId,
   }: ConstructExportExecutionContext,
 ): Promise<{ folder: string; parentFolder: string; zipFile: string }> => {
+  // The CLI E2E injects this fixture to test the real workflow and Electron package without
+  // depending on Construct's external account service or editor availability.
+  const testExportFixture =
+    process.env.PIPELAB_TEST_MODE === "true"
+      ? process.env.PIPELAB_TEST_CONSTRUCT_EXPORT_FIXTURE
+      : undefined;
+  if (testExportFixture) {
+    throwIfAborted(abortSignal);
+    const zipFile = join(cwd, "construct-export-fixture.zip");
+    const archive = new AdmZip();
+    archive.addLocalFolder(testExportFixture);
+    archive.writeZip(zipFile);
+    log("Using test Construct export fixture", testExportFixture);
+    return { folder: zipFile, parentFolder: dirname(zipFile), zipFile };
+  }
+
   const logElapsed = (label: string, startedAt: number) => {
     log(label, `${Date.now() - startedAt} ms`);
   };
