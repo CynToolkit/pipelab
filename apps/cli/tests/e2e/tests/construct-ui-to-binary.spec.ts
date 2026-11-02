@@ -388,9 +388,21 @@ describe("Construct UI Ship to running Electron binary", () => {
           .find((page) => page.url().startsWith("http://127.0.0.1:"));
         if (!gamePage) throw new Error("The running Electron binary did not expose a game page.");
         await gamePage.waitForFunction(
-          () =>
-            document.title === "Guess the Number JavaScript" &&
-            Boolean(document.querySelector("canvas")),
+          () => {
+            if (
+              document.title !== "Guess the Number JavaScript" ||
+              !(document.querySelector("canvas") instanceof HTMLCanvasElement)
+            ) {
+              return false;
+            }
+            const pixel = document
+              .querySelector("canvas")!
+              .getContext("2d")
+              ?.getImageData(0, 0, 1, 1).data;
+            return Boolean(
+              pixel && pixel[0] === 0 && pixel[1] === 0 && pixel[2] === 0 && pixel[3] === 255,
+            );
+          },
           undefined,
           { timeout: 60_000 },
         );
