@@ -122,6 +122,10 @@ const constructStorageUpdatedAt = async (profile: string) => {
 };
 
 const chromiumRoots = (): Array<[string, string]> => {
+  const testProfileRoot = process.env.PIPELAB_TEST_CONSTRUCT_PROFILE_ROOT;
+  if (process.env.PIPELAB_TEST_MODE === "true" && testProfileRoot) {
+    return [["Chrome", testProfileRoot]];
+  }
   const home = homedir();
   const config = process.env.XDG_CONFIG_HOME || join(home, ".config");
   if (platform() === "win32") {

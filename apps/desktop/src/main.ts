@@ -3,8 +3,8 @@ import { join, resolve, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { platform } from "node:os";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
-import { startServer, stopServer } from "./main/server-process";
-import { uiDevPort, getProtocolName, getAppBundleId } from "@pipelab/constants";
+import { getUiDevelopmentPort, startServer, stopServer } from "./main/server-process";
+import { getProtocolName, getAppBundleId } from "@pipelab/constants";
 import { registerIpcHandlers } from "./main/ipc-handlers";
 import { installUpdateAfterServerStops } from "./main/update-shutdown";
 import {
@@ -25,6 +25,18 @@ const isProduction = app.isPackaged && process.env.TEST !== "true";
 const isE2ESmokeTest = process.env.PIPELAB_E2E === "1";
 const e2eHistoryPath = process.env.PIPELAB_E2E_HISTORY_PATH;
 const e2eExpectedRunCount = Number(process.env.PIPELAB_E2E_EXPECTED_RUNS || 0);
+const isDesktopIntegrationTest = process.env.PIPELAB_TEST_DESKTOP === "1";
+const desktopTestUserDataPath = isDesktopIntegrationTest
+  ? process.env.PIPELAB_TEST_DESKTOP_USER_DATA_PATH
+  : undefined;
+const desktopTestDebugPort = isDesktopIntegrationTest
+  ? process.env.PIPELAB_TEST_DESKTOP_DEBUG_PORT
+  : undefined;
+
+if (desktopTestDebugPort && /^\d+$/.test(desktopTestDebugPort)) {
+  app.commandLine.appendSwitch("remote-debugging-address", "127.0.0.1");
+  app.commandLine.appendSwitch("remote-debugging-port", desktopTestDebugPort);
+}
 
 let posthog: PostHog | undefined;
 if (isProduction) {
@@ -55,7 +67,7 @@ const getEnv = () => {
   return "prod";
 };
 
-const customUserDataPath = getDefaultUserDataPath(getEnv());
+const customUserDataPath = desktopTestUserDataPath || getDefaultUserDataPath(getEnv());
 app.setPath("userData", join(customUserDataPath, "desktop"));
 
 protocol.registerSchemesAsPrivileged([
@@ -423,7 +435,7 @@ async function restoreWindowAfterFailedShutdown(): Promise<void> {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
   const cliPort = await startServer();
   const uiUrl = is.dev
-    ? `http://127.0.0.1:${uiDevPort}/?cliPort=${cliPort}`
+    ? `http://127.0.0.1:${getUiDevelopmentPort()}/?cliPort=${cliPort}`
     : `http://127.0.0.1:${cliPort}`;
   await mainWindow?.loadURL(uiUrl);
 }
@@ -649,7 +661,7 @@ app.whenReady().then(async () => {
     // Do not load any renderer until the CLI child proves its launch identity.
     // The port is not a credential; the per-launch secret stays in the main process.
     const uiUrl = is.dev
-      ? `http://127.0.0.1:${uiDevPort}/?cliPort=${cliPort}`
+      ? `http://127.0.0.1:${getUiDevelopmentPort()}/?cliPort=${cliPort}`
       : `http://127.0.0.1:${cliPort}`;
     console.info(`[Main] Loading ${is.dev ? "development" : "production"} UI`);
     await mainWindow?.loadURL(uiUrl);

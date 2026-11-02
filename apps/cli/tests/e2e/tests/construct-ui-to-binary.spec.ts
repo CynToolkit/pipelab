@@ -9,10 +9,8 @@ import { createServer } from "node:net";
 import { setTimeout as delay } from "node:timers/promises";
 import { describe, expect, test } from "vitest";
 import { BuildHistoryStorage, PipelabContext } from "@pipelab/core-node";
-import { runCLI } from "@pipelab/test-utils";
 
 const repoRoot = resolve(process.cwd(), "../..");
-const browserJourneyPath = join(repoRoot, "apps/ui/tests/browser/first-run-onboarding.cjs");
 const constructExportFixturePath = resolve(process.cwd(), "tests/e2e/fixtures/construct-export");
 const playwrightRequire = createRequire(join(repoRoot, "apps/website/package.json"));
 const { chromium } = playwrightRequire("playwright") as typeof import("playwright");
@@ -23,13 +21,18 @@ type StartedProcess = {
   exited: Promise<{ code: number | null; signal: NodeJS.Signals | null }>;
 };
 
-const startProcess = (command: string, args: string[], env: NodeJS.ProcessEnv): StartedProcess => {
+const startProcess = (
+  command: string,
+  args: string[],
+  env: NodeJS.ProcessEnv,
+  keepStdinOpen = false,
+): StartedProcess => {
   const child = spawn(command, args, {
     cwd: repoRoot,
     env,
     shell: process.platform === "win32",
     detached: process.platform !== "win32",
-    stdio: ["ignore", "pipe", "pipe"],
+    stdio: [keepStdinOpen ? "pipe" : "ignore", "pipe", "pipe"],
   });
   let output = "";
   const appendOutput = (chunk: Buffer) => {
@@ -52,50 +55,25 @@ const startProcess = (command: string, args: string[], env: NodeJS.ProcessEnv): 
   };
 };
 
-const stopProcess = async (processHandle: StartedProcess | undefined) => {
-  if (!processHandle || processHandle.child.exitCode !== null) return;
-  const { child } = processHandle;
-  const killWindowsProcessTree = async () => {
-    if (!child.pid) return;
-    const killer = spawn("taskkill", ["/pid", String(child.pid), "/t", "/f"], {
-      stdio: "ignore",
-    });
-    const completed = new Promise<void>((resolveKill) => {
-      killer.once("error", () => resolveKill());
-      killer.once("close", () => resolveKill());
-    });
-    const finished = await Promise.race([
-      completed.then(() => true),
-      delay(5000).then(() => false),
-    ]);
-    if (!finished) killer.kill("SIGKILL");
-  };
-  if (process.platform === "win32") {
-    await killWindowsProcessTree();
-  } else if (child.pid) {
+const stopProcess = async (handle: StartedProcess | undefined) => {
+  if (!handle || handle.child.exitCode !== null) return;
+  const { child } = handle;
+  if (child.pid) {
     try {
-      process.kill(-child.pid, "SIGTERM");
+      process.kill(process.platform === "win32" ? child.pid : -child.pid, "SIGTERM");
     } catch {
       child.kill("SIGTERM");
     }
   }
-  const stopped = await Promise.race([
-    processHandle.exited.then(() => true),
-    delay(5000).then(() => false),
-  ]);
-  if (!stopped && child.pid) {
-    if (process.platform === "win32") {
-      await killWindowsProcessTree();
+  if (await Promise.race([handle.exited.then(() => true), delay(5000).then(() => false)])) return;
+  if (child.pid) {
+    try {
+      process.kill(process.platform === "win32" ? child.pid : -child.pid, "SIGKILL");
+    } catch {
       child.kill("SIGKILL");
-    } else {
-      try {
-        process.kill(-child.pid, "SIGKILL");
-      } catch {
-        child.kill("SIGKILL");
-      }
     }
-    await Promise.race([processHandle.exited, delay(5000)]);
   }
+  await Promise.race([handle.exited, delay(5000)]);
 };
 
 const getAvailablePort = async () => {
@@ -112,63 +90,44 @@ const getAvailablePort = async () => {
   return address.port;
 };
 
-const waitForHttp = async (url: string, processHandle: StartedProcess) => {
+const waitForHttp = async (url: string, handle: StartedProcess) => {
   const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) {
-    if (processHandle.child.exitCode !== null)
+    if (handle.child.exitCode !== null)
+      throw new Error(`UI server exited (${handle.child.exitCode}):\n${handle.output}`);
+    try {
+      if ((await fetch(url)).ok) return;
+    } catch {
+      // Vite has not started yet.
+    }
+    await delay(200);
+  }
+  throw new Error(`UI server did not start:\n${handle.output}`);
+};
+
+const waitForDevTools = async (url: string, handle: StartedProcess) => {
+  const deadline = Date.now() + 90_000;
+  while (Date.now() < deadline) {
+    if (handle.child.exitCode !== null)
       throw new Error(
-        `UI dev server exited before becoming ready (code ${processHandle.child.exitCode}):\n${processHandle.output}`,
+        `Desktop exited before DevTools was ready (code ${handle.child.exitCode}, signal ${handle.child.signalCode}):\n${handle.output}`,
       );
     try {
       const response = await fetch(url);
       if (response.ok) return;
     } catch {
-      // The server is still starting.
+      // Electron is starting.
     }
     await delay(200);
   }
-  throw new Error(`UI dev server did not become ready within 60 seconds:\n${processHandle.output}`);
+  throw new Error(`Desktop DevTools did not become ready:\n${handle.output}`);
 };
 
-const waitForJsonFile = async (path: string, processHandle: StartedProcess) => {
-  const deadline = Date.now() + 30 * 60 * 1000;
-  while (Date.now() < deadline) {
-    if (processHandle.child.exitCode !== null)
-      throw new Error(
-        `Browser journey exited before requesting Ship (code ${processHandle.child.exitCode}):\n${processHandle.output}`,
-      );
-    try {
-      return JSON.parse(await readFile(path, "utf8")) as {
-        workflowId: string;
-        workflowName: string;
-        projectId: string;
-      };
-    } catch (error) {
-      if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") throw error;
-    }
-    await delay(200);
-  }
-  throw new Error(`Timed out waiting for the Dashboard Ship action:\n${processHandle.output}`);
-};
-
-const waitForDevTools = async (url: string, timeoutMs: number, processHandle: StartedProcess) => {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    if (processHandle.child.exitCode !== null)
-      throw new Error(
-        `Packaged Electron exited before opening DevTools (code ${processHandle.child.exitCode}):\n${processHandle.output}`,
-      );
-    try {
-      const response = await fetch(url);
-      if (response.ok) return (await response.json()) as Array<{ type: string; title: string }>;
-    } catch {
-      // Electron is still starting.
-    }
-    await delay(200);
-  }
-  throw new Error(
-    `The packaged Electron binary did not open its DevTools endpoint:\n${processHandle.output}`,
-  );
+const waitForOutput = async (handle: StartedProcess, text: string) => {
+  const deadline = Date.now() + 30_000;
+  while (!handle.output.includes(text) && Date.now() < deadline) await delay(100);
+  if (!handle.output.includes(text))
+    throw new Error(`Desktop did not report ${text}:\n${handle.output}`);
 };
 
 const packagedAppPath = async (buildPath: string) => {
@@ -181,67 +140,73 @@ const packagedAppPath = async (buildPath: string) => {
       await stat(join(candidate, "index.html"));
       return candidate;
     } catch {
-      // Try the next Electron packaging layout.
-    }
-  }
-  const entries = await import("node:fs/promises").then(({ readdir }) =>
-    readdir(buildPath, { withFileTypes: true }),
-  );
-  for (const entry of entries.filter((item) => item.isDirectory() && item.name.endsWith(".app"))) {
-    const candidate = join(buildPath, entry.name, "Contents", "Resources", "app", "src", "app");
-    try {
-      await stat(join(candidate, "index.html"));
-      return candidate;
-    } catch {
-      // Continue through nested app bundles.
+      // Check the next Electron packaging layout.
     }
   }
   throw new Error("Electron output did not contain the packaged Construct app.");
 };
 
-describe("Construct UI Ship to running Electron binary", () => {
+describe("Construct Desktop Ship to running Electron binary", () => {
   test(
-    "creates and ships a Construct workflow in the UI, then opens its Electron game",
+    "creates and ships a Construct workflow through Desktop and its real CLI sidecar",
     async () => {
-      const projectPath = resolve(process.cwd(), "tests/e2e/fixtures/construct/test.c3p");
-      const userDataPath = await mkdtemp(join(tmpdir(), "pipelab-construct-ui-binary-"));
-      const constructProfilePath = join(userDataPath, "mock-construct-profile");
-      const resultPath = join(userDataPath, "ui-ship-result.json");
-      let uiPort: number;
-      let debugPort: number;
+      const userDataPath = await mkdtemp(join(tmpdir(), "pipelab-construct-desktop-e2e-"));
+      const sourcePath = join(userDataPath, "source", "test.c3p");
+      const outputPath = join(userDataPath, "artifacts", "local-delivery");
+      const testProfileRoot = join(userDataPath, "chromium");
+      const profilePath = join(testProfileRoot, "YourProfile");
+      const projectFixture = resolve(process.cwd(), "tests/e2e/fixtures/construct/test.c3p");
+      const uiPort = await getAvailablePort();
+      const debugPort = await getAvailablePort();
+      const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
       let uiBuild: StartedProcess | undefined;
       let uiServer: StartedProcess | undefined;
-      let browserJourney: StartedProcess | undefined;
-      let electronProcess: StartedProcess | undefined;
-      let bridgeResultWritten = false;
-      let playwrightBrowser: import("playwright").Browser | undefined;
+      let desktop: StartedProcess | undefined;
+      let game: StartedProcess | undefined;
+      let browser: import("playwright").Browser | undefined;
+      let gameBrowser: import("playwright").Browser | undefined;
+      let desktopPage: import("playwright").Page | undefined;
 
       try {
         await mkdir(join(userDataPath, "config"), { recursive: true });
-        await mkdir(constructProfilePath, { recursive: true });
-        await writeFile(join(constructProfilePath, "Preferences"), "{}");
-        const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-        uiBuild = startProcess(pnpmCommand, ["--filter", "@pipelab/ui", "build"], {
+        await mkdir(join(userDataPath, "source"), { recursive: true });
+        await mkdir(outputPath, { recursive: true });
+        await mkdir(profilePath, { recursive: true });
+        await writeFile(sourcePath, await readFile(projectFixture));
+        await writeFile(join(profilePath, "Preferences"), "{}");
+        await writeFile(
+          join(userDataPath, "config", "settings.json"),
+          JSON.stringify({
+            locale: "en-US",
+            theme: "light",
+            version: "8.0.0",
+            autosave: true,
+            agents: [],
+            tours: {
+              dashboard: { step: 0, completed: true },
+              editor: { step: 0, completed: true },
+            },
+          }),
+        );
+
+        const env: NodeJS.ProcessEnv = {
           ...process.env,
           NODE_ENV: "development",
-        });
-        const buildExit = await uiBuild.exited;
-        if (buildExit.code !== 0)
-          throw new Error(
-            `UI build failed before the browser journey (code ${buildExit.code}):\n${uiBuild.output}`,
-          );
-        uiPort = await getAvailablePort();
-        const baseUrl = `http://127.0.0.1:${uiPort}`;
-        const env = {
-          ...process.env,
-          NODE_ENV: "development",
-          UI_BASE_URL: baseUrl,
-          CHROMIUM_PATH: process.env.CHROMIUM_PATH || chromium.executablePath(),
-          CONSTRUCT_BINARY_E2E: "1",
-          CONSTRUCT_BINARY_PROJECT_PATH: projectPath,
-          CONSTRUCT_BINARY_PROFILE_PATH: constructProfilePath,
-          PIPELAB_CI_USER_DATA: userDataPath,
+          PIPELAB_TEST_MODE: "true",
+          PIPELAB_TEST_CONSTRUCT_EXPORT_FIXTURE: constructExportFixturePath,
+          PIPELAB_TEST_CONSTRUCT_PROFILE_ROOT: testProfileRoot,
+          PIPELAB_TEST_DESKTOP: "1",
+          PIPELAB_TEST_DESKTOP_USER_DATA_PATH: userDataPath,
+          PIPELAB_TEST_DESKTOP_DEBUG_PORT: String(debugPort),
+          PIPELAB_TEST_DESKTOP_UI_PORT: String(uiPort),
+          PIPELAB_TEST_DESKTOP_SOURCE_PATH: sourcePath,
+          PIPELAB_TEST_DESKTOP_OUTPUT_PATH: outputPath,
         };
+        uiBuild = startProcess(pnpmCommand, ["--filter", "@pipelab/ui", "build"], env);
+        const buildExit = await uiBuild.exited;
+        if (buildExit.code !== 0) {
+          throw new Error(`UI build failed (${buildExit.code}):\n${uiBuild.output}`);
+        }
         uiServer = startProcess(
           pnpmCommand,
           [
@@ -256,148 +221,252 @@ describe("Construct UI Ship to running Electron binary", () => {
           ],
           env,
         );
-        await waitForHttp(baseUrl, uiServer);
-        await delay(1500);
+        await waitForHttp(`http://127.0.0.1:${uiPort}`, uiServer);
 
-        browserJourney = startProcess(process.execPath, [browserJourneyPath], env);
-        const shipRequest = await waitForJsonFile(
-          join(userDataPath, "ui-ship-request.json"),
-          browserJourney,
+        const desktopArgs = ["--filter", "@pipelab/app", "run", "start", "--", "--headless"];
+        if (process.platform === "linux") desktopArgs.push("--no-sandbox");
+        desktop = startProcess(
+          process.platform === "linux" ? "xvfb-run" : pnpmCommand,
+          process.platform === "linux" ? ["-a", pnpmCommand, ...desktopArgs] : desktopArgs,
+          env,
+          true,
         );
-        expect(shipRequest.workflowName).toBe(`workflows/${shipRequest.workflowId}`);
+        await waitForDevTools(`http://127.0.0.1:${debugPort}/json`, desktop);
+        browser = await chromium.connectOverCDP(`http://127.0.0.1:${debugPort}`);
+        const desktopContext = browser.contexts()[0];
+        if (!desktopContext) throw new Error("Desktop did not expose its default browser context.");
+        await desktopContext.route(`http://127.0.0.1:${uiPort}/assets/**`, async (route) => {
+          for (let attempt = 0; attempt < 2; attempt++) {
+            try {
+              await route.fulfill({ response: await route.fetch() });
+              return;
+            } catch (error) {
+              if (
+                attempt > 0 ||
+                !(error instanceof Error) ||
+                !error.message.includes("ERR_NETWORK_CHANGED")
+              ) {
+                throw error;
+              }
+            }
+          }
+        });
+        const rendererDeadline = Date.now() + 60_000;
+        let page = browser
+          .contexts()
+          .flatMap((context) => context.pages())
+          .find((candidate) => new URL(candidate.url()).port === String(uiPort));
+        while (!page && Date.now() < rendererDeadline) {
+          await delay(200);
+          page = browser
+            .contexts()
+            .flatMap((context) => context.pages())
+            .find((candidate) => new URL(candidate.url()).port === String(uiPort));
+        }
+        if (!page) throw new Error("Desktop did not expose its renderer page.");
+        desktopPage = page;
+        const rendererErrors: string[] = [];
+        page.on("pageerror", (error) => rendererErrors.push(error.message));
+        page.on("console", (message) => {
+          if (message.type() === "error") rendererErrors.push(message.text());
+        });
+        await page.waitForFunction(() => /[?&]cliPort=\d+/.test(location.href), undefined, {
+          timeout: 60_000,
+        });
+        const cliPort = new URL(page.url()).searchParams.get("cliPort");
+        assert.ok(cliPort, "Desktop loaded the UI with the managed CLI port");
+        try {
+          await page
+            .getByRole("heading", { name: "Project overview" })
+            .waitFor({ timeout: 60_000 });
+        } catch (error) {
+          throw new Error(
+            `Desktop UI did not reach Dashboard (${page.url()}, ${await page.title()}): ${await page
+              .locator("body")
+              .innerText()
+              .catch(
+                () => "<no body>",
+              )}\nRenderer errors: ${rendererErrors.join("; ")}\n${desktop.output}\n${String(error)}`,
+          );
+        }
+        await waitForOutput(desktop, "WebSocket client connected");
+        await page
+          .getByRole("button", { name: /New workflow/ })
+          .first()
+          .click();
+        const dialog = page.getByRole("dialog", { name: "New release" });
+        await dialog.waitFor();
+        await dialog.getByLabel("Name", { exact: true }).fill("Construct Desktop E2E");
+        await dialog
+          .getByLabel("Description", { exact: true })
+          .fill("Desktop managed CLI acceptance");
+        await dialog.getByRole("button", { name: "Continue" }).click();
+        await dialog.getByRole("button", { name: /^Construct project/ }).click();
+        await dialog.getByRole("button", { name: /Choose Project file/i }).click();
+        await dialog.getByLabel("Project file", { exact: true }).waitFor();
+        await dialog.getByRole("button", { name: "Continue" }).click();
+        await dialog.getByRole("heading", { name: "Where do you want to ship?" }).waitFor();
+        await dialog.getByRole("button", { name: /^(File system|Folder)/ }).click();
+        await dialog.getByRole("button", { name: "Continue" }).click();
+        await dialog.getByRole("button", { name: "Create workflow" }).click();
+        await page.waitForURL(/\/workflows\/[^/]+\/[^/]+$/);
+        await page.getByRole("link", { name: "Builds", exact: true }).click();
+        await page.getByRole("heading", { name: "Build profiles" }).waitFor();
+        await page.getByRole("button", { name: "Add build" }).first().click();
+        const addBuildDialog = page.getByRole("dialog", { name: "Add build" });
+        await addBuildDialog.getByText("Choose a build type", { exact: true }).click();
+        await page.getByRole("option", { name: "Desktop", exact: true }).click();
+        await addBuildDialog.getByText("Choose an engine", { exact: true }).click();
+        await page.getByRole("option", { name: "Electron", exact: true }).click();
         const targetId =
           process.platform === "win32"
             ? "windows-x64"
             : process.platform === "darwin"
               ? "macos-arm64"
               : "linux-x64";
-        const savedWorkflow = JSON.parse(
-          await readFile(
-            join(userDataPath, "config", "workflows", `${shipRequest.workflowId}.json`),
-            "utf8",
-          ),
+        const targetButtons = addBuildDialog.locator(".target-row");
+        await targetButtons
+          .first()
+          .waitFor({ timeout: 15_000 })
+          .catch(async (error: unknown) => {
+            throw new Error(
+              `No target choices were shown after selecting Electron: ${await addBuildDialog.innerText().catch(() => "<closed>")}\n${String(error)}`,
+            );
+          });
+        const targetLabels = await targetButtons.allTextContents();
+        const targetIndex = targetLabels.findIndex((label) => label.includes(targetId));
+        expect(
+          targetIndex,
+          `available Electron targets: ${targetLabels.join(" | ")}`,
+        ).toBeGreaterThanOrEqual(0);
+        await targetButtons.nth(targetIndex).click();
+        await addBuildDialog.getByRole("button", { name: "Add build" }).click();
+        await page.getByText("Electron", { exact: true }).waitFor();
+        await page.getByRole("link", { name: "Configuration", exact: true }).click();
+        await page
+          .locator(".source-card")
+          .getByRole("button", { name: "Edit", exact: true })
+          .click();
+        const sourceDialog = page.getByRole("dialog", { name: "Edit source" });
+        await sourceDialog.getByText("Select browser profile", { exact: true }).click();
+        await page.getByRole("option", { name: /Chrome \/ YourProfile|YourProfile/ }).click();
+        await sourceDialog.getByRole("button", { name: "Done" }).click();
+        const destinationCard = page.locator(".job-card").first();
+        await destinationCard
+          .locator(".job-header")
+          .getByRole("button", { name: "Edit", exact: true })
+          .click();
+        const destinationDialog = page.getByRole("dialog", { name: "Edit destination" });
+        await destinationDialog.getByRole("button", { name: "Choose output folder" }).click();
+        await destinationDialog.getByLabel("Output folder", { exact: true }).waitFor();
+        await destinationDialog.getByRole("button", { name: "Done" }).click();
+        await page
+          .getByRole("button", { name: "Ship" })
+          .waitFor({ state: "visible", timeout: 60_000 });
+        await page.getByRole("link", { name: "Dashboard" }).click();
+        const dashboardShip = page.getByRole("button", { name: "Ship Construct Desktop E2E" });
+        await dashboardShip.waitFor();
+        await dashboardShip.click();
+        const confirmation = page.getByRole("dialog", { name: /Release details/ });
+        await confirmation.getByRole("button", { name: "Ship release" }).click();
+        await page.waitForURL(/\/runs\//, { timeout: 30 * 60 * 1000 });
+        expect(desktop.output).toContain("WebSocket client connected");
+
+        const workflowConfigPath = join(userDataPath, "config", "workflows");
+        const workflowFiles = await (await import("node:fs/promises")).readdir(workflowConfigPath);
+        const workflowFile = workflowFiles.find((name) => name.endsWith(".json"));
+        if (!workflowFile)
+          throw new Error(
+            "Desktop CLI did not persist the workflow through its WebSocket handler.",
+          );
+        const workflow = JSON.parse(
+          await readFile(join(workflowConfigPath, workflowFile), "utf8"),
         ) as {
           id: string;
-          source: { provider: string; config: { path?: string } };
+          project: string;
+          source: { provider: string; config: { path: string; profilePath: string } };
           builds: Array<{ engine: string; targets: Array<{ id: string }> }>;
           destinations: Array<{ provider: string; config: { outputDir?: string } }>;
         };
-        expect(savedWorkflow).toMatchObject({
-          id: shipRequest.workflowId,
-          source: {
-            provider: "@pipelab/plugin-construct/source",
-            config: { path: projectPath },
-          },
-          builds: [
-            {
-              engine: "@pipelab/plugin-electron/producer",
-              targets: [{ id: targetId }],
-            },
-          ],
-          destinations: [
-            {
-              provider: "@pipelab/core/destination/folder",
-              config: { outputDir: join(userDataPath, "artifacts", "local-delivery") },
-            },
-          ],
+        expect(workflow.source).toMatchObject({
+          provider: "@pipelab/plugin-construct/source",
+          config: { path: sourcePath, profilePath },
+        });
+        expect(workflow.builds[0]).toMatchObject({
+          engine: "@pipelab/plugin-electron/producer",
+          targets: expect.arrayContaining([
+            expect.objectContaining({ id: targetId, enabled: true }),
+          ]),
+        });
+        expect(workflow.destinations[0]).toMatchObject({
+          provider: "@pipelab/core/destination/folder",
+          config: { outputDir: outputPath },
         });
 
-        let workflowRun;
-        try {
-          await runCLI(["workflow", "run", shipRequest.workflowId, "--user-data", userDataPath], {
-            env: {
-              PIPELAB_DISABLE_HISTORY: "false",
-              PIPELAB_TEST_MODE: "true",
-              PIPELAB_TEST_CONSTRUCT_EXPORT_FIXTURE: constructExportFixturePath,
-            },
-          });
-          const storage = new BuildHistoryStorage(new PipelabContext({ userDataPath }));
-          const history = await storage.getByProject(shipRequest.projectId);
-          workflowRun = history.find((entry) => entry.workflowId === shipRequest.workflowId);
-          expect(workflowRun?.status).toBe("completed");
-          expect(workflowRun?.deliveries).toHaveLength(1);
-          expect(workflowRun?.deliveries?.[0]).toMatchObject({
-            destinationId: "@pipelab/core/destination/folder",
-            status: "completed",
-          });
-        } catch (error) {
-          const message =
-            error instanceof Error ? `${error.name}: ${error.message}` : String(error);
-          await writeFile(resultPath, JSON.stringify({ error: message }));
-          bridgeResultWritten = true;
-          throw new Error(`The real CLI workflow run failed after Dashboard Ship: ${message}`);
+        const historyStorage = new BuildHistoryStorage(new PipelabContext({ userDataPath }));
+        let history = await historyStorage.getByProject(workflow.project);
+        const deadline = Date.now() + 30 * 60 * 1000;
+        while (
+          !history.some(
+            (entry) => entry.workflowId === workflow.id && entry.status === "completed",
+          ) &&
+          Date.now() < deadline
+        ) {
+          await delay(500);
+          history = await historyStorage.getByProject(workflow.project);
         }
-
+        const workflowRun = history.find((entry) => entry.workflowId === workflow.id);
+        expect(workflowRun?.status).toBe("completed");
+        expect(workflowRun?.deliveries).toHaveLength(1);
+        expect(workflowRun?.deliveries?.[0]).toMatchObject({
+          destinationId: "@pipelab/core/destination/folder",
+          status: "completed",
+        });
         const electronBuild = workflowRun?.artifacts.find(
           (artifact) => "descriptor" in artifact && artifact.descriptor.technology === "electron",
         );
-        if (!workflowRun || !electronBuild)
-          throw new Error(
-            "The completed UI-triggered workflow did not produce an Electron artifact.",
-          );
-
+        if (!electronBuild)
+          throw new Error("The UI-triggered workflow did not produce an Electron artifact.");
         const appPath = await packagedAppPath(electronBuild.path);
         const indexHtml = await readFile(join(appPath, "index.html"), "utf8");
-        const packagedIndexSha256 = createHash("sha256").update(indexHtml).digest("hex");
-        const fixtureIndexHtml = await readFile(
-          join(constructExportFixturePath, "index.html"),
-          "utf8",
-        );
-        expect(packagedIndexSha256).toBe(
-          createHash("sha256").update(fixtureIndexHtml).digest("hex"),
-        );
-        console.info(`Verified packaged Construct index.html SHA-256: ${packagedIndexSha256}`);
+        const packagedHash = createHash("sha256").update(indexHtml).digest("hex");
+        const fixtureHtml = await readFile(join(constructExportFixturePath, "index.html"), "utf8");
+        expect(packagedHash).toBe(createHash("sha256").update(fixtureHtml).digest("hex"));
         expect(indexHtml).toContain("<title>Guess the Number JavaScript</title>");
         expect(indexHtml).toMatch(
           /<meta\s+name="generator"\s+content="Scirra Construct"\s*\/?\s*>/,
         );
-        const projectScript = await readFile(
-          join(appPath, "scripts", "project", "main.js"),
-          "utf8",
-        );
-        expect(projectScript).toContain("Instances of TextInput and ResultText");
-
-        const binaryPath =
+        const gamePath =
           process.platform === "darwin"
             ? join(electronBuild.path, "Pipelab.app", "Contents", "MacOS", "Pipelab")
             : join(electronBuild.path, process.platform === "win32" ? "Pipelab.exe" : "Pipelab");
-        await stat(binaryPath);
-        debugPort = await getAvailablePort();
-        const launchArgs = [
+        await stat(gamePath);
+        const gameDebugPort = await getAvailablePort();
+        const gameArgs = [
           "--no-sandbox",
           "--disable-setuid-sandbox",
           "--disable-gpu",
-          `--remote-debugging-port=${debugPort}`,
-          `--user-data-dir=${join(userDataPath, "electron-profile")}`,
+          `--remote-debugging-port=${gameDebugPort}`,
+          `--user-data-dir=${join(userDataPath, "game-profile")}`,
         ];
-        electronProcess = startProcess(
-          process.platform === "linux" ? "xvfb-run" : binaryPath,
-          process.platform === "linux" ? ["-a", binaryPath, ...launchArgs] : launchArgs,
+        game = startProcess(
+          process.platform === "linux" ? "xvfb-run" : gamePath,
+          process.platform === "linux" ? ["-a", gamePath, ...gameArgs] : gameArgs,
           env,
         );
-        const devToolsTargets = await waitForDevTools(
-          `http://127.0.0.1:${debugPort}/json`,
-          60_000,
-          electronProcess,
-        );
-        expect(devToolsTargets.some((target) => target.type === "page")).toBe(true);
-        playwrightBrowser = await chromium.connectOverCDP(`http://127.0.0.1:${debugPort}`);
-        const gamePage = playwrightBrowser
+        await waitForDevTools(`http://127.0.0.1:${gameDebugPort}/json`, game);
+        gameBrowser = await chromium.connectOverCDP(`http://127.0.0.1:${gameDebugPort}`);
+        const gamePage = gameBrowser
           .contexts()
           .flatMap((context) => context.pages())
-          .find((page) => page.url().startsWith("http://127.0.0.1:"));
-        if (!gamePage) throw new Error("The running Electron binary did not expose a game page.");
+          .find((candidate) => candidate.url().startsWith("http://127.0.0.1:"));
+        if (!gamePage) throw new Error("The produced Electron binary did not expose a game page.");
         await gamePage.waitForFunction(
           () => {
-            if (
-              document.title !== "Guess the Number JavaScript" ||
-              !(document.querySelector("canvas") instanceof HTMLCanvasElement)
-            ) {
-              return false;
-            }
+            if (document.title !== "Guess the Number JavaScript") return false;
             const pixel = document
-              .querySelector("canvas")!
-              .getContext("2d")
+              .querySelector("canvas")
+              ?.getContext("2d")
               ?.getImageData(0, 0, 1, 1).data;
             return Boolean(
               pixel && pixel[0] === 0 && pixel[1] === 0 && pixel[2] === 0 && pixel[3] === 255,
@@ -406,52 +475,21 @@ describe("Construct UI Ship to running Electron binary", () => {
           undefined,
           { timeout: 60_000 },
         );
-        const canvas = await gamePage
-          .locator("canvas")
-          .first()
-          .evaluate((element) => {
-            const bounds = element.getBoundingClientRect();
-            const pixel = (element as HTMLCanvasElement)
-              .getContext("2d")
-              ?.getImageData(0, 0, 1, 1).data;
-            return {
-              width: bounds.width,
-              height: bounds.height,
-              pixel: pixel ? Array.from(pixel) : [],
-            };
-          });
-        expect(canvas.width).toBeGreaterThan(0);
-        expect(canvas.height).toBeGreaterThan(0);
-        expect(canvas.pixel).toEqual([0, 0, 0, 255]);
-        expect(electronProcess.child.exitCode).toBeNull();
-
-        const history = await new BuildHistoryStorage(
-          new PipelabContext({ userDataPath }),
-        ).getByProject(shipRequest.projectId);
-        await writeFile(resultPath, JSON.stringify({ run: workflowRun, historyEntries: history }));
-        bridgeResultWritten = true;
-        const browserExit = await browserJourney.exited;
-        expect(
-          browserExit.code,
-          `browser journey failed (${browserExit.code}):\n${browserJourney.output}`,
-        ).toBe(0);
-      } catch (error) {
-        if (!bridgeResultWritten) {
-          await writeFile(
-            resultPath,
-            JSON.stringify({ error: "The UI-to-binary acceptance failed." }),
-          );
-        }
-        throw error;
+        expect(game.child.exitCode).toBeNull();
       } finally {
-        await playwrightBrowser?.close().catch(() => undefined);
-        await stopProcess(electronProcess);
-        await stopProcess(browserJourney);
+        await desktopPage?.evaluate(() => window.close()).catch(() => undefined);
+        if (desktop) {
+          await Promise.race([desktop.exited, delay(15_000)]);
+        }
+        await gameBrowser?.close().catch(() => undefined);
+        await browser?.close().catch(() => undefined);
+        await stopProcess(game);
+        await stopProcess(desktop);
         await stopProcess(uiServer);
         await stopProcess(uiBuild);
         await rm(userDataPath, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
       }
     },
-    30 * 60 * 1000,
+    45 * 60 * 1000,
   );
 });

@@ -51,7 +51,7 @@ acceptance separately to verify Construct export and Electron packaging.
 
 ## Construct UI Ship to running Electron binary
 
-Run the deterministic full UI-to-binary acceptance without a Construct account:
+Run the deterministic Desktop-to-binary acceptance without a Construct account:
 
 ```sh
 pnpm --filter @pipelab/cli exec vitest run \
@@ -59,17 +59,16 @@ pnpm --filter @pipelab/cli exec vitest run \
   tests/e2e/tests/construct-ui-to-binary.spec.ts
 ```
 
-The test mocks Construct's external export with a checked-in HTML fixture, then
-drives the visible wizard and Dashboard Ship confirmation. Its browser WebSocket
-bridge persists the workflow payload into isolated test data and forwards the
-Ship request to the real CLI; the production WebSocket save and execute handlers
-are outside this test's boundary. The CLI workflow and Electron packager run for
-real. The test launches the produced binary and checks its packaged
-`index.html`, Construct project marker, and live canvas. It writes test state
-and build artifacts under a temporary user-data directory and removes them when
-the test ends. No publishing destination is configured; the workflow delivers
-only to a temporary local folder. On Linux, the test launches the game under
-`xvfb-run` with Electron's sandbox disabled for the isolated test process.
+The test starts the real Desktop app, which starts its real CLI sidecar, then
+drives the Desktop window through the visible workflow wizard, workflow build
+settings, and Dashboard Ship confirmation. Workflow save, planning, execution,
+run history, and local folder delivery use the production UI-to-CLI WebSocket
+path. Only Construct's external export is replaced by a checked-in fixture; no
+Construct account or publishing service is contacted. The test verifies the
+packaged `index.html` against the fixture SHA-256, then launches the produced
+binary and checks its Construct project marker and live canvas. Its Chromium
+profile, app data, and build artifacts live in a temporary directory that is
+removed when the test ends. On Linux, Desktop and the game run under `xvfb-run`.
 
 For an additional live Construct export acceptance, provide a disposable
 authenticated Construct browser profile and run:
