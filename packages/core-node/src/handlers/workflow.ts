@@ -38,9 +38,7 @@ import { BuildHistoryStorage } from "./build-history";
 import { WorkflowRunCancellationRegistry } from "./workflow-run-cancellation";
 import { getPipelabCloudDownloadUrl } from "../pipelab-cloud";
 import { buildCoreReleaseRegistry } from "../release/registry";
-import {
-  getReleaseWorkflowValueRequirements,
-} from "../release/workflow-value-requirements";
+import { getReleaseWorkflowValueRequirements } from "../release/workflow-value-requirements";
 import { builtInProviders } from "../providers-registry";
 
 const host = () => ({ platform: process.platform, architecture: process.arch });
@@ -90,6 +88,15 @@ const executionPlan = (workflow: Workflow) =>
     status: "pending" as const,
     startTime: 0,
     logs: [] as LogEntry[],
+    ...(step.phases
+      ? {
+          phases: step.phases.map((phase) => ({
+            ...phase,
+            status: "pending" as const,
+            warnings: [] as string[],
+          })),
+        }
+      : {}),
     ...(step.delivery
       ? { destinationId: step.delivery.destinationId, slotId: step.delivery.slotId }
       : {}),
@@ -103,6 +110,60 @@ export const applyWorkflowEventToHistory = (
   const step =
     "stepId" in event ? steps.find((candidate) => candidate.id === event.stepId) : undefined;
   if (!step) return;
+
+  if (
+    event.type === "phase.started" ||
+    event.type === "phase.completed" ||
+    event.type === "phase.skipped" ||
+    event.type === "phase.failed" ||
+    event.type === "phase.warning" ||
+    event.type === "phase.not-reached" ||
+    event.type === "phase.not-reported"
+  ) {
+    if (event.type === "phase.warning" && event.diagnostic) {
+      step.diagnostics ??= [];
+      step.diagnostics.push(event.message);
+    }
+    const phase = step.phases?.find((candidate) => candidate.id === event.phaseId);
+    if (!phase) return;
+    switch (event.type) {
+      case "phase.started":
+        phase.status = "running";
+        phase.startedAt = event.timestamp;
+        return;
+      case "phase.completed":
+        phase.status = "completed";
+        phase.completedAt = event.timestamp;
+        phase.duration = event.duration;
+        if (event.message !== undefined) phase.message = event.message;
+        return;
+      case "phase.skipped":
+        phase.status = "skipped";
+        phase.completedAt = event.timestamp;
+        phase.duration = event.duration;
+        phase.message = event.reason;
+        return;
+      case "phase.failed":
+        phase.status = "failed";
+        phase.completedAt = event.timestamp;
+        phase.duration = event.duration;
+        phase.error = event.error;
+        return;
+      case "phase.warning":
+        phase.warnings.push(event.message);
+        return;
+      case "phase.not-reached":
+        phase.status = "not-reached";
+        phase.title = event.title;
+        phase.completedAt = event.timestamp;
+        return;
+      case "phase.not-reported":
+        phase.status = "not-reported";
+        phase.title = event.title;
+        phase.completedAt = event.timestamp;
+        return;
+    }
+  }
 
   switch (event.type) {
     case "step.started":
@@ -195,7 +256,9 @@ export const executeWorkflow = async (
     stored = storedEntity.config;
   }
   if (stored.id !== workflowId)
-    throw new Error(`Workflow config ID '${stored.id}' does not match execution ID '${workflowId}'.`);
+    throw new Error(
+      `Workflow config ID '${stored.id}' does not match execution ID '${workflowId}'.`,
+    );
   const version = options.release?.version?.trim() || "0.0.0";
   const runEnvironment = Object.freeze({ ...(options.env ?? process.env) });
   const prepared = prepareReleaseWorkflow(stored, version, runEnvironment);
@@ -386,7 +449,7 @@ export const executeWorkflow = async (
           ? ("completed" as const)
           : observedSteps.get(step.id) === "skipped"
             ? ("skipped" as const)
-            : observedSteps.get(step.id) === "cancelled" || finalStatus === "cancelled"
+            : finalStatus === "cancelled"
               ? ("cancelled" as const)
               : observedSteps.get(step.id) === "running" || observedSteps.get(step.id) === "failed"
                 ? ("failed" as const)
@@ -447,6 +510,8 @@ export const executeWorkflow = async (
       startTime: step.startedAt,
       endTime: step.completedAt,
       duration: step.duration,
+      phases: step.phases,
+      diagnostics: step.diagnostics,
       logs: [...(liveSteps.find((candidate) => candidate.id === step.id)?.logs || [])],
       output: step.outputs,
       error: step.error

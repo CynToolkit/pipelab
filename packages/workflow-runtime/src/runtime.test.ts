@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runWorkflow, type WorkflowHost } from "./index";
+import { definePhases, runWorkflow, type WorkflowHost } from "./index";
 
 const host: WorkflowHost = {
   workspace: { root: "/tmp" },
@@ -245,9 +245,7 @@ describe("artifact-aware workflow runtime", () => {
           },
         },
       ),
-    ).rejects.toThrow(
-      "Workflow Connection field 'release.credential' is mapped more than once.",
-    );
+    ).rejects.toThrow("Workflow Connection field 'release.credential' is mapped more than once.");
 
     expect(sideEffectStarted).toBe(false);
   });
@@ -1083,5 +1081,413 @@ describe("artifact-aware workflow runtime", () => {
         { host, tasks: {} },
       ),
     ).rejects.toThrow("references an unknown artifact step: missing");
+  });
+
+  it("records phase completion, explicit success, warnings, and skip reasons", async () => {
+    const phases = definePhases([
+      { id: "prepare", title: "Prepare" },
+      { id: "cache", title: "Check cache" },
+      { id: "package", title: "Package" },
+    ]);
+    const events: { type: string; stepId?: string; phaseId?: string }[] = [];
+    const result = await runWorkflow(
+      { version: 1, steps: [{ id: "build", uses: "test:build", phases }] },
+      {
+        host,
+        tasks: {
+          "test:build": async (task) => {
+            const { phase } = task.withPhases(phases);
+            await phase("prepare", async ({ success, warn }) => {
+              warn("Using the fallback config");
+              return success("Application prepared");
+            });
+            await phase("cache", ({ skip }) => skip("Cached dependencies"));
+            return { ready: true };
+          },
+        },
+        onEvent: (event) => events.push(event),
+      },
+    );
+
+    expect(result.steps.build.phases).toMatchObject([
+      {
+        id: "prepare",
+        status: "completed",
+        message: "Application prepared",
+        warnings: ["Using the fallback config"],
+      },
+      { id: "cache", status: "skipped", message: "Cached dependencies" },
+      { id: "package", status: "not-reported" },
+    ]);
+    expect(events.map(({ type, phaseId }) => [type, phaseId])).toEqual([
+      ["workflow.started", undefined],
+      ["step.started", undefined],
+      ["phase.started", "prepare"],
+      ["phase.warning", "prepare"],
+      ["phase.completed", "prepare"],
+      ["phase.started", "cache"],
+      ["phase.skipped", "cache"],
+      ["phase.warning", "package"],
+      ["phase.not-reported", "package"],
+      ["step.completed", undefined],
+      ["workflow.completed", undefined],
+    ]);
+  });
+
+  it("fails a phase and marks later phases not-reached after callback exceptions", async () => {
+    const phases = definePhases([
+      { id: "install", title: "Install" },
+      { id: "package", title: "Package" },
+    ]);
+    const events: { type: string; phaseId?: string }[] = [];
+    await expect(
+      runWorkflow(
+        { version: 1, steps: [{ id: "build", uses: "test:build", phases }] },
+        {
+          host,
+          tasks: {
+            "test:build": async (task) => {
+              const { phase } = task.withPhases(phases);
+              await phase("install", ({ fail }) => fail("install failed"));
+            },
+          },
+          onEvent: (event) => events.push(event),
+        },
+      ),
+    ).rejects.toThrow("install failed");
+
+    expect(
+      events
+        .filter((event) => event.type.startsWith("phase."))
+        .map((event) => [event.type, event.phaseId]),
+    ).toEqual([
+      ["phase.started", "install"],
+      ["phase.failed", "install"],
+      ["phase.not-reached", "package"],
+    ]);
+  });
+
+  it("automatically marks thrown phase exceptions as failed", async () => {
+    const phases = definePhases([{ id: "build", title: "Build" }]);
+    const events: { type: string; phaseId?: string }[] = [];
+    await expect(
+      runWorkflow(
+        { version: 1, steps: [{ id: "build-step", uses: "test:build", phases }] },
+        {
+          host,
+          tasks: {
+            "test:build": async (task) => {
+              const { phase } = task.withPhases(phases);
+              await phase("build", () => {
+                throw new Error("compiler failed");
+              });
+            },
+          },
+          onEvent: (event) => events.push(event),
+        },
+      ),
+    ).rejects.toThrow("compiler failed");
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "phase.failed", phaseId: "build" }),
+    );
+  });
+
+  it("fails the step when an unawaited phase callback rejects", async () => {
+    const phases = definePhases([{ id: "build", title: "Build" }]);
+    await expect(
+      runWorkflow(
+        { version: 1, steps: [{ id: "build-step", uses: "test:build", phases }] },
+        {
+          host,
+          tasks: {
+            "test:build": async (task) => {
+              const { phase } = task.withPhases(phases);
+              void phase("build", async () => {
+                await Promise.resolve();
+                throw new Error("async phase failed");
+              });
+              return { ready: true };
+            },
+          },
+        },
+      ),
+    ).rejects.toThrow("async phase failed");
+  });
+
+  it("keeps the task error when an unawaited phase callback also rejects", async () => {
+    const phases = definePhases([{ id: "build", title: "Build" }]);
+    await expect(
+      runWorkflow(
+        { version: 1, steps: [{ id: "build-step", uses: "test:build", phases }] },
+        {
+          host,
+          tasks: {
+            "test:build": async (task) => {
+              const { phase } = task.withPhases(phases);
+              void phase("build", () => {
+                throw new Error("phase error");
+              });
+              throw new Error("parent error");
+            },
+          },
+        },
+      ),
+    ).rejects.toThrow("parent error");
+  });
+
+  it("marks phases on dependency-skipped steps as not-reached", async () => {
+    const phases = definePhases([{ id: "publish", title: "Publish" }]);
+    const events: { type: string; phaseId?: string }[] = [];
+    await expect(
+      runWorkflow(
+        {
+          version: 1,
+          steps: [
+            { id: "build", uses: "test:fail" },
+            { id: "publish", uses: "test:publish", needs: ["build"], phases },
+          ],
+        },
+        {
+          host,
+          tasks: {
+            "test:fail": async () => {
+              throw new Error("build failed");
+            },
+            "test:publish": async () => ({ published: true }),
+          },
+          onEvent: (event) => events.push(event),
+        },
+      ),
+    ).rejects.toThrow("build failed");
+
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "phase.not-reached", phaseId: "publish" }),
+    );
+  });
+
+  it("records completed and not-reached phases when cancellation arrives during a task", async () => {
+    const controller = new AbortController();
+    const phases = definePhases([
+      { id: "install", title: "Install" },
+      { id: "package", title: "Package" },
+    ]);
+    const events: { type: string; phaseId?: string }[] = [];
+    await expect(
+      runWorkflow(
+        { version: 1, steps: [{ id: "build", uses: "test:build", phases }] },
+        {
+          host,
+          signal: controller.signal,
+          tasks: {
+            "test:build": async (task) => {
+              const { phase } = task.withPhases(phases);
+              await phase("install", ({ success }) => {
+                controller.abort();
+                return success("Dependencies installed");
+              });
+            },
+          },
+          onEvent: (event) => events.push(event),
+        },
+      ),
+    ).rejects.toMatchObject({ name: "AbortError" });
+
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "phase.completed", phaseId: "install" }),
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "phase.not-reached", phaseId: "package" }),
+    );
+  });
+
+  it("reports duplicate invocation without suppressing the second callback", async () => {
+    const phases = definePhases([{ id: "install", title: "Install" }]);
+    const events: { type: string; diagnostic?: boolean }[] = [];
+    let calls = 0;
+    const result = await runWorkflow(
+      { version: 1, steps: [{ id: "build", uses: "test:build", phases }] },
+      {
+        host,
+        tasks: {
+          "test:build": async (task) => {
+            const { phase } = task.withPhases(phases);
+            await phase("install", () => {
+              calls += 1;
+            });
+            await phase("install", () => {
+              calls += 1;
+            });
+          },
+        },
+        onEvent: (event) => events.push(event),
+      },
+    );
+
+    expect(result.steps.build.status).toBe("completed");
+    expect(result.steps.build.phases?.[0]).toMatchObject({
+      status: "completed",
+      warnings: ["Phase 'install' was invoked more than once."],
+    });
+    expect(calls).toBe(2);
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "phase.warning", diagnostic: true }),
+    );
+  });
+
+  it("reports a mismatched bound catalog while still running provider work", async () => {
+    const compiled = definePhases([{ id: "install", title: "Install" }]);
+    const bound = definePhases([{ id: "setup", title: "Setup" }]);
+    let callbackRan = false;
+    const result = await runWorkflow(
+      { version: 1, steps: [{ id: "build", uses: "test:build", phases: compiled }] },
+      {
+        host,
+        tasks: {
+          "test:build": async (task) => {
+            const { phase } = task.withPhases(bound);
+            await phase("setup", () => {
+              callbackRan = true;
+            });
+          },
+        },
+      },
+    );
+
+    expect(callbackRan).toBe(true);
+    expect(result.steps.build.status).toBe("completed");
+    expect(result.steps.build.phases?.[0].status).toBe("not-reported");
+    expect(result.steps.build.diagnostics).toContain(
+      "Phase 'setup' is not declared on compiled workflow step build.",
+    );
+  });
+
+  it("diagnoses a bound catalog whose phases are reordered", async () => {
+    const compiled = definePhases([
+      { id: "install", title: "Install" },
+      { id: "package", title: "Package" },
+    ]);
+    const bound = definePhases([
+      { id: "package", title: "Package" },
+      { id: "install", title: "Install" },
+    ]);
+    const result = await runWorkflow(
+      { version: 1, steps: [{ id: "build", uses: "test:build", phases: compiled }] },
+      {
+        host,
+        tasks: {
+          "test:build": async (task) => {
+            task.withPhases(bound);
+          },
+        },
+      },
+    );
+
+    expect(result.steps.build.diagnostics).toContain(
+      "Bound phase catalog has a different order or duplicate entries than the compiled definition.",
+    );
+  });
+
+  it("redacts phase skip reasons, warnings, and errors", async () => {
+    const secret = "phase-token-secret";
+    const phases = definePhases([{ id: "install", title: "Install" }]);
+    const events: unknown[] = [];
+    const result = await runWorkflow(
+      {
+        version: 1,
+        steps: [
+          {
+            id: "skip",
+            uses: "test:build",
+            with: { secret: "${{ env.PHASE_SECRET }}" },
+            phases,
+            needs: [],
+          },
+          {
+            id: "fail",
+            uses: "test:build",
+            with: { secret: "${{ env.PHASE_SECRET }}" },
+            phases,
+            needs: [],
+          },
+        ],
+      },
+      {
+        host,
+        env: { PHASE_SECRET: secret },
+        tasks: {
+          "test:build": async (task) => {
+            const { phase } = task.withPhases(phases);
+            await phase("install", ({ skip, warn }) => {
+              const secretValue = String(task.inputs.secret);
+              warn(secretValue);
+              if (task.step.id === "skip") return skip(secretValue);
+              throw new Error(secretValue);
+            });
+          },
+        },
+        onEvent: (event) => events.push(event),
+      },
+    ).catch((error: unknown) => error);
+
+    expect(JSON.stringify({ result, events })).not.toContain(secret);
+    expect(JSON.stringify({ result, events })).toContain("[REDACTED]");
+  });
+
+  it("keeps same phase IDs isolated across concurrent workflow steps", async () => {
+    const phases = definePhases([{ id: "package", title: "Package" }]);
+    const result = await runWorkflow(
+      {
+        version: 1,
+        steps: [
+          { id: "target-a", uses: "test:build", phases, needs: [] },
+          { id: "target-b", uses: "test:build", phases, needs: [] },
+        ],
+      },
+      {
+        host,
+        tasks: {
+          "test:build": async (task) => {
+            const { phase } = task.withPhases(phases);
+            await phase("package", async () => undefined);
+          },
+        },
+      },
+    );
+
+    expect(result.steps["target-a"].phases?.[0].status).toBe("completed");
+    expect(result.steps["target-b"].phases?.[0].status).toBe("completed");
+  });
+
+  it("rejects malformed phase definitions before running tasks", async () => {
+    const task = async () => ({ ran: true });
+    const invalidCatalogs = [
+      {
+        phases: [
+          { id: "install", title: "Install" },
+          { id: "install", title: "Duplicate" },
+        ],
+        error: "duplicate phase id: install",
+      },
+      {
+        phases: [{ id: "", title: "Missing id" }],
+        error: "phase 1 must have a non-empty id and title",
+      },
+      {
+        phases: [{ id: "install", title: " " }],
+        error: "phase 1 must have a non-empty id and title",
+      },
+    ];
+
+    for (const { phases, error } of invalidCatalogs) {
+      await expect(
+        runWorkflow(
+          {
+            version: 1,
+            steps: [{ id: "build", uses: "test:build", phases }],
+          },
+          { host, tasks: { "test:build": task } },
+        ),
+      ).rejects.toThrow(error);
+    }
   });
 });

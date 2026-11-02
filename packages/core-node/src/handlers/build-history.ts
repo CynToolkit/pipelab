@@ -146,9 +146,23 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
       const interruption =
         "Execution was interrupted because the app or backend stopped before the run finished.";
       const steps = entry.steps.map((step) => {
+        const phases = step.phases?.map((phase) => {
+          if (phase.status === "running") {
+            return {
+              ...phase,
+              status: "failed" as const,
+              completedAt: timestamp,
+              duration: Math.max(0, timestamp - (phase.startedAt ?? step.startTime)),
+              error: { name: "Error", message: interruption },
+            };
+          }
+          if (phase.status === "pending") return { ...phase, status: "not-reached" as const };
+          return phase;
+        });
         if (step.status === "running") {
           return {
             ...step,
+            ...(phases ? { phases } : {}),
             status: "failed" as const,
             endTime: timestamp,
             duration: Math.max(0, timestamp - step.startTime),
@@ -156,9 +170,15 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
           };
         }
         if (step.status === "pending") {
-          return { ...step, status: "cancelled" as const, endTime: timestamp, duration: 0 };
+          return {
+            ...step,
+            status: "cancelled" as const,
+            endTime: timestamp,
+            duration: 0,
+            ...(phases ? { phases } : {}),
+          };
         }
-        return step;
+        return phases ? { ...step, phases } : step;
       });
       await this.update(
         entry.id,

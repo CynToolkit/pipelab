@@ -502,11 +502,58 @@ describe("Electron executable patching", () => {
         inputs: { platform: "win32", arch: "x64" },
         paths: { node: process.execPath, pnpm: "pnpm" },
         abortSignal: new AbortController().signal,
+        phase: async (_id, callback) => {
+          await callback({
+            success: (message) => ({ status: "completed", message }),
+            skip: (reason) => ({ status: "skipped", reason }),
+            fail: (error) => {
+              throw error instanceof Error ? error : new Error(String(error));
+            },
+            warn: () => undefined,
+          });
+        },
         context,
         setArtifact: () => undefined,
       },
       { ...defaultElectronConfig, name: "My Game", patchExecutable: true },
     );
+    expect(patchExecutableWithGpupatch).not.toHaveBeenCalled();
+  });
+
+  it("reports executable patching as skipped for non-Windows targets", async () => {
+    const phaseOutcomes = new Map<string, { status: string; reason?: string }>();
+    const phaseTools = {
+      success: (message?: string) => ({ status: "completed" as const, message }),
+      skip: (reason: string) => ({ status: "skipped" as const, reason }),
+      fail: (error: unknown): never => {
+        throw error instanceof Error ? error : new Error(String(error));
+      },
+      warn: () => undefined,
+    };
+
+    await forge(
+      "package",
+      sandbox.paths.input,
+      {
+        cwd: sandbox.path,
+        log: () => undefined,
+        inputs: { platform: "linux", arch: "x64" },
+        paths: { node: process.execPath, pnpm: "pnpm" },
+        abortSignal: new AbortController().signal,
+        phase: async (id, callback) => {
+          const outcome = await callback(phaseTools);
+          if (outcome) phaseOutcomes.set(id, outcome);
+        },
+        context: createContext(),
+        setArtifact: () => undefined,
+      },
+      { ...defaultElectronConfig, name: "My Game", patchExecutable: true },
+    );
+
+    expect(phaseOutcomes.get("patch")).toEqual({
+      status: "skipped",
+      reason: "Executable patching is only supported on Windows",
+    });
     expect(patchExecutableWithGpupatch).not.toHaveBeenCalled();
   });
 });

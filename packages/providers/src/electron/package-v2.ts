@@ -1,6 +1,7 @@
 import type { WorkflowTask } from "@pipelab/workflow-runtime";
 import { merge } from "ts-deepmerge";
 import { forge, type ForgeExecutionContext } from "./forge";
+import { electronPhases } from "./phases";
 import { defaultElectronConfig } from "./utils";
 
 export interface ElectronWorkflowTaskServices {
@@ -49,6 +50,7 @@ const configurationInputKeys = [
 export const electronPackageWorkflowTaskFactory =
   (services: ElectronWorkflowTaskServices): WorkflowTask<ElectronWorkflowTaskServices> =>
   async (task) => {
+    const { phase } = task.withPhases(electronPhases);
     const appFolder = task.inputs["input-folder"];
     const inputConfiguration = Object.fromEntries(
       configurationInputKeys
@@ -71,6 +73,7 @@ export const electronPackageWorkflowTaskFactory =
       abortSignal: task.signal,
       context: services.context,
       setArtifact: task.setArtifact,
+      phase,
     };
     const result = await forge(
       "package",
