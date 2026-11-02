@@ -321,7 +321,22 @@ export const navigateToConstruct = async (
 
   log("Navigating to URL", url);
   const navigationStartedAt = Date.now();
-  await awaitWithAbort(page.goto(url, { waitUntil: "domcontentloaded" }), signal);
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await awaitWithAbort(page.goto(url, { waitUntil: "domcontentloaded" }), signal);
+      break;
+    } catch (error) {
+      if (
+        attempt >= 3 ||
+        !(error instanceof Error) ||
+        !error.message.includes("ERR_NETWORK_CHANGED")
+      ) {
+        throw error;
+      }
+      throwIfAborted(signal);
+      log(`Construct navigation network changed; retrying (${attempt}/2)`);
+    }
+  }
   log("Construct document ready after", `${Date.now() - navigationStartedAt} ms`);
   log("after navigating, current URL:", page.url());
 

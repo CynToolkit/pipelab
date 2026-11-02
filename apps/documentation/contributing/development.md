@@ -84,13 +84,14 @@ an explicit workflow dispatch with `Run authenticated local Ship` enabled.
 The dispatch runs after the credential-free platform matrix passes; pushes
 and pull requests do not access Construct secrets. It requires the
 `CONSTRUCT_CI_USERNAME` and `CONSTRUCT_CI_PASSWORD` GitHub Actions secrets for
-a dedicated test account. CI creates a temporary Chromium profile by signing
-in through the Construct editor, ships twice across Desktop cold starts, and
-checks the reopened run history and artifacts. The profile is removed with
-the hosted runner. Never copy a developer's browser profile into CI. The
-dispatch fails clearly if either secret is missing, so the live acceptance
-cannot silently pass without running. Regular push and pull request tests
-remain credential-free.
+a dedicated test account. CI creates a temporary Chromium profile through
+Construct's account and editor flow. It drives the Desktop Ship wizard with
+the checked-in sample `.c3p`, verifies the real Construct export and generated
+Electron app, then ships again across Desktop cold starts and checks reopened
+run history and artifacts. The profile is removed with the hosted runner.
+Never copy a developer's browser profile into CI. The dispatch fails clearly
+if either secret is missing, so the live acceptance cannot silently pass
+without running. Regular push and pull request tests remain credential-free.
 
 The UI dev server also allows assets from the resolved workspace `node_modules`
 directory. When a Git worktree shares dependencies through a symlink, icon fonts

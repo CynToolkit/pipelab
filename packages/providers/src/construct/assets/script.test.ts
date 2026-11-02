@@ -277,6 +277,32 @@ describe("Construct editor settings preseed", () => {
     expect(goto).toHaveBeenCalledOnce();
   });
 
+  it("retries Construct navigation after a Chromium network change", async () => {
+    const url = "https://editor.construct.net/r397/";
+    const goto = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("page.goto: net::ERR_NETWORK_CHANGED"))
+      .mockResolvedValueOnce(null);
+    const page = {
+      addInitScript: vi.fn().mockResolvedValue(undefined),
+      goto,
+      evaluate: vi.fn().mockResolvedValue({
+        welcomeTourDismissed: true,
+        uiAnimationsDisabled: true,
+        uiEffectsDisabled: true,
+        addonUpdateChecksDisabled: true,
+        startPageHidden: true,
+      }),
+      url: vi.fn().mockReturnValue(url),
+    } as unknown as Page;
+    const log = vi.fn();
+
+    await navigateToConstruct(page, url, log, new AbortController().signal);
+
+    expect(goto).toHaveBeenCalledTimes(2);
+    expect(log).toHaveBeenCalledWith("Construct navigation network changed; retrying (1/2)");
+  });
+
   it("cancels while waiting for the editor settings seed", async () => {
     const url = "https://editor.construct.net/r397/";
     const controller = new AbortController();

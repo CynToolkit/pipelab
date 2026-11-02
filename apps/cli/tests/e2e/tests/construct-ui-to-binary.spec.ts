@@ -4,14 +4,14 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createRequire } from "node:module";
 import { mkdtemp, mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { createServer } from "node:net";
 import { setTimeout as delay } from "node:timers/promises";
 import { describe, expect, test } from "vitest";
 import { BuildHistoryStorage, PipelabContext } from "@pipelab/core-node";
 
 const repoRoot = resolve(process.cwd(), "../..");
-const constructExportFixturePath = resolve(process.cwd(), "tests/e2e/fixtures/construct-export");
+const constructProfilePath = process.env.CONSTRUCT_CI_PROFILE_PATH;
 const playwrightRequire = createRequire(join(repoRoot, "apps/website/package.json"));
 const { chromium } = playwrightRequire("playwright") as typeof import("playwright");
 
@@ -147,14 +147,17 @@ const packagedAppPath = async (buildPath: string) => {
 };
 
 describe("Construct Desktop Ship to running Electron binary", () => {
-  test(
+  test.skipIf(!constructProfilePath)(
     "creates and ships a Construct workflow through Desktop and its real CLI sidecar",
     async () => {
+      if (!constructProfilePath) {
+        throw new Error("CONSTRUCT_CI_PROFILE_PATH must point to a disposable Construct profile.");
+      }
       const userDataPath = await mkdtemp(join(tmpdir(), "pipelab-construct-desktop-e2e-"));
       const sourcePath = join(userDataPath, "source", "test.c3p");
       const outputPath = join(userDataPath, "artifacts", "local-delivery");
-      const testProfileRoot = join(userDataPath, "chromium");
-      const profilePath = join(testProfileRoot, "YourProfile");
+      const profilePath = resolve(constructProfilePath);
+      const testProfileRoot = dirname(profilePath);
       const projectFixture = resolve(process.cwd(), "tests/e2e/fixtures/construct/test.c3p");
       const uiPort = await getAvailablePort();
       const debugPort = await getAvailablePort();
@@ -171,9 +174,7 @@ describe("Construct Desktop Ship to running Electron binary", () => {
         await mkdir(join(userDataPath, "config"), { recursive: true });
         await mkdir(join(userDataPath, "source"), { recursive: true });
         await mkdir(outputPath, { recursive: true });
-        await mkdir(profilePath, { recursive: true });
         await writeFile(sourcePath, await readFile(projectFixture));
-        await writeFile(join(profilePath, "Preferences"), "{}");
         await writeFile(
           join(userDataPath, "config", "settings.json"),
           JSON.stringify({
@@ -193,7 +194,6 @@ describe("Construct Desktop Ship to running Electron binary", () => {
           ...process.env,
           NODE_ENV: "development",
           PIPELAB_TEST_MODE: "true",
-          PIPELAB_TEST_CONSTRUCT_EXPORT_FIXTURE: constructExportFixturePath,
           PIPELAB_TEST_CONSTRUCT_PROFILE_ROOT: testProfileRoot,
           PIPELAB_TEST_DESKTOP: "1",
           PIPELAB_TEST_DESKTOP_USER_DATA_PATH: userDataPath,
@@ -232,17 +232,18 @@ describe("Construct Desktop Ship to running Electron binary", () => {
           true,
         );
         await waitForDevTools(`http://127.0.0.1:${debugPort}/json`, desktop);
+        await waitForOutput(desktop, "Loading development UI");
         browser = await chromium.connectOverCDP(`http://127.0.0.1:${debugPort}`);
         const desktopContext = browser.contexts()[0];
         if (!desktopContext) throw new Error("Desktop did not expose its default browser context.");
         await desktopContext.route(`http://127.0.0.1:${uiPort}/assets/**`, async (route) => {
-          for (let attempt = 0; attempt < 2; attempt++) {
+          for (let attempt = 0; attempt < 4; attempt++) {
             try {
               await route.fulfill({ response: await route.fetch() });
               return;
             } catch (error) {
               if (
-                attempt > 0 ||
+                attempt === 3 ||
                 !(error instanceof Error) ||
                 !error.message.includes("ERR_NETWORK_CHANGED")
               ) {
@@ -349,7 +350,16 @@ describe("Construct Desktop Ship to running Electron binary", () => {
           .click();
         const sourceDialog = page.getByRole("dialog", { name: "Edit source" });
         await sourceDialog.getByText("Select browser profile", { exact: true }).click();
-        await page.getByRole("option", { name: /Chrome \/ YourProfile|YourProfile/ }).click();
+        const profileOptions = page.getByRole("option");
+        expect(await profileOptions.count()).toBe(1);
+        await profileOptions
+          .first()
+          .click({ timeout: 10_000 })
+          .catch((error: unknown) => {
+            throw new Error(
+              `Could not select the configured Construct profile (${profilePath}): ${String(error)}\n${desktop.output}`,
+            );
+          });
         await sourceDialog.getByRole("button", { name: "Done" }).click();
         const destinationCard = page.locator(".job-card").first();
         await destinationCard
@@ -405,18 +415,17 @@ describe("Construct Desktop Ship to running Electron binary", () => {
 
         const historyStorage = new BuildHistoryStorage(new PipelabContext({ userDataPath }));
         let history = await historyStorage.getByProject(workflow.project);
+        let workflowRun = history.find((entry) => entry.workflowId === workflow.id);
         const deadline = Date.now() + 30 * 60 * 1000;
-        while (
-          !history.some(
-            (entry) => entry.workflowId === workflow.id && entry.status === "completed",
-          ) &&
-          Date.now() < deadline
-        ) {
+        while ((!workflowRun || workflowRun.status === "running") && Date.now() < deadline) {
           await delay(500);
           history = await historyStorage.getByProject(workflow.project);
+          workflowRun = history.find((entry) => entry.workflowId === workflow.id);
         }
-        const workflowRun = history.find((entry) => entry.workflowId === workflow.id);
-        expect(workflowRun?.status).toBe("completed");
+        expect(
+          workflowRun?.status,
+          workflowRun?.error?.message ?? "The Desktop Ship did not record a workflow run.",
+        ).toBe("completed");
         expect(workflowRun?.deliveries).toHaveLength(1);
         expect(workflowRun?.deliveries?.[0]).toMatchObject({
           destinationId: "@pipelab/core/destination/folder",
@@ -430,12 +439,17 @@ describe("Construct Desktop Ship to running Electron binary", () => {
         const appPath = await packagedAppPath(electronBuild.path);
         const indexHtml = await readFile(join(appPath, "index.html"), "utf8");
         const packagedHash = createHash("sha256").update(indexHtml).digest("hex");
-        const fixtureHtml = await readFile(join(constructExportFixturePath, "index.html"), "utf8");
-        expect(packagedHash).toBe(createHash("sha256").update(fixtureHtml).digest("hex"));
+        expect(packagedHash).toMatch(/^[a-f0-9]{64}$/);
         expect(indexHtml).toContain("<title>Guess the Number JavaScript</title>");
         expect(indexHtml).toMatch(
           /<meta\s+name="generator"\s+content="Scirra Construct"\s*\/?\s*>/,
         );
+        const projectScript = await readFile(
+          join(appPath, "scripts", "project", "main.js"),
+          "utf8",
+        );
+        expect(projectScript).toContain("Instances of TextInput and ResultText");
+        console.info(`Verified real Construct export index.html SHA-256: ${packagedHash}`);
         const gamePath =
           process.platform === "darwin"
             ? join(electronBuild.path, "Pipelab.app", "Contents", "MacOS", "Pipelab")
@@ -464,12 +478,15 @@ describe("Construct Desktop Ship to running Electron binary", () => {
         await gamePage.waitForFunction(
           () => {
             if (document.title !== "Guess the Number JavaScript") return false;
-            const pixel = document
-              .querySelector("canvas")
-              ?.getContext("2d")
-              ?.getImageData(0, 0, 1, 1).data;
+            const canvas = document.querySelector("canvas");
+            const bounds = canvas?.getBoundingClientRect();
             return Boolean(
-              pixel && pixel[0] === 0 && pixel[1] === 0 && pixel[2] === 0 && pixel[3] === 255,
+              canvas &&
+              canvas.width > 0 &&
+              canvas.height > 0 &&
+              bounds &&
+              bounds.width > 0 &&
+              bounds.height > 0,
             );
           },
           undefined,

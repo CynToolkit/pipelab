@@ -664,6 +664,9 @@ app.whenReady().then(async () => {
       ? `http://127.0.0.1:${getUiDevelopmentPort()}/?cliPort=${cliPort}`
       : `http://127.0.0.1:${cliPort}`;
     console.info(`[Main] Loading ${is.dev ? "development" : "production"} UI`);
+    if (isDesktopIntegrationTest) {
+      await new Promise((resolveDelay) => setTimeout(resolveDelay, 5000));
+    }
     await mainWindow?.loadURL(uiUrl);
   } catch (error) {
     console.error("Failed to start standalone server:", error);

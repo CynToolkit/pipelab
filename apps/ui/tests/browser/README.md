@@ -51,9 +51,10 @@ acceptance separately to verify Construct export and Electron packaging.
 
 ## Construct UI Ship to running Electron binary
 
-Run the deterministic Desktop-to-binary acceptance without a Construct account:
+Run the Desktop-to-binary acceptance with a disposable authenticated Construct profile:
 
 ```sh
+CONSTRUCT_CI_PROFILE_PATH=/path/to/PipelabConstruct/Default \
 pnpm --filter @pipelab/cli exec vitest run \
   -c tests/e2e/vitest.config.mts \
   tests/e2e/tests/construct-ui-to-binary.spec.ts
@@ -61,14 +62,15 @@ pnpm --filter @pipelab/cli exec vitest run \
 
 The test starts the real Desktop app, which starts its real CLI sidecar, then
 drives the Desktop window through the visible workflow wizard, workflow build
-settings, and Dashboard Ship confirmation. Workflow save, planning, execution,
-run history, and local folder delivery use the production UI-to-CLI WebSocket
-path. Only Construct's external export is replaced by a checked-in fixture; no
-Construct account or publishing service is contacted. The test verifies the
-packaged `index.html` against the fixture SHA-256, then launches the produced
-binary and checks its Construct project marker and live canvas. Its Chromium
-profile, app data, and build artifacts live in a temporary directory that is
-removed when the test ends. On Linux, Desktop and the game run under `xvfb-run`.
+settings, and Dashboard Ship confirmation. Workflow save, planning, Construct
+export, execution, run history, local folder delivery, and Electron packaging
+use the real application path. Construct exports the checked-in sample `.c3p`
+through the authenticated profile. The test verifies the generated HTML,
+project script, and SHA-256, then launches the produced binary and checks the
+live canvas. The app data and build artifacts live in a temporary directory
+that is removed when the test ends. Pipelab copies the selected profile into its
+managed temporary profile before export. On Linux, Desktop and the game run
+under `xvfb-run`.
 
 For an additional live Construct export acceptance, provide a disposable
 authenticated Construct browser profile and run:

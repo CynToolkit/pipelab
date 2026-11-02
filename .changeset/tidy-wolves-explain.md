@@ -2,4 +2,4 @@
 "@pipelab/providers": patch
 ---
 
-Explain how to recover when Construct does not confirm a signed-in session.
+Improve Construct export recovery for sign-in failures and transient editor navigation resets.

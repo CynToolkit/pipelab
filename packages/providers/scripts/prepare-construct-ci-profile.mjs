@@ -36,21 +36,33 @@ if (
 const context = await chromium.launchPersistentContext(userDataDirectory, { headless: true });
 try {
   const page = await context.newPage();
-  await page.goto("https://editor.construct.net/", { waitUntil: "load", timeout: 60_000 });
+  await page.goto(
+    "https://account.construct.net/login?theme=default&lang=en-US&productType=games",
+    {
+      waitUntil: "load",
+      timeout: 60_000,
+    },
+  );
   await page.waitForFunction(() => typeof localforage !== "undefined", { timeout: 30_000 });
   await page.evaluate(async (value) => {
     await localforage.setItem("login-data", value);
   }, login);
-  await page.reload({ waitUntil: "domcontentloaded", timeout: 60_000 });
-  await page.waitForFunction(
-    async (expectedUserId) => {
-      const store = globalThis.localforage;
-      if (!store) return false;
-      return (await store.getItem("login-data"))?.userID === expectedUserId;
+  const tokenResponsePromise = page.waitForResponse(
+    (value) => {
+      const url = new URL(value.url());
+      return url.origin === "https://account.construct.net" && url.pathname === "/token.json";
     },
-    login.userID,
     { timeout: 30_000 },
   );
+  await page.goto("https://editor.construct.net/", {
+    waitUntil: "domcontentloaded",
+    timeout: 60_000,
+  });
+  const tokenResponse = await tokenResponsePromise;
+  const tokenPayload = await tokenResponse.json();
+  if (!tokenResponse.ok() || tokenPayload?.request?.status !== "ok") {
+    throw new Error("Construct did not confirm the disposable profile session.");
+  }
 } finally {
   await context.close();
 }
