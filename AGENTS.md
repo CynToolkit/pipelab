@@ -176,6 +176,15 @@ build or validation when documentation was modified.
 
 This policy applies to both human contributors and coding agents.
 
+## Local Construct acceptance profile
+
+On the current validation host, the exact Chromium profile directory is
+`/root/.config/chromium/PipelabConstruct/Default`. This dedicated automation
+profile was authenticated through Construct's account and editor flow for the
+live export acceptance. The path and session are host-specific. Refresh it
+through `packages/providers/scripts/prepare-construct-ci-profile.mjs`; do not
+edit its IndexedDB directly or substitute a normal personal browser profile.
+
 ## Safety
 
 Do not run destructive Git, release, database, or credential commands without
