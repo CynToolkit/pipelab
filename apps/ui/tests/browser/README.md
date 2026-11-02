@@ -51,7 +51,11 @@ acceptance separately to verify Construct export and Electron packaging.
 
 ## Construct UI Ship to running Electron binary
 
-Run the Desktop-to-binary acceptance with a disposable authenticated Construct profile:
+Run the Desktop-to-binary acceptance with a dedicated authenticated Construct
+profile. Follow the local profile setup in
+`apps/documentation/contributing/development.md`; use the fixed
+`PipelabConstruct` data-directory name and pass the resulting `Default` profile
+path as `CONSTRUCT_CI_PROFILE_PATH`.
 
 ```sh
 CONSTRUCT_CI_PROFILE_PATH=/path/to/PipelabConstruct/Default \
