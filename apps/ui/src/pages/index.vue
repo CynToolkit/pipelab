@@ -144,6 +144,7 @@
           {{ $t("home.execution-history-plan-required") }}
           <RouterLink class="text-link" to="/workflows">
             {{ $t("home.open-workflows") }}
+            <i class="mdi mdi-arrow-right" aria-hidden="true" />
           </RouterLink>
         </div>
         <div v-else-if="!agent.isReady.value" class="activity-state" role="status">
@@ -163,6 +164,7 @@
           {{ $t("home.no-recent-executions") }}
           <RouterLink class="text-link" to="/workflows">
             {{ $t("home.open-workflows") }}
+            <i class="mdi mdi-arrow-right" aria-hidden="true" />
           </RouterLink>
         </div>
         <div v-else class="execution-list" role="list" :aria-label="$t('home.recent-executions')">

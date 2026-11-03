@@ -28,9 +28,15 @@
           :key="item.value"
           :value="item.value"
           asChild
-          v-slot="{ activateCallback, a11yAttrs }"
+          v-slot="{ activateCallback, a11yAttrs, active }"
         >
-          <button class="step" v-bind="a11yAttrs.header" @click="activateCallback">
+          <button
+            class="step"
+            v-bind="a11yAttrs.header"
+            :aria-selected="active"
+            :aria-current="active ? 'step' : undefined"
+            @click="activateCallback"
+          >
             {{ item.number }} <span>{{ item.label }}</span>
           </button>
         </Step>
@@ -866,9 +872,15 @@ watch(
   white-space: nowrap;
   cursor: pointer;
 }
+.step:hover {
+  color: var(--text-color);
+}
 .step[aria-selected="true"] {
   border-bottom-color: var(--p-primary-color, var(--primary-color, #6366f1));
   color: var(--text-color);
+}
+.step[aria-selected="true"] span {
+  font-weight: 700;
 }
 .step span {
   font-weight: 600;
