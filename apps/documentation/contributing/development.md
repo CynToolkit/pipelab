@@ -100,7 +100,7 @@ your everyday browser profile. Load `CONSTRUCT_CI_USERNAME` and
 through the repository helper. In a POSIX shell from the repository root:
 
 ```sh
-export CONSTRUCT_CI_PROFILE_USER_DATA="${XDG_DATA_HOME:-$HOME/.local/share}/pipelab/PipelabConstruct"
+export CONSTRUCT_CI_PROFILE_USER_DATA="${XDG_CONFIG_HOME:-$HOME/.config}/chromium/PipelabConstruct"
 profile_env="$(mktemp)"
 trap 'rm -f "$profile_env"' EXIT
 GITHUB_ENV="$profile_env" node packages/providers/scripts/prepare-construct-ci-profile.mjs
@@ -112,11 +112,14 @@ pnpm --filter @pipelab/cli exec vitest run \
   tests/e2e/tests/construct-ui-to-binary.spec.ts
 ```
 
-The helper creates the `Default` profile inside `PipelabConstruct` and confirms
-the Construct session through the account/editor flow. The profile remains in
-the chosen local data directory for later runs; the temporary environment file
-is removed when the shell exits. Never point this test at a personal Chromium
-profile.
+The helper launches Playwright's Chromium with `PipelabConstruct` as its user
+data directory. It gets a Construct login session, stores the session through
+Construct's account page, opens the editor, and confirms the session with
+Construct's token endpoint. It writes the resulting
+`.../PipelabConstruct/Default` path to the temporary environment file for the
+test. The dedicated profile remains in the Chromium config directory for later
+runs; the temporary environment file is removed when the shell exits. Never
+point this test at a personal Chromium profile or edit its IndexedDB directly.
 
 The UI dev server also allows assets from the resolved workspace `node_modules`
 directory. When a Git worktree shares dependencies through a symlink, icon fonts
