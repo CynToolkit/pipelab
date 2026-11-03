@@ -6,18 +6,16 @@ if (!process.env.CONSTRUCT_CI_PROFILE_PATH) {
   );
 }
 
-const result = spawnSync(
-  "pnpm",
-  [
-    "exec",
-    "vitest",
-    "run",
-    "-c",
-    "tests/e2e/vitest.config.mts",
-    "tests/e2e/tests/construct-electron-live.spec.ts",
-  ],
-  { stdio: "inherit", shell: process.platform === "win32" },
-);
+for (const testFile of [
+  "tests/e2e/tests/construct-electron-live.spec.ts",
+  "tests/e2e/tests/construct-ui-to-binary.spec.ts",
+]) {
+  const result = spawnSync(
+    "pnpm",
+    ["exec", "vitest", "run", "-c", "tests/e2e/vitest.config.mts", testFile],
+    { stdio: "inherit", shell: process.platform === "win32" },
+  );
 
-if (result.error) throw result.error;
-if (result.status !== 0) process.exit(result.status ?? 1);
+  if (result.error) throw result.error;
+  if (result.status !== 0) process.exit(result.status ?? 1);
+}

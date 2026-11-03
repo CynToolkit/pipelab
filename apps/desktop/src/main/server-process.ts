@@ -25,6 +25,14 @@ let launcherCreationTime: string | undefined;
 let stoppingServerProcess: ChildProcess | null = null;
 let cleanupPendingProcess: ChildProcess | null = null;
 
+export const getUiDevelopmentPort = () => {
+  const testPort = process.env.PIPELAB_TEST_DESKTOP_UI_PORT;
+  if (process.env.PIPELAB_TEST_DESKTOP === "1" && testPort && /^\d+$/.test(testPort)) {
+    return Number(testPort);
+  }
+  return uiDevPort;
+};
+
 const isUp = (
   port: number,
   delay = 1000,
@@ -65,9 +73,10 @@ export const startServer = async (): Promise<number> => {
   // 0. In dev mode, ensure UI dev server is running BEFORE anything else
   if (is.dev) {
     let retries = 5;
-    const isUIUp = await isUp(uiDevPort, 500, () => retries-- > 0, true);
+    const developmentPort = getUiDevelopmentPort();
+    const isUIUp = await isUp(developmentPort, 500, () => retries-- > 0, true);
     if (!isUIUp) {
-      console.error(getUiDevServerFatalError(uiDevPort));
+      console.error(getUiDevServerFatalError(developmentPort));
       throw new Error("UI dev server not found. App cannot start in development mode.");
     }
   }
@@ -78,7 +87,9 @@ export const startServer = async (): Promise<number> => {
 
   // 2. Resolve the CLI
   const releaseTag = app.getVersion().includes("beta") ? "beta" : "latest";
-  const userDataPath = getDefaultUserDataPath(releaseTag === "beta" ? "beta" : "prod");
+  const userDataPath =
+    (process.env.PIPELAB_TEST_DESKTOP === "1" && process.env.PIPELAB_TEST_DESKTOP_USER_DATA_PATH) ||
+    getDefaultUserDataPath(releaseTag === "beta" ? "beta" : "prod");
   const context = new PipelabContext({ userDataPath, releaseTag });
   const cliVersion = is.dev ? "local" : releaseTag;
   const { entryPoint, isLocal, packageDir } = await fetchPipelabCli(cliVersion, { context });

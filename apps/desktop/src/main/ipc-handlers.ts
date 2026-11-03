@@ -11,8 +11,19 @@ export const registerIpcHandlers = (
   const OPEN_DIALOG_CHANNEL = "dialog:showOpenDialog";
   const SAVE_DIALOG_CHANNEL = "dialog:showSaveDialog";
 
+  const testOpenDialogPath = (options: Electron.OpenDialogOptions) => {
+    if (process.env.PIPELAB_TEST_DESKTOP !== "1") return undefined;
+    if (options.properties.includes("openFile"))
+      return process.env.PIPELAB_TEST_DESKTOP_SOURCE_PATH;
+    if (options.properties.includes("openDirectory"))
+      return process.env.PIPELAB_TEST_DESKTOP_OUTPUT_PATH;
+    return undefined;
+  };
+
   ipcMain.removeHandler(OPEN_DIALOG_CHANNEL);
   ipcMain.handle(OPEN_DIALOG_CHANNEL, async (event, options) => {
+    const testPath = testOpenDialogPath(options);
+    if (testPath) return { canceled: false, filePaths: [testPath] };
     const win = BrowserWindow.fromWebContents(event.sender) || undefined;
     const result = await dialog.showOpenDialog(win!, options);
     return {

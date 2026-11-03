@@ -277,6 +277,32 @@ describe("Construct editor settings preseed", () => {
     expect(goto).toHaveBeenCalledOnce();
   });
 
+  it("retries Construct navigation after a Chromium network change", async () => {
+    const url = "https://editor.construct.net/r397/";
+    const goto = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("page.goto: net::ERR_NETWORK_CHANGED"))
+      .mockResolvedValueOnce(null);
+    const page = {
+      addInitScript: vi.fn().mockResolvedValue(undefined),
+      goto,
+      evaluate: vi.fn().mockResolvedValue({
+        welcomeTourDismissed: true,
+        uiAnimationsDisabled: true,
+        uiEffectsDisabled: true,
+        addonUpdateChecksDisabled: true,
+        startPageHidden: true,
+      }),
+      url: vi.fn().mockReturnValue(url),
+    } as unknown as Page;
+    const log = vi.fn();
+
+    await navigateToConstruct(page, url, log, new AbortController().signal);
+
+    expect(goto).toHaveBeenCalledTimes(2);
+    expect(log).toHaveBeenCalledWith("Construct navigation network changed; retrying (1/2)");
+  });
+
   it("cancels while waiting for the editor settings seed", async () => {
     const url = "https://editor.construct.net/r397/";
     const controller = new AbortController();
@@ -532,7 +558,9 @@ describe("Construct account authentication", () => {
         new AbortController().signal,
         vi.fn(),
       ),
-    ).rejects.toThrow("Construct did not confirm the prepared account session");
+    ).rejects.toThrow(
+      "Construct did not confirm a signed-in session. Sign in to the selected browser profile or verify the Construct Account Connection, then retry.",
+    );
   });
 
   it("fails closed when profile-only startup has no token confirmation", async () => {
@@ -549,7 +577,9 @@ describe("Construct account authentication", () => {
         new AbortController().signal,
         vi.fn(),
       ),
-    ).rejects.toThrow("Construct did not confirm the prepared account session");
+    ).rejects.toThrow(
+      "Construct did not confirm a signed-in session. Sign in to the selected browser profile or verify the Construct Account Connection, then retry.",
+    );
   });
 
   it("cancels profile-only startup while waiting for token confirmation", async () => {
@@ -612,7 +642,9 @@ describe("Construct account authentication", () => {
         new AbortController().signal,
         vi.fn(),
       ),
-    ).rejects.toThrow("Construct did not confirm the prepared account session");
+    ).rejects.toThrow(
+      "Construct did not confirm a signed-in session. Sign in to the selected browser profile or verify the Construct Account Connection, then retry.",
+    );
   });
 
   it("fails closed when the token endpoint returns an unsuccessful confirmation envelope", async () => {
@@ -632,7 +664,9 @@ describe("Construct account authentication", () => {
         new AbortController().signal,
         vi.fn(),
       ),
-    ).rejects.toThrow("Construct did not confirm the prepared account session");
+    ).rejects.toThrow(
+      "Construct did not confirm a signed-in session. Sign in to the selected browser profile or verify the Construct Account Connection, then retry.",
+    );
   });
 
   it("handles token confirmation failure while editor navigation is still pending", async () => {
@@ -678,7 +712,7 @@ describe("Construct account authentication", () => {
     releaseEditorNavigation?.();
 
     await expect(preparation).rejects.toThrow(
-      "Construct did not confirm the prepared account session",
+      "Construct did not confirm a signed-in session. Sign in to the selected browser profile or verify the Construct Account Connection, then retry.",
     );
     expect(settledBeforeNavigation).toBe("rejected");
   });

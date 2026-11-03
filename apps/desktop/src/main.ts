@@ -3,8 +3,8 @@ import { join, resolve, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { platform } from "node:os";
 import { electronApp, optimizer, is } from "@electron-toolkit/utils";
-import { startServer, stopServer } from "./main/server-process";
-import { uiDevPort, getProtocolName, getAppBundleId } from "@pipelab/constants";
+import { getUiDevelopmentPort, startServer, stopServer } from "./main/server-process";
+import { getProtocolName, getAppBundleId } from "@pipelab/constants";
 import { registerIpcHandlers } from "./main/ipc-handlers";
 import { installUpdateAfterServerStops } from "./main/update-shutdown";
 import {
@@ -25,6 +25,18 @@ const isProduction = app.isPackaged && process.env.TEST !== "true";
 const isE2ESmokeTest = process.env.PIPELAB_E2E === "1";
 const e2eHistoryPath = process.env.PIPELAB_E2E_HISTORY_PATH;
 const e2eExpectedRunCount = Number(process.env.PIPELAB_E2E_EXPECTED_RUNS || 0);
+const isDesktopIntegrationTest = process.env.PIPELAB_TEST_DESKTOP === "1";
+const desktopTestUserDataPath = isDesktopIntegrationTest
+  ? process.env.PIPELAB_TEST_DESKTOP_USER_DATA_PATH
+  : undefined;
+const desktopTestDebugPort = isDesktopIntegrationTest
+  ? process.env.PIPELAB_TEST_DESKTOP_DEBUG_PORT
+  : undefined;
+
+if (desktopTestDebugPort && /^\d+$/.test(desktopTestDebugPort)) {
+  app.commandLine.appendSwitch("remote-debugging-address", "127.0.0.1");
+  app.commandLine.appendSwitch("remote-debugging-port", desktopTestDebugPort);
+}
 
 let posthog: PostHog | undefined;
 if (isProduction) {
@@ -55,7 +67,7 @@ const getEnv = () => {
   return "prod";
 };
 
-const customUserDataPath = getDefaultUserDataPath(getEnv());
+const customUserDataPath = desktopTestUserDataPath || getDefaultUserDataPath(getEnv());
 app.setPath("userData", join(customUserDataPath, "desktop"));
 
 protocol.registerSchemesAsPrivileged([
@@ -263,6 +275,15 @@ function createWindow(): void {
     }
 
     if (isE2ESmokeTest) {
+      const exitAfterStoppingServer = (exitCode: number) => {
+        void stopServerOnce()
+          .then(() => app.exit(exitCode))
+          .catch((error) => {
+            console.error("[E2E] CLI server shutdown failed:", error);
+            app.exit(1);
+          });
+      };
+
       void mainWindow.webContents
         .executeJavaScript(
           e2eHistoryPath
@@ -271,13 +292,6 @@ function createWindow(): void {
               const expectedRuns = ${e2eExpectedRunCount};
               if (!route || !Number.isInteger(expectedRuns) || expectedRuns < 1) {
                 throw new Error("Invalid Desktop history acceptance parameters");
-              }
-              if (window.location.pathname !== route) {
-                const target = new URL(route, window.location.href);
-                const cliPort = new URLSearchParams(window.location.search).get("cliPort");
-                if (cliPort) target.searchParams.set("cliPort", cliPort);
-                window.location.assign(target.href);
-                return "navigating";
               }
               const waitFor = async (read, label) => {
                 const deadline = Date.now() + 45_000;
@@ -290,11 +304,46 @@ function createWindow(): void {
                   path: window.location.pathname,
                   title: document.title,
                   body: document.body?.innerText.slice(0, 1_200) || "<empty body>",
+                  scripts: Array.from(document.scripts, (script) => script.src),
+                  bundles: performance
+                    .getEntriesByType("resource")
+                    .map((entry) => entry.name)
+                    .filter((name) => name.includes("/assets/")),
                 };
                 throw new Error(
                   "Timed out waiting for Desktop " + label + " (" + JSON.stringify(pageState) + ")",
                 );
               };
+              await waitFor(() => document.querySelector("#app > .app"), "UI mount");
+              const runPath = new URL(route, window.location.href).pathname;
+              const runPathSegments = runPath.split("/");
+              const isRunsListPath =
+                runPathSegments.length === 5 &&
+                runPathSegments[1] === "workflows" &&
+                runPathSegments[4] === "runs";
+              const hasExpectedRunPath =
+                runPathSegments.length === 6 &&
+                runPathSegments[1] === "workflows" &&
+                runPathSegments[4] === "runs";
+              const runListPath =
+                isRunsListPath || hasExpectedRunPath
+                  ? runPathSegments.slice(0, 5).join("/")
+                  : null;
+              if (!runListPath) throw new Error("The acceptance route must identify workflow runs");
+              const workflowPath = runPathSegments.slice(0, 4).join("/");
+              const findLink = (path) =>
+                Array.from(document.querySelectorAll("a[href]")).find(
+                  (link) => link.getAttribute("href") === path,
+                );
+              const workflowLink = await waitFor(
+                () => findLink(workflowPath),
+                "workflow link",
+              );
+              workflowLink.click();
+              await waitFor(() => window.location.pathname === workflowPath, "workflow page");
+              const runsLink = await waitFor(() => findLink(runListPath), "workflow runs link");
+              runsLink.click();
+              await waitFor(() => window.location.pathname === runListPath, "workflow runs page");
               const rows = await waitFor(() => {
                 const error = document.querySelector('[role="alert"]');
                 if (error) throw new Error(error.textContent || "Could not load workflow runs");
@@ -302,13 +351,33 @@ function createWindow(): void {
                 const items = list?.querySelectorAll('[role="listitem"]');
                 return items?.length === expectedRuns ? items : null;
               }, "workflow history");
-              rows[0].click();
+              const expectedRunId = hasExpectedRunPath ? runPathSegments[5] : null;
+              const expectedShortId = expectedRunId && expectedRunId.length > 12
+                ? expectedRunId.slice(0, 8)
+                : expectedRunId;
+              const newestRow = rows[0];
+              const expectedRow = expectedShortId
+                ? Array.from(rows).find((row) => row.textContent?.includes("#" + expectedShortId))
+                : newestRow;
+              if (!expectedRow) throw new Error("The expected run is missing from Desktop history");
+              const selectedShortId = expectedRow.querySelector(".run-id")?.textContent?.trim().replace(/^#/, "");
+              if (!selectedShortId) throw new Error("The expected run has no visible run ID");
+              expectedRow.click();
+              await waitFor(() => {
+                if (hasExpectedRunPath) return window.location.pathname === runPath;
+                const selectedPath = window.location.pathname.split("/");
+                return selectedPath.length === 6 &&
+                  selectedPath.slice(0, 5).join("/") === runListPath &&
+                  selectedPath[5].startsWith(selectedShortId);
+              }, "selected run");
               const summary = await waitFor(
                 () => document.querySelector(".run-page .run-summary"),
                 "run details",
               );
               const status = document.querySelector(".run-page header .status-mark")?.getAttribute("aria-label");
-              if (status !== "completed") throw new Error("Unexpected run status: " + (status || "missing"));
+              if (status !== "completed") {
+                throw new Error("Unexpected run status: " + (status || "missing"));
+              }
               const artifactCountText = Array.from(summary.querySelectorAll("span"))
                 .map((span) => span.textContent || "")
                 .find((value) => /\\d+\\s+artifacts/.test(value));
@@ -326,7 +395,9 @@ function createWindow(): void {
                 "artifact list",
               );
               if (artifactRows.length !== artifactCount) {
-                throw new Error("Expected " + artifactCount + " Desktop artifacts, found " + artifactRows.length);
+                throw new Error(
+                  "Expected " + artifactCount + " Desktop artifacts, found " + artifactRows.length,
+                );
               }
               const openButton = document.querySelector('.artifact-row button[aria-label^="Open "]');
               const artifactPath = openButton?.getAttribute("data-artifact-path");
@@ -339,18 +410,17 @@ function createWindow(): void {
             : "document.readyState === 'complete' && document.body && document.body.innerHTML.trim().length > 0",
         )
         .then((result) => {
-          if (result === "navigating") return;
           if (result !== true && result !== "history-verified") {
             throw new Error("Renderer loaded an empty document");
           }
           console.info(
             e2eHistoryPath ? "[E2E] workflow-history-verified" : "[E2E] renderer-loaded",
           );
-          app.exit(0);
+          exitAfterStoppingServer(0);
         })
         .catch((error) => {
           console.error("[E2E] renderer-load-failed:", error);
-          app.exit(1);
+          exitAfterStoppingServer(1);
         });
     }
   });
@@ -380,7 +450,7 @@ async function restoreWindowAfterFailedShutdown(): Promise<void> {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
   const cliPort = await startServer();
   const uiUrl = is.dev
-    ? `http://127.0.0.1:${uiDevPort}/?cliPort=${cliPort}`
+    ? `http://127.0.0.1:${getUiDevelopmentPort()}/?cliPort=${cliPort}`
     : `http://127.0.0.1:${cliPort}`;
   await mainWindow?.loadURL(uiUrl);
 }
@@ -606,9 +676,12 @@ app.whenReady().then(async () => {
     // Do not load any renderer until the CLI child proves its launch identity.
     // The port is not a credential; the per-launch secret stays in the main process.
     const uiUrl = is.dev
-      ? `http://127.0.0.1:${uiDevPort}/?cliPort=${cliPort}`
+      ? `http://127.0.0.1:${getUiDevelopmentPort()}/?cliPort=${cliPort}`
       : `http://127.0.0.1:${cliPort}`;
     console.info(`[Main] Loading ${is.dev ? "development" : "production"} UI`);
+    if (isDesktopIntegrationTest) {
+      await new Promise((resolveDelay) => setTimeout(resolveDelay, 5000));
+    }
     await mainWindow?.loadURL(uiUrl);
   } catch (error) {
     console.error("Failed to start standalone server:", error);
