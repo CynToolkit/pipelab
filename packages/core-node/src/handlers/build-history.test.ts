@@ -81,6 +81,19 @@ describe("BuildHistoryStorage workflow runs", () => {
           status: "running",
           startTime: 21,
           logs: [],
+          phases: [
+            { id: "compile", title: "Compile", status: "running", startedAt: 25, warnings: [] },
+            { id: "package", title: "Package", status: "pending", warnings: [] },
+            { id: "done-phase", title: "Done", status: "completed", completedAt: 30, warnings: [] },
+            {
+              id: "failed-phase",
+              title: "Failed",
+              status: "failed",
+              completedAt: 30,
+              warnings: [],
+              error: { message: "original", name: "Error" },
+            },
+          ],
         },
         { id: "pending", name: "Steam · Windows x64", status: "pending", startTime: 10, logs: [] },
       ],
@@ -97,7 +110,24 @@ describe("BuildHistoryStorage workflow runs", () => {
       error: { code: "INTERRUPTED" },
       steps: [
         { id: "done", status: "completed" },
-        { id: "running", status: "failed", error: { code: "INTERRUPTED" } },
+        {
+          id: "running",
+          status: "failed",
+          error: { code: "INTERRUPTED" },
+          phases: [
+            {
+              id: "compile",
+              status: "failed",
+              startedAt: 25,
+              completedAt: 50,
+              duration: 25,
+              error: { message: expect.stringContaining("interrupted") },
+            },
+            { id: "package", status: "not-reached" },
+            { id: "done-phase", status: "completed", completedAt: 30 },
+            { id: "failed-phase", status: "failed", error: { message: "original" } },
+          ],
+        },
         { id: "pending", status: "cancelled" },
       ],
     });

@@ -2,6 +2,7 @@
 import { createProviderDefinition } from "@pipelab/shared";
 import type { ReleaseProducerDefinition } from "@pipelab/shared";
 import { electronWorkflowTaskFactories } from "./package-v2";
+import { electronPhases } from "./phases";
 
 export const electronTargetInputs = (
   targetId: string,
@@ -49,6 +50,7 @@ const electronProducer: ReleaseProducerDefinition = {
       .map((target) => ({
         id: `${config.id}-${target.id}`,
         uses: "@pipelab/plugin-electron/electron:package:v2",
+        phases: electronPhases,
         needs: [input.reference.stepId],
         artifactInputs: { "input-folder": input.reference },
         with: { ...config.config, ...target.config, ...electronTargetInputs(target.id) },

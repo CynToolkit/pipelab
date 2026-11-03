@@ -108,6 +108,7 @@ export const reconcileRunEntry = (
     return {
       ...preferred,
       error: preferred.error || currentStep.error,
+      phases: mergePhases(currentStep.phases, step.phases),
       logs: mergeLogs(currentStep.logs, step.logs),
     };
   });
@@ -121,6 +122,31 @@ export const reconcileRunEntry = (
     steps,
     logs: mergeLogs(current.logs, persisted.logs),
   };
+};
+
+const mergePhases = (
+  current: ExecutionStep["phases"],
+  persisted: ExecutionStep["phases"],
+): ExecutionStep["phases"] => {
+  if (!current) return persisted;
+  if (!persisted) return current;
+  const currentById = new Map(current.map((phase) => [phase.id, phase]));
+  return persisted.map((phase) => {
+    const live = currentById.get(phase.id);
+    if (!live) return phase;
+    const liveIsTerminal = !["pending", "running"].includes(live.status);
+    const persistedIsTerminal = !["pending", "running"].includes(phase.status);
+    const preferred =
+      liveIsTerminal && !persistedIsTerminal
+        ? live
+        : (live.completedAt ?? live.startedAt ?? 0) > (phase.completedAt ?? phase.startedAt ?? 0)
+          ? live
+          : phase;
+    return {
+      ...preferred,
+      warnings: [...new Set([...live.warnings, ...phase.warnings])],
+    };
+  });
 };
 
 export const workflowCancellationFeedback = (result: {
@@ -295,6 +321,8 @@ export const applyWorkflowEventToRunEntry = (entry: BuildHistoryEntry, event: Wo
         startTime: resultStep.startedAt,
         endTime: resultStep.completedAt,
         duration: resultStep.duration,
+        phases: resultStep.phases,
+        diagnostics: resultStep.diagnostics,
         logs: previous?.logs || [],
         output: resultStep.outputs,
         ...(resultStep.error
@@ -355,6 +383,58 @@ export const applyWorkflowEventToRunEntry = (entry: BuildHistoryEntry, event: Wo
       step.status = "running";
       step.startTime = event.timestamp;
       return;
+    case "phase.started":
+    case "phase.completed":
+    case "phase.skipped":
+    case "phase.failed":
+    case "phase.warning":
+    case "phase.not-reached":
+    case "phase.not-reported": {
+      if (event.type === "phase.warning" && event.diagnostic) {
+        step.diagnostics ??= [];
+        step.diagnostics.push(event.message);
+      }
+      const phase = step.phases?.find((candidate) => candidate.id === event.phaseId);
+      if (!phase) return;
+      switch (event.type) {
+        case "phase.started":
+          phase.status = "running";
+          phase.startedAt = event.timestamp;
+          break;
+        case "phase.completed":
+          phase.status = "completed";
+          phase.completedAt = event.timestamp;
+          phase.duration = event.duration;
+          if (event.message !== undefined) phase.message = event.message;
+          break;
+        case "phase.skipped":
+          phase.status = "skipped";
+          phase.completedAt = event.timestamp;
+          phase.duration = event.duration;
+          phase.message = event.reason;
+          break;
+        case "phase.failed":
+          phase.status = "failed";
+          phase.completedAt = event.timestamp;
+          phase.duration = event.duration;
+          phase.error = event.error;
+          break;
+        case "phase.warning":
+          phase.warnings.push(event.message);
+          break;
+        case "phase.not-reached":
+          phase.status = "not-reached";
+          phase.title = event.title;
+          phase.completedAt = event.timestamp;
+          break;
+        case "phase.not-reported":
+          phase.status = "not-reported";
+          phase.title = event.title;
+          phase.completedAt = event.timestamp;
+          break;
+      }
+      return;
+    }
     case "step.log": {
       if (
         step.logs.some((log) => log.timestamp === event.timestamp && log.message === event.message)

@@ -66,6 +66,54 @@ work after a failed ready batch and marks remaining steps as skipped. Steps
 already running in that batch finish first, so independent branches remain
 parallel; this policy stops later work without serializing ready steps.
 
+### Provider phase checklists
+
+Tasks can report progress against an optional, serializable phase catalog on
+their workflow step. Reuse the same catalog in the workflow definition and the
+task so phase IDs remain checked by TypeScript:
+
+```ts
+import { definePhases, type WorkflowTaskContext } from "@pipelab/workflow-runtime";
+
+export const buildPhases = definePhases([
+  { id: "install", title: "Install dependencies" },
+  { id: "package", title: "Package application" },
+]);
+
+const workflow = {
+  version: 1,
+  steps: [{ id: "build", uses: "app:build", phases: buildPhases }],
+} as const;
+
+const buildTask = async (task: WorkflowTaskContext) => {
+  const { phase } = task.withPhases(buildPhases);
+  await phase("install", async ({ skip, success, fail, warn }) => {
+    if (!task.inputs.dependenciesChanged) return skip("Dependencies are cached");
+    warn("Using the configured fallback registry");
+    try {
+      await installDependencies();
+    } catch (error) {
+      fail(error);
+    }
+    return success("Dependencies ready");
+  });
+};
+```
+
+`definePhases` preserves literal phase IDs, so an unknown ID passed to `phase`
+is a TypeScript error. The runtime validates that compiled definitions have
+non-empty IDs and titles with no duplicate IDs. `skip(reason)` and
+`success(message?)` return terminal outcomes that the callback must return;
+normal callback resolution also completes the phase. `fail(error)` throws and
+marks the phase and step failed. `warn(message)` records a non-fatal warning.
+
+The runtime emits step-scoped phase events and includes phase snapshots on each
+step result. A successful task that leaves a declared phase untouched records
+it as `not-reported` and adds a diagnostic without failing the workflow. A
+failed, cancelled, or dependency-skipped step records phases that did not start
+as `not-reached`. Phase IDs are scoped to their workflow step, so concurrent
+targets can reuse the same catalog safely.
+
 `CORE_WORKFLOW_TASKS` exports the stable IDs used by Pipelab hosts when
 registering generic filesystem, archive, and passthrough workflow tasks. Import
 them from `@pipelab/workflow-runtime/task-ids`; this entry is browser-safe and

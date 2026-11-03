@@ -100,6 +100,43 @@ describe("parseBuildHistoryDocument", () => {
     ).toHaveLength(1);
   });
 
+  it("preserves phase snapshots and rejects malformed phase outcomes", () => {
+    const phases = [
+      {
+        id: "install",
+        title: "Install dependencies",
+        status: "skipped",
+        completedAt: 10,
+        duration: 0,
+        message: "Dependencies cached",
+        warnings: [] as string[],
+      },
+    ];
+    const historyEntry = {
+      ...entry,
+      steps: [
+        {
+          id: "build",
+          name: "Build",
+          status: "completed",
+          startTime: 1,
+          logs: [] as string[],
+          phases,
+        },
+      ],
+    };
+
+    expect(parseBuildHistoryDocument([historyEntry]).entries[0]?.steps[0]?.phases).toEqual(phases);
+    expect(() =>
+      parseBuildHistoryDocument([
+        {
+          ...historyEntry,
+          steps: [{ ...historyEntry.steps[0], phases: [{ ...phases[0], status: "unknown" }] }],
+        },
+      ]),
+    ).toThrow("phases.0");
+  });
+
   it("requires delivery artifact ids to be non-empty", () => {
     expect(() =>
       parseBuildHistoryDocument({

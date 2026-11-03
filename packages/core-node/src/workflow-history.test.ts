@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseBuildHistoryDocument, type BuildHistoryEntry } from "@pipelab/shared";
 import {
+  definePhases,
   runWorkflow,
   type WorkflowEvent,
   type WorkflowHost,
@@ -48,6 +49,8 @@ const parseRuntimeHistory = (id: string, result: WorkflowResult): BuildHistoryEn
           startTime: step.startedAt,
           endTime: step.completedAt,
           duration: step.duration,
+          phases: step.phases,
+          diagnostics: step.diagnostics,
           logs: [],
           ...(step.error
             ? { error: { message: step.error.message, timestamp: step.completedAt } }
@@ -68,6 +71,11 @@ const parseRuntimeHistory = (id: string, result: WorkflowResult): BuildHistoryEn
   return entry;
 };
 
+const historyPhases = definePhases([
+  { id: "install", title: "Install" },
+  { id: "package", title: "Package" },
+]);
+
 const releaseWorkflow = {
   version: 1,
   continueOnError: true,
@@ -75,6 +83,7 @@ const releaseWorkflow = {
     {
       id: "build",
       uses: "test:build",
+      phases: historyPhases,
       artifacts: { output: { descriptor: { kind: "files", container: "directory" } } },
     },
     {
@@ -125,6 +134,83 @@ describe("workflow history event projection", () => {
       level: "info",
     });
     expect(logs).toEqual(steps[0].logs);
+  });
+
+  it("persists step-scoped phase outcomes, warnings, and unfinished phases", () => {
+    const steps = [
+      {
+        id: "target-a",
+        name: "Target A",
+        status: "running" as const,
+        startTime: 1,
+        logs: [],
+        phases: [
+          { id: "install", title: "Install", status: "pending" as const, warnings: [] as string[] },
+          { id: "package", title: "Package", status: "pending" as const, warnings: [] as string[] },
+        ],
+      },
+      {
+        id: "target-b",
+        name: "Target B",
+        status: "running" as const,
+        startTime: 1,
+        logs: [],
+        phases: [
+          { id: "install", title: "Install", status: "pending" as const, warnings: [] as string[] },
+        ],
+      },
+    ];
+
+    applyWorkflowEventToHistory(steps, [], {
+      type: "phase.started",
+      stepId: "target-a",
+      phaseId: "install",
+      title: "Install",
+      timestamp: 2,
+    });
+    applyWorkflowEventToHistory(steps, [], {
+      type: "phase.warning",
+      stepId: "target-a",
+      phaseId: "install",
+      message: "Using fallback",
+      timestamp: 3,
+    });
+    applyWorkflowEventToHistory(steps, [], {
+      type: "phase.completed",
+      stepId: "target-a",
+      phaseId: "install",
+      message: "Installed",
+      duration: 4,
+      timestamp: 6,
+    });
+    applyWorkflowEventToHistory(steps, [], {
+      type: "phase.not-reached",
+      stepId: "target-a",
+      phaseId: "package",
+      title: "Package",
+      timestamp: 6,
+    });
+
+    expect(steps[0]?.phases).toEqual([
+      {
+        id: "install",
+        title: "Install",
+        status: "completed",
+        warnings: ["Using fallback"],
+        startedAt: 2,
+        completedAt: 6,
+        duration: 4,
+        message: "Installed",
+      },
+      {
+        id: "package",
+        title: "Package",
+        status: "not-reached",
+        warnings: [],
+        completedAt: 6,
+      },
+    ]);
+    expect(steps[1]?.phases?.[0]?.status).toBe("pending");
   });
 
   it("keeps successful runtime deliveries compatible with strict build history", async () => {
@@ -185,7 +271,15 @@ describe("workflow history event projection", () => {
         {
           id: "run-success",
           tasks: {
-            "test:build": async ({ setArtifact }) => setArtifact("output", "/tmp/game"),
+            "test:build": async ({ setArtifact, withPhases }) => {
+              const { phase } = withPhases(historyPhases);
+              await phase("install", ({ success, warn }) => {
+                warn("Using cached dependencies");
+                return success("Dependencies ready");
+              });
+              await phase("package", ({ skip }) => skip("Package reused"));
+              setArtifact("output", "/tmp/game");
+            },
             "test:deliver": async () => ({ delivered: true }),
           },
         },
@@ -223,6 +317,15 @@ describe("workflow history event projection", () => {
         status: "completed",
         artifactId: expect.any(String),
       });
+      expect(successful?.steps[0]?.phases).toEqual([
+        expect.objectContaining({
+          id: "install",
+          status: "completed",
+          message: "Dependencies ready",
+          warnings: ["Using cached dependencies"],
+        }),
+        expect.objectContaining({ id: "package", status: "skipped", message: "Package reused" }),
+      ]);
       expect(failed?.deliveries?.[0]).toMatchObject({
         status: "failed",
         artifactId: expect.any(String),
@@ -230,6 +333,9 @@ describe("workflow history event projection", () => {
       expect(failed?.steps.map((step) => step.status)).toContain("failed");
       expect(skipped?.deliveries).toEqual([]);
       expect(skipped?.steps.map((step) => step.status)).toContain("skipped");
+      expect(
+        skipped?.steps.find((step) => step.id === "build")?.phases?.map((phase) => phase.status),
+      ).toEqual(["not-reached", "not-reached"]);
     } finally {
       await rm(userDataPath, { recursive: true, force: true });
     }
