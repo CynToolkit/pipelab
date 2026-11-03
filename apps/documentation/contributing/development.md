@@ -101,6 +101,7 @@ through the repository helper. In a POSIX shell from the repository root:
 
 ```sh
 export CONSTRUCT_CI_PROFILE_USER_DATA="${XDG_CONFIG_HOME:-$HOME/.config}/chromium/PipelabConstruct"
+pnpm --filter @pipelab/providers exec playwright install chromium
 profile_env="$(mktemp)"
 trap 'rm -f "$profile_env"' EXIT
 GITHUB_ENV="$profile_env" node packages/providers/scripts/prepare-construct-ci-profile.mjs

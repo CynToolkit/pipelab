@@ -317,13 +317,19 @@ function createWindow(): void {
               await waitFor(() => document.querySelector("#app > .app"), "UI mount");
               const runPath = new URL(route, window.location.href).pathname;
               const runPathSegments = runPath.split("/");
-              const runListPath =
+              const isRunsListPath =
+                runPathSegments.length === 5 &&
+                runPathSegments[1] === "workflows" &&
+                runPathSegments[4] === "runs";
+              const hasExpectedRunPath =
                 runPathSegments.length === 6 &&
                 runPathSegments[1] === "workflows" &&
-                runPathSegments[4] === "runs"
+                runPathSegments[4] === "runs";
+              const runListPath =
+                isRunsListPath || hasExpectedRunPath
                   ? runPathSegments.slice(0, 5).join("/")
                   : null;
-              if (!runListPath) throw new Error("The acceptance route must identify a workflow run");
+              if (!runListPath) throw new Error("The acceptance route must identify workflow runs");
               const workflowPath = runPathSegments.slice(0, 4).join("/");
               const findLink = (path) =>
                 Array.from(document.querySelectorAll("a[href]")).find(
@@ -345,16 +351,25 @@ function createWindow(): void {
                 const items = list?.querySelectorAll('[role="listitem"]');
                 return items?.length === expectedRuns ? items : null;
               }, "workflow history");
-              const expectedRunId = runPathSegments[5];
-              const expectedShortId = expectedRunId.length > 12
+              const expectedRunId = hasExpectedRunPath ? runPathSegments[5] : null;
+              const expectedShortId = expectedRunId && expectedRunId.length > 12
                 ? expectedRunId.slice(0, 8)
                 : expectedRunId;
-              const rerunRow = Array.from(rows).find((row) =>
-                row.textContent?.includes("#" + expectedShortId),
-              );
-              if (!rerunRow) throw new Error("The expected rerun is missing from Desktop history");
-              rerunRow.click();
-              await waitFor(() => window.location.pathname === runPath, "selected run");
+              const newestRow = rows[0];
+              const expectedRow = expectedShortId
+                ? Array.from(rows).find((row) => row.textContent?.includes("#" + expectedShortId))
+                : newestRow;
+              if (!expectedRow) throw new Error("The expected run is missing from Desktop history");
+              const selectedShortId = expectedRow.querySelector(".run-id")?.textContent?.trim().replace(/^#/, "");
+              if (!selectedShortId) throw new Error("The expected run has no visible run ID");
+              expectedRow.click();
+              await waitFor(() => {
+                if (hasExpectedRunPath) return window.location.pathname === runPath;
+                const selectedPath = window.location.pathname.split("/");
+                return selectedPath.length === 6 &&
+                  selectedPath.slice(0, 5).join("/") === runListPath &&
+                  selectedPath[5].startsWith(selectedShortId);
+              }, "selected run");
               const summary = await waitFor(
                 () => document.querySelector(".run-page .run-summary"),
                 "run details",

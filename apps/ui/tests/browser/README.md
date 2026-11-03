@@ -87,8 +87,8 @@ pnpm --filter @pipelab/cli test:construct-live
 ```
 
 The live runner executes the authenticated saved-workflow/export acceptance
-before the deterministic UI-to-binary journey, keeping shared local build
-resources serial.
+before the live UI-to-binary journey, keeping shared local build resources
+serial.
 
 To run just the saved-Connection layout regression from the Configuration
 destination editor, use `CONNECTION_LAYOUT_ONLY=1` with the same server and

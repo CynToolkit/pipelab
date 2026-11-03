@@ -54,11 +54,13 @@ try {
     },
     { timeout: 30_000 },
   );
-  await page.goto("https://editor.construct.net/", {
-    waitUntil: "domcontentloaded",
-    timeout: 60_000,
-  });
-  const tokenResponse = await tokenResponsePromise;
+  const [, tokenResponse] = await Promise.all([
+    page.goto("https://editor.construct.net/", {
+      waitUntil: "domcontentloaded",
+      timeout: 60_000,
+    }),
+    tokenResponsePromise,
+  ]);
   const tokenPayload = await tokenResponse.json();
   if (!tokenResponse.ok() || tokenPayload?.request?.status !== "ok") {
     throw new Error("Construct did not confirm the disposable profile session.");

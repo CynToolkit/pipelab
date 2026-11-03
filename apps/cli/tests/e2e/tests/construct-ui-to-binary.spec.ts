@@ -56,19 +56,38 @@ const startProcess = (
 };
 
 const stopProcess = async (handle: StartedProcess | undefined) => {
-  if (!handle || handle.child.exitCode !== null) return;
+  if (!handle) return;
   const { child } = handle;
-  if (child.pid) {
+  if (child.exitCode !== null && process.platform !== "win32") return;
+  const killWindowsProcessTree = async () => {
+    if (!child.pid) return;
+    const killer = spawn("taskkill", ["/pid", String(child.pid), "/t", "/f"], {
+      stdio: "ignore",
+    });
+    const completed = new Promise<void>((resolveKill) => {
+      killer.once("error", resolveKill);
+      killer.once("close", resolveKill);
+    });
+    if (!(await Promise.race([completed.then(() => true), delay(5000).then(() => false)]))) {
+      killer.kill("SIGKILL");
+    }
+  };
+  if (process.platform === "win32") {
+    await killWindowsProcessTree();
+  } else if (child.pid) {
     try {
-      process.kill(process.platform === "win32" ? child.pid : -child.pid, "SIGTERM");
+      process.kill(-child.pid, "SIGTERM");
     } catch {
       child.kill("SIGTERM");
     }
   }
   if (await Promise.race([handle.exited.then(() => true), delay(5000).then(() => false)])) return;
-  if (child.pid) {
+  if (process.platform === "win32") {
+    await killWindowsProcessTree();
+    child.kill("SIGKILL");
+  } else if (child.pid) {
     try {
-      process.kill(process.platform === "win32" ? child.pid : -child.pid, "SIGKILL");
+      process.kill(-child.pid, "SIGKILL");
     } catch {
       child.kill("SIGKILL");
     }
@@ -134,6 +153,7 @@ const packagedAppPath = async (buildPath: string) => {
   const candidates = [
     join(buildPath, "resources", "app", "src", "app"),
     join(buildPath, "Contents", "Resources", "app", "src", "app"),
+    join(buildPath, "Pipelab.app", "Contents", "Resources", "app", "src", "app"),
   ];
   for (const candidate of candidates) {
     try {
