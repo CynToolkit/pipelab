@@ -974,8 +974,8 @@ handle("update:set-status", async (event, { value }) => {
 .sidebar-project {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 4px 12px 12px;
+  gap: 4px;
+  padding: 0 8px 8px;
   border-bottom: 1px solid var(--p-surface-200);
 
   :root.dark & {
@@ -983,13 +983,14 @@ handle("update:set-status", async (event, { value }) => {
   }
 }
 
+/* Visually hidden: the select keeps an accessible name without a label row. */
 .project-label {
-  color: var(--p-text-muted-color);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  text-transform: uppercase;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
 }
 
 .project-controls {
@@ -1000,8 +1001,8 @@ handle("update:set-status", async (event, { value }) => {
 
   :deep(.p-button) {
     flex: 0 0 32px;
-    width: 32px;
-    height: 36px;
+    width: 28px;
+    height: 34px;
   }
 
   :deep(.p-select-label) {
@@ -1040,7 +1041,20 @@ handle("update:set-status", async (event, { value }) => {
   flex: 1;
   width: 0;
   min-width: 0;
-  min-height: 36px;
+  min-height: 34px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  transition: background-color 0.15s;
+
+  &:not(.p-disabled):hover {
+    border-color: transparent;
+    background: var(--p-surface-200);
+
+    :root.dark & {
+      background: var(--p-surface-800);
+    }
+  }
 
   :deep(.p-select-label) {
     overflow: hidden;
