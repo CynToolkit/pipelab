@@ -63,7 +63,28 @@
                   {{ option.name.slice(0, 1).toUpperCase() }}
                 </span>
                 <span class="project-name">{{ option.name }}</span>
-                <i v-if="selected" class="mdi mdi-check project-check" aria-hidden="true" />
+                <template v-if="selected">
+                  <button
+                    type="button"
+                    class="project-action"
+                    :aria-label="$t('home.rename-project')"
+                    v-tooltip.top="$t('home.rename-project')"
+                    :disabled="!filesReady || !isReady"
+                    @click.stop="openRenameProject"
+                  >
+                    <i class="mdi mdi-pencil-outline" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    class="project-action"
+                    :aria-label="$t('home.delete-project')"
+                    v-tooltip.top="$t('home.delete-project')"
+                    :disabled="!filesReady || !isReady || projects.length <= 1"
+                    @click.stop="deleteActiveProject"
+                  >
+                    <i class="mdi mdi-trash-can-outline" aria-hidden="true" />
+                  </button>
+                </template>
               </span>
             </template>
             <template #footer>
@@ -78,33 +99,11 @@
               </button>
             </template>
           </Select>
-          <Button
-            icon="mdi mdi-dots-horizontal"
-            text
-            rounded
-            severity="secondary"
-            type="button"
-            :aria-label="$t('home.project-actions')"
-            aria-haspopup="menu"
-            aria-controls="sidebar-project-menu"
-            :aria-expanded="isProjectMenuOpen"
-            :disabled="!filesReady || !isReady"
-            v-tooltip.right="isSidebarCollapsed ? $t('home.project-actions') : undefined"
-            @click="toggleProjectMenu"
-          />
         </div>
         <small v-if="!filesReady && fileStore.status === 'error'" class="project-load-error">
           {{ $t("home.projects-unavailable") }}
           <button type="button" @click="loadProjects">{{ $t("home.retry") }}</button>
         </small>
-        <Menu
-          id="sidebar-project-menu"
-          ref="$projectMenu"
-          :model="projectMenuItems"
-          :popup="true"
-          @show="isProjectMenuOpen = true"
-          @hide="isProjectMenuOpen = false"
-        />
       </section>
 
       <!-- Navigation -->
@@ -522,8 +521,6 @@ const activeProject = computed(() =>
 const isWorkflowsRoute = computed(
   () => route.path === "/workflows" || route.path.startsWith("/workflows/"),
 );
-const isProjectMenuOpen = ref(false);
-const $projectMenu = ref();
 const isNewProjectModalVisible = ref(false);
 const isRenameProjectModalVisible = ref(false);
 const isSavingProject = ref(false);
@@ -738,34 +735,11 @@ const openNewProject = () => {
   else openUpgradeDialog();
 };
 
-const projectMenuItems = computed(() => [
-  {
-    label: t("home.new-project"),
-    icon: "mdi mdi-plus",
-    disabled: !filesReady.value || !isReady.value || authStore.subscriptionStatus !== "ready",
-    command: openNewProject,
-  },
-  {
-    label: t("home.rename-project"),
-    icon: "mdi mdi-pencil",
-    disabled: !filesReady.value || !isReady.value || !activeProject.value,
-    command: () => {
-      if (!activeProject.value) return;
-      renameProjectName.value = activeProject.value.name;
-      isRenameProjectModalVisible.value = true;
-    },
-  },
-  { separator: true },
-  {
-    label: t("home.delete-project"),
-    icon: "mdi mdi-delete",
-    class: "text-red-500",
-    disabled: !filesReady.value || !isReady.value || projects.value.length <= 1,
-    command: deleteActiveProject,
-  },
-]);
-
-const toggleProjectMenu = (event: Event) => $projectMenu.value?.toggle(event);
+const openRenameProject = () => {
+  if (!activeProject.value) return;
+  renameProjectName.value = activeProject.value.name;
+  isRenameProjectModalVisible.value = true;
+};
 
 const createProject = async () => {
   if (!canCreateProject.value || !isReady.value || !filesReady.value) return;
@@ -1106,8 +1080,29 @@ handle("update:set-status", async (event, { value }) => {
   color: inherit;
 }
 
-.project-check {
-  color: var(--p-text-muted-color);
+.project-action {
+  display: grid;
+  flex: 0 0 24px;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.75;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.18);
+    opacity: 1;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.3;
+  }
 }
 
 .project-new-btn {
