@@ -106,6 +106,7 @@
     "workflows-disconnected": "Les workflows sont indisponibles lorsque le moteur est déconnecté.",
     "loading-workflows": "Chargement des workflows",
     "no-workflows-in-project": "Aucun workflow dans ce projet pour le moment.",
+    "no-workflows-hint": "Créez un workflow pour compiler et publier votre application.",
     "no-workflows-found": "Aucun workflow trouvé pour « {query} »",
     "clear-search": "Effacer la recherche",
     "release": "Publication",

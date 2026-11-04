@@ -103,6 +103,13 @@
         <div v-else-if="dashboardState === 'empty'" class="no-projects">
           <i class="mdi mdi-folder-open-outline empty-icon"></i>
           <div class="no-workflows-text">{{ $t("home.no-workflows-in-project") }}</div>
+          <p class="empty-hint">{{ $t("home.no-workflows-hint") }}</p>
+          <Button
+            :label="$t('home.new-workflow')"
+            icon="mdi mdi-rocket-launch-outline"
+            :disabled="!isBrowser && (!filesReady || !agent.isReady.value || !activeProjectId)"
+            @click="openWorkflowWizard"
+          />
         </div>
 
         <!-- No Search Results -->
@@ -882,10 +889,10 @@ watch(
   justify-content: center;
   gap: 16px;
   flex: 0 0 auto;
-  align-self: flex-start;
+  align-self: stretch;
   box-sizing: border-box;
   max-width: 100%;
-  padding: 28px 24px;
+  padding: 56px 24px;
   border: 1px dashed var(--p-surface-300);
   border-radius: 12px;
   background: rgba(0, 0, 0, 0.01);
@@ -899,6 +906,15 @@ watch(
     font-size: 2rem;
     color: var(--p-text-muted-color);
     opacity: 0.6;
+  }
+
+  .empty-hint {
+    max-width: 420px;
+    margin: -8px 0 4px;
+    color: var(--p-text-muted-color);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    text-align: center;
   }
 
   .no-workflows-text,

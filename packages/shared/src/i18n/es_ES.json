@@ -106,6 +106,7 @@
     "workflows-disconnected": "Los flujos de trabajo no están disponibles cuando el motor está desconectado.",
     "loading-workflows": "Cargando flujos de trabajo",
     "no-workflows-in-project": "Este proyecto aún no tiene flujos de trabajo.",
+    "no-workflows-hint": "Crea un flujo de trabajo para compilar y publicar tu aplicación.",
     "no-workflows-found": "No se encontraron flujos de trabajo para “{query}”",
     "clear-search": "Borrar búsqueda",
     "release": "Publicación",

@@ -106,6 +106,7 @@
     "workflows-disconnected": "Workflows sind nicht verfügbar, wenn die Engine getrennt ist.",
     "loading-workflows": "Workflows werden geladen",
     "no-workflows-in-project": "Dieses Projekt enthält noch keine Workflows.",
+    "no-workflows-hint": "Erstelle einen Workflow, um deine App zu bauen und zu veröffentlichen.",
     "no-workflows-found": "Keine Workflows für „{query}“ gefunden",
     "clear-search": "Suche löschen",
     "release": "Release",

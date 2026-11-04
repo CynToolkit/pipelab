@@ -6,14 +6,24 @@
         <h1>Cloud files</h1>
         <p class="muted">Manage release artifacts, storage, and private share links.</p>
       </div>
-      <button type="button" class="secondary-button" :disabled="loading" @click="load">
+      <button
+        v-if="auth.user"
+        type="button"
+        class="secondary-button"
+        :disabled="loading"
+        @click="load"
+      >
         Refresh
       </button>
     </header>
 
-    <p v-if="!auth.user" class="notice" role="status">
-      Sign in to view your Pipelab Cloud artifacts.
-    </p>
+    <div v-if="!auth.user" class="empty-state signin-state" role="status">
+      <i class="mdi mdi-cloud-lock-outline empty-state-icon" aria-hidden="true" />
+      <h2>Sign in to use Cloud files</h2>
+      <p class="muted">
+        Your uploaded release artifacts and private share links appear here once you are signed in.
+      </p>
+    </div>
     <p v-else-if="loading && !overview" class="notice" role="status">Loading Cloud files…</p>
     <p v-else-if="error" class="notice error" role="alert">{{ error }}</p>
 
@@ -286,9 +296,10 @@ watch(
 
 <style scoped>
 .cloud-files-page {
-  max-width: 1040px;
+  box-sizing: border-box;
+  width: min(100%, 1480px);
   margin: 0 auto;
-  padding: 2rem;
+  padding: 38px 44px 48px;
   color: var(--p-text-color, #18181b);
 }
 .page-header,
@@ -301,6 +312,34 @@ watch(
 }
 .page-header {
   margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--p-content-border-color, #e2e8f0);
+}
+.empty-state.signin-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 3.5rem 1.5rem;
+  border-style: dashed;
+  background: transparent;
+  text-align: center;
+}
+.signin-state h2 {
+  color: var(--p-text-color, #18181b);
+}
+.signin-state h2,
+.signin-state p {
+  margin: 0;
+}
+.signin-state p {
+  max-width: 420px;
+  line-height: 1.5;
+}
+.empty-state-icon {
+  color: var(--p-text-muted-color, #64748b);
+  font-size: 2rem;
+  opacity: 0.7;
 }
 h1,
 h2,
@@ -310,7 +349,10 @@ p {
 }
 h1 {
   margin-bottom: 0.5rem;
-  font-size: 1.8rem;
+  font-size: 1.85rem;
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.04em;
 }
 h2 {
   margin-bottom: 0.5rem;
@@ -323,8 +365,8 @@ h3 {
 }
 .eyebrow {
   margin-bottom: 0.4rem;
-  color: var(--primary-color, #75a7ff);
-  font-size: 0.8rem;
+  color: var(--p-text-muted-color, #64748b);
+  font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;

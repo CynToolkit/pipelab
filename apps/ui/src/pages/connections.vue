@@ -91,9 +91,9 @@
           </div>
           <div
             v-else-if="filteredConnections.length === 0"
-            class="text-center py-6 text-[11px] opacity-50"
+            class="empty-list"
           >
-            No active connections.
+            {{ searchQuery ? "No connections match your filter." : "No active connections." }}
           </div>
         </div>
       </div>
@@ -271,13 +271,23 @@
           </div>
 
           <!-- Fallback View -->
-          <div v-else class="pane-content flex items-center justify-center text-center opacity-60">
-            <div>
-              <i class="pi pi-user text-3xl mb-3"></i>
-              <p class="text-sm">
-                Select a connection from the sidebar or click '+' to configure a new profile.
-              </p>
-            </div>
+          <div v-else class="empty-pane">
+            <i class="mdi mdi-link-variant empty-pane-icon" aria-hidden="true"></i>
+            <h2>{{ connectedAccounts.length ? "Select a connection" : "No connections yet" }}</h2>
+            <p>
+              {{
+                connectedAccounts.length
+                  ? "Pick a connection from the list to review or edit its profile."
+                  : "Connect an account so workflows can publish builds to your destinations."
+              }}
+            </p>
+            <Button
+              label="Add connection"
+              icon="mdi mdi-plus"
+              size="small"
+              :disabled="!connectionDataReady || !agent.isReady.value"
+              @click="openAddConnectionDialog"
+            />
           </div>
         </transition>
       </main>
@@ -1221,6 +1231,54 @@ watch([() => connectionsStore.status, connectedAccounts], ([status, accounts]) =
   :root.dark & {
     background: var(--p-surface-900);
   }
+}
+
+.empty-pane {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 100%;
+  min-height: 320px;
+  padding: 24px;
+  text-align: center;
+}
+
+.empty-pane h2 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.empty-pane p {
+  max-width: 340px;
+  margin: 0 0 8px;
+  color: var(--p-text-muted-color);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.empty-pane-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: var(--p-surface-100);
+  color: var(--p-text-muted-color);
+  font-size: 1.6rem;
+
+  :root.dark & {
+    background: var(--p-surface-800);
+  }
+}
+
+.empty-list {
+  padding: 32px 12px;
+  color: var(--p-text-muted-color);
+  font-size: 0.8rem;
+  text-align: center;
 }
 
 .pane-content {

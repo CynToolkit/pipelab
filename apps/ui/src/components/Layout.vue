@@ -50,41 +50,60 @@
           >
             <template #value="slotProps">
               <span v-if="activeProject" class="project-select-value">
-                <span v-if="isSidebarCollapsed" class="project-initial" aria-hidden="true">
+                <span class="project-initial" aria-hidden="true">
                   {{ activeProject.name.slice(0, 1).toUpperCase() }}
                 </span>
-                <span v-else>{{ activeProject.name }}</span>
+                <span v-if="!isSidebarCollapsed" class="project-name">{{ activeProject.name }}</span>
               </span>
               <span v-else>{{ slotProps.placeholder }}</span>
             </template>
+            <template #option="{ option, selected }">
+              <span class="project-option">
+                <span class="project-initial" aria-hidden="true">
+                  {{ option.name.slice(0, 1).toUpperCase() }}
+                </span>
+                <span class="project-name">{{ option.name }}</span>
+                <template v-if="selected">
+                  <button
+                    type="button"
+                    class="project-action"
+                    :aria-label="$t('home.rename-project')"
+                    v-tooltip.top="$t('home.rename-project')"
+                    :disabled="!filesReady || !isReady"
+                    @click.stop="openRenameProject"
+                  >
+                    <i class="mdi mdi-pencil-outline" aria-hidden="true" />
+                  </button>
+                  <button
+                    type="button"
+                    class="project-action"
+                    :aria-label="$t('home.delete-project')"
+                    v-tooltip.top="$t('home.delete-project')"
+                    :disabled="!filesReady || !isReady || projects.length <= 1"
+                    @click.stop="deleteActiveProject"
+                  >
+                    <i class="mdi mdi-trash-can-outline" aria-hidden="true" />
+                  </button>
+                </template>
+              </span>
+            </template>
+            <template #footer>
+              <button
+                type="button"
+                class="project-new-btn"
+                :disabled="!filesReady || !isReady || authStore.subscriptionStatus !== 'ready'"
+                @click="openNewProject"
+              >
+                <i class="mdi mdi-plus" aria-hidden="true" />
+                {{ $t("home.new-project") }}
+              </button>
+            </template>
           </Select>
-          <Button
-            icon="mdi mdi-dots-horizontal"
-            text
-            rounded
-            severity="secondary"
-            type="button"
-            :aria-label="$t('home.project-actions')"
-            aria-haspopup="menu"
-            aria-controls="sidebar-project-menu"
-            :aria-expanded="isProjectMenuOpen"
-            :disabled="!filesReady || !isReady"
-            v-tooltip.right="isSidebarCollapsed ? $t('home.project-actions') : undefined"
-            @click="toggleProjectMenu"
-          />
         </div>
         <small v-if="!filesReady && fileStore.status === 'error'" class="project-load-error">
           {{ $t("home.projects-unavailable") }}
           <button type="button" @click="loadProjects">{{ $t("home.retry") }}</button>
         </small>
-        <Menu
-          id="sidebar-project-menu"
-          ref="$projectMenu"
-          :model="projectMenuItems"
-          :popup="true"
-          @show="isProjectMenuOpen = true"
-          @hide="isProjectMenuOpen = false"
-        />
       </section>
 
       <!-- Navigation -->
@@ -136,19 +155,6 @@
           <i class="mdi mdi-cloud-outline nav-icon" aria-hidden="true" />
           <span v-show="!isSidebarCollapsed" class="nav-label">Cloud files</span>
         </router-link>
-
-        <div
-          class="sidebar-nav-item disabled"
-          v-tooltip.right="
-            isSidebarCollapsed ? $t('home.global-variables-coming-soon') : $t('home.coming-soon')
-          "
-        >
-          <i class="mdi mdi-code-braces nav-icon" />
-          <span v-show="!isSidebarCollapsed" class="nav-label">{{ $t("home.variables") }}</span>
-          <span v-show="!isSidebarCollapsed" class="coming-soon-badge">{{
-            $t("home.coming-soon")
-          }}</span>
-        </div>
       </nav>
 
       <!-- Spacer -->
@@ -515,8 +521,6 @@ const activeProject = computed(() =>
 const isWorkflowsRoute = computed(
   () => route.path === "/workflows" || route.path.startsWith("/workflows/"),
 );
-const isProjectMenuOpen = ref(false);
-const $projectMenu = ref();
 const isNewProjectModalVisible = ref(false);
 const isRenameProjectModalVisible = ref(false);
 const isSavingProject = ref(false);
@@ -725,38 +729,17 @@ const selectProject = async (projectId: string | undefined) => {
   fileStore.selectProject(projectId);
 };
 
-const projectMenuItems = computed(() => [
-  {
-    label: t("home.new-project"),
-    icon: "mdi mdi-plus",
-    disabled: !filesReady.value || !isReady.value || authStore.subscriptionStatus !== "ready",
-    command: () => {
-      if (authStore.subscriptionStatus !== "ready" || !filesReady.value || !isReady.value) return;
-      if (hasMultipleProjectsBenefit.value) isNewProjectModalVisible.value = true;
-      else openUpgradeDialog();
-    },
-  },
-  {
-    label: t("home.rename-project"),
-    icon: "mdi mdi-pencil",
-    disabled: !filesReady.value || !isReady.value || !activeProject.value,
-    command: () => {
-      if (!activeProject.value) return;
-      renameProjectName.value = activeProject.value.name;
-      isRenameProjectModalVisible.value = true;
-    },
-  },
-  { separator: true },
-  {
-    label: t("home.delete-project"),
-    icon: "mdi mdi-delete",
-    class: "text-red-500",
-    disabled: !filesReady.value || !isReady.value || projects.value.length <= 1,
-    command: deleteActiveProject,
-  },
-]);
+const openNewProject = () => {
+  if (authStore.subscriptionStatus !== "ready" || !filesReady.value || !isReady.value) return;
+  if (hasMultipleProjectsBenefit.value) isNewProjectModalVisible.value = true;
+  else openUpgradeDialog();
+};
 
-const toggleProjectMenu = (event: Event) => $projectMenu.value?.toggle(event);
+const openRenameProject = () => {
+  if (!activeProject.value) return;
+  renameProjectName.value = activeProject.value.name;
+  isRenameProjectModalVisible.value = true;
+};
 
 const createProject = async () => {
   if (!canCreateProject.value || !isReady.value || !filesReady.value) return;
@@ -965,8 +948,8 @@ handle("update:set-status", async (event, { value }) => {
 .sidebar-project {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 4px 12px 12px;
+  gap: 4px;
+  padding: 0 8px 8px;
   border-bottom: 1px solid var(--p-surface-200);
 
   :root.dark & {
@@ -974,13 +957,14 @@ handle("update:set-status", async (event, { value }) => {
   }
 }
 
+/* Visually hidden: the select keeps an accessible name without a label row. */
 .project-label {
-  color: var(--p-text-muted-color);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  text-transform: uppercase;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
 }
 
 .project-controls {
@@ -990,9 +974,18 @@ handle("update:set-status", async (event, { value }) => {
   min-width: 0;
 
   :deep(.p-button) {
-    flex: 0 0 36px;
-    width: 36px;
-    height: 36px;
+    flex: 0 0 32px;
+    width: 28px;
+    height: 34px;
+  }
+
+  :deep(.p-select-label) {
+    padding-inline: 0.5rem 0;
+    font-size: 0.9rem;
+  }
+
+  :deep(.p-select-dropdown) {
+    width: 1.9rem;
   }
 
   :deep(.p-button:focus-visible),
@@ -1022,7 +1015,20 @@ handle("update:set-status", async (event, { value }) => {
   flex: 1;
   width: 0;
   min-width: 0;
-  min-height: 36px;
+  min-height: 34px;
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  transition: background-color 0.15s;
+
+  &:not(.p-disabled):hover {
+    border-color: transparent;
+    background: var(--p-surface-200);
+
+    :root.dark & {
+      background: var(--p-surface-800);
+    }
+  }
 
   :deep(.p-select-label) {
     overflow: hidden;
@@ -1031,18 +1037,105 @@ handle("update:set-status", async (event, { value }) => {
   }
 }
 
-.project-select-value {
-  display: block;
+.project-select-value,
+.project-option {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.project-name {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.project-option .project-name {
+  flex: 1;
+}
+
 .project-initial {
-  display: block;
-  text-align: center;
+  display: grid;
+  flex: 0 0 22px;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--p-surface-200);
+  color: var(--p-surface-700);
+  font-size: 0.7rem;
   font-weight: 700;
+  line-height: 1;
+}
+
+:root.dark .project-initial {
+  background: var(--p-surface-700);
+  color: var(--p-surface-100);
+}
+
+.p-select-option-selected .project-initial {
+  background: rgba(255, 255, 255, 0.2);
+  color: inherit;
+}
+
+.project-action {
+  display: grid;
+  flex: 0 0 24px;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.75;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.18);
+    opacity: 1;
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.3;
+  }
+}
+
+.project-new-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-top: 1px solid var(--p-surface-200);
+  background: transparent;
+  color: var(--p-text-color);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--p-surface-100);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  :root.dark & {
+    border-top-color: var(--p-surface-700);
+
+    &:hover:not(:disabled) {
+      background: var(--p-surface-800);
+    }
+  }
 }
 
 .project-load-error {
@@ -1087,6 +1180,10 @@ handle("update:set-status", async (event, { value }) => {
 
   :deep(.p-select-label) {
     padding: 0.5rem 0.25rem;
+  }
+
+  .project-select-value {
+    justify-content: center;
   }
 
   :deep(.p-select-dropdown) {
@@ -1654,11 +1751,7 @@ handle("update:set-status", async (event, { value }) => {
     height: 44px;
   }
 
-  .project-initial {
-    text-align: center;
-  }
-
-  .project-select-value {
+  .project-name {
     overflow: visible;
     overflow-wrap: anywhere;
     text-overflow: clip;
