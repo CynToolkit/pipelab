@@ -133,7 +133,9 @@ const inspect = async (path: string) => {
 export const godotSource: ReleaseSourceDefinition = {
   id: "@pipelab/plugin-godot/source",
   label: "Godot project",
-  fields: [{ key: "path", type: "directory", label: "Project path", required: true }],
+  fields: [
+    { key: "path", type: "directory", label: "Project path", required: true, showInWizard: true },
+  ],
   output: { kind: "project", technology: "godot", container: "directory" },
   createDefaultConfig: () => ({ path: "" }),
   validate: (config) =>
@@ -210,7 +212,12 @@ export const godotExporter: ReleaseProducerDefinition = {
     buildType: id === "web" ? "web" : "desktop",
     output,
     fields: [
-      { key: "preset", type: "select" as const, label: "Godot export preset", required: true },
+      {
+        key: "preset",
+        type: "select" as const,
+        label: "Godot export preset",
+        required: true,
+      },
     ],
     createDefaultConfig: () => ({ preset: "" }),
     isAvailable: () => ({ available: true }),

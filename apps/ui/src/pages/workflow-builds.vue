@@ -394,10 +394,8 @@
               ? setConnectionFieldAlias(draftBuild.config, field, $event)
               : setField(draftBuild.config, field.key, $event)
           "
-          @update:connection-binding="
-            setConnectionBinding(fieldValue(draftBuild.config, field.key), $event)
-          "
-          @add-connection="openConnection"
+          @update:connection-binding="bindConnectionField(draftBuild.config, field, $event)"
+          @add-connection="openConnection($event, draftBuild.config, field)"
         />
       </template>
       <template
@@ -429,10 +427,8 @@
                 ? setConnectionFieldAlias(target.config, field, $event)
                 : setField(target.config, field.key, $event)
             "
-            @update:connection-binding="
-              setConnectionBinding(fieldValue(target.config, field.key), $event)
-            "
-            @add-connection="openConnection"
+            @update:connection-binding="bindConnectionField(target.config, field, $event)"
+            @add-connection="openConnection($event, target.config, field)"
           />
         </template>
       </template>
@@ -582,6 +578,9 @@ import {
   connectionOptionsForIntegration,
   persistWorkflowConnectionAliasRename,
   releaseWorkflowConnectionAliases,
+  resolveFieldConnectionAlias,
+  suggestWorkflowConnectionAlias,
+  connectionDraftMatchesIntegration,
   renameWorkflowConnectionAliasWithDraft,
   setWorkflowConnectionBinding,
   suggestUniqueConnectionBinding,
@@ -695,6 +694,23 @@ const setConnectionBinding = async (alias: string, connectionId: string) => {
       cause instanceof Error ? cause.message : "Unable to remember this Connection.";
   }
 };
+const bindConnectionField = async (
+  values: Record<string, unknown>,
+  field: ReleaseFieldDefinition,
+  connectionId: string,
+) => {
+  if (!flow.value) return;
+  let alias = fieldValue(values, field.key);
+  if (!alias && connectionId) {
+    // Picking an account first gives the field a workflow alias, so the user never has to name one.
+    alias = suggestWorkflowConnectionAlias(
+      field.label || field.key,
+      releaseWorkflowConnectionAliases(flow.value, catalog.value),
+    );
+    setField(values, field.key, alias);
+  }
+  if (alias) await setConnectionBinding(alias, connectionId);
+};
 const setConnectionFieldAlias = async (
   values: Record<string, unknown>,
   field: ReleaseFieldDefinition,
@@ -757,8 +773,9 @@ const setConnectionFieldAlias = async (
       cause instanceof Error ? cause.message : "Unable to rename this Connection alias.";
   }
 };
-const connectionHasValue = computed(() =>
-  connectionFields.value.length > 0 &&
+const connectionHasValue = computed(
+  () =>
+    connectionFields.value.length > 0 &&
     connectionFields.value.some((field) => connectionDraft.value.values[field.key]?.trim()),
 );
 const connectionFields = computed(() => {
@@ -1365,9 +1382,14 @@ const createCompatibleBuild = (choice: CompatibleBuildCandidate) => {
     (candidate) => candidate.id === choice.target,
   );
   if (!target || !buildTargetIsAvailable(target)) return;
-  const build = createBuildProfile(catalog.value, choice.type, choice.engine, nanoid(), [
-    choice.target,
-  ], releaseWorkflowConnectionAliases(flow.value, catalog.value));
+  const build = createBuildProfile(
+    catalog.value,
+    choice.type,
+    choice.engine,
+    nanoid(),
+    [choice.target],
+    releaseWorkflowConnectionAliases(flow.value, catalog.value),
+  );
   if (!build) return;
   flow.value.builds.push(build);
   compatibleSlot.value.input = { buildId: build.id, targetId: choice.target };
@@ -1609,7 +1631,16 @@ const providerIcon = (icon: IconType | undefined) =>
       : `mdi ${icon.icon}`
     : "mdi mdi-hammer-wrench";
 const producerIcon = (id: string) => providerIcon(engineDefinition(id)?.icon);
-const openConnection = (integration: string) => {
+// The field an inline "Add" was opened from, so the new Connection can be selected for it.
+let pendingFieldConnection:
+  | { config: Record<string, unknown>; field: ReleaseFieldDefinition }
+  | undefined;
+const openConnection = (
+  integration: string,
+  config?: Record<string, unknown>,
+  field?: ReleaseFieldDefinition,
+) => {
+  pendingFieldConnection = config && field ? { config, field } : undefined;
   try {
     connectionDraft.value = {
       name: "",
@@ -1631,6 +1662,7 @@ const createConnection = async () => {
     appStore.providerStatus !== "ready"
   )
     return;
+  const fieldAtStart = pendingFieldConnection;
   connectionSaving.value = true;
   try {
     const integration = connectionDraft.value.integration;
@@ -1645,10 +1677,32 @@ const createConnection = async () => {
       createdAt: new Date().toISOString(),
       isDefault: false,
     };
+    let workflowBindings = localConnectionsConfig.value.workflowBindings || [];
+    let fieldAlias: string | undefined;
+    if (
+      fieldAtStart &&
+      flow.value &&
+      fieldAtStart.field.integration &&
+      connectionDraftMatchesIntegration(fieldAtStart.field.integration, connectionDraft.value)
+    ) {
+      fieldAlias = resolveFieldConnectionAlias(
+        fieldValue(fieldAtStart.config, fieldAtStart.field.key),
+        fieldAtStart.field.label || fieldAtStart.field.key,
+        connections.value.map((connection) => connection.id),
+        releaseWorkflowConnectionAliases(flow.value, catalog.value),
+      );
+      workflowBindings = setWorkflowConnectionBinding(
+        workflowBindings,
+        flow.value.id,
+        fieldAlias,
+        record.id,
+      );
+    }
     const result = await api.execute("connections:save", {
       data: {
         ...localConnectionsConfig.value,
         connections: [...connections.value, record],
+        workflowBindings,
       },
     });
     if (result.type === "error") {
@@ -1656,6 +1710,9 @@ const createConnection = async () => {
       return;
     }
     await connectionsStore.load(true);
+    if (fieldAtStart && fieldAlias)
+      setField(fieldAtStart.config, fieldAtStart.field.key, fieldAlias);
+    if (fieldAtStart === pendingFieldConnection) pendingFieldConnection = undefined;
     connectionVisible.value = false;
   } catch (cause) {
     buildInputError.value = cause instanceof Error ? cause.message : "Unable to save connection.";

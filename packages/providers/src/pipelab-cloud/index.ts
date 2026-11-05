@@ -7,6 +7,7 @@ export const pipelabCloudDestination: ReleaseDestinationDefinition = {
   id: "@pipelab/pipelab-cloud/destination",
   label: "Pipelab Cloud",
   description: "Store selected build artifacts in your private Pipelab Cloud storage.",
+  icon: { type: "icon", icon: "mdi-cloud-upload-outline" },
   accepts: { kind: "application", container: ["file", "directory", "archive"] },
   createDefaultConfig: () => ({}),
   validate: () => [],

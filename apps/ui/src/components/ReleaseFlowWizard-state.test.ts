@@ -7,7 +7,6 @@ import {
   buildReleaseWizardConfig,
   chooseReleaseWizardSource,
   createReleaseWizardDraft,
-  HOSTED_RELEASE_WIZARD_STEPS,
   RELEASE_WIZARD_STEPS,
   releaseWizardCanContinueDetails,
   releaseWizardCanReview,
@@ -39,13 +38,13 @@ const catalog: ReleaseCatalog = {
           label: "Project file",
           required: true,
           fileExtensions: ["c3p"],
+          showInWizard: true,
         },
         {
           key: "profilePath",
           type: "select",
           label: "Browser profile",
           required: true,
-          deferUntilEditor: true,
         },
       ],
     },
@@ -246,14 +245,7 @@ describe("ReleaseFlowWizard state", () => {
       },
     ];
 
-    expect(HOSTED_RELEASE_WIZARD_STEPS).toEqual([
-      "details",
-      "source",
-      "builds",
-      "destinations",
-      "recap",
-    ]);
-    expect(releaseWizardNextStep("source", HOSTED_RELEASE_WIZARD_STEPS)).toBe("builds");
+    expect(RELEASE_WIZARD_STEPS).not.toContain("builds");
     expect(buildReleaseWizardConfig(draft, "project-1", "release-1").builds).toEqual(draft.builds);
   });
 

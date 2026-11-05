@@ -15,6 +15,7 @@ import {
   releaseDestinationLocalName,
   renameWorkflowConnectionAliasWithDraft,
   renameWorkflowConnectionAlias,
+  resolveFieldConnectionAlias,
   releaseWorkflowConnectionAliases,
   resolveDesktopWorkflowConnectionValues,
   setWorkflowConnectionBinding,
@@ -967,5 +968,22 @@ describe("Desktop workflow connection bindings", () => {
       "production-store-2",
     );
     expect(suggestWorkflowConnectionAlias(" 9 test! ", [])).toBe("connection-9-test");
+  });
+
+  it("keeps a field's usable alias and names a fresh one otherwise when adding a Connection inline", () => {
+    expect(
+      resolveFieldConnectionAlias("steam-account", "Steam account", [], ["steam-account"]),
+    ).toBe("steam-account");
+    expect(resolveFieldConnectionAlias("", "Steam account", [], [])).toBe("steam-account");
+    expect(resolveFieldConnectionAlias("", "Steam account", [], ["steam-account"])).toBe(
+      "steam-account-2",
+    );
+    // An alias that is really a Connection id is replaced, not reused.
+    expect(resolveFieldConnectionAlias("conn-1", "Steam account", ["conn-1"], [])).toBe(
+      "steam-account",
+    );
+    expect(resolveFieldConnectionAlias("not valid!", "Steam account", [], [])).toBe(
+      "steam-account",
+    );
   });
 });

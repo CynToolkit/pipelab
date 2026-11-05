@@ -34,7 +34,8 @@ include site data from the selected Chromium profile beyond Construct. Pipelab
 does not automatically expire or remove this managed copy. On POSIX systems,
 its managed profile directories are restricted to the current user.
 
-When **Construct version** is blank, Pipelab reads `savedWithRelease` from
+**Construct version** is not shown in the creation wizard; set it in
+Configuration after creating the workflow. When it is blank, Pipelab reads `savedWithRelease` from
 `project.c3proj` inside the selected `.c3p` file and opens that Construct
 release. If the project has no saved release metadata, Pipelab uses the current
 editor. Enter `latest` to use the current editor or provide a release such as

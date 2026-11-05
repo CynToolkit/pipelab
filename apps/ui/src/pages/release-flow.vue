@@ -132,25 +132,40 @@
         </div>
         <article class="source-card" :class="{ invalid: cardIssues('source').length }">
           <div class="provider-icon">
-            <i :class="providerIcon(sourceDefinition?.icon, 'mdi mdi-source-branch')" />
+            <img
+              v-if="providerIconImage(sourceIconFor(sourceDefinition))"
+              :src="providerIconImage(sourceIconFor(sourceDefinition))"
+              alt=""
+            />
+            <i
+              v-else
+              :class="providerIconClass(sourceIconFor(sourceDefinition))"
+              aria-hidden="true"
+            />
           </div>
           <div class="source-copy">
             <strong>{{ sourceDefinition?.label || flow.source.provider }}</strong>
             <span>{{ sourcePath || "No source selected" }}</span>
           </div>
-          <span
-            class="readiness-label"
-            :class="{ 'readiness-problem': cardIssues('source').length }"
-          >
-            {{
-              cardIssues("source").length
-                ? "Needs attention"
+          <ReleaseStatus
+            :label="
+              cardIssues('source').length
+                ? 'Needs attention'
                 : sourcePath
-                  ? "Ready"
-                  : "Not configured"
-            }}
-          </span>
-          <Button label="Edit" text icon="pi pi-pencil" @click="sourceSettingsVisible = true" />
+                  ? 'Ready'
+                  : 'Not configured'
+            "
+          />
+          <Button
+            text
+            rounded
+            size="small"
+            severity="secondary"
+            icon="pi pi-pencil"
+            v-tooltip.top="'Edit source'"
+            aria-label="Edit source"
+            @click="sourceSettingsVisible = true"
+          />
         </article>
       </section>
       <section class="release-section">
@@ -180,39 +195,77 @@
         >
           <div class="job-header">
             <div class="provider-icon">
-              <i
-                :class="
-                  providerIcon(
-                    destinationDefinition(destination.provider)?.icon,
-                    'mdi mdi-cloud-upload-outline',
+              <img
+                v-if="
+                  providerIconImage(
+                    destinationIconFor(
+                      destination.provider,
+                      destinationDefinition(destination.provider)?.icon,
+                    ),
                   )
                 "
+                :src="
+                  providerIconImage(
+                    destinationIconFor(
+                      destination.provider,
+                      destinationDefinition(destination.provider)?.icon,
+                    ),
+                  )
+                "
+                alt=""
+              />
+              <i
+                v-else
+                :class="
+                  providerIconClass(
+                    destinationIconFor(
+                      destination.provider,
+                      destinationDefinition(destination.provider)?.icon,
+                    ),
+                  )
+                "
+                aria-hidden="true"
               />
             </div>
             <div class="job-title">
               <strong>{{ destinationDisplayLabel(destination) }}</strong
-              ><span
-                >{{ destination.slots.length }} deployment slot{{
-                  destination.slots.length === 1 ? "" : "s"
-                }}</span
-              >
+              ><span>{{ destinationSummary(destination) }}</span>
             </div>
-            <span
-              class="readiness-label"
-              :class="{
-                'readiness-problem': destinationReadiness(destination, index) === 'Needs attention',
-              }"
-            >
-              {{ destinationReadiness(destination, index) }}
-            </span>
+            <ReleaseStatus :label="destinationReadiness(destination, index)" />
             <Button
-              label="Edit"
               text
+              rounded
+              size="small"
+              severity="secondary"
               icon="pi pi-pencil"
+              v-tooltip.top="'Edit destination settings'"
+              :aria-label="`Edit ${destinationDisplayLabel(destination)}`"
               @click="openDestinationSettings(destination)"
             />
+            <Button
+              v-if="destination.enabled"
+              class="destination-toggle"
+              v-tooltip.top="
+                isDestinationExpanded(destination.id) ? 'Hide deployments' : 'Show deployments'
+              "
+              text
+              rounded
+              severity="secondary"
+              size="small"
+              :icon="
+                isDestinationExpanded(destination.id) ? 'pi pi-chevron-up' : 'pi pi-chevron-down'
+              "
+              :aria-expanded="isDestinationExpanded(destination.id)"
+              :aria-controls="`destination-slots-${destination.id}`"
+              :aria-label="`${isDestinationExpanded(destination.id) ? 'Hide' : 'Show'} deployments for ${destinationDisplayLabel(destination)}`"
+              @click="toggleDestinationExpanded(destination.id)"
+            />
           </div>
-          <div v-if="destination.enabled" class="slot-list">
+          <div
+            v-if="destination.enabled && isDestinationExpanded(destination.id)"
+            :id="`destination-slots-${destination.id}`"
+            class="slot-list"
+          >
             <div v-for="(slot, slotIndex) in destination.slots" :key="slot.id" class="slot-row">
               <div class="deployment-main">
                 <i class="mdi mdi-package-variant-closed" /><span
@@ -220,33 +273,45 @@
                   ><small>{{ artifactLabel(slot.input) }}</small></span
                 >
               </div>
-              <span
-                class="readiness-label"
-                :class="{ 'readiness-problem': slotCardIssues(slot).length || !slot.input }"
-              >
-                {{
+              <ReleaseStatus
+                :label="
                   slotCardIssues(slot).length
-                    ? "Needs attention"
+                    ? 'Needs attention'
                     : slot.input
-                      ? "Ready"
-                      : "Output required"
-                }}
-              </span>
+                      ? 'Ready'
+                      : 'Output required'
+                "
+              />
               <Button
                 v-if="!slot.input || slotIssues(slot).length"
                 label="Configure build"
                 text
+                severity="secondary"
+                size="small"
                 icon="mdi mdi-hammer-wrench"
                 @click="openBuildsForSlot(destination, slot)"
               />
               <Button
                 v-else
-                label="Edit"
                 text
+                rounded
+                severity="secondary"
+                size="small"
                 icon="pi pi-pencil"
+                v-tooltip.top="'Edit deployment settings'"
+                :aria-label="`Edit ${deploymentSlotLabel(slot, slotIndex)}`"
                 @click="openSlotSettings(destination, slot)"
               />
             </div>
+            <Button
+              label="Add deployment"
+              icon="pi pi-plus"
+              text
+              severity="secondary"
+              size="small"
+              class="add-slot"
+              @click="addSlot(destination)"
+            />
           </div>
         </article>
       </section>
@@ -388,7 +453,16 @@
         @click="addDestination(destination.id)"
       >
         <span class="provider-icon">
-          <i :class="providerIcon(destination.icon, 'mdi mdi-cloud-upload-outline')" />
+          <img
+            v-if="providerIconImage(destinationIconFor(destination.id, destination.icon))"
+            :src="providerIconImage(destinationIconFor(destination.id, destination.icon))"
+            alt=""
+          />
+          <i
+            v-else
+            :class="providerIconClass(destinationIconFor(destination.id, destination.icon))"
+            aria-hidden="true"
+          />
         </span>
         <span
           ><strong>{{ destination.label }}</strong
@@ -448,9 +522,6 @@
           @update:model-value="selectSource"
         />
       </div>
-      <small v-if="sourceDefinition.requiresAgentInspection" class="field-note">
-        Additional source options require the Pipelab agent.
-      </small>
       <template v-for="field in sourceDefinition.fields || []" :key="field.key">
         <ReleaseFieldControl
           :field="field"
@@ -467,10 +538,8 @@
               ? setConnectionFieldAlias(flow.source.config, field, $event)
               : setSourceField(field.key, $event)
           "
-          @update:connection-binding="
-            setConnectionBinding(fieldValue(flow.source.config, field.key), $event)
-          "
-          @add-connection="openConnection"
+          @update:connection-binding="bindConnectionField(flow.source.config, field, $event)"
+          @add-connection="openConnection($event, flow.source.config, field)"
         />
       </template>
     </div>
@@ -484,12 +553,12 @@
     ><div v-if="settingsDestination" class="settings-grid">
       <div class="release-field wide destination-toggle">
         <label :for="`destination-enabled-${settingsDestination.id}`">Destination</label>
+        <span>{{ settingsDestination.enabled ? "Included in this release" : "Disabled" }}</span>
         <ToggleSwitch
           v-model="settingsDestination.enabled"
           :inputId="`destination-enabled-${settingsDestination.id}`"
           aria-label="Destination enabled"
         />
-        <span>{{ settingsDestination.enabled ? "Included in this release" : "Disabled" }}</span>
       </div>
       <div class="release-field wide">
         <label :for="`destination-name-${settingsDestination.id}`">Destination name</label>
@@ -528,25 +597,31 @@
               : setField(settingsDestination.config, field.key, $event)
           "
           @update:connection-binding="
-            setConnectionBinding(fieldValue(settingsDestination.config, field.key), $event)
+            bindConnectionField(settingsDestination.config, field, $event)
           "
-          @add-connection="openConnection"
+          @add-connection="openConnection($event, settingsDestination.config, field)"
       /></template>
     </div>
-    <template #footer
-      ><Button
-        label="Add deployment"
-        icon="pi pi-plus"
-        text
-        @click="settingsDestination && addSlot(settingsDestination)" /><Button
-        label="Remove destination"
-        icon="pi pi-trash"
-        text
-        severity="danger"
-        @click="settingsDestination && removeDestination(settingsDestination.id)" /><Button
-        label="Done"
-        @click="destinationSettingsVisible = false" /></template
-  ></Dialog>
+    <template #footer>
+      <div class="settings-footer">
+        <Button
+          label="Remove destination"
+          icon="pi pi-trash"
+          text
+          severity="danger"
+          @click="settingsDestination && removeDestination(settingsDestination.id)"
+        />
+        <span class="settings-footer-spacer" />
+        <Button
+          label="Add deployment"
+          icon="pi pi-plus"
+          text
+          @click="settingsDestination && addSlot(settingsDestination)"
+        />
+        <Button label="Done" @click="destinationSettingsVisible = false" />
+      </div>
+    </template>
+  </Dialog>
   <Dialog
     v-model:visible="slotSettingsVisible"
     modal
@@ -563,12 +638,12 @@
       </div>
       <div class="release-field wide destination-toggle">
         <label :for="`slot-enabled-${settingsSlot.id}`">Deployment</label>
+        <span>{{ settingsSlot.enabled ? "Included in this release" : "Disabled" }}</span>
         <ToggleSwitch
           v-model="settingsSlot.enabled"
           :inputId="`slot-enabled-${settingsSlot.id}`"
           aria-label="Deployment enabled"
         />
-        <span>{{ settingsSlot.enabled ? "Included in this release" : "Disabled" }}</span>
       </div>
       <div class="release-field wide">
         <label>Output</label
@@ -609,22 +684,26 @@
               ? setConnectionFieldAlias(settingsSlot.config, field, $event)
               : setField(settingsSlot.config, field.key, $event)
           "
-          @update:connection-binding="
-            setConnectionBinding(fieldValue(settingsSlot.config, field.key), $event)
-          "
-          @add-connection="openConnection"
+          @update:connection-binding="bindConnectionField(settingsSlot.config, field, $event)"
+          @add-connection="openConnection($event, settingsSlot.config, field)"
       /></template>
     </div>
-    <template #footer
-      ><Button
-        label="Remove deployment"
-        icon="pi pi-trash"
-        text
-        severity="danger"
-        @click="
-          settingsDestination && settingsSlot && removeSlot(settingsDestination, settingsSlot.id)
-        " /><Button label="Done" @click="slotSettingsVisible = false" /></template
-  ></Dialog>
+    <template #footer>
+      <div class="settings-footer">
+        <Button
+          label="Remove deployment"
+          icon="pi pi-trash"
+          text
+          severity="danger"
+          @click="
+            settingsDestination && settingsSlot && removeSlot(settingsDestination, settingsSlot.id)
+          "
+        />
+        <span class="settings-footer-spacer" />
+        <Button label="Done" @click="slotSettingsVisible = false" />
+      </div>
+    </template>
+  </Dialog>
   <Dialog v-model:visible="connectionVisible" modal header="Add connection" :style="dialogStyle"
     ><div class="settings-grid">
       <div class="release-field">
@@ -715,6 +794,7 @@ import ReleaseDestinationAccountPreview from "../components/ReleaseDestinationAc
 import { useAPI } from "../composables/api";
 import { publishRunEvent } from "./run-events";
 import { useAppStore } from "../store/app";
+import ReleaseStatus from "../components/ReleaseStatus.vue";
 import { useConnectionsStore } from "../store/connections";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 import { uiEnvironment } from "../composables/ui-runtime";
@@ -760,10 +840,17 @@ import {
   resolveDesktopWorkflowConnectionValues,
   setWorkflowConnectionBinding,
   suggestUniqueConnectionBinding,
+  resolveFieldConnectionAlias,
   suggestWorkflowConnectionAlias,
   workflowConnectionBindingValue,
 } from "../utils/release-connection-bindings";
 import { submitDesktopWorkflowExecution } from "../utils/workflow-execution-input";
+import {
+  destinationIcon,
+  providerIconClass,
+  providerIconImage,
+  sourceIcon,
+} from "../utils/provider-icons";
 
 const route = useRoute();
 const router = useRouter();
@@ -1153,12 +1240,10 @@ const sourceDefinition = computed(() =>
 const producerDefinition = (id: string) => catalog.value.producers.find((item) => item.id === id);
 const destinationDefinition = (id: string) =>
   catalog.value.destinations.find((item) => item.id === id);
-const providerIcon = (icon: IconType | undefined, fallback: string) =>
-  icon?.type === "icon"
-    ? icon.icon.includes("mdi") || icon.icon.includes("pi-")
-      ? icon.icon
-      : `mdi ${icon.icon}`
-    : fallback;
+const sourceIconFor = (source?: (typeof catalog.value.sources)[number]) =>
+  sourceIcon(appStore.providerDefinitions, source);
+const destinationIconFor = (id: string, icon?: IconType) =>
+  destinationIcon(appStore.providerDefinitions, id, icon);
 const fieldValue = (config: Record<string, unknown>, key: string) => String(config[key] ?? "");
 const setField = (config: Record<string, unknown>, key: string, value: unknown) => {
   config[key] = String(value ?? "");
@@ -1226,6 +1311,23 @@ const setConnectionBinding = async (alias: string, connectionId: string) => {
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : "Unable to remember this Connection.";
   }
+};
+const bindConnectionField = async (
+  values: Record<string, unknown>,
+  field: ReleaseFieldDefinition,
+  connectionId: string,
+) => {
+  if (!flow.value) return;
+  let alias = fieldValue(values, field.key);
+  if (!alias && connectionId) {
+    // Picking an account first gives the field a workflow alias, so the user never has to name one.
+    alias = suggestWorkflowConnectionAlias(
+      field.label || field.key,
+      releaseWorkflowConnectionAliases(flow.value, catalog.value),
+    );
+    setField(values, field.key, alias);
+  }
+  if (alias) await setConnectionBinding(alias, connectionId);
 };
 const setConnectionFieldAlias = async (
   values: Record<string, unknown>,
@@ -1462,7 +1564,21 @@ const removeDestination = (id: string) => {
     );
   } else remove();
 };
+const expandedDestinations = ref<ReadonlySet<string>>(new Set());
+const isDestinationExpanded = (id: string) => expandedDestinations.value.has(id);
+const toggleDestinationExpanded = (id: string) => {
+  const next = new Set(expandedDestinations.value);
+  if (!next.delete(id)) next.add(id);
+  expandedDestinations.value = next;
+};
+const destinationSummary = (destination: ReleaseDestinationConfig) => {
+  if (!destination.enabled) return "Disabled";
+  const slots = destination.slots.filter((slot) => slot.enabled);
+  if (!slots.length) return "No deployments";
+  return slots.length === 1 ? artifactLabel(slots[0].input) : `${slots.length} deployments`;
+};
 const addSlot = (destination: ReleaseDestinationConfig) => {
+  expandedDestinations.value = new Set(expandedDestinations.value).add(destination.id);
   destination.slots.push({
     id: nanoid(),
     name: `Deployment ${destination.slots.length + 1}`,
@@ -1564,9 +1680,18 @@ const setSourceField = (key: string, value: unknown) => {
     void inspectSource();
   }
 };
-const openConnection = (integration: string) => {
+// The field an inline "Add" was opened from, so the new Connection can be selected for it.
+let pendingFieldConnection:
+  | { config: Record<string, unknown>; field: ReleaseFieldDefinition }
+  | undefined;
+const openConnection = (
+  integration: string,
+  config?: Record<string, unknown>,
+  field?: ReleaseFieldDefinition,
+) => {
   connectionDialogGeneration++;
   pendingBlockerConnection.value = undefined;
+  pendingFieldConnection = config && field ? { config, field } : undefined;
   try {
     connectionDraft.value = {
       name: "",
@@ -1583,12 +1708,14 @@ const openConnection = (integration: string) => {
 const cancelConnection = () => {
   connectionDialogGeneration++;
   pendingBlockerConnection.value = undefined;
+  pendingFieldConnection = undefined;
   connectionVisible.value = false;
 };
 const createConnection = async () => {
   if (!connectionFields.value.length || !connectionHasValue.value) return;
   const dialogGeneration = connectionDialogGeneration;
   const pendingAtStart = pendingBlockerConnection.value;
+  const fieldAtStart = pendingFieldConnection;
   connectionSaving.value = true;
   try {
     const integration = connectionDraft.value.integration;
@@ -1605,6 +1732,26 @@ const createConnection = async () => {
     };
     let workflowBindings = localConnectionsConfig.value.workflowBindings || [];
     let pendingAlias: string | undefined;
+    let fieldAlias: string | undefined;
+    if (
+      fieldAtStart &&
+      flow.value &&
+      fieldAtStart.field.integration &&
+      connectionDraftMatchesIntegration(fieldAtStart.field.integration, connectionDraft.value)
+    ) {
+      fieldAlias = resolveFieldConnectionAlias(
+        fieldValue(fieldAtStart.config, fieldAtStart.field.key),
+        fieldAtStart.field.label || fieldAtStart.field.key,
+        connections.value.map((connection) => connection.id),
+        releaseWorkflowConnectionAliases(flow.value, catalog.value),
+      );
+      workflowBindings = setWorkflowConnectionBinding(
+        workflowBindings,
+        flow.value.id,
+        fieldAlias,
+        record.id,
+      );
+    }
     if (pendingAtStart && pendingAtStart.flowId === flow.value?.id) {
       const currentIssue = blockingIssues.value.find(
         (issue) =>
@@ -1649,6 +1796,9 @@ const createConnection = async () => {
       return;
     }
     await connectionsStore.load(true);
+    if (fieldAtStart && fieldAlias && fieldAtStart === pendingFieldConnection)
+      setField(fieldAtStart.config, fieldAtStart.field.key, fieldAlias);
+    if (fieldAtStart === pendingFieldConnection) pendingFieldConnection = undefined;
     const pending = pendingBlockerConnection.value;
     if (
       pendingAtStart &&
@@ -2228,15 +2378,6 @@ watch([flowId, projectId], () => {
   justify-content: flex-end;
   margin: 0 2px -8px;
 }
-.readiness-label {
-  flex: 0 0 auto;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.73rem;
-}
-.readiness-problem {
-  color: var(--p-orange-700, #c2410c);
-  font-weight: 600;
-}
 @media (max-width: 640px) {
   .action-required-card {
     grid-template-columns: 28px minmax(0, 1fr);
@@ -2246,7 +2387,7 @@ watch([flowId, projectId], () => {
     align-items: flex-start;
   }
 }
-.destination-toggle {
+.release-field.destination-toggle {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -2276,18 +2417,18 @@ watch([flowId, projectId], () => {
   gap: 0;
 }
 .release-section + .release-section {
-  margin-top: 22px;
+  margin-top: 16px;
 }
 .section-heading {
   display: flex;
   align-items: end;
   justify-content: space-between;
   gap: 16px;
-  margin: 0 0 14px;
+  margin: 0 0 8px;
 }
 .section-heading h2 {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1.05rem;
 }
 .section-heading p {
   margin: 4px 0 0;
@@ -2328,25 +2469,26 @@ watch([flowId, projectId], () => {
   color: var(--orange-500, #f97316);
 }
 .source-card {
-  padding: 12px 14px;
+  padding: 8px 12px;
 }
 .source-copy,
 .job-title {
   display: grid;
-  gap: 3px;
+  gap: 1px;
   min-width: 0;
   flex: 1;
 }
 .source-copy strong,
 .job-title strong {
-  font-size: 0.9rem;
+  font-size: 0.84rem;
+  font-weight: 600;
 }
 .source-copy span,
 .job-title span,
 .field-value {
   overflow: hidden;
   color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2354,23 +2496,28 @@ watch([flowId, projectId], () => {
   color: var(--p-text-muted-color, var(--text-color-secondary));
   font-size: 0.7rem;
 }
+.provider-icon > img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
 .provider-icon {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 30px;
+  height: 30px;
   flex: 0 0 auto;
   border: 1px solid var(--p-surface-200, var(--surface-border));
   border-radius: 8px;
   color: var(--primary-color);
   background: var(--p-surface-50, var(--surface-ground));
-  font-size: 18px;
+  font-size: 16px;
 }
 .job-card {
   overflow: hidden;
 }
 .job-card + .job-card {
-  margin-top: 10px;
+  margin-top: 6px;
 }
 .destination-picker {
   display: grid;
@@ -2402,32 +2549,59 @@ watch([flowId, projectId], () => {
   border-color: var(--primary-color);
 }
 .job-header {
-  padding: 12px 14px;
+  gap: 10px;
+  padding: 8px 12px;
 }
-.settings-grid,
 .slot-list {
   display: grid;
+  gap: 2px;
+  padding: 0 12px 8px 52px;
+}
+.destination-toggle {
+  flex: 0 0 auto;
+}
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 16px;
+}
+.settings-footer {
+  display: flex;
+  align-items: center;
   gap: 8px;
-  padding: 0 14px 14px;
+  width: 100%;
+}
+.settings-footer-spacer {
+  flex: 1;
 }
 .slot-list {
   padding-top: 2px;
 }
 .release-field {
   display: grid;
-  gap: 5px;
+  gap: 6px;
+  min-width: 0;
 }
-.release-field label,
+.release-field > label,
 .field-label {
-  letter-spacing: 0.02em;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+}
+.release-field > small {
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.7rem;
+}
+.release-field.wide {
+  grid-column: 1 / -1;
 }
 .slot-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  border: 1px solid var(--p-surface-200, var(--surface-border));
-  border-radius: 7px;
-  padding: 9px 10px;
+  border: 0;
+  border-radius: 6px;
+  padding: 3px 4px 3px 0;
   background: transparent;
   color: var(--text-color);
   text-align: left;
@@ -2435,10 +2609,27 @@ watch([flowId, projectId], () => {
 .slot-row > :first-child {
   flex: 1;
 }
+.deployment-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.deployment-main > i {
+  color: var(--primary-color);
+  font-size: 18px;
+}
 .deployment-main > span {
   display: grid;
   gap: 2px;
   min-width: 0;
+}
+.deployment-main strong {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.add-slot {
+  justify-self: start;
 }
 .deployment-main small {
   overflow: hidden;
@@ -2517,6 +2708,9 @@ watch([flowId, projectId], () => {
   grid-column: 1 / -1;
 }
 @media (max-width: 640px) {
+  .settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .section-heading,
   .job-header,
   .source-card {

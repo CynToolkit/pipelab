@@ -378,6 +378,20 @@ export const suggestWorkflowConnectionAlias = (name: string, usedAliases: readon
   return `${base}-${suffix}`;
 };
 
+/**
+ * Chooses the workflow alias a field should use for a newly created Connection: the field's own
+ * alias when it is already usable, otherwise a fresh one named after the field.
+ */
+export const resolveFieldConnectionAlias = (
+  existingAlias: string,
+  fieldLabel: string,
+  connectionIds: readonly string[],
+  usedAliases: readonly string[],
+) =>
+  /^[A-Za-z_][A-Za-z0-9_-]*$/.test(existingAlias) && !connectionIds.includes(existingAlias)
+    ? existingAlias
+    : suggestWorkflowConnectionAlias(fieldLabel, usedAliases);
+
 const renameFieldAlias = (
   fields: ReleaseFieldDefinition[] | undefined,
   values: Record<string, unknown>,

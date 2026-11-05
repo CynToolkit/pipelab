@@ -11,7 +11,7 @@ export interface ReleaseWizardDraft {
   destinations: ReleaseConfig["destinations"];
 }
 
-export type ReleaseWizardStep = "details" | "source" | "builds" | "destinations" | "recap";
+export type ReleaseWizardStep = "details" | "source" | "destinations" | "recap";
 
 export const RELEASE_WIZARD_STEPS: ReleaseWizardStep[] = [
   "details",
@@ -19,14 +19,6 @@ export const RELEASE_WIZARD_STEPS: ReleaseWizardStep[] = [
   "destinations",
   "recap",
 ];
-export const HOSTED_RELEASE_WIZARD_STEPS: ReleaseWizardStep[] = [
-  "details",
-  "source",
-  "builds",
-  "destinations",
-  "recap",
-];
-
 export const createReleaseWizardDraft = (): ReleaseWizardDraft => ({
   name: "",
   description: "",
@@ -50,7 +42,9 @@ export const suggestReleaseWizardConnectionAliases = (
   draft: ReleaseWizardDraft,
   catalog: ReleaseCatalog,
 ) => {
-  const usedAliases = new Set(releaseWorkflowConnectionAliases(releaseConfigForDraft(draft), catalog));
+  const usedAliases = new Set(
+    releaseWorkflowConnectionAliases(releaseConfigForDraft(draft), catalog),
+  );
   const source = catalog.sources.find((candidate) => candidate.id === draft.source.provider);
   suggestMissingConnectionAliases(draft.source.config, source?.fields, usedAliases);
   for (const build of draft.builds) {
@@ -112,7 +106,7 @@ export const releaseWizardSourceIsReady = (
   if (!source.provider) return false;
   const definition = catalog.sources.find((candidate) => candidate.id === source.provider);
   if (!definition) return false;
-  return (definition.fields?.filter((field) => !field.deferUntilEditor) || []).every(
+  return (definition.fields?.filter((field) => field.showInWizard) || []).every(
     (field) => !field.required || String(source.config[field.key] || "").trim(),
   );
 };
@@ -176,7 +170,9 @@ export const releaseWizardDestination = (
     // Leave the output unrouted for the editor. Choosing an output here would be a guess.
     slots: [{ id: "output", enabled: true, config: {} }],
   };
-  const usedAliases = new Set(releaseWorkflowConnectionAliases(releaseConfigForDraft(draft), catalog));
+  const usedAliases = new Set(
+    releaseWorkflowConnectionAliases(releaseConfigForDraft(draft), catalog),
+  );
   suggestMissingConnectionAliases(destination.config, definition.fields, usedAliases);
   for (const slot of destination.slots)
     suggestMissingConnectionAliases(slot.config, definition.slotFields, usedAliases);
@@ -208,7 +204,7 @@ export const buildReleaseWizardConfig = (
 export const releaseWizardRecap = (draft: ReleaseWizardDraft, catalog: ReleaseCatalog) => {
   const source = catalog.sources.find((candidate) => candidate.id === draft.source.provider);
   const pathField = source?.fields?.find(
-    (field) => !field.deferUntilEditor && (field.type === "file" || field.type === "directory"),
+    (field) => field.showInWizard && (field.type === "file" || field.type === "directory"),
   );
   const sourcePath = pathField ? String(draft.source.config[pathField.key] || "") : "";
 

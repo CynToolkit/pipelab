@@ -11,7 +11,7 @@ destinations.
    project file or folder. Source-specific file rules apply, such as `.c3p` for
    Construct projects or `.zip` for ZIP sources.
 4. In **Destinations**, choose one or more places to publish the release.
-5. Check the **Recap** for the workflow name, description, source and path, and
+5. Check **Review** for the workflow name, description, source and path, and
    destinations, then choose **Create workflow**. Pipelab applies any existing
    build and output defaults that can be resolved. It opens the workflow's
    **Configuration** section after creation.
@@ -32,7 +32,9 @@ credentials, tools, and target limitations for each provider.
 ### Connections and values
 
 Connection fields use workflow aliases such as `itch-studio` or
-`steam-production`. The workflow stores the alias; Desktop remembers which
+`steam-production`. Pipelab names the alias for you when you pick an account;
+it appears under the account field, where the pencil icon renames it. The
+workflow stores the alias; Desktop remembers which
 saved Connection fulfills it for that workflow. The same alias can resolve to
 a different saved Connection in another workflow. Changing a saved Connection's
 display name does not change the workflow alias. Renaming an alias updates its
@@ -46,9 +48,13 @@ from the Connection alias. Before shipping, Pipelab previews the selected saved
 account for each destination and warns if multiple destinations use the same
 Connection; using one account more than once is allowed when that is intended.
 
+The creation wizard stays focused on the essentials and does not show these
+advanced controls; set up accounts, aliases, and value sources in
+Configuration after creating the workflow.
+
 Ordinary provider properties are literal values by default. To save an
-environment binding instead, open **Advanced · Value source** and choose **Use
-environment variable**. Pipelab reads that variable from the environment of
+environment binding instead, turn on **Use environment variable** beside the
+field's label in Configuration and enter the variable name. Pipelab reads that variable from the environment of
 the client that starts the run and checks required bindings before starting any
 workflow steps. Connection fields are managed through aliases and do not use
 this ordinary-property control.

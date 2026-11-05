@@ -174,7 +174,8 @@ export interface ReleaseFieldDefinition {
   type: "text" | "password" | "number" | "directory" | "file" | "select" | "connection";
   label: string;
   description?: string;
-  deferUntilEditor?: boolean;
+  /** Opt in to showing this field in the creation wizard; otherwise it is set in Configuration. */
+  showInWizard?: boolean;
   integration?: string;
   required?: boolean;
   options?: ReleaseFieldOption[];

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { createApp, defineComponent, h, nextTick, type App } from "vue";
 import PrimeVue from "primevue/config";
+import Tooltip from "primevue/tooltip";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReleaseConfig, ReleaseFieldDefinition } from "@pipelab/shared";
 import ReleaseFieldControl from "./ReleaseFieldControl.vue";
@@ -78,9 +79,17 @@ const mountField = (
       }),
   });
   app.use(PrimeVue);
+  app.directive("tooltip", Tooltip);
   app.mount(root);
   mountedApps.push(app);
   return { root, updates, bindingUpdates };
+};
+
+const environmentToggle = (root: HTMLElement) =>
+  root.querySelector(".environment-toggle") as HTMLButtonElement;
+const clickEnvironmentToggle = async (root: HTMLElement) => {
+  environmentToggle(root).click();
+  await nextTick();
 };
 
 const dispatchInput = async (input: HTMLInputElement, value: string) => {
@@ -164,19 +173,15 @@ describe("ReleaseFieldControl", () => {
     expect(input?.value).toBe("/workspace/game");
   });
 
-  it("suggests a stable environment name in Advanced mode and restores it after reload", async () => {
+  it("suggests a stable environment name from the inline toggle and restores it after reload", async () => {
     const { root, updates } = mountField("release title");
-    const advanced = root.querySelector("details.environment-advanced") as HTMLDetailsElement;
 
-    expect(advanced).not.toBeNull();
-    expect(advanced.open).toBe(false);
-    advanced.open = true;
-    await nextTick();
+    expect(root.querySelector("details")).toBeNull();
+    expect(environmentToggle(root)).not.toBeNull();
+    expect(environmentToggle(root).getAttribute("aria-pressed")).toBe("false");
+    expect(root.querySelector("#field-title-environment-variable")).toBeNull();
 
-    const toggle = root.querySelector('input[type="checkbox"]') as HTMLInputElement;
-    toggle.checked = true;
-    toggle.dispatchEvent(new Event("change", { bubbles: true }));
-    await nextTick();
+    await clickEnvironmentToggle(root);
 
     const variableName = root.querySelector(
       "#field-title-environment-variable",
@@ -185,25 +190,18 @@ describe("ReleaseFieldControl", () => {
     expect(updates.at(-1)).toBe("${{ env.PIPELAB_TITLE }}");
 
     const reopened = mountField(String(updates.at(-1)));
-    const reopenedAdvanced = reopened.root.querySelector(
-      "details.environment-advanced",
-    ) as HTMLDetailsElement;
     const reopenedName = reopened.root.querySelector(
       "#field-title-environment-variable",
     ) as HTMLInputElement;
-    expect(reopenedAdvanced.open).toBe(true);
     expect(reopenedName.value).toBe("PIPELAB_TITLE");
   });
 
   it("persists an environment binding and restores the literal when disabled", async () => {
     const { root, updates } = mountField("local title");
-    const toggle = root.querySelector('input[type="checkbox"]') as HTMLInputElement;
 
-    expect(toggle.checked).toBe(false);
-    toggle.checked = true;
-    toggle.dispatchEvent(new Event("change", { bubbles: true }));
-    await nextTick();
-    expect(toggle.checked).toBe(true);
+    expect(environmentToggle(root).getAttribute("aria-pressed")).toBe("false");
+    await clickEnvironmentToggle(root);
+    expect(environmentToggle(root).getAttribute("aria-pressed")).toBe("true");
     expect(updates.at(-1)).toBe("${{ env.PIPELAB_TITLE }}");
     expect(invalidEnvironmentBindingPaths(flowWithSourcePath(String(updates.at(-1))))).toEqual([]);
     expect(root.querySelector('[role="alert"]')).toBeNull();
@@ -215,21 +213,18 @@ describe("ReleaseFieldControl", () => {
     await dispatchInput(variableName, "BUILD_LABEL");
     expect(updates.at(-1)).toBe("${{ env.BUILD_LABEL }}");
 
-    toggle.checked = false;
-    toggle.dispatchEvent(new Event("change", { bubbles: true }));
-    await nextTick();
+    await clickEnvironmentToggle(root);
     expect(updates.at(-1)).toBe("local title");
     expect(root.querySelector("#field-title")).toHaveProperty("value", "local title");
   });
 
   it("loads a saved binding and rejects invalid environment variable names", async () => {
     const { root, updates } = mountField("${{ env.BUILD_LABEL }}");
-    const toggle = root.querySelector('input[type="checkbox"]') as HTMLInputElement;
     const variableName = root.querySelector(
       "#field-title-environment-variable",
     ) as HTMLInputElement;
 
-    expect(toggle.checked).toBe(true);
+    expect(environmentToggle(root).getAttribute("aria-pressed")).toBe("true");
     expect(variableName.value).toBe("BUILD_LABEL");
 
     await dispatchInput(variableName, "BUILD-LABEL");
@@ -247,10 +242,7 @@ describe("ReleaseFieldControl", () => {
 
   it("keeps a brace-containing invalid name blocked and editable after remount", async () => {
     const { root, updates } = mountField("local title");
-    const toggle = root.querySelector('input[type="checkbox"]') as HTMLInputElement;
-    toggle.checked = true;
-    toggle.dispatchEvent(new Event("change", { bubbles: true }));
-    await nextTick();
+    await clickEnvironmentToggle(root);
 
     const variableName = root.querySelector(
       "#field-title-environment-variable",
@@ -265,7 +257,7 @@ describe("ReleaseFieldControl", () => {
     const reopenedName = reopened.root.querySelector(
       "#field-title-environment-variable",
     ) as HTMLInputElement;
-    expect(reopened.root.querySelector('input[type="checkbox"]')).toHaveProperty("checked", true);
+    expect(environmentToggle(reopened.root).getAttribute("aria-pressed")).toBe("true");
     expect(reopenedName.value).toBe("BAD}}NAME");
     expect(reopenedName.getAttribute("aria-invalid")).toBe("true");
   });
@@ -292,6 +284,40 @@ describe("ReleaseFieldControl", () => {
     );
   });
 
+  it("offers the same trailing toggle on select, path and password fields", () => {
+    for (const definition of [
+      { key: "channel", type: "select", label: "Channel" },
+      { key: "path", type: "directory", label: "Folder" },
+      { key: "secret", type: "password", label: "Secret" },
+    ] as ReleaseFieldDefinition[]) {
+      const { root } = mountField("", definition, [], "", undefined, true);
+      const row = root.querySelector(".field-control-row");
+      expect(row?.lastElementChild).toBe(environmentToggle(root));
+      expect(row?.firstElementChild).not.toBe(environmentToggle(root));
+    }
+  });
+
+  it("omits the toggle when advanced controls are hidden", () => {
+    const root = document.createElement("div");
+    const app = createApp({
+      render: () =>
+        h(ReleaseFieldControl, {
+          field,
+          value: "",
+          options: [],
+          inputId: "field-title",
+          hideAdvanced: true,
+        }),
+    });
+    app.use(PrimeVue);
+    app.directive("tooltip", Tooltip);
+    app.mount(root);
+    mountedApps.push(app);
+
+    expect(root.querySelector(".environment-toggle")).toBeNull();
+    expect(root.querySelector("#field-title")).not.toBeNull();
+  });
+
   it("keeps connection fields outside ordinary environment bindings", () => {
     const connectionField: ReleaseFieldDefinition = {
       key: "account",
@@ -301,7 +327,7 @@ describe("ReleaseFieldControl", () => {
     };
     const { root } = mountField("${{ env.ACCOUNT }}", connectionField);
 
-    expect(root.querySelector('input[type="checkbox"]')).toBeNull();
+    expect(root.querySelector(".environment-toggle")).toBeNull();
     expect(root.querySelector("#field-title-environment-variable")).toBeNull();
     expect(root.querySelector(".connection-field")).not.toBeNull();
   });
@@ -315,11 +341,10 @@ describe("ReleaseFieldControl", () => {
     );
     const connection = root.querySelector("#field-title") as HTMLSelectElement;
 
-    const advanced = root.querySelector("details.connection-advanced") as HTMLDetailsElement;
-    expect(advanced).not.toBeNull();
-    expect(advanced.open).toBe(false);
-    expect(advanced.textContent).toContain("Advanced");
-    advanced.open = true;
+    expect(root.querySelector("details")).toBeNull();
+    expect(root.querySelector("#field-title-alias")).toBeNull();
+    expect(root.querySelector(".alias-caption")?.textContent).toContain("publish");
+    (root.querySelector(".alias-edit") as HTMLButtonElement).click();
     await nextTick();
     const alias = root.querySelector("#field-title-alias") as HTMLInputElement;
 
@@ -353,14 +378,15 @@ describe("ReleaseFieldControl", () => {
     expect(helper?.textContent ?? "").toContain("workflow only stores the alias");
   });
 
-  it("requires a workflow alias before remembering a local Connection", () => {
+  it("lets an account be picked without a workflow alias, leaving naming to the parent", () => {
     const { root } = mountField(
       "",
       { key: "account", type: "connection", label: "Account", integration: "store" },
       [{ label: "Production", value: "connection-prod" }],
     );
 
-    expect(root.querySelector("#field-title")).toHaveProperty("disabled", true);
+    expect(root.querySelector("#field-title")).toHaveProperty("disabled", false);
+    expect(root.querySelector(".alias-caption")).toBeNull();
   });
 
   it("allows an empty optional Connection alias for profile-only provider sessions", () => {
@@ -373,7 +399,7 @@ describe("ReleaseFieldControl", () => {
     });
 
     expect(root.querySelector('[role="alert"]')).toBeNull();
-    expect(root.querySelector("#field-title")).toHaveProperty("disabled", true);
+    expect(root.querySelector("#field-title")).toHaveProperty("disabled", false);
   });
 
   it("requires explicit confirmation before applying a unique compatible Connection suggestion", async () => {

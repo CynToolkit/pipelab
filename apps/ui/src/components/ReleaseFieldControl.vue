@@ -11,80 +11,8 @@
     >
       Options require a connected Pipelab agent.
     </small>
-    <details
-      v-if="field.type !== 'connection'"
-      class="environment-advanced"
-      :open="environmentBindingEnabled"
-    >
-      <summary>Advanced · Value source</summary>
-      <label class="environment-binding-toggle">
-        <input
-          type="checkbox"
-          :checked="environmentBindingEnabled"
-          :aria-controls="`${inputId}-environment-variable`"
-          @change="toggleEnvironmentBinding"
-        />
-        Use environment variable
-      </label>
-      <div v-if="environmentBindingEnabled" class="environment-binding-input">
-        <label :for="`${inputId}-environment-variable`">Environment variable</label>
-        <InputText
-          :id="`${inputId}-environment-variable`"
-          :model-value="environmentVariableName"
-          :aria-invalid="environmentVariableError ? 'true' : undefined"
-          :aria-describedby="`${inputId}-environment-help${environmentVariableError ? ` ${inputId}-environment-error` : ''}`"
-          class="field-control"
-          autocomplete="off"
-          autocapitalize="off"
-          spellcheck="false"
-          @update:model-value="updateEnvironmentVariableName"
-        />
-        <small :id="`${inputId}-environment-help`" class="field-help">
-          The value comes from the environment of the client that starts the run.
-        </small>
-        <small
-          v-if="environmentVariableError"
-          :id="`${inputId}-environment-error`"
-          class="field-issue field-issue-error"
-          role="alert"
-        >
-          {{ environmentVariableError }}
-        </small>
-      </div>
-    </details>
     <template v-if="field.type === 'connection'">
       <div class="connection-field">
-        <details class="connection-advanced">
-          <summary>Advanced · Workflow alias</summary>
-          <div class="connection-alias">
-            <label :for="`${inputId}-alias`">Workflow alias</label>
-            <InputText
-              :id="`${inputId}-alias`"
-              :model-value="connectionAliasDraft"
-              placeholder="e.g. release-account"
-              autocomplete="off"
-              autocapitalize="off"
-              spellcheck="false"
-              class="field-control"
-              @update:model-value="updateConnectionAliasDraft"
-              @blur="commitConnectionAlias"
-            />
-            <small
-              v-if="
-                connectionAliasDraft && !workflowConnectionAliasPattern.test(connectionAliasDraft)
-              "
-              class="field-issue field-issue-error"
-              role="alert"
-            >
-              Enter an alias starting with a letter or underscore, using letters, numbers,
-              underscores, or hyphens.
-            </small>
-            <small class="field-help">
-              This name is saved in the workflow. Renaming it updates its workflow references;
-              update any CLI or CI <code>--connection</code> overrides that use it.
-            </small>
-          </div>
-        </details>
         <Select
           :id="inputId"
           :model-value="connectionBinding"
@@ -93,10 +21,16 @@
           optionValue="value"
           filter
           showClear
-          :disabled="!workflowConnectionAliasPattern.test(connectionAliasDraft)"
           :placeholder="`Select ${field.label.toLowerCase()}`"
           class="field-control"
           @update:model-value="emitConnectionBinding"
+        />
+        <Button
+          label="Add"
+          icon="pi pi-plus"
+          text
+          size="small"
+          @click="emit('add-connection', field.integration || '')"
         />
         <small class="field-help connection-binding-help">
           This Desktop remembers this saved Connection; the workflow only stores the alias.
@@ -114,57 +48,131 @@
             @click="emitConnectionBinding(connectionBindingSuggestion.value)"
           />
         </div>
-        <Button
-          label="Add"
-          icon="pi pi-plus"
-          text
-          size="small"
-          @click="emit('add-connection', field.integration || '')"
-        />
+        <div
+          v-if="!hideAdvanced && (connectionAliasDraft || editingAlias)"
+          class="connection-alias"
+        >
+          <template v-if="editingAlias">
+            <label :for="`${inputId}-alias`">Workflow alias</label>
+            <InputText
+              :id="`${inputId}-alias`"
+              :model-value="connectionAliasDraft"
+              placeholder="e.g. release-account"
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck="false"
+              class="field-control"
+              @update:model-value="updateConnectionAliasDraft"
+              @blur="finishAliasEdit"
+              @keydown.enter.prevent="finishAliasEdit"
+            />
+            <small
+              v-if="
+                connectionAliasDraft && !workflowConnectionAliasPattern.test(connectionAliasDraft)
+              "
+              class="field-issue field-issue-error"
+              role="alert"
+            >
+              Enter an alias starting with a letter or underscore, using letters, numbers,
+              underscores, or hyphens.
+            </small>
+            <small class="field-help">
+              Saved in the workflow. Renaming it updates its references; update any CLI or CI
+              <code>--connection</code> overrides that use it.
+            </small>
+          </template>
+          <span v-else class="alias-caption">
+            Alias <code>{{ connectionAliasDraft }}</code>
+            <button
+              type="button"
+              v-tooltip.top="'Edit workflow alias'"
+              class="alias-edit"
+              :aria-label="`Edit workflow alias for ${field.label}`"
+              @click="startAliasEdit"
+            >
+              <i class="pi pi-pencil" aria-hidden="true" />
+            </button>
+          </span>
+        </div>
       </div>
     </template>
-    <Select
-      v-if="field.type === 'select' && !environmentBindingEnabled"
-      :id="inputId"
-      :model-value="value"
-      :options="options"
-      optionLabel="label"
-      optionValue="value"
-      :placeholder="`Select ${field.label.toLowerCase()}`"
-      class="field-control"
-      @update:model-value="emitValue"
-    />
-    <InputText
-      v-else-if="
-        allowPathEdit &&
-        (field.type === 'file' || field.type === 'directory') &&
-        !environmentBindingEnabled
-      "
-      :id="inputId"
-      :model-value="value"
-      :placeholder="field.required ? 'Required; validation needs an agent' : 'Optional path'"
-      class="field-control"
-      @update:model-value="emitValue"
-    />
-    <PathPicker
-      v-else-if="
-        (field.type === 'file' || field.type === 'directory') && !environmentBindingEnabled
-      "
-      :model-value="value"
-      :kind="field.type"
-      :label="field.label"
-      :file-extensions="field.fileExtensions"
-      @update:model-value="emitValue"
-    />
-    <InputText
-      v-else-if="field.type !== 'connection' && !environmentBindingEnabled"
-      :id="inputId"
-      :model-value="value"
-      :type="field.type === 'password' ? 'password' : 'text'"
-      :placeholder="field.required ? 'Required' : undefined"
-      class="field-control"
-      @update:model-value="emitValue"
-    />
+    <div v-if="field.type !== 'connection'" class="field-control-row">
+      <div v-if="environmentBindingEnabled" class="environment-binding-input">
+        <span class="environment-prefix" aria-hidden="true">env.</span>
+        <InputText
+          :id="`${inputId}-environment-variable`"
+          :model-value="environmentVariableName"
+          :aria-label="`${field.label} environment variable`"
+          :aria-invalid="environmentVariableError ? 'true' : undefined"
+          :aria-describedby="environmentVariableError ? `${inputId}-environment-error` : undefined"
+          :placeholder="suggestedEnvironmentVariableName"
+          class="field-control"
+          autocomplete="off"
+          autocapitalize="off"
+          spellcheck="false"
+          @update:model-value="updateEnvironmentVariableName"
+        />
+      </div>
+      <Select
+        v-else-if="field.type === 'select'"
+        :id="inputId"
+        :model-value="value"
+        :options="options"
+        optionLabel="label"
+        optionValue="value"
+        :placeholder="`Select ${field.label.toLowerCase()}`"
+        class="field-control"
+        @update:model-value="emitValue"
+      />
+      <InputText
+        v-else-if="allowPathEdit && (field.type === 'file' || field.type === 'directory')"
+        :id="inputId"
+        :model-value="value"
+        :placeholder="field.required ? 'Required; validation needs an agent' : 'Optional path'"
+        class="field-control"
+        @update:model-value="emitValue"
+      />
+      <PathPicker
+        v-else-if="field.type === 'file' || field.type === 'directory'"
+        :model-value="value"
+        :kind="field.type"
+        :label="field.label"
+        :file-extensions="field.fileExtensions"
+        @update:model-value="emitValue"
+      />
+      <InputText
+        v-else
+        :id="inputId"
+        :model-value="value"
+        :type="field.type === 'password' ? 'password' : 'text'"
+        :placeholder="field.required ? 'Required' : undefined"
+        class="field-control"
+        @update:model-value="emitValue"
+      />
+      <button
+        v-if="supportsEnvironmentBinding"
+        type="button"
+        class="environment-toggle"
+        :class="{ active: environmentBindingEnabled }"
+        :aria-pressed="environmentBindingEnabled"
+        :aria-controls="`${inputId}-environment-variable`"
+        v-tooltip.top="
+          'Use an environment variable. The value is read from the environment of the client that starts the run.'
+        "
+        :aria-label="`Use an environment variable for ${field.label}`"
+        @click="toggleEnvironmentBinding"
+      >
+        $
+      </button>
+    </div>
+    <small
+      v-if="environmentVariableError"
+      :id="`${inputId}-environment-error`"
+      class="field-issue field-issue-error"
+      role="alert"
+    >
+      {{ environmentVariableError }}
+    </small>
     <small
       v-for="issue in issues"
       :key="`${issue.code}:${issue.path || field.key}`"
@@ -177,7 +185,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
@@ -193,6 +201,7 @@ const props = defineProps<{
   connectionBindingSuggestion?: ReleaseFieldOption;
   issues?: ValidationIssue[];
   allowPathEdit?: boolean;
+  hideAdvanced?: boolean;
 }>();
 const emit = defineEmits<{
   "update:value": [value: unknown];
@@ -235,6 +244,10 @@ const suggestedEnvironmentVariableName = `PIPELAB_${
 }`;
 const environmentBindingEnabled = ref(initialEnvironmentVariableName !== undefined);
 const connectionAliasDraft = ref(props.value);
+const editingAlias = ref(false);
+const supportsEnvironmentBinding = computed(
+  () => props.field.type !== "connection" && !props.hideAdvanced,
+);
 const environmentVariableName = ref(initialEnvironmentVariableName ?? "");
 const literalValue = ref(initialEnvironmentVariableName === undefined ? props.value : "");
 const environmentVariableError = ref(
@@ -293,12 +306,23 @@ const updateEnvironmentVariableName = (value: unknown) => {
 const updateConnectionAliasDraft = (value: unknown) => {
   connectionAliasDraft.value = typeof value === "string" ? value : "";
 };
-const commitConnectionAlias = () => {
-  if (connectionAliasDraft.value !== props.value) emitValue(connectionAliasDraft.value);
+const startAliasEdit = async () => {
+  editingAlias.value = true;
+  await nextTick();
+  document.getElementById(`${props.inputId}-alias`)?.focus();
+};
+const finishAliasEdit = () => {
+  const alias = connectionAliasDraft.value;
+  if (alias !== props.value) {
+    // An invalid alias is never saved; revert instead of leaving the field in a blocked state.
+    if (!alias || workflowConnectionAliasPattern.test(alias)) emitValue(alias);
+    else connectionAliasDraft.value = props.value;
+  }
+  editingAlias.value = false;
 };
 
-const toggleEnvironmentBinding = (event: Event) => {
-  const enabled = (event.target as HTMLInputElement).checked;
+const toggleEnvironmentBinding = () => {
+  const enabled = !environmentBindingEnabled.value;
   environmentBindingEnabled.value = enabled;
   environmentVariableError.value = "";
   if (enabled) {
@@ -317,7 +341,8 @@ const toggleEnvironmentBinding = (event: Event) => {
 <style scoped>
 .release-field {
   display: grid;
-  gap: 5px;
+  grid-column: 1 / -1;
+  gap: 6px;
   min-width: 0;
 }
 .release-field > label {
@@ -333,32 +358,54 @@ const toggleEnvironmentBinding = (event: Event) => {
   width: 100%;
   min-width: 0;
 }
-.environment-binding-toggle {
+.field-control-row {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.75rem;
-}
-.environment-binding-toggle input {
-  margin: 0;
-}
-.environment-binding-input {
-  display: grid;
-  gap: 5px;
+  align-items: stretch;
+  gap: 8px;
   min-width: 0;
 }
-.environment-binding-input > label {
-  font-size: 0.75rem;
-  font-weight: 600;
+.field-control-row > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+.environment-binding-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.environment-prefix {
   color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.78rem;
+}
+.environment-toggle {
+  flex: 0 0 auto;
+  min-width: 40px;
+  border: 1px solid var(--p-surface-300, var(--surface-border));
+  border-radius: 6px;
+  background: transparent;
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  cursor: pointer;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.environment-toggle:hover,
+.environment-toggle:focus-visible {
+  color: var(--text-color);
+  border-color: var(--p-primary-color, var(--primary-color, #6366f1));
+}
+.environment-toggle.active {
+  border-color: var(--p-primary-color, var(--primary-color, #6366f1));
+  background: var(--p-primary-color, var(--primary-color, #6366f1));
+  color: var(--p-primary-contrast-color, var(--primary-contrast-color, white));
 }
 .connection-field {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.5rem;
+  gap: 6px 8px;
   min-width: 0;
-  align-items: end;
+  align-items: center;
 }
 .connection-binding-suggestion {
   display: grid;
@@ -371,19 +418,10 @@ const toggleEnvironmentBinding = (event: Event) => {
   grid-column: 1 / -1;
 }
 
-.connection-advanced {
-  grid-column: 1 / -1;
-  min-width: 0;
-}
-
-.connection-advanced summary {
-  color: var(--p-text-muted-color);
-  cursor: pointer;
-  font-size: 0.85rem;
-}
 .connection-alias {
   display: grid;
-  gap: 5px;
+  grid-column: 1 / -1;
+  gap: 6px;
   min-width: 0;
 }
 .connection-alias > label {
@@ -403,5 +441,32 @@ const toggleEnvironmentBinding = (event: Event) => {
 }
 .field-issue-warning {
   color: var(--p-yellow-600, #ca8a04);
+}
+.alias-caption {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.72rem;
+}
+.alias-caption code {
+  font-size: 0.72rem;
+}
+.alias-edit {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.7rem;
+}
+.alias-edit:hover,
+.alias-edit:focus-visible {
+  background: var(--p-surface-100, var(--surface-hover));
+  color: var(--text-color);
 }
 </style>

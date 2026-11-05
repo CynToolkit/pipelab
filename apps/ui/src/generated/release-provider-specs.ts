@@ -119,13 +119,13 @@ const browserProviderSpecs = {
             label: "Project file",
             required: true,
             fileExtensions: ["c3p"],
+            showInWizard: true,
           },
           {
             key: "profilePath",
             type: "select",
             label: "Browser profile",
             required: true,
-            deferUntilEditor: true,
           },
           {
             key: "accountConnectionId",
@@ -167,6 +167,7 @@ const browserProviderSpecs = {
             type: "directory",
             label: "Project path",
             required: true,
+            showInWizard: true,
           },
         ],
         output: {
@@ -490,6 +491,10 @@ const browserProviderSpecs = {
       {
         id: "@pipelab/core/destination/folder",
         label: "Folder",
+        icon: {
+          type: "icon",
+          icon: "mdi-folder-outline",
+        },
         fields: [
           {
             key: "outputDir",
@@ -506,6 +511,10 @@ const browserProviderSpecs = {
       {
         id: "@pipelab/core/destination/zip",
         label: "ZIP",
+        icon: {
+          type: "icon",
+          icon: "mdi-folder-zip-outline",
+        },
         fields: [
           {
             key: "outputPath",
@@ -636,6 +645,10 @@ const browserProviderSpecs = {
         id: "@pipelab/pipelab-cloud/destination",
         label: "Pipelab Cloud",
         description: "Store selected build artifacts in your private Pipelab Cloud storage.",
+        icon: {
+          type: "icon",
+          icon: "mdi-cloud-upload-outline",
+        },
         accepts: {
           kind: "application",
           container: ["file", "directory", "archive"],

@@ -24,7 +24,7 @@ load when you open them.
 2. In **Source & project path**, choose a source and its project file or
    folder. Source-specific file rules apply, including `.c3p` for Construct
    projects and `.zip` for ZIP sources.
-3. Choose one or more destinations, review the **Recap**, then choose
+3. Choose one or more destinations, check the **Review** step, then choose
    **Create workflow**. Pipelab applies build and output defaults when it can.
 4. Complete any **Action required** item in the workflow's **Configuration**,
    **Builds**, or **Connections** section, then use **Artifacts** and **Runs**

@@ -137,6 +137,7 @@ const webZipSource = zipSource("@pipelab/core/source/web-zip", "Web app ZIP", {
 const folderDestination: ReleaseDestinationDefinition = {
   id: "@pipelab/core/destination/folder",
   label: "Folder",
+  icon: { type: "icon", icon: "mdi-folder-outline" },
   accepts: {},
   fields: [{ key: "outputDir", type: "directory", label: "Output folder", required: true }],
   createDefaultConfig: () => ({ outputDir: "" }),
@@ -172,6 +173,7 @@ const folderDestination: ReleaseDestinationDefinition = {
 const zipDestination: ReleaseDestinationDefinition = {
   id: "@pipelab/core/destination/zip",
   label: "ZIP",
+  icon: { type: "icon", icon: "mdi-folder-zip-outline" },
   accepts: { container: "directory" },
   fields: [{ key: "outputPath", type: "file", label: "ZIP output path", required: true }],
   createDefaultConfig: () => ({ outputPath: "" }),

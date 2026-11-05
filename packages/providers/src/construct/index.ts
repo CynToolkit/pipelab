@@ -18,13 +18,19 @@ export const constructSource: ReleaseSourceDefinition = {
   id: "@pipelab/plugin-construct/source",
   label: "Construct project",
   fields: [
-    { key: "path", type: "file", label: "Project file", required: true, fileExtensions: ["c3p"] },
+    {
+      key: "path",
+      type: "file",
+      label: "Project file",
+      required: true,
+      fileExtensions: ["c3p"],
+      showInWizard: true,
+    },
     {
       key: "profilePath",
       type: "select",
       label: "Browser profile",
       required: true,
-      deferUntilEditor: true,
     },
     {
       key: "accountConnectionId",

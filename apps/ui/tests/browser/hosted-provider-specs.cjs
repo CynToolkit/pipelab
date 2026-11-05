@@ -44,7 +44,7 @@ const chromiumPath = process.env.CHROMIUM_PATH || "/usr/bin/chromium";
       .getByRole("button", { name: /New workflow/ })
       .first()
       .click();
-    const dialog = page.getByRole("dialog", { name: "New release" });
+    const dialog = page.getByRole("dialog", { name: "New workflow" });
     await dialog.waitFor();
 
     await dialog.getByLabel("Name", { exact: true }).fill("Hosted provider-spec draft");

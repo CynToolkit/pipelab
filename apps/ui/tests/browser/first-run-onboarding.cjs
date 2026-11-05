@@ -1602,15 +1602,15 @@ async function journey(
       .getByRole("button", { name: /New workflow/ })
       .first()
       .click();
-    const dialog = page.getByRole("dialog", { name: "New release" });
+    const dialog = page.getByRole("dialog", { name: "New workflow" });
     await dialog.waitFor();
     await dialog.getByRole("heading", { name: "Name your workflow" }).waitFor();
     await page.evaluate(() => document.fonts.ready);
     const stepLabels = await dialog.locator(".step").allTextContents();
     assert.deepEqual(
       stepLabels.map((label) => label.replace(/^0\d\s*/, "").trim()),
-      ["Name & description", "Source & project path", "Builds", "Destinations", "Recap"],
-      "wizard presents the five workflow setup steps in order",
+      ["Name & description", "Source & project path", "Destinations", "Review"],
+      "wizard presents the four workflow setup steps in order",
     );
     if (narrow) {
       const stepStrip = dialog.locator(".wizard-step-list");
@@ -1640,7 +1640,7 @@ async function journey(
         const strip = element.getBoundingClientRect();
         const finalStep = lastStep.getBoundingClientRect();
         const visible =
-          lastStep.textContent?.includes("Recap") && finalStep.right <= strip.right + 1;
+          lastStep.textContent?.includes("Review") && finalStep.right <= strip.right + 1;
         const geometry = {
           visible,
           label: lastStep.textContent,
@@ -1658,7 +1658,7 @@ async function journey(
       assert.equal(
         finalStepReveal.visible,
         true,
-        `horizontal scrolling reveals the full Recap step (${JSON.stringify(finalStepReveal)})`,
+        `horizontal scrolling reveals the full Review step (${JSON.stringify(finalStepReveal)})`,
       );
     } else {
       const labelsVisible = await dialog.locator(".wizard-step-list").evaluate((element) => {
@@ -1680,7 +1680,7 @@ async function journey(
           { label: "Source & project path", fullyVisible: true },
           { label: "Builds", fullyVisible: true },
           { label: "Destinations", fullyVisible: true },
-          { label: "Recap", fullyVisible: true },
+          { label: "Review", fullyVisible: true },
         ],
         "all five desktop step labels fit without clipping",
       );
@@ -2432,7 +2432,7 @@ async function journey(
         .getByRole("button", { name: /New workflow/ })
         .first()
         .click();
-      const lateDialog = page.getByRole("dialog", { name: "New release" });
+      const lateDialog = page.getByRole("dialog", { name: "New workflow" });
       await lateDialog.waitFor();
       await lateDialog.getByLabel("Name", { exact: true }).fill("Cancelled late workflow");
       await lateDialog.getByLabel("Description", { exact: true }).fill("Cancelled description");
@@ -2470,7 +2470,7 @@ async function journey(
         .getByRole("button", { name: /New workflow/ })
         .first()
         .click();
-      const reopened = page.getByRole("dialog", { name: "New release" });
+      const reopened = page.getByRole("dialog", { name: "New workflow" });
       await reopened.waitFor();
       assert.equal(
         await reopened.getByLabel("Name", { exact: true }).inputValue(),
