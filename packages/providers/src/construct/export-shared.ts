@@ -8,7 +8,13 @@ import {
   runWithLiveLogs,
   fetchPackage,
 } from "@pipelab/plugin-core";
-import { constructAccountOrigin, script } from "./assets/script.js";
+import {
+  constructAccountOrigin,
+  constructExportTypeLabel,
+  CONSTRUCT_EXPORT_TYPES,
+  parseConstructExportType,
+  script,
+} from "./assets/script.js";
 import * as v from "valibot";
 import type { BrowserContext, Video } from "playwright";
 import type { Dirent } from "node:fs";
@@ -58,6 +64,23 @@ export const sharedParams = {
     label: "Version",
     required: false,
   }),
+  exportType: {
+    description:
+      "The Construct export target. Desktop targets are only available when the Construct account plan includes them.",
+    required: false,
+    label: "Export type",
+    control: {
+      type: "select",
+      options: {
+        options: CONSTRUCT_EXPORT_TYPES.map((type) => ({
+          label: constructExportTypeLabel(type),
+          value: type,
+        })),
+        placeholder: constructExportTypeLabel("web"),
+      },
+    },
+    value: "web",
+  },
   headless: {
     description: "Run without showing the browser; disable this to watch the export",
     required: false,
@@ -537,6 +560,7 @@ export const exportc3p = async (
     if (version.toLowerCase() === "latest") version = "";
     if (/^\d+$/.test(version)) version = `r${version}`;
     const headless = newInputs.headless ?? true;
+    const exportType = parseConstructExportType(newInputs.exportType);
     const browserChannel = "chromium";
     const recordVideo = shouldRecordPlaywrightVideo(process.env.NODE_ENV, isCI)
       ? { dir: downloadDir }
@@ -646,6 +670,7 @@ export const exportc3p = async (
       abortSignal,
       exportTimeoutMs,
       useConnectionAccountSession && managedProfileInitialized,
+      exportType,
       // addonsFolder,
     );
 

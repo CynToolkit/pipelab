@@ -31,9 +31,10 @@ packaging producer. It is not a selectable build option in the editor.
   artifact's files recursively to that directory, clearing that target first.
   Choose the output directory carefully because its existing contents are
   removed before the copy.
-- **ZIP** requires a **ZIP output path** and accepts directory artifacts. It
-  writes the directory contents as an archive at that path and creates its
-  parent directory if needed.
+- **ZIP** requires a **ZIP output path** and accepts directory artifacts. Use
+  the browse button to choose where to save the archive and type a new file name
+  (the file does not need to exist yet). It writes the directory contents as an
+  archive at that path and creates its parent directory if needed.
 
 ::: warning
 The Folder destination clears its configured output directory before copying

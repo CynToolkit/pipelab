@@ -159,6 +159,16 @@ export const validateReleaseConfigShape = (config: unknown): ValidationIssue[] =
         severity: "error",
         path: `${path}.input`,
       });
+    if (
+      build.inputs !== undefined &&
+      (!Array.isArray(build.inputs) || !build.inputs.every((input) => isReleaseOutputRef(input)))
+    )
+      issues.push({
+        code: "release.build.inputs.invalid",
+        message: "Build inputs must be a list of source or build/target references.",
+        severity: "error",
+        path: `${path}.inputs`,
+      });
     if (build.beforeBuild !== undefined) {
       if (!Array.isArray(build.beforeBuild)) {
         issues.push({
@@ -327,10 +337,7 @@ export const validateReleaseConnectionReferences = (
       if (field.type !== "connection") continue;
       const selected = values[field.key];
       if (selected === undefined || selected === null || selected === "") continue;
-      const connection =
-        typeof selected === "string"
-          ? knownByAlias.get(selected)
-          : undefined;
+      const connection = typeof selected === "string" ? knownByAlias.get(selected) : undefined;
       if (!connection) {
         if (typeof selected === "string" && /^[A-Za-z_][A-Za-z0-9_-]*$/.test(selected)) continue;
         issues.push({

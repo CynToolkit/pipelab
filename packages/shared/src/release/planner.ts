@@ -287,72 +287,88 @@ export const planRelease = (
         ),
       );
     resolving.add(buildId);
-    let candidates: Candidate[] = [];
-    if (build.input) {
-      const inputCandidate = resolveRef(build.input, buildPath(buildId, ".input"));
-      if (inputCandidate) candidates = [inputCandidate];
-    } else {
-      // Resolve every other active profile before selecting an implicit input.
-      // This makes the candidate set independent of config array order and
-      // includes descriptors derived through automatic transforms.
-      for (const upstream of configuredBuilds) {
-        const directlyDependsOnCurrent =
-          upstream.input && "buildId" in upstream.input && upstream.input.buildId === buildId;
-        const hasStaticCompatibleOutput = potentialBuildOutputs(buildId, definition).some(
-          (candidate) => "buildId" in candidate.ref && candidate.ref.buildId === upstream.id,
-        );
-        if (
-          upstream.enabled &&
-          upstream.id !== buildId &&
-          (upstream.input || hasStaticCompatibleOutput) &&
-          !directlyDependsOnCurrent &&
-          !resolving.has(upstream.id) &&
-          !resolved.has(`${upstream.id}:__profile__`)
-        )
-          resolveBuild(upstream.id);
-      }
-      candidates = [...resolved.values()].filter(
-        (candidate) =>
-          (sourceRef(candidate.ref) || candidate.ref.targetId !== "__profile__") &&
-          (sourceRef(candidate.ref) || !candidate.ref.buildId.startsWith("__auto__")) &&
-          !(!sourceRef(candidate.ref) && candidate.ref.buildId === buildId),
-      );
-    }
+    const multiInput = definition.inputs === "many";
     let selected: Candidate | undefined;
+    let selectedInputs: Candidate[] | undefined;
     let selectedTransforms: AutomaticStep[] = [];
-    for (const candidate of candidates) {
-      const directAcceptance = accepted(candidate.descriptor, definition, context.host);
-      const path = findAutomaticPath(candidate, definition, registry, context.host);
-      if (path) {
-        if (selected) {
+    if (multiInput) {
+      selectedInputs = resolveExplicitInputs(build, definition, buildId);
+      selected = selectedInputs?.[0];
+    } else {
+      if (build.inputs !== undefined)
+        issues.push(
+          error(
+            "release.build.inputs.unsupported",
+            `${definition.label} consumes a single input; configure input instead of inputs.`,
+            buildPath(buildId, ".inputs"),
+          ),
+        );
+      let candidates: Candidate[] = [];
+      if (build.input) {
+        const inputCandidate = resolveRef(build.input, buildPath(buildId, ".input"));
+        if (inputCandidate) candidates = [inputCandidate];
+      } else {
+        // Resolve every other active profile before selecting an implicit input.
+        // This makes the candidate set independent of config array order and
+        // includes descriptors derived through automatic transforms.
+        for (const upstream of configuredBuilds) {
+          const directlyDependsOnCurrent =
+            (upstream.input && "buildId" in upstream.input && upstream.input.buildId === buildId) ||
+            (upstream.inputs ?? []).some((ref) => "buildId" in ref && ref.buildId === buildId);
+          const hasStaticCompatibleOutput = potentialBuildOutputs(buildId, definition).some(
+            (candidate) => "buildId" in candidate.ref && candidate.ref.buildId === upstream.id,
+          );
+          if (
+            upstream.enabled &&
+            upstream.id !== buildId &&
+            (upstream.input || hasStaticCompatibleOutput) &&
+            !directlyDependsOnCurrent &&
+            !resolving.has(upstream.id) &&
+            !resolved.has(`${upstream.id}:__profile__`)
+          )
+            resolveBuild(upstream.id);
+        }
+        candidates = [...resolved.values()].filter(
+          (candidate) =>
+            (sourceRef(candidate.ref) || candidate.ref.targetId !== "__profile__") &&
+            (sourceRef(candidate.ref) || !candidate.ref.buildId.startsWith("__auto__")) &&
+            !(!sourceRef(candidate.ref) && candidate.ref.buildId === buildId),
+        );
+      }
+      for (const candidate of candidates) {
+        const directAcceptance = accepted(candidate.descriptor, definition, context.host);
+        const path = findAutomaticPath(candidate, definition, registry, context.host);
+        if (path) {
+          if (selected) {
+            issues.push(
+              error(
+                "release.build.input.ambiguous",
+                `Build ${buildId} has multiple compatible inputs.`,
+                buildPath(buildId, ".input"),
+              ),
+            );
+            break;
+          }
+          selected = candidate;
+          selectedTransforms = path;
+        } else if (
+          matchesArtifact(candidate.descriptor, definition.accepts) &&
+          !directAcceptance.accepted &&
+          "reason" in directAcceptance &&
+          directAcceptance.reason
+        ) {
           issues.push(
             error(
-              "release.build.input.ambiguous",
-              `Build ${buildId} has multiple compatible inputs.`,
+              "release.build.input.rejected",
+              directAcceptance.reason,
               buildPath(buildId, ".input"),
             ),
           );
-          break;
         }
-        selected = candidate;
-        selectedTransforms = path;
-      } else if (
-        matchesArtifact(candidate.descriptor, definition.accepts) &&
-        !directAcceptance.accepted &&
-        "reason" in directAcceptance &&
-        directAcceptance.reason
-      ) {
-        issues.push(
-          error(
-            "release.build.input.rejected",
-            directAcceptance.reason,
-            buildPath(buildId, ".input"),
-          ),
-        );
       }
     }
     if (!selected) {
-      if (build.input)
+      if (build.input && !multiInput)
         issues.push(
           error(
             "release.build.input.missing",
@@ -363,7 +379,7 @@ export const planRelease = (
       resolving.delete(buildId);
       return undefined;
     }
-    if (!sourceRef(selected.ref) && !resolved.has(keyFor(selected.ref))) {
+    if (!multiInput && !sourceRef(selected.ref) && !resolved.has(keyFor(selected.ref))) {
       const resolvedInput = resolveRef(selected.ref, buildPath(buildId, ".input"));
       if (!resolvedInput) {
         resolving.delete(buildId);
@@ -381,7 +397,15 @@ export const planRelease = (
           buildPath(buildId, ".beforeBuild"),
         ),
       );
-    if (activeHooks.length && selected.descriptor.container !== "directory")
+    if (activeHooks.length && selectedInputs)
+      issues.push(
+        error(
+          "release.build.before-build.unsupported",
+          `${definition.label} consumes several inputs and does not support Build Profile beforeBuild hooks.`,
+          buildPath(buildId, ".beforeBuild"),
+        ),
+      );
+    else if (activeHooks.length && selected.descriptor.container !== "directory")
       issues.push(
         error(
           "release.build.before-build.input",
@@ -437,7 +461,9 @@ export const planRelease = (
       id: build.id,
       provider: build.engine,
       enabled: true,
-      input: selected.artifactRef,
+      ...(selectedInputs
+        ? { inputs: selectedInputs.map((input) => input.artifactRef) }
+        : { input: selected.artifactRef }),
       config: build.config,
       targets: targetConfigs,
     };
@@ -445,7 +471,7 @@ export const planRelease = (
       ...definition
         .validate(producer, {
           host: context.host,
-          source: selected.descriptor,
+          source: selectedInputs ? undefined : selected.descriptor,
           sourceConfig: config.source.config,
         })
         .map((issue) => ({
@@ -455,14 +481,26 @@ export const planRelease = (
     );
     producers.push(producer);
     graph.nodes.push({ id: build.id, kind: "build" });
-    graph.edges.push({
-      from: sourceRef(selected.ref) ? "source" : selected.ref.buildId,
-      to: build.id,
-    });
+    for (const input of selectedInputs ?? [selected]) {
+      graph.edges.push({
+        from: sourceRef(input.ref) ? "source" : input.ref.buildId,
+        to: build.id,
+      });
+    }
     const resolution: BuildResolution = { candidateByTarget: new Map(), producer };
     for (const target of targetConfigs) {
       const targetDefinition = definition.targets.find((item) => item.id === target.id);
       if (!targetDefinition || !target.enabled) continue;
+      if (selectedInputs && !targetDefinition.output) {
+        issues.push(
+          error(
+            "release.build.target.descriptor",
+            `Target ${target.id} must declare an output descriptor for a multi-input build.`,
+            buildPath(buildId, ".targets"),
+          ),
+        );
+        continue;
+      }
       const descriptor = resolveTargetDescriptor(selected.descriptor, targetDefinition);
       if (!descriptor) {
         issues.push(
@@ -496,6 +534,82 @@ export const planRelease = (
     });
     resolving.delete(buildId);
     return resolution;
+  };
+
+  /**
+   * Resolves the explicit `inputs` of a multi-input build in declared order. Every input must be
+   * accepted directly by the engine (no automatic transforms) and must not reach back into the
+   * build being resolved. Returns undefined when any input is rejected.
+   */
+  const resolveExplicitInputs = (
+    build: ReleaseBuildProfileConfig,
+    definition: ReleaseProducerDefinition,
+    buildId: string,
+  ): Candidate[] | undefined => {
+    if (build.input !== undefined)
+      issues.push(
+        error(
+          "release.build.input.unsupported",
+          `${definition.label} consumes several inputs; configure inputs instead of input.`,
+          buildPath(buildId, ".input"),
+        ),
+      );
+    const refs = build.inputs ?? [];
+    if (!refs.length) {
+      issues.push(
+        error(
+          "release.build.inputs.required",
+          `Build ${buildId} needs at least one input.`,
+          buildPath(buildId, ".inputs"),
+        ),
+      );
+      return undefined;
+    }
+    let failed = build.input !== undefined;
+    const candidates: Candidate[] = [];
+    const seen = new Set<string>();
+    refs.forEach((ref, index) => {
+      const issuePath = buildPath(buildId, `.inputs.${index}`);
+      if (!sourceRef(ref) && resolving.has(ref.buildId)) {
+        issues.push(
+          error("release.build.input.cycle", `Build cycle detected at ${ref.buildId}.`, issuePath),
+        );
+        failed = true;
+        return;
+      }
+      if (seen.has(keyFor(ref))) {
+        issues.push(
+          error(
+            "release.build.inputs.duplicate",
+            `Build ${buildId} lists the same input more than once: ${keyFor(ref)}.`,
+            issuePath,
+          ),
+        );
+        failed = true;
+        return;
+      }
+      seen.add(keyFor(ref));
+      const candidate = resolveRef(ref, issuePath);
+      if (!candidate) {
+        failed = true;
+        return;
+      }
+      const acceptance = accepted(candidate.descriptor, definition, context.host);
+      if (!acceptance.accepted) {
+        issues.push(
+          error(
+            "release.build.inputs.rejected",
+            ("reason" in acceptance && acceptance.reason) ||
+              `${definition.label} cannot consume input ${keyFor(ref)}.`,
+            issuePath,
+          ),
+        );
+        failed = true;
+        return;
+      }
+      candidates.push(candidate);
+    });
+    return failed ? undefined : candidates;
   };
 
   function resolveRef(ref: ReleaseOutputRef, issuePath?: string): Candidate | undefined {
@@ -544,7 +658,11 @@ export const planRelease = (
     if (resolved.size > before) changed = true;
   }
   for (const build of config.builds ?? [])
-    if (build.enabled && !resolved.has(`${build.id}:__profile__`))
+    if (
+      build.enabled &&
+      !resolved.has(`${build.id}:__profile__`) &&
+      registry.producers.find((candidate) => candidate.id === build.engine)?.inputs !== "many"
+    )
       issues.push(
         error(
           "release.build.input.missing",

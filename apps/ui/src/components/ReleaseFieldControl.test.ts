@@ -318,6 +318,82 @@ describe("ReleaseFieldControl", () => {
     expect(root.querySelector("#field-title")).not.toBeNull();
   });
 
+  it("renders **bold** and `code` in a description as elements, never as HTML", () => {
+    const { root } = mountField("", {
+      key: "version",
+      type: "text",
+      label: "Version",
+      description: "**Leave empty** for the saved one. Appended to `editor/` <img src=x>.",
+    });
+    const help = root.querySelector(".field-help") as HTMLElement;
+
+    expect(help.querySelector("strong")?.textContent).toBe("Leave empty");
+    expect(help.querySelector("code")?.textContent).toBe("editor/");
+    expect(help.querySelector("img")).toBeNull();
+    expect(help.textContent).toContain("<img src=x>");
+  });
+
+  it("uses the field placeholder in the empty input", () => {
+    const { root } = mountField("", {
+      key: "version",
+      type: "text",
+      label: "Version",
+      placeholder: "Empty: the saved release",
+    });
+
+    expect((root.querySelector("#field-title") as HTMLInputElement).placeholder).toBe(
+      "Empty: the saved release",
+    );
+  });
+
+  it("offers one-click suggestions on a text field without restricting the value", async () => {
+    const { root, updates } = mountField(
+      "r400",
+      { key: "version", type: "text", label: "Version" },
+      [
+        { label: "r466-2 · saved in project", value: "r466-2" },
+        { label: "latest", value: "latest" },
+      ],
+    );
+    const chips = [...root.querySelectorAll<HTMLButtonElement>(".suggestion-chip")];
+
+    expect(chips.map((chip) => chip.textContent?.trim())).toEqual([
+      "r466-2 · saved in project",
+      "latest",
+    ]);
+    // A custom value stays editable and no suggestion claims to be selected.
+    expect(chips.every((chip) => chip.getAttribute("aria-pressed") === "false")).toBe(true);
+
+    chips[1]!.click();
+    await nextTick();
+    expect(updates.at(-1)).toBe("latest");
+  });
+
+  it("clears a suggestion that is clicked again so the field falls back to empty", async () => {
+    const { root, updates } = mountField("latest", { key: "version", type: "text", label: "V" }, [
+      { label: "latest", value: "latest" },
+    ]);
+    const chip = root.querySelector(".suggestion-chip") as HTMLButtonElement;
+
+    expect(chip.getAttribute("aria-pressed")).toBe("true");
+    chip.click();
+    await nextTick();
+    expect(updates.at(-1)).toBe("");
+  });
+
+  it("does not show suggestions for select fields or while an environment variable is bound", () => {
+    const options = [{ label: "latest", value: "latest" }];
+    const select = mountField("", { key: "channel", type: "select", label: "Channel" }, options);
+    const bound = mountField(
+      "${{ env.CONSTRUCT_VERSION }}",
+      { key: "version", type: "text", label: "Version" },
+      options,
+    );
+
+    expect(select.root.querySelector(".suggestion-chip")).toBeNull();
+    expect(bound.root.querySelector(".suggestion-chip")).toBeNull();
+  });
+
   it("keeps connection fields outside ordinary environment bindings", () => {
     const connectionField: ReleaseFieldDefinition = {
       key: "account",
@@ -362,20 +438,6 @@ describe("ReleaseFieldControl", () => {
     connection.dispatchEvent(new Event("change", { bubbles: true }));
     await nextTick();
     expect(bindingUpdates.at(-1)).toBe("connection-prod");
-  });
-
-  it("explains that a saved Connection binding stays on this Desktop", () => {
-    const { root } = mountField(
-      "publish",
-      { key: "account", type: "connection", label: "Store account", integration: "store" },
-      [{ label: "Production", value: "connection-prod" }],
-      "connection-prod",
-    );
-
-    const helper = root.querySelector(".connection-binding-help");
-    expect(helper).not.toBeNull();
-    expect(helper?.textContent ?? "").toContain("This Desktop");
-    expect(helper?.textContent ?? "").toContain("workflow only stores the alias");
   });
 
   it("lets an account be picked without a workflow alias, leaving naming to the parent", () => {

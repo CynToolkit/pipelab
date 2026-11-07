@@ -21,6 +21,17 @@ describe("Godot release preset validation", () => {
     expect(Object.keys(plugin.workflowTasks ?? {})).toEqual(["@pipelab/plugin-godot/godot:export"]);
   });
 
+  it("declares the Godot web target as a web build target without declaring a default", () => {
+    expect(godotSource).not.toHaveProperty("webBuild");
+    expect(godotExporter.planning.mode).toBe("build");
+    expect(godotExporter.targets).toContainEqual(
+      expect.objectContaining({ id: "web", buildType: "web" }),
+    );
+    for (const target of godotExporter.targets) {
+      expect(target).not.toHaveProperty("defaultFor");
+    }
+  });
+
   it("reports the source field path", () => {
     expect(godotSource.validate({})).toEqual([expect.objectContaining({ path: "path" })]);
   });

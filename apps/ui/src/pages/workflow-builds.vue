@@ -118,7 +118,6 @@
           <header class="section-heading">
             <div>
               <h2>Build profiles</h2>
-              <p>Choose engines and targets for outputs used by your destinations.</p>
             </div>
             <span v-if="!planning && plan" class="build-count">
               {{ flow.builds.length }} {{ flow.builds.length === 1 ? "build" : "builds" }}
@@ -154,12 +153,16 @@
                     >Targets: {{ enabledTargetLabels(build).join(", ") || "None selected" }}</small
                   >
                   <small>
-                    Input:
+                    {{ isManyInputEngine(catalog, build.engine) ? "Inputs:" : "Input:" }}
                     {{
-                      plannedBuildInputLabel(flow, plan, catalog, build.id) || "No compatible input"
+                      plannedBuildInputLabel(flow, plan, catalog, build.id) ||
+                      (isManyInputEngine(catalog, build.engine)
+                        ? "None selected"
+                        : "No compatible input")
                     }}
                     {{
-                      build.input || !plannedBuildInputLabel(flow, plan, catalog, build.id)
+                      buildUsesExplicitInput(build) ||
+                      !plannedBuildInputLabel(flow, plan, catalog, build.id)
                         ? ""
                         : "(automatic)"
                     }}
@@ -203,7 +206,13 @@
     </main>
   </WorkflowShell>
 
-  <Dialog v-model:visible="addVisible" modal header="Add build" :style="dialogStyle">
+  <Dialog
+    class="pl-dialog"
+    v-model:visible="addVisible"
+    modal
+    header="Add build"
+    :style="dialogStyle"
+  >
     <div class="settings-grid">
       <div class="release-field">
         <label for="new-build-type">Type</label>
@@ -269,6 +278,7 @@
   </Dialog>
 
   <Dialog
+    class="pl-dialog"
     v-model:visible="settingsVisible"
     modal
     :closable="!hasUnappliedBuildChanges"
@@ -333,7 +343,27 @@
         </div>
       </div>
 
-      <div class="release-field wide">
+      <div v-if="isManyInputDraft" class="release-field wide">
+        <label :for="`settings-inputs-${draftBuild.id}`">Inputs</label>
+        <MultiSelect
+          :id="`settings-inputs-${draftBuild.id}`"
+          :class="{ 'issue-focus': isSettingsIssueControl(`settings-inputs-${draftBuild.id}`) }"
+          :model-value="draftBuildInputValues"
+          :options="draftBundleInputOptions"
+          optionLabel="label"
+          optionValue="value"
+          :placeholder="draftBundleInputOptions.length ? 'Select inputs' : 'No compatible outputs'"
+          :disabled="!draftBundleInputOptions.length"
+          @update:model-value="setDraftBuildInputs"
+        />
+        <small
+          v-for="issue in draftBundleInputIssues"
+          :key="`${issue.code}:${issue.path}`"
+          class="field-issue field-issue-error"
+          >{{ issue.message }}</small
+        >
+      </div>
+      <div v-if="!isManyInputDraft" class="release-field wide">
         <template
           v-if="
             buildInputChecking ||
@@ -467,7 +497,13 @@
     </template>
   </Dialog>
 
-  <Dialog v-model:visible="connectionVisible" modal header="Add connection" :style="dialogStyle">
+  <Dialog
+    class="pl-dialog"
+    v-model:visible="connectionVisible"
+    modal
+    header="Add connection"
+    :style="dialogStyle"
+  >
     <div class="settings-grid">
       <div class="release-field">
         <label for="build-connection-name">Name</label>
@@ -533,9 +569,15 @@ import { useAppStore } from "../store/app";
 import { useConnectionsStore } from "../store/connections";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 import {
+  addCompatibleBuild,
   applyProducerInspection,
   buildInputControlVisible,
+  buildUsesExplicitInput,
+  bundleCandidateOutputs,
   compatibleBuildInputLabel,
+  createBundleBuild,
+  isManyInputEngine,
+  setBuildInputs,
   buildEnginesFor,
   buildProfileSummary,
   buildTargetAvailabilityReason,
@@ -860,6 +902,31 @@ const canApplyBuildSettings = computed(() => {
 const draftBuildInputOptions = computed(() =>
   draftBuild.value ? buildInputOptions.value[draftBuild.value.id] || [] : [],
 );
+const isManyInputDraft = computed(() =>
+  Boolean(draftBuild.value && isManyInputEngine(catalog.value, draftBuild.value.engine)),
+);
+// Copy of the workflow with the staged draft in place of the saved build, for planner checks.
+const configWithDraftBuild = (): ReleaseConfig | undefined => {
+  if (!flow.value || !draftBuild.value) return undefined;
+  const config = structuredClone(toRaw(flow.value));
+  const index = config.builds.findIndex((build) => build.id === draftBuild.value?.id);
+  if (index >= 0) config.builds[index] = structuredClone(toRaw(draftBuild.value));
+  return config;
+};
+// Only the draft's engine decides which outputs it accepts; its own outputs are never offered.
+const draftBundleInputOptions = computed(() => {
+  const draft = draftBuild.value;
+  if (!draft || !isManyInputEngine(catalog.value, draft.engine)) return [];
+  const config = configWithDraftBuild();
+  return config ? bundleCandidateOutputs(config, catalog.value, draft.id) : [];
+});
+const draftBuildInputValues = computed(() =>
+  (draftBuild.value?.inputs ?? []).map((ref) => releaseOutputRefValue(ref)),
+);
+const draftBundleInputIssues = computed(() => {
+  const index = flow.value?.builds.findIndex((build) => build.id === draftBuild.value?.id) ?? -1;
+  return index < 0 || !plan.value ? [] : issuesForPath(plan.value.issues, `builds.${index}.inputs`);
+});
 const buildTypeLabel = (id: string) =>
   catalog.value.buildTypes.find((type) => type.id === id)?.label || id;
 const engineDefinition = (id: string) =>
@@ -1223,6 +1290,12 @@ const refreshCompatibleBuilds = async () => {
 
 const refreshBuildInputs = async () => {
   if (!settingsVisible.value || !draftBuild.value || !flow.value || !plan.value) return;
+  // Multi-input builds choose their inputs from a list instead of one planner-probed input.
+  if (isManyInputEngine(catalog.value, draftBuild.value.engine)) {
+    latestBuildInputRequest += 1;
+    buildInputChecking.value = false;
+    return;
+  }
   const requestId = ++latestBuildInputRequest;
   const buildId = draftBuild.value.id;
   const buildIndex = flow.value.builds.findIndex((build) => build.id === buildId);
@@ -1364,7 +1437,9 @@ const addBuild = () => {
     !newBuildTarget.value
   )
     return;
-  const build = createBuildProfile(
+  const multiInput = isManyInputEngine(catalog.value, newBuildEngine.value);
+  const create = multiInput ? createBundleBuild : createBuildProfile;
+  const build = create(
     catalog.value,
     newBuildType.value,
     newBuildEngine.value,
@@ -1375,24 +1450,22 @@ const addBuild = () => {
   if (!build) return;
   flow.value.builds.push(build);
   addVisible.value = false;
+  // A multi-input build starts with no inputs, so its configuration opens to choose them.
+  if (multiInput) openBuildSettings(build);
 };
 const createCompatibleBuild = (choice: CompatibleBuildCandidate) => {
-  if (!flow.value || !compatibleSlot.value) return;
-  const target = buildTargetsFor(catalog.value, choice.engine, choice.type).find(
-    (candidate) => candidate.id === choice.target,
-  );
-  if (!target || !buildTargetIsAvailable(target)) return;
-  const build = createBuildProfile(
-    catalog.value,
-    choice.type,
-    choice.engine,
-    nanoid(),
-    [choice.target],
-    releaseWorkflowConnectionAliases(flow.value, catalog.value),
-  );
-  if (!build) return;
-  flow.value.builds.push(build);
-  compatibleSlot.value.input = { buildId: build.id, targetId: choice.target };
+  if (!flow.value || !compatibleDestinationId.value || !compatibleSlotId.value) return;
+  if (
+    !addCompatibleBuild(
+      flow.value,
+      catalog.value,
+      compatibleDestinationId.value,
+      compatibleSlotId.value,
+      choice,
+      nanoid,
+    )
+  )
+    return;
   compatibleCandidates.value = compatibleCandidates.value.filter(
     (candidate) =>
       !(
@@ -1515,6 +1588,17 @@ const toggleDraftTarget = (target: ReleaseCatalogTarget) => {
 };
 const setDraftBuildInput = (value: string) => {
   if (draftBuild.value) selectBuildInput(draftBuild.value, draftBuildInputOptions.value, value);
+};
+const setDraftBuildInputs = (values: string[]) => {
+  const draft = draftBuild.value;
+  const config = configWithDraftBuild();
+  if (!draft || !config) return;
+  const refs = values.flatMap((value) => {
+    const ref = draftBundleInputOptions.value.find((option) => option.value === value)?.ref;
+    return ref ? [ref] : [];
+  });
+  if (!setBuildInputs(config, draft.id, refs)) return;
+  draft.inputs = config.builds.find((build) => build.id === draft.id)?.inputs ?? [];
 };
 const applyBuildSettings = () => {
   if (!flow.value || !draftBuild.value || !canApplyBuildSettings.value) return;
@@ -1805,15 +1889,17 @@ onUnmounted(() => {
 }
 .section-heading h2 {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
 }
 .compatible-section .section-heading h2 {
-  font-size: 1.05rem;
+  font-size: 0.95rem;
 }
 .section-heading p {
-  margin: 4px 0 0;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.8rem;
+  margin: 3px 0 0;
+  color: var(--pl-muted);
+  font-size: 0.82rem;
 }
 .build-count {
   color: var(--p-text-muted-color, var(--text-color-secondary));
@@ -1835,9 +1921,17 @@ onUnmounted(() => {
   align-items: center;
   gap: 12px 20px;
   padding: 14px 16px;
-  border: 1px solid var(--p-surface-200, var(--surface-border));
-  border-radius: 8px;
-  background: var(--p-surface-0, var(--surface-card));
+  border: 1px solid var(--pl-border);
+  border-radius: var(--pl-radius);
+  background: var(--pl-card);
+  box-shadow: var(--pl-shadow-xs);
+  transition:
+    border-color 0.15s var(--pl-ease),
+    box-shadow 0.2s var(--pl-ease);
+}
+.build-row:hover {
+  border-color: var(--pl-border-strong);
+  box-shadow: var(--pl-shadow-sm);
 }
 .build-row.build-invalid {
   border-color: color-mix(
@@ -1857,14 +1951,20 @@ onUnmounted(() => {
 }
 .build-icon {
   display: grid;
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   flex: 0 0 auto;
   place-items: center;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  background: var(--p-surface-100, var(--surface-ground));
-  border-radius: 7px;
-  font-size: 17px;
+  color: var(--pl-accent);
+  background: linear-gradient(
+    145deg,
+    var(--pl-card),
+    color-mix(in srgb, var(--p-text-color) 5%, var(--pl-card))
+  );
+  border: 1px solid var(--pl-border);
+  border-radius: 11px;
+  box-shadow: var(--pl-shadow-xs);
+  font-size: 18px;
 }
 .build-copy {
   display: grid;
@@ -1873,7 +1973,9 @@ onUnmounted(() => {
 }
 .build-copy strong {
   overflow-wrap: anywhere;
-  font-size: 0.88rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 .build-copy span {
   color: var(--p-text-muted-color, var(--text-color-secondary));
@@ -1899,10 +2001,10 @@ onUnmounted(() => {
   font-size: 0.75rem;
 }
 .compatible-section {
-  padding: 16px;
-  border: 1px solid var(--p-surface-200, var(--surface-border));
-  border-radius: 8px;
-  background: var(--p-surface-50, var(--surface-ground));
+  padding: 18px;
+  border: 1px solid var(--pl-border);
+  border-radius: var(--pl-radius);
+  background: var(--pl-sunken);
 }
 .compatible-choice {
   display: flex;
@@ -1910,9 +2012,9 @@ onUnmounted(() => {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  border: 1px solid var(--p-surface-200, var(--surface-border));
-  border-radius: 6px;
-  background: var(--p-surface-0, var(--surface-card));
+  border: 1px solid var(--pl-border);
+  border-radius: 12px;
+  background: var(--pl-card);
 }
 .choice-copy {
   display: grid;
@@ -1931,8 +2033,8 @@ onUnmounted(() => {
   justify-items: center;
   gap: 8px;
   padding: 44px 20px;
-  border: 1px dashed var(--p-surface-300, var(--surface-border));
-  border-radius: 8px;
+  border: 1px dashed var(--pl-border-strong);
+  border-radius: var(--pl-radius);
   text-align: center;
 }
 .empty-state > i {
@@ -1989,7 +2091,7 @@ onUnmounted(() => {
 .settings-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px 16px;
+  gap: 20px 16px;
 }
 .release-field {
   display: grid;
@@ -2001,9 +2103,9 @@ onUnmounted(() => {
 }
 .release-field > label,
 .field-label {
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 600;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
+  color: var(--p-text-color);
 }
 .target-list {
   display: grid;

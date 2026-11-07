@@ -1,9 +1,10 @@
 <template>
   <Dialog
     v-model:visible="visible"
+    class="pl-dialog pl-workflow"
     modal
     header="New workflow"
-    :style="{ width: '680px', maxWidth: '96vw' }"
+    :style="{ width: '720px', maxWidth: '96vw' }"
   >
     <p v-if="!isReady && !isBrowser" role="status">
       Reconnect the agent to continue setting up this workflow.
@@ -26,8 +27,18 @@
           asChild
           v-slot="{ active }"
         >
-          <div class="step" :aria-current="active ? 'step' : undefined">
-            {{ item.number }} <span>{{ item.label }}</span>
+          <div
+            class="step"
+            :class="{ done: isStepDone(item.value) }"
+            :aria-current="active ? 'step' : undefined"
+          >
+            <span class="step-index"
+              ><i v-if="isStepDone(item.value)" class="pi pi-check" aria-hidden="true" /><template
+                v-else
+                >{{ item.index }}</template
+              ></span
+            >
+            <span class="step-label">{{ item.label }}</span>
           </div>
         </Step>
       </StepList>
@@ -35,7 +46,6 @@
         <StepPanel value="details">
           <div class="wizard-panel">
             <h2>Name your workflow</h2>
-            <p>Add a name and description for this release.</p>
             <div class="field wide">
               <label for="release-name">Name</label>
               <InputText id="release-name" v-model="draft.name" />
@@ -58,7 +68,6 @@
         <StepPanel value="source">
           <div class="wizard-panel">
             <h2>Choose a source</h2>
-            <p>Choose the project or files this release represents.</p>
             <div class="choice-grid source-grid">
               <button
                 v-for="source in catalog.sources"
@@ -76,7 +85,6 @@
                 />
                 <i v-else :class="providerIconClass(sourceIcon(source))" aria-hidden="true" />
                 <strong>{{ source.label }}</strong>
-                <small>{{ sourceCaption(source) }}</small>
               </button>
             </div>
             <template v-if="sourceDefinition">
@@ -321,9 +329,11 @@ const activeSteps = RELEASE_WIZARD_STEPS;
 const steps = activeSteps.map((value, index) => ({
   value,
   label: stepLabels[value],
-  number: `0${index + 1}`,
+  index: index + 1,
 }));
 const step = ref<ReleaseWizardStep>("details");
+const isStepDone = (value: ReleaseWizardStep) =>
+  activeSteps.indexOf(value) < activeSteps.indexOf(step.value);
 const workflowId = ref("");
 const catalog = computed(() => appStore.releaseCatalog);
 const draft = ref(createReleaseWizardDraft());
@@ -358,16 +368,6 @@ const canCreate = computed(() =>
 const recap = computed(() => releaseWizardRecap(draft.value, catalog.value));
 const sourceIcon = (source?: (typeof catalog.value.sources)[number]) =>
   resolveSourceIcon(appStore.providerDefinitions, source);
-const sourceCaption = (source: (typeof catalog.value.sources)[number]) => {
-  if (source.description) return source.description;
-  const file = source.fields?.find((field) => field.type === "file");
-  if (file?.fileExtensions?.includes("c3p")) return "Construct .c3p";
-  if (source.output.technology === "godot") return "Godot project";
-  if (source.output.platform === "web")
-    return file?.fileExtensions?.includes("zip") ? "A web app ZIP" : "A web app folder";
-  if (file?.fileExtensions?.includes("zip")) return "A ZIP file";
-  return "A local folder";
-};
 const destinationIcon = (id: string, icon?: IconType) =>
   resolveDestinationIcon(appStore.providerDefinitions, id, icon);
 const hasDestination = (id: string) =>
@@ -496,202 +496,324 @@ watch(
 </script>
 
 <style scoped>
+/* ── Stepper ────────────────────────────────────────────────────── */
+.wizard-step-list {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 4px 0 18px;
+  border-bottom: 1px solid var(--pl-border);
+}
 .step {
   display: flex;
-  flex: 0 0 auto;
-  gap: 7px;
+  flex: 1 1 auto;
   align-items: center;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  padding: 9px 10px;
-  background: transparent;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.72rem;
+  gap: 10px;
+  min-width: 0;
+  color: var(--pl-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
   white-space: nowrap;
   cursor: default;
   user-select: none;
 }
+.step:last-child {
+  flex: 0 0 auto;
+}
+.step::after {
+  content: "";
+  flex: 1 1 24px;
+  min-width: 16px;
+  height: 2px;
+  margin: 0 12px 0 2px;
+  border-radius: 2px;
+  background: var(--pl-border);
+  transition: background 0.3s var(--pl-ease);
+}
+.step:last-child::after {
+  display: none;
+}
+.step-index {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border: 1.5px solid var(--pl-border-strong);
+  border-radius: 50%;
+  background: var(--pl-card);
+  font-size: 0.72rem;
+  font-weight: 650;
+  transition:
+    background 0.2s var(--pl-ease),
+    border-color 0.2s var(--pl-ease),
+    color 0.2s var(--pl-ease),
+    box-shadow 0.2s var(--pl-ease);
+}
+.step-index i {
+  font-size: 0.68rem;
+}
 .step[aria-current="step"] {
-  border-bottom-color: var(--p-primary-color, var(--primary-color, #6366f1));
-  color: var(--text-color);
+  color: var(--p-text-color);
+  font-weight: 650;
 }
-.step[aria-current="step"] span {
-  font-weight: 700;
+.step[aria-current="step"] .step-index {
+  border-color: var(--pl-accent);
+  background: var(--pl-accent);
+  color: var(--p-primary-contrast-color, #fff);
+  box-shadow: var(--pl-ring);
 }
-.step span {
-  font-weight: 600;
+.step.done {
+  color: var(--p-text-color);
 }
+.step.done .step-index {
+  border-color: var(--pl-accent);
+  background: color-mix(in srgb, var(--pl-accent) 10%, var(--pl-card));
+  color: var(--pl-accent);
+}
+.step.done::after {
+  background: var(--pl-accent);
+}
+
+/* ── Panels ─────────────────────────────────────────────────────── */
 .wizard-panel {
   display: grid;
-  gap: 12px;
-  padding: 20px 4px 4px;
+  gap: 16px;
+  padding: 24px 0 0;
+  animation: pl-step-in 0.22s var(--pl-ease);
+}
+@keyframes pl-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
 }
 .wizard-panel h2 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.3rem;
+  font-weight: 650;
+  letter-spacing: -0.025em;
 }
 .wizard-panel h3 {
   margin: 2px 0 -4px;
   font-size: 0.9rem;
 }
 .wizard-panel p {
-  margin: -4px 0 6px;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.8rem;
+  margin: -10px 0 4px;
+  color: var(--pl-muted);
+  font-size: 0.88rem;
 }
 .eyebrow {
-  color: var(--p-text-muted-color, var(--text-color-secondary));
+  color: var(--pl-muted);
   font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 .form-grid {
   display: grid;
-  gap: 12px;
+  gap: 16px;
 }
 .field {
   display: grid;
-  gap: 5px;
+  gap: 7px;
 }
 .field label {
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 600;
 }
 .wide {
   grid-column: 1 / -1;
 }
-.choice-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-.choice-card {
-  display: grid;
-  gap: 5px;
-  border: 1px solid var(--p-surface-200, var(--surface-border));
-  border-radius: 8px;
-  padding: 12px;
-  background: transparent;
-  color: var(--text-color);
-  text-align: left;
-  cursor: pointer;
-}
-.choice-card:hover,
-.choice-card.selected {
-  border-color: var(--p-primary-color, var(--primary-color, #6366f1));
-  background: color-mix(
-    in srgb,
-    var(--p-primary-color, var(--primary-color, #6366f1)) 7%,
-    transparent
-  );
-}
-.choice-card i {
-  color: var(--p-primary-color, var(--primary-color, #6366f1));
-  font-size: 20px;
-}
-.choice-card img {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-}
-.choice-card strong {
-  font-size: 0.78rem;
-}
-.choice-card small {
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.68rem;
-}
 .wizard-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 8px;
+  margin-top: 12px;
+  padding-top: 18px;
+  border-top: 1px solid var(--pl-border);
+}
+
+/* ── Selectable cards ───────────────────────────────────────────── */
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.choice-card,
+.destination-card {
+  position: relative;
+  border: 1px solid var(--pl-border);
+  border-radius: 12px;
+  background: var(--pl-card);
+  color: var(--p-text-color);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s var(--pl-ease),
+    background 0.15s var(--pl-ease),
+    box-shadow 0.2s var(--pl-ease),
+    transform 0.15s var(--pl-ease);
+}
+.choice-card:hover,
+.destination-card:hover {
+  border-color: var(--pl-border-strong);
+  background: var(--pl-sunken);
+  box-shadow: var(--pl-shadow-sm);
+}
+.choice-card:focus-visible,
+.destination-card:focus-visible {
+  outline: none;
+  border-color: var(--pl-accent);
+  box-shadow: var(--pl-ring);
+}
+.choice-card.selected,
+.destination-card.selected {
+  border-color: var(--pl-accent);
+  background: color-mix(in srgb, var(--pl-accent) 5%, var(--pl-card));
+  box-shadow:
+    0 0 0 1px var(--pl-accent),
+    var(--pl-shadow-sm);
+}
+.choice-card.selected::after {
+  content: "\e909";
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--pl-accent);
+  color: var(--p-primary-contrast-color, #fff);
+  font-family: primeicons;
+  font-size: 0.6rem;
+}
+.choice-card {
+  display: grid;
+  gap: 6px;
+  padding: 16px 14px 14px;
+}
+.choice-card i,
+.choice-card img {
+  width: 36px;
+  height: 36px;
+  margin-bottom: 4px;
+  padding: 7px;
+  border: 1px solid var(--pl-border);
+  border-radius: 10px;
+  background: var(--pl-card);
+  box-shadow: var(--pl-shadow-xs);
+  box-sizing: border-box;
+}
+.choice-card i {
+  display: grid;
+  place-items: center;
+  color: var(--pl-accent);
+  font-size: 18px;
+}
+.choice-card img {
+  object-fit: contain;
+}
+.choice-card strong {
+  font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.choice-card small {
+  color: var(--pl-muted);
+  font-size: 0.74rem;
 }
 .destination-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 .destination-card {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
-  border: 1px solid var(--p-surface-200, var(--surface-border));
-  border-radius: 8px;
-  padding: 12px;
-  background: transparent;
-  color: var(--text-color);
-  text-align: left;
-  cursor: pointer;
+  padding: 12px 14px;
+}
+.destination-card > img,
+.destination-card > i:first-child {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  padding: 7px;
+  border: 1px solid var(--pl-border);
+  border-radius: 10px;
+  background: var(--pl-card);
+  box-shadow: var(--pl-shadow-xs);
+  box-sizing: border-box;
 }
 .destination-card > img {
-  flex: 0 0 24px;
-  width: 24px;
-  height: 24px;
   object-fit: contain;
 }
 .destination-card > i:first-child {
-  flex: 0 0 24px;
-  color: var(--p-primary-color, var(--primary-color, #6366f1));
-  font-size: 22px;
-  text-align: center;
+  color: var(--pl-accent);
+  font-size: 18px;
 }
 .destination-card strong {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-size: 0.8rem;
+  font-size: 0.86rem;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .destination-card > i:last-child:not(:first-child) {
-  color: var(--p-primary-color, var(--primary-color, #6366f1));
-  font-size: 1rem;
+  color: var(--pl-accent);
+  font-size: 1.1rem;
 }
-.destination-card:hover,
-.destination-card.selected {
-  border-color: var(--p-primary-color, var(--primary-color, #6366f1));
-  background: color-mix(
-    in srgb,
-    var(--p-primary-color, var(--primary-color, #6366f1)) 7%,
-    transparent
-  );
-}
+
+/* ── Review ─────────────────────────────────────────────────────── */
 .review-card {
   display: grid;
-  border: 1px solid var(--p-surface-200, var(--surface-border));
-  border-radius: 8px;
+  border: 1px solid var(--pl-border);
+  border-radius: var(--pl-radius);
+  background: var(--pl-card);
+  box-shadow: var(--pl-shadow-xs);
 }
 .review-card > div {
   display: grid;
-  gap: 6px;
-  padding: 14px 16px;
+  gap: 8px;
+  padding: 16px 18px;
 }
 .review-card > div + div {
-  border-top: 1px solid var(--p-surface-200, var(--surface-border));
+  border-top: 1px solid var(--pl-border);
+}
+.review-title {
+  background: var(--pl-sunken);
+  border-radius: var(--pl-radius) var(--pl-radius) 0 0;
 }
 .review-title strong {
-  font-size: 1rem;
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
 }
 .review-title small,
 .review-item-text small {
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.72rem;
+  color: var(--pl-muted);
+  font-size: 0.76rem;
   overflow-wrap: anywhere;
 }
 .review-label {
-  color: var(--p-text-muted-color, var(--text-color-secondary));
+  color: var(--pl-muted);
   font-size: 0.68rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 .review-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
 }
 .review-item > img,
@@ -703,7 +825,7 @@ watch(
 }
 .review-item > i,
 .review-chip > i {
-  color: var(--p-primary-color, var(--primary-color, #6366f1));
+  color: var(--pl-accent);
   font-size: 20px;
 }
 .review-item-text {
@@ -712,7 +834,8 @@ watch(
   min-width: 0;
 }
 .review-item-text strong {
-  font-size: 0.85rem;
+  font-size: 0.88rem;
+  font-weight: 600;
 }
 .review-chips {
   display: flex;
@@ -722,32 +845,43 @@ watch(
 .review-chip {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  border: 1px solid var(--p-surface-200, var(--surface-border));
+  gap: 8px;
+  border: 1px solid var(--pl-border);
   border-radius: 999px;
-  padding: 5px 12px 5px 8px;
-  font-size: 0.78rem;
+  padding: 5px 13px 5px 9px;
+  background: var(--pl-sunken);
+  font-size: 0.8rem;
   font-weight: 600;
 }
 .review-chip > i {
   font-size: 16px;
 }
 .review-error {
-  color: var(--p-red-500, #ef4444) !important;
+  color: var(--red-500, #ef4444) !important;
+}
+.wizard-create-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--red-500, #ef4444) 35%, transparent);
+  border-radius: 10px;
+  color: var(--red-500, #ef4444);
+  background: color-mix(in srgb, var(--red-500, #ef4444) 7%, var(--pl-card));
+  font-size: 0.82rem;
 }
 .helper-copy {
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.75rem;
+  color: var(--pl-muted);
+  font-size: 0.78rem;
 }
 @media (max-width: 640px) {
   .wizard-step-list {
-    min-width: 0;
-    max-width: 100%;
-    justify-content: flex-start;
-    gap: 8px;
     overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: thin;
+    scrollbar-width: none;
+  }
+  .step:not([aria-current="step"]) .step-label {
+    display: none;
   }
   .choice-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

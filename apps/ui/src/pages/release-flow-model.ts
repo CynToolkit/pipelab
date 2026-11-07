@@ -1,21 +1,24 @@
 import { toRaw } from "vue";
-import type {
-  ReleaseBuildProfileConfig,
-  ReleaseCatalog,
-  ReleaseConfig,
-  Connection,
-  ReleaseOutputRef,
-  ReleasePlan,
-  ReleaseDestinationSlot,
-  ReleaseCatalogTarget,
-  Availability,
-  ProducerInspection,
-  ValidationIssue,
-  ReleaseFieldDefinition,
+import {
+  applyArtifactDescriptorTransform,
+  matchesArtifact,
+  type ArtifactDescriptor,
+  type ArtifactRef,
+  type ReleaseBuildProfileConfig,
+  type ReleaseCatalog,
+  type ReleaseConfig,
+  type Connection,
+  type ReleaseOutputRef,
+  type ReleasePlan,
+  type ReleaseDestinationSlot,
+  type ReleaseCatalogTarget,
+  type Availability,
+  type ProducerInspection,
+  type ValidationIssue,
+  type ReleaseFieldDefinition,
 } from "@pipelab/shared";
 import {
   releaseWorkflowConnectionAliases,
-  releaseDestinationLocalName,
   suggestWorkflowConnectionAlias,
 } from "../utils/release-connection-bindings";
 
@@ -111,20 +114,9 @@ export const appendReleaseDestinationInstance = (
   catalog?: ReleaseCatalog,
 ) => {
   const usedAliases = new Set(catalog ? releaseWorkflowConnectionAliases(flow, catalog) : []);
-  const sameProviderDestinations = flow.destinations.filter(
-    (candidate) => candidate.provider === definition.id,
-  );
-  const usedNames = new Set(
-    sameProviderDestinations.map((candidate) =>
-      releaseDestinationLocalName(candidate, flow.destinations),
-    ),
-  );
-  let destinationNumber = 1;
-  while (usedNames.has(`Destination ${destinationNumber}`)) destinationNumber += 1;
   const destination: ReleaseConfig["destinations"][number] = {
     id: createId(),
     provider: definition.id,
-    name: `Destination ${destinationNumber}`,
     enabled: true,
     config: structuredClone(toRaw(definition.defaultConfig)),
     slots: [{ id: createId(), name: "Deployment 1", enabled: true, config: {} }],
@@ -365,6 +357,61 @@ export const createBuildProfile = (
   };
 };
 
+export const isManyInputEngine = (catalog: ReleaseCatalog, engine: string) =>
+  catalog.producers.find((producer) => producer.id === engine)?.inputs === "many";
+
+/** Creates a multi-input build with an empty, ordered input list. Single-input engines return undefined. */
+export const createBundleBuild = (
+  catalog: ReleaseCatalog,
+  type: string,
+  engine: string,
+  id: string,
+  preferredTargets?: string[],
+  existingAliases: string[] = [],
+): ReleaseBuildProfileConfig | undefined => {
+  if (!isManyInputEngine(catalog, engine)) return undefined;
+  const build = createBuildProfile(catalog, type, engine, id, preferredTargets, existingAliases);
+  return build && { ...build, inputs: [] };
+};
+
+/** True when the build has an explicit single input or at least one explicit multi-input ref. */
+export const buildUsesExplicitInput = (build: ReleaseBuildProfileConfig) =>
+  Boolean(build.input || build.inputs?.length);
+
+/**
+ * Adds the build a compatible-build probe suggested and routes the deployment slot to its target.
+ * Returns false, leaving the workflow untouched, when the slot or target is no longer available.
+ */
+export const addCompatibleBuild = (
+  config: ReleaseConfig,
+  catalog: ReleaseCatalog,
+  destinationId: string,
+  slotId: string,
+  choice: CompatibleBuildCandidate,
+  createId: () => string,
+): boolean => {
+  const slot = config.destinations
+    .find((destination) => destination.id === destinationId)
+    ?.slots.find((candidate) => candidate.id === slotId);
+  if (!slot || isManyInputEngine(catalog, choice.engine)) return false;
+  const target = buildTargetsFor(catalog, choice.engine, choice.type).find(
+    (candidate) => candidate.id === choice.target,
+  );
+  if (!target || !buildTargetIsAvailable(target)) return false;
+  const build = createBuildProfile(
+    catalog,
+    choice.type,
+    choice.engine,
+    createId(),
+    [choice.target],
+    releaseWorkflowConnectionAliases(config, catalog),
+  );
+  if (!build) return false;
+  config.builds.push(build);
+  slot.input = { buildId: build.id, targetId: choice.target };
+  return true;
+};
+
 export const removeBuildProfile = (config: ReleaseConfig, id: string): boolean => {
   const nextBuilds = config.builds.filter((build) => build.id !== id);
   if (nextBuilds.length === config.builds.length) return false;
@@ -411,7 +458,7 @@ export const switchBuildProfileEngine = (
       config[field.key] = "";
   }
   suggestMissingConnectionAliases(config, producer.fields, usedAliases);
-  return {
+  const switched: ReleaseBuildProfileConfig = {
     ...build,
     engine,
     config,
@@ -438,6 +485,121 @@ export const switchBuildProfileEngine = (
         return { id: target.id, enabled: false, config: targetConfig };
       }),
   };
+  // Single and multi-input engines never share an input shape; start the new shape empty.
+  if (producer.inputs === "many") {
+    delete switched.input;
+    switched.inputs = build.inputs ?? [];
+  } else {
+    delete switched.inputs;
+  }
+  return switched;
+};
+
+const buildInputRefs = (build: ReleaseBuildProfileConfig) => [
+  ...(build.input ? [build.input] : []),
+  ...(build.inputs ?? []),
+];
+
+/** True when `consumerId` reaches `producerId` through its explicit inputs, directly or transitively. */
+const consumesBuild = (
+  config: ReleaseConfig,
+  consumerId: string,
+  producerId: string,
+  seen = new Set<string>(),
+): boolean => {
+  if (seen.has(consumerId)) return false;
+  seen.add(consumerId);
+  const consumer = config.builds.find((build) => build.id === consumerId);
+  if (!consumer) return false;
+  return buildInputRefs(consumer).some(
+    (ref) =>
+      !("source" in ref) &&
+      (ref.buildId === producerId || consumesBuild(config, ref.buildId, producerId, seen)),
+  );
+};
+
+/** Resolves the descriptor an output will have, from explicit output or a single-input transform. */
+const outputDescriptor = (
+  config: ReleaseConfig,
+  catalog: ReleaseCatalog,
+  ref: ReleaseOutputRef,
+  visiting: Set<string>,
+): ArtifactDescriptor | undefined => {
+  if ("source" in ref)
+    return catalog.sources.find((source) => source.id === config.source.provider)?.output;
+  if (visiting.has(ref.buildId)) return undefined;
+  const build = config.builds.find((candidate) => candidate.id === ref.buildId);
+  const target = catalog.producers
+    .find((producer) => producer.id === build?.engine)
+    ?.targets.find((candidate) => candidate.id === ref.targetId);
+  if (!build || !target) return undefined;
+  if (target.output) return target.output;
+  if (!target.transform || !build.input) return undefined;
+  const input = outputDescriptor(config, catalog, build.input, new Set([...visiting, build.id]));
+  return input && applyArtifactDescriptorTransform(input, target.transform);
+};
+
+/**
+ * Outputs of other enabled builds that the multi-input build's engine accepts. Builds that would
+ * create a cycle (they consume `buildId`, directly or not) are never offered.
+ */
+export const bundleCandidateOutputs = (
+  config: ReleaseConfig,
+  catalog: ReleaseCatalog,
+  buildId: string,
+): ReleaseOutputOption[] => {
+  const consumer = config.builds.find((build) => build.id === buildId);
+  const accepts = catalog.producers.find((producer) => producer.id === consumer?.engine)?.accepts;
+  if (!accepts) return [];
+  const options: ReleaseOutputOption[] = [];
+  for (const build of config.builds) {
+    if (build.id === buildId || !build.enabled || consumesBuild(config, build.id, buildId))
+      continue;
+    const producer = catalog.producers.find((candidate) => candidate.id === build.engine);
+    if (!producer) continue;
+    for (const selected of build.targets) {
+      if (!selected.enabled) continue;
+      const ref = { buildId: build.id, targetId: selected.id };
+      const descriptor = outputDescriptor(config, catalog, ref, new Set());
+      if (!descriptor || !matchesArtifact(descriptor, accepts)) continue;
+      const target = producer.targets.find((candidate) => candidate.id === selected.id);
+      options.push({
+        value: releaseOutputRefValue(ref),
+        label: `${build.name?.trim() || producer.label} · ${target?.label ?? selected.id}`,
+        ref,
+      });
+    }
+  }
+  return options;
+};
+
+/**
+ * Replaces the ordered explicit inputs of a build. Duplicates are dropped, keeping the first
+ * occurrence. Returns false, leaving the build untouched, when a ref does not point at an existing
+ * build target or would make the build consume itself.
+ */
+export const setBuildInputs = (
+  config: ReleaseConfig,
+  buildId: string,
+  refs: ReleaseOutputRef[],
+): boolean => {
+  const build = config.builds.find((candidate) => candidate.id === buildId);
+  if (!build) return false;
+  const next: ReleaseOutputRef[] = [];
+  const seen = new Set<string>();
+  for (const ref of refs) {
+    if (!("source" in ref)) {
+      if (ref.buildId === buildId) return false;
+      const producer = config.builds.find((candidate) => candidate.id === ref.buildId);
+      if (!producer?.targets.some((target) => target.id === ref.targetId)) return false;
+    }
+    const key = releaseOutputRefValue(ref);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    next.push(structuredClone(toRaw(ref)));
+  }
+  build.inputs = next;
+  return true;
 };
 
 const referenceMatchesOwner = (ref: ReleaseOutputRef | undefined, owner: ReleaseOutputOwnerRef) =>
@@ -457,12 +619,18 @@ export const outputReferenceConsumers = (
 ): OutputReferenceConsumer[] => {
   const consumers: OutputReferenceConsumer[] = [];
   config.builds.forEach((build, index) => {
-    if (referenceMatchesOwner(build.input, owner))
+    const inputPosition = build.inputs?.findIndex((ref) => referenceMatchesOwner(ref, owner)) ?? -1;
+    const path = referenceMatchesOwner(build.input, owner)
+      ? `builds.${index}.input`
+      : inputPosition >= 0
+        ? `builds.${index}.inputs.${inputPosition}`
+        : undefined;
+    if (path)
       consumers.push({
         kind: "build",
         ownerId: build.id,
         label: buildConsumerLabel(build, catalog),
-        path: `builds.${index}.input`,
+        path,
       });
   });
   config.destinations.forEach((destination, destinationIndex) => {
@@ -753,6 +921,8 @@ export const probeCompatibleBuildCandidates = async (
   let candidateNumber = 0;
   for (const buildType of catalog.buildTypes) {
     for (const engine of buildEnginesFor(catalog, buildType.id)) {
+      // Multi-input builds need explicit inputs, which a deployment slot cannot choose.
+      if (isManyInputEngine(catalog, engine.id)) continue;
       for (const target of buildTargetsFor(catalog, engine.id, buildType.id)) {
         if (!shouldContinue()) return candidates;
         if (!buildTargetIsAvailable(target)) continue;
@@ -815,6 +985,10 @@ const outputLabel = (config: ReleaseConfig, catalog: ReleaseCatalog, ref: Releas
   return `${build?.name || producer?.label || build?.engine || ref.buildId} — ${target?.label || ref.targetId}`;
 };
 
+const outputRefFromArtifact = (ref: ArtifactRef): ReleaseOutputRef =>
+  "source" in ref ? { source: true } : { buildId: ref.producerId, targetId: ref.outputId };
+
+/** Lists the inputs a build resolves to, in order: configured refs first, then the planner's. */
 export const plannedBuildInputLabel = (
   config: ReleaseConfig,
   plan: ReleasePlan | undefined,
@@ -822,17 +996,24 @@ export const plannedBuildInputLabel = (
   buildId: string,
 ) => {
   const build = config.builds.find((candidate) => candidate.id === buildId);
-  const plannedInput = plan?.producers.find((producer) => producer.id === buildId)?.input;
-  const input =
-    build?.input ??
-    (plannedInput &&
-      ("source" in plannedInput
-        ? { source: true as const }
-        : { buildId: plannedInput.producerId, targetId: plannedInput.outputId }));
-  if (!input) return undefined;
-  if ("buildId" in input && input.buildId.startsWith("__auto__"))
-    return "Automatic conversion output";
-  return outputLabel(config, catalog, input);
+  const planned = plan?.producers.find((producer) => producer.id === buildId);
+  const refs: ReleaseOutputRef[] = build?.inputs?.length
+    ? build.inputs
+    : build?.input
+      ? [build.input]
+      : planned?.inputs?.length
+        ? planned.inputs.map(outputRefFromArtifact)
+        : planned?.input
+          ? [outputRefFromArtifact(planned.input)]
+          : [];
+  if (!refs.length) return undefined;
+  return refs
+    .map((ref) =>
+      "buildId" in ref && ref.buildId.startsWith("__auto__")
+        ? "Automatic conversion output"
+        : outputLabel(config, catalog, ref),
+    )
+    .join(", ");
 };
 
 export const planOutputOptions = (

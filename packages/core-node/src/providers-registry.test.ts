@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vitest";
+import { matchesArtifact } from "@pipelab/shared";
 import type { CompiledArtifact, ReleaseCompileContext } from "@pipelab/shared";
 import { builtInProviders } from "./providers-registry";
 
 const context: ReleaseCompileContext = {
   host: { platform: "linux", architecture: "x64" },
+};
+
+const producerContext: ReleaseCompileContext = {
+  ...context,
+  sourceConfig: { path: "/game.c3p", profilePath: "/profile" },
 };
 
 const input: CompiledArtifact = {
@@ -34,7 +40,7 @@ describe("built-in provider Release task factories", () => {
                 })),
                 config: producer.createDefaultConfig(),
               },
-              context,
+              producerContext,
             )
             .steps.map((step) => step.uses),
         ),
@@ -135,6 +141,7 @@ describe("provider compatibility and composition", () => {
       "@pipelab/plugin-godot/source",
     ]);
     expect(contributedIds("producers")).toEqual([
+      "@pipelab/plugin-construct/producer",
       "@pipelab/plugin-electron/producer",
       "@pipelab/plugin-godot/producer",
       "@pipelab/plugin-tauri/producer",
@@ -145,5 +152,44 @@ describe("provider compatibility and composition", () => {
       "@pipelab/plugin-poki/destination",
       "@pipelab/plugin-steam/destination",
     ]);
+  });
+});
+
+describe("Construct outputs in destinations and producers", () => {
+  const producers = builtInProviders.flatMap((provider) => provider.release?.producers ?? []);
+  const constructProducer = producers.find(
+    (producer) => producer.id === "@pipelab/plugin-construct/producer",
+  );
+  const destinations = builtInProviders.flatMap((provider) => provider.release?.destinations ?? []);
+
+  it("accepts the Construct web output in the Electron, Tauri and Poki web consumers", () => {
+    const webOutput = constructProducer?.targets.find((target) => target.id === "web")?.output;
+    expect(webOutput).toBeDefined();
+    for (const producerId of [
+      "@pipelab/plugin-electron/producer",
+      "@pipelab/plugin-tauri/producer",
+    ]) {
+      const accepts = producers.find((producer) => producer.id === producerId)?.accepts;
+      expect(matchesArtifact(webOutput!, accepts!)).toBe(true);
+    }
+    const pokiAccepts = destinations.find(
+      (item) => item.id === "@pipelab/plugin-poki/destination",
+    )?.accepts;
+    expect(matchesArtifact(webOutput!, pokiAccepts!)).toBe(true);
+  });
+
+  it("routes Construct desktop outputs to Steam and Itch but not to Poki", () => {
+    const constructOutputs =
+      constructProducer?.targets
+        .filter((target) => target.buildType === "desktop")
+        .map((target) => target.output) ?? [];
+    expect(constructOutputs).toHaveLength(3);
+    const acceptsAll = (destinationId: string) =>
+      constructOutputs.every((output) =>
+        matchesArtifact(output!, destinations.find((item) => item.id === destinationId)!.accepts),
+      );
+    expect(acceptsAll("@pipelab/plugin-steam/destination")).toBe(true);
+    expect(acceptsAll("@pipelab/plugin-itch/destination")).toBe(true);
+    expect(acceptsAll("@pipelab/plugin-poki/destination")).toBe(false);
   });
 });

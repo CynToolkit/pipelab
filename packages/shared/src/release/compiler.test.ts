@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { compileReleasePlan, compileWorkflow } from "./compiler";
 import { planRelease } from "./planner";
-import type { ReleaseConfig, ReleaseRegistry } from "./types";
+import type {
+  ReleaseCompileContext,
+  ReleaseConfig,
+  ReleaseProducerDefinition,
+  ReleaseRegistry,
+} from "./types";
 import { runWorkflow, type WorkflowHost, type WorkflowStep } from "@pipelab/workflow-runtime";
 
 const sourceDescriptor = {
@@ -746,5 +751,290 @@ describe("generic release compiler", () => {
       { host: { platform: "linux", architecture: "x64" } },
     );
     expect(workflow.steps.map((step) => step.uses)).toEqual(["zip/source", "extract", "engine"]);
+  });
+});
+
+describe("producer compile context", () => {
+  const exportProducer = (
+    seenContexts: Array<ReleaseCompileContext | undefined>,
+  ): ReleaseProducerDefinition => ({
+    id: "fake/export",
+    label: "Fake export",
+    planning: { mode: "build" },
+    accepts: { kind: "project", technology: "fake" },
+    targets: [
+      {
+        id: "windows-x64",
+        label: "Windows",
+        buildType: "desktop",
+        output: appDescriptor,
+        createDefaultConfig: () => ({}),
+      },
+    ],
+    createDefaultConfig: () => ({}),
+    validate: () => [],
+    compile: (_input, _producer, context) => {
+      seenContexts.push(context);
+      return {
+        steps: [
+          {
+            id: "export",
+            uses: "fake/export",
+            with: { file: "project.c3p" },
+            artifacts: { output: { descriptor: appDescriptor } },
+          },
+        ],
+        artifacts: {
+          "windows-x64": {
+            reference: { stepId: "export", artifact: "output" },
+            descriptor: appDescriptor,
+          },
+        },
+      };
+    },
+  });
+
+  const exportConfig = (overrides: Partial<ReleaseConfig> = {}): ReleaseConfig =>
+    config({
+      source: { provider: "fake/source", config: { path: "project.c3p" } },
+      builds: [
+        {
+          id: "export",
+          type: "desktop",
+          engine: "fake/export",
+          enabled: true,
+          config: {},
+          targets: [{ id: "windows-x64", enabled: true, config: {} }],
+        },
+      ],
+      destinations: [],
+      ...overrides,
+    });
+
+  it("passes the source config to producer compile", () => {
+    const seen: Array<ReleaseCompileContext | undefined> = [];
+    compileWorkflow(
+      exportConfig(),
+      { ...registry, producers: [exportProducer(seen)] },
+      {
+        host: { platform: "linux", architecture: "x64" },
+      },
+    );
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.sourceConfig).toEqual({ path: "project.c3p" });
+  });
+});
+
+describe("multi-input producer compilation", () => {
+  const bundleDescriptor = {
+    kind: "application" as const,
+    platform: "desktop-bundle",
+    container: "archive" as const,
+    format: "zip",
+  };
+  const perBuildProducer: ReleaseProducerDefinition = {
+    ...registry.producers[0],
+    compile: (input, producer) => ({
+      steps: [
+        {
+          id: `build-${producer.id}`,
+          uses: "fake/build",
+          needs: [input.reference.stepId],
+          artifactInputs: { input: input.reference },
+          artifacts: { output: { descriptor: appDescriptor } },
+        },
+      ],
+      artifacts: {
+        "windows-x64": {
+          reference: { stepId: `build-${producer.id}`, artifact: "output" },
+          descriptor: appDescriptor,
+        },
+      },
+    }),
+  };
+  const compiledInputs: Array<{ producerId: string; labels: string[]; refs: unknown[] }> = [];
+  const bundleProducer: ReleaseProducerDefinition = {
+    id: "fake/bundle",
+    label: "Fake bundle",
+    planning: { mode: "build" },
+    inputs: "many",
+    accepts: { kind: "application" },
+    targets: [
+      {
+        id: "zip",
+        label: "Zip",
+        buildType: "desktop",
+        output: bundleDescriptor,
+        createDefaultConfig: () => ({}),
+      },
+    ],
+    createDefaultConfig: () => ({}),
+    validate: () => [],
+    compile: () => {
+      throw new Error("multi-input producers compile through compileMany");
+    },
+    compileMany: (inputs, producer) => {
+      compiledInputs.push({
+        producerId: producer.id,
+        labels: inputs.map((input) => input.label),
+        refs: inputs.map((input) => input.ref),
+      });
+      return {
+        steps: [
+          {
+            id: `bundle-${producer.id}`,
+            uses: "fake/bundle",
+            artifactInputs: Object.fromEntries(
+              inputs.map((input, index) => [`input${index}`, input.artifact.reference]),
+            ),
+            artifacts: { output: { descriptor: bundleDescriptor } },
+          },
+        ],
+        artifacts: {
+          zip: {
+            reference: { stepId: `bundle-${producer.id}`, artifact: "output" },
+            descriptor: bundleDescriptor,
+          },
+        },
+      };
+    },
+  };
+  const multiRegistry: ReleaseRegistry = {
+    ...registry,
+    producers: [perBuildProducer, bundleProducer],
+    destinations: [
+      ...registry.destinations,
+      {
+        id: "fake/archive",
+        label: "Fake archive",
+        accepts: { kind: "application" },
+        createDefaultConfig: () => ({}),
+        validate: () => [],
+        compile: (artifact, destination, slot) => [
+          {
+            id: `archive-${destination.id}-${slot.id}`,
+            uses: "fake/archive",
+            needs: [artifact.reference.stepId],
+            artifactInputs: { folder: artifact.reference },
+          },
+        ],
+      },
+    ],
+  };
+  const build = (id: string, extra: Record<string, unknown> = {}) =>
+    ({
+      id,
+      type: "desktop",
+      engine: "fake/producer",
+      enabled: true,
+      config: {},
+      targets: [{ id: "windows-x64", enabled: true, config: {} }],
+      ...extra,
+    }) as ReleaseConfig["builds"][number];
+  const bundle = (inputs: ReleaseConfig["builds"][number]["inputs"], id = "bundle") =>
+    build(id, {
+      engine: "fake/bundle",
+      targets: [{ id: "zip", enabled: true, config: {} }],
+      inputs,
+    });
+  const archiveDestination = (buildId: string, targetId: string): ReleaseConfig["destinations"] => [
+    {
+      id: "archive",
+      provider: "fake/archive",
+      enabled: true,
+      config: {},
+      slots: [{ id: "main", enabled: true, input: { buildId, targetId }, config: {} }],
+    },
+  ];
+  const context = { host: { platform: "linux", architecture: "x64" } };
+
+  it("calls compileMany with every input in declared order, after the input steps", () => {
+    compiledInputs.length = 0;
+    const workflow = compileWorkflow(
+      config({
+        builds: [
+          build("a"),
+          build("b"),
+          bundle([
+            { buildId: "b", targetId: "windows-x64" },
+            { buildId: "a", targetId: "windows-x64" },
+          ]),
+        ],
+        destinations: [],
+      }),
+      multiRegistry,
+      context,
+    );
+    expect(compiledInputs).toEqual([
+      {
+        producerId: "bundle",
+        labels: ["b-windows-x64", "a-windows-x64"],
+        refs: [
+          { buildId: "b", targetId: "windows-x64" },
+          { buildId: "a", targetId: "windows-x64" },
+        ],
+      },
+    ]);
+    const ids = workflow.steps.map((step) => step.id);
+    expect(ids).toEqual(["source", "build-a", "build-b", "bundle-bundle"]);
+    expect(workflow.steps[3].needs).toEqual(expect.arrayContaining(["build-a", "build-b"]));
+  });
+
+  it("feeds a destination slot with the bundle output", () => {
+    const workflow = compileWorkflow(
+      config({
+        builds: [
+          build("a"),
+          build("b"),
+          bundle([
+            { buildId: "a", targetId: "windows-x64" },
+            { buildId: "b", targetId: "windows-x64" },
+          ]),
+        ],
+        destinations: archiveDestination("bundle", "zip"),
+      }),
+      multiRegistry,
+      context,
+    );
+    const archive = workflow.steps.find((step) => step.uses === "fake/archive");
+    expect(archive?.artifactInputs?.folder).toEqual({
+      stepId: "bundle-bundle",
+      artifact: "output",
+    });
+    expect(archive?.needs).toContain("bundle-bundle");
+  });
+
+  it("compiles a bundle of a bundle, ordering the inner bundle first", () => {
+    compiledInputs.length = 0;
+    const workflow = compileWorkflow(
+      config({
+        builds: [
+          build("a"),
+          bundle([{ buildId: "a", targetId: "windows-x64" }], "inner"),
+          bundle([{ buildId: "inner", targetId: "zip" }], "outer"),
+        ],
+        destinations: [],
+      }),
+      multiRegistry,
+      context,
+    );
+    expect(compiledInputs.map((entry) => entry.producerId)).toEqual(["inner", "outer"]);
+    expect(compiledInputs[1]?.labels).toEqual(["inner-zip"]);
+    const ids = workflow.steps.map((step) => step.id);
+    expect(ids.indexOf("bundle-inner")).toBeLessThan(ids.indexOf("bundle-outer"));
+  });
+
+  it("fails clearly when a multi-input producer does not implement compileMany", () => {
+    const { compileMany: _omitted, ...withoutCompileMany } = bundleProducer;
+    expect(() =>
+      compileWorkflow(
+        config({
+          builds: [build("a"), bundle([{ buildId: "a", targetId: "windows-x64" }])],
+          destinations: [],
+        }),
+        { ...multiRegistry, producers: [perBuildProducer, withoutCompileMany] },
+        context,
+      ),
+    ).toThrow(/compileMany/);
   });
 });

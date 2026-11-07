@@ -6,13 +6,20 @@ import {
   isChromiumProfileDirectory,
   listChromiumBrowserProfiles,
 } from "./browser-profiles";
-import type { ReleaseSourceDefinition } from "@pipelab/shared";
-import { CORE_WORKFLOW_TASKS, type WorkflowStep } from "@pipelab/workflow-runtime";
+import type { ReleaseFieldOption, ReleaseSourceDefinition } from "@pipelab/shared";
+import { getSavedConstructVersion } from "./saved-version";
 export { discoverBrowserProfiles, inspectChromiumProfile } from "./browser-profiles";
 export type { BrowserProfileCandidate } from "./browser-profiles";
 
 import { constructWorkflowTaskFactories } from "./export-c3p";
 import { constructProviderLogo } from "../provider-icons";
+import { constructProducer } from "./producer";
+
+// Whatever is entered as the version is appended to the editor URL as-is; these only save typing.
+const constructVersionKeywords: ReleaseFieldOption[] = [
+  { label: "latest", value: "latest" },
+  { label: "beta", value: "beta" },
+];
 
 export const constructSource: ReleaseSourceDefinition = {
   id: "@pipelab/plugin-construct/source",
@@ -37,20 +44,18 @@ export const constructSource: ReleaseSourceDefinition = {
       type: "connection",
       integration: "Construct Account",
       label: "Construct account",
-      description:
-        "Optional. Use a saved Construct session from the selected browser profile instead.",
       required: false,
     },
     {
       key: "version",
       type: "text",
       label: "Construct version",
-      description:
-        "Leave blank to use the release saved with the project. Enter latest or a release such as r397 to override it.",
+      placeholder: "Empty: the project's saved release",
+      options: constructVersionKeywords,
       required: false,
     },
   ],
-  output: { kind: "application", platform: "web", container: "directory" },
+  output: { kind: "project", technology: "construct", container: "file" },
   createDefaultConfig: () => ({ path: "", profilePath: "", accountConnectionId: "", version: "" }),
   validate: (config) => [
     ...(typeof config.path === "string" && config.path
@@ -99,6 +104,17 @@ export const constructSource: ReleaseSourceDefinition = {
       (await isChromiumProfileDirectory(selectedProfilePath));
     const selectedProfileExists =
       !selectedProfilePath || selectedProfileListed || selectedProfileIsCustom;
+    // Offer the release the project was saved with first, so it can be pinned in one click.
+    const savedVersion =
+      typeof config.path === "string" && config.path.trim()
+        ? await getSavedConstructVersion(config.path.trim())
+        : undefined;
+    const versionOptions: ReleaseFieldOption[] = [
+      ...(savedVersion
+        ? [{ label: `${savedVersion} · saved in project`, value: savedVersion }]
+        : []),
+      ...constructVersionKeywords,
+    ];
     const fieldOptions = profiles.map((profile) => ({
       label: `${profile.browser} / ${profile.profileName}`,
       value: profile.path,
@@ -123,49 +139,24 @@ export const constructSource: ReleaseSourceDefinition = {
           ],
       fieldOptions: {
         profilePath: fieldOptions,
+        version: versionOptions,
       },
     };
   },
-  compile: (config) => {
-    const accountConnectionId =
-      typeof config.accountConnectionId === "string" ? config.accountConnectionId : "";
-    const steps: WorkflowStep[] = [
+  compile: (config) => ({
+    steps: [
       {
-        id: "construct-source-export",
-        uses: "@pipelab/plugin-construct/export-construct-project",
-        with: {
-          file: String(config.path || ""),
-          customProfile: String(config.profilePath || ""),
-          version: String(config.version || ""),
-          ...(accountConnectionId ? { accountConnectionId } : {}),
-        },
-        artifacts: {
-          zipFile: {
-            descriptor: {
-              kind: "files",
-              technology: "construct",
-              container: "archive",
-              format: "zip",
-            },
-          },
-        },
-      },
-      {
-        id: "construct-source-extract",
-        uses: CORE_WORKFLOW_TASKS.unzip,
-        needs: ["construct-source-export"],
-        artifactInputs: { file: { stepId: "construct-source-export", artifact: "zipFile" } },
+        id: "release-construct-source",
+        uses: "@pipelab/core/passthrough",
+        with: { path: config.path },
         artifacts: { output: { descriptor: constructSource.output } },
       },
-    ];
-    return {
-      steps,
-      artifact: {
-        reference: { stepId: "construct-source-extract", artifact: "output" },
-        descriptor: constructSource.output,
-      },
-    };
-  },
+    ],
+    artifact: {
+      reference: { stepId: "release-construct-source", artifact: "output" },
+      descriptor: constructSource.output,
+    },
+  }),
 };
 
 export const provider = createProviderDefinition({
@@ -206,7 +197,7 @@ export const provider = createProviderDefinition({
       ],
     },
   ],
-  release: { sources: [constructSource] },
+  release: { sources: [constructSource], producers: [constructProducer] },
   workflowTasks: constructWorkflowTaskFactories,
 });
 

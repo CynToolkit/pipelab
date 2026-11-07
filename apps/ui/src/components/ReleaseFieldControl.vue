@@ -1,7 +1,13 @@
 <template>
   <div class="release-field" :data-control-id="inputId">
     <label :for="inputId">{{ field.label }}</label>
-    <small v-if="field.description" class="field-help">{{ field.description }}</small>
+    <small v-if="field.description" class="field-help">
+      <template v-for="(part, index) in descriptionParts" :key="index">
+        <strong v-if="part.kind === 'bold'">{{ part.text }}</strong>
+        <code v-else-if="part.kind === 'code'">{{ part.text }}</code>
+        <template v-else>{{ part.text }}</template>
+      </template>
+    </small>
     <small
       v-if="
         allowPathEdit && (field.type === 'select' || field.type === 'connection') && !options.length
@@ -28,22 +34,23 @@
         <Button
           label="Add"
           icon="pi pi-plus"
-          text
-          size="small"
+          outlined
+          severity="secondary"
           @click="emit('add-connection', field.integration || '')"
         />
-        <small class="field-help connection-binding-help">
-          This Desktop remembers this saved Connection; the workflow only stores the alias.
-        </small>
         <div
           v-if="!connectionBinding && connectionBindingSuggestion"
           class="connection-binding-suggestion"
           role="status"
         >
-          <span>One matching saved Connection: {{ connectionBindingSuggestion.label }}</span>
+          <span
+            >One matching saved Connection:
+            <strong>{{ connectionBindingSuggestion.label }}</strong></span
+          >
           <Button
             label="Use this Connection"
-            text
+            outlined
+            severity="secondary"
             size="small"
             @click="emitConnectionBinding(connectionBindingSuggestion.value)"
           />
@@ -136,6 +143,7 @@
         v-else-if="field.type === 'file' || field.type === 'directory'"
         :model-value="value"
         :kind="field.type"
+        :mode="field.pathMode"
         :label="field.label"
         :file-extensions="field.fileExtensions"
         @update:model-value="emitValue"
@@ -145,24 +153,41 @@
         :id="inputId"
         :model-value="value"
         :type="field.type === 'password' ? 'password' : 'text'"
-        :placeholder="field.required ? 'Required' : undefined"
+        :placeholder="field.placeholder ?? (field.required ? 'Required' : undefined)"
         class="field-control"
         @update:model-value="emitValue"
       />
-      <button
+      <Button
         v-if="supportsEnvironmentBinding"
-        type="button"
-        class="environment-toggle"
-        :class="{ active: environmentBindingEnabled }"
-        :aria-pressed="environmentBindingEnabled"
-        :aria-controls="`${inputId}-environment-variable`"
         v-tooltip.top="
           'Use an environment variable. The value is read from the environment of the client that starts the run.'
         "
+        class="environment-toggle"
+        label="$"
+        :outlined="!environmentBindingEnabled"
+        :severity="environmentBindingEnabled ? undefined : 'secondary'"
+        :aria-pressed="environmentBindingEnabled"
+        :aria-controls="`${inputId}-environment-variable`"
         :aria-label="`Use an environment variable for ${field.label}`"
         @click="toggleEnvironmentBinding"
+      />
+    </div>
+    <div
+      v-if="textSuggestions.length"
+      class="field-suggestions"
+      role="group"
+      :aria-label="`Suggestions for ${field.label}`"
+    >
+      <button
+        v-for="option in textSuggestions"
+        :key="option.value"
+        type="button"
+        class="suggestion-chip"
+        :class="{ active: value === option.value }"
+        :aria-pressed="value === option.value"
+        @click="toggleSuggestion(option.value)"
       >
-        $
+        {{ option.label }}
       </button>
     </div>
     <small
@@ -243,6 +268,26 @@ const suggestedEnvironmentVariableName = `PIPELAB_${
     .toUpperCase() || "VALUE"
 }`;
 const environmentBindingEnabled = ref(initialEnvironmentVariableName !== undefined);
+type DescriptionPart = { kind: "text" | "bold" | "code"; text: string };
+// Descriptions may use **bold** and `code`; they are rendered as elements, never as HTML.
+const descriptionParts = computed<DescriptionPart[]>(() =>
+  (props.field.description ?? "")
+    .split(/(\*\*[^*]+\*\*|`[^`]+`)/)
+    .filter(Boolean)
+    .map((text): DescriptionPart => {
+      if (text.startsWith("**") && text.endsWith("**") && text.length > 4)
+        return { kind: "bold", text: text.slice(2, -2) };
+      if (text.startsWith("`") && text.endsWith("`") && text.length > 2)
+        return { kind: "code", text: text.slice(1, -1) };
+      return { kind: "text", text };
+    }),
+);
+// Text fields can offer one-click suggestions; the value stays free-form.
+const textSuggestions = computed(() =>
+  props.field.type === "text" && !environmentBindingEnabled.value ? props.options : [],
+);
+const toggleSuggestion = (suggestion: string) =>
+  emitValue(props.value === suggestion ? "" : suggestion);
 const connectionAliasDraft = ref(props.value);
 const editingAlias = ref(false);
 const supportsEnvironmentBinding = computed(
@@ -378,27 +423,19 @@ const toggleEnvironmentBinding = () => {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.78rem;
 }
-.environment-toggle {
-  flex: 0 0 auto;
-  min-width: 40px;
-  border: 1px solid var(--p-surface-300, var(--surface-border));
-  border-radius: 6px;
-  background: transparent;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  cursor: pointer;
+/* Every trailing button in a field row (browse, environment variable) shares one size and shape. */
+.field-control-row > .p-button,
+.field-control-row :deep(.path-picker > .p-button) {
+  flex: 0 0 2.75rem;
+  width: 2.75rem;
+  min-width: 2.75rem;
+  padding: 0;
+  justify-content: center;
+}
+.environment-toggle :deep(.p-button-label) {
   font-family: var(--font-mono, ui-monospace, monospace);
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 700;
-}
-.environment-toggle:hover,
-.environment-toggle:focus-visible {
-  color: var(--text-color);
-  border-color: var(--p-primary-color, var(--primary-color, #6366f1));
-}
-.environment-toggle.active {
-  border-color: var(--p-primary-color, var(--primary-color, #6366f1));
-  background: var(--p-primary-color, var(--primary-color, #6366f1));
-  color: var(--p-primary-contrast-color, var(--primary-contrast-color, white));
 }
 .connection-field {
   display: grid;
@@ -408,14 +445,21 @@ const toggleEnvironmentBinding = () => {
   align-items: center;
 }
 .connection-binding-suggestion {
-  display: grid;
+  display: flex;
   grid-column: 1 / -1;
-  gap: 0.25rem;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 8px 8px 12px;
+  border: 1px dashed var(--pl-border-strong, var(--p-content-border-color));
+  border-radius: 10px;
+  background: var(--pl-sunken, transparent);
+  color: var(--p-text-muted-color);
+  font-size: 0.78rem;
 }
-.connection-binding-help {
-  grid-column: 1 / -1;
+.connection-binding-suggestion strong {
+  color: var(--p-text-color);
+  font-weight: 600;
 }
 
 .connection-alias {
@@ -468,5 +512,51 @@ const toggleEnvironmentBinding = () => {
 .alias-edit:focus-visible {
   background: var(--p-surface-100, var(--surface-hover));
   color: var(--text-color);
+}
+.field-help :deep(strong) {
+  color: var(--p-text-color);
+  font-weight: 650;
+}
+.field-help :deep(code) {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--pl-hover, transparent);
+  color: var(--p-text-color);
+  font-size: 0.92em;
+}
+.field-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.suggestion-chip {
+  padding: 3px 11px;
+  border: 1px solid var(--p-content-border-color);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--p-text-muted-color);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 500;
+  transition:
+    border-color 0.15s,
+    background-color 0.15s,
+    color 0.15s;
+}
+.suggestion-chip:hover {
+  border-color: var(--pl-border-strong, var(--p-content-border-color));
+  background: var(--pl-hover, transparent);
+  color: var(--p-text-color);
+}
+.suggestion-chip:focus-visible {
+  outline: none;
+  box-shadow: var(--pl-ring, none);
+}
+.suggestion-chip.active {
+  border-color: var(--p-primary-color);
+  background: color-mix(in srgb, var(--p-primary-color) 9%, transparent);
+  color: var(--p-text-color);
+  font-weight: 600;
 }
 </style>

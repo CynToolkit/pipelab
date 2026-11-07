@@ -927,3 +927,363 @@ describe("release planner", () => {
     }
   });
 });
+
+describe("release planner with multi-input producers", () => {
+  const windows = {
+    kind: "application" as const,
+    platform: "windows",
+    architecture: "x64",
+    container: "directory" as const,
+  };
+  const linux = { ...windows, platform: "linux" };
+  const macos = { ...windows, platform: "macos" };
+  const bundleOutput = {
+    kind: "application" as const,
+    platform: "desktop-bundle",
+    container: "archive" as const,
+    format: "zip",
+  };
+  const postOutput = {
+    kind: "application" as const,
+    platform: "web",
+    container: "directory" as const,
+  };
+  const bundleRegistry: ReleaseRegistry = {
+    sources: registry.sources,
+    producers: [
+      {
+        id: "engine",
+        label: "Engine",
+        planning: { mode: "build" },
+        accepts: { kind: "project", technology: "engine" },
+        targets: [
+          {
+            id: "windows",
+            label: "Windows",
+            buildType: "desktop",
+            output: windows,
+            createDefaultConfig: () => ({}),
+          },
+          {
+            id: "linux",
+            label: "Linux",
+            buildType: "desktop",
+            output: linux,
+            createDefaultConfig: () => ({}),
+          },
+          {
+            id: "macos",
+            label: "macOS",
+            buildType: "desktop",
+            output: macos,
+            createDefaultConfig: () => ({}),
+          },
+        ],
+        createDefaultConfig: () => ({}),
+        validate: () => [],
+        compile: () => ({ steps: [], artifacts: {} }),
+      },
+      {
+        id: "bundle",
+        label: "Bundle",
+        planning: { mode: "build" },
+        inputs: "many",
+        accepts: { kind: "application" },
+        targets: [
+          {
+            id: "zip",
+            label: "Zip",
+            buildType: "desktop",
+            output: bundleOutput,
+            createDefaultConfig: () => ({}),
+          },
+        ],
+        createDefaultConfig: () => ({}),
+        validate: () => [],
+        compile: () => ({ steps: [], artifacts: {} }),
+        compileMany: () => ({ steps: [], artifacts: {} }),
+      },
+      {
+        id: "post",
+        label: "Post",
+        planning: { mode: "build" },
+        accepts: { kind: "application", format: "zip" },
+        targets: [
+          {
+            id: "out",
+            label: "Out",
+            buildType: "web",
+            output: postOutput,
+            createDefaultConfig: () => ({}),
+          },
+        ],
+        createDefaultConfig: () => ({}),
+        validate: () => [],
+        compile: () => ({ steps: [], artifacts: {} }),
+      },
+    ],
+    destinations: registry.destinations,
+  };
+  const engineBuild = (id: string, targetId: string, enabled = true) => ({
+    id,
+    type: "desktop",
+    engine: "engine",
+    enabled: true,
+    config: {},
+    targets: [{ id: targetId, enabled, config: {} }],
+  });
+  const threeEngines = [
+    engineBuild("win", "windows"),
+    engineBuild("lin", "linux"),
+    engineBuild("mac", "macos"),
+  ];
+  const bundleBuild = (
+    inputs: ReleaseBuildProfileConfig["inputs"],
+    extra: Partial<ReleaseBuildProfileConfig> = {},
+  ) => ({
+    id: "bundle",
+    type: "desktop",
+    engine: "bundle",
+    enabled: true,
+    config: {},
+    targets: [{ id: "zip", enabled: true, config: {} }],
+    inputs,
+    ...extra,
+  });
+  const plan = (builds: ReleaseBuildProfileConfig[], extra: Partial<ReleaseConfig> = {}) =>
+    planRelease({ ...config(builds), ...extra }, bundleRegistry, {
+      host: { platform: "linux", architecture: "x64" },
+    });
+  const threeInputs = [
+    { buildId: "win", targetId: "windows" },
+    { buildId: "lin", targetId: "linux" },
+    { buildId: "mac", targetId: "macos" },
+  ];
+  const codes = (result: ReturnType<typeof plan>) => result.issues.map((issue) => issue.code);
+
+  it("plans a bundle with three explicit inputs in declared order", () => {
+    const result = plan([...threeEngines, bundleBuild(threeInputs)]);
+    expect(result.issues).toEqual([]);
+    const bundle = result.producers.find((producer) => producer.id === "bundle");
+    expect(bundle?.inputs).toEqual([
+      { producerId: "win", outputId: "windows" },
+      { producerId: "lin", outputId: "linux" },
+      { producerId: "mac", outputId: "macos" },
+    ]);
+    expect(bundle?.input).toBeUndefined();
+    expect(result.outputs.map((output) => output.ref)).toContainEqual({
+      buildId: "bundle",
+      targetId: "zip",
+    });
+    expect(
+      result.graph.edges.filter((edge) => edge.to === "bundle").map((edge) => edge.from),
+    ).toEqual(["win", "lin", "mac"]);
+  });
+
+  it("requires at least one input for a multi-input build", () => {
+    expect(codes(plan([...threeEngines, bundleBuild(undefined)]))).toContain(
+      "release.build.inputs.required",
+    );
+    expect(codes(plan([...threeEngines, bundleBuild([])]))).toContain(
+      "release.build.inputs.required",
+    );
+  });
+
+  it("rejects a singular input on a multi-input build", () => {
+    const result = plan([
+      ...threeEngines,
+      bundleBuild(threeInputs, { input: { buildId: "win", targetId: "windows" } }),
+    ]);
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ code: "release.build.input.unsupported", path: "builds.3.input" }),
+    );
+  });
+
+  it("rejects the inputs list on a single-input build", () => {
+    const result = plan([
+      ...threeEngines,
+      {
+        id: "single",
+        type: "desktop",
+        engine: "engine",
+        enabled: true,
+        config: {},
+        inputs: threeInputs,
+        targets: [{ id: "windows", enabled: true, config: {} }],
+      },
+    ]);
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({
+        code: "release.build.inputs.unsupported",
+        path: "builds.3.inputs",
+      }),
+    );
+  });
+
+  it("reports malformed input references in the config shape", () => {
+    const result = plan([...threeEngines, bundleBuild([{ buildId: "win" } as never])]);
+    expect(codes(result)).toContain("release.build.inputs.invalid");
+  });
+
+  it("reports duplicate inputs with the index of the repeated reference", () => {
+    const result = plan([
+      ...threeEngines,
+      bundleBuild([threeInputs[0], threeInputs[1], threeInputs[0]]),
+    ]);
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({
+        code: "release.build.inputs.duplicate",
+        path: "builds.3.inputs.2",
+      }),
+    );
+  });
+
+  it("rejects a bundle that consumes itself", () => {
+    const result = plan([
+      ...threeEngines,
+      bundleBuild([threeInputs[0], { buildId: "bundle", targetId: "zip" }]),
+    ]);
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ code: "release.build.input.cycle", path: "builds.3.inputs.1" }),
+    );
+  });
+
+  it("rejects transitive cycles between bundles", () => {
+    const first = { ...bundleBuild([{ buildId: "second", targetId: "zip" }]), id: "first" };
+    const second = { ...bundleBuild([{ buildId: "first", targetId: "zip" }]), id: "second" };
+    expect(codes(plan([...threeEngines, first, second]))).toContain("release.build.input.cycle");
+  });
+
+  it("rejects a single-input build feeding back into the bundle it consumes", () => {
+    const result = plan([
+      ...threeEngines,
+      bundleBuild([threeInputs[0], { buildId: "post", targetId: "out" }]),
+      {
+        id: "post",
+        type: "web",
+        engine: "post",
+        enabled: true,
+        config: {},
+        input: { buildId: "bundle", targetId: "zip" },
+        targets: [{ id: "out", enabled: true, config: {} }],
+      },
+    ]);
+    expect(codes(result)).toContain("release.build.input.cycle");
+  });
+
+  it("rejects an input whose descriptor the bundle does not accept", () => {
+    const result = plan([...threeEngines, bundleBuild([{ source: true }, threeInputs[0]])]);
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ code: "release.build.inputs.rejected", path: "builds.3.inputs.0" }),
+    );
+  });
+
+  it("rejects inputs that reference a disabled build or target", () => {
+    const disabledBuild = plan([
+      ...threeEngines.slice(0, 2),
+      { ...engineBuild("mac", "macos"), enabled: false },
+      bundleBuild(threeInputs),
+    ]);
+    expect(disabledBuild.issues).toContainEqual(
+      expect.objectContaining({
+        code: "release.build.reference.disabled",
+        path: "builds.3.inputs.2",
+      }),
+    );
+    const disabledTarget = plan([
+      ...threeEngines.slice(0, 2),
+      engineBuild("mac", "macos", false),
+      bundleBuild(threeInputs),
+    ]);
+    expect(disabledTarget.issues.map((issue) => issue.code)).toContain(
+      "release.destination.input.invalid",
+    );
+    expect(disabledTarget.producers.find((producer) => producer.id === "bundle")).toBeUndefined();
+  });
+
+  it("lets a destination slot consume a bundle output", () => {
+    const result = plan([...threeEngines, bundleBuild(threeInputs)], {
+      destinations: [
+        {
+          id: "deploy",
+          provider: "deploy",
+          name: "Deploy",
+          enabled: true,
+          config: {},
+          slots: [
+            {
+              id: "main",
+              enabled: true,
+              input: { buildId: "bundle", targetId: "zip" },
+              config: {},
+            },
+          ],
+        },
+      ],
+    });
+    expect(result.issues).toEqual([]);
+    expect(result.destinations[0].slots[0].input).toEqual({
+      producerId: "bundle",
+      outputId: "zip",
+    });
+  });
+
+  it("lets a single-input build implicitly consume a bundle output it accepts", () => {
+    const result = plan([
+      ...threeEngines,
+      bundleBuild(threeInputs),
+      {
+        id: "post",
+        type: "web",
+        engine: "post",
+        enabled: true,
+        config: {},
+        targets: [{ id: "out", enabled: true, config: {} }],
+      },
+    ]);
+    expect(result.issues).toEqual([]);
+    expect(result.producers.find((producer) => producer.id === "post")?.input).toEqual({
+      producerId: "bundle",
+      outputId: "zip",
+    });
+  });
+
+  it("plans a bundle of a bundle", () => {
+    const outer = {
+      id: "outer",
+      type: "desktop",
+      engine: "bundle",
+      enabled: true,
+      config: {},
+      targets: [{ id: "zip", enabled: true, config: {} }],
+      inputs: [
+        { buildId: "bundle", targetId: "zip" },
+        { buildId: "mac", targetId: "macos" },
+      ],
+    };
+    const result = plan([...threeEngines, bundleBuild(threeInputs), outer]);
+    expect(result.issues).toEqual([]);
+    expect(result.producers.find((producer) => producer.id === "outer")?.inputs).toEqual([
+      { producerId: "bundle", outputId: "zip" },
+      { producerId: "mac", outputId: "macos" },
+    ]);
+  });
+
+  it("still detects a cycle through a nested bundle", () => {
+    const outer = {
+      id: "outer",
+      type: "desktop",
+      engine: "bundle",
+      enabled: true,
+      config: {},
+      targets: [{ id: "zip", enabled: true, config: {} }],
+      inputs: [{ buildId: "bundle", targetId: "zip" }],
+    };
+    const result = plan([
+      ...threeEngines,
+      bundleBuild([{ buildId: "outer", targetId: "zip" }, threeInputs[0]]),
+      outer,
+    ]);
+    expect(codes(result)).toContain("release.build.input.cycle");
+  });
+});

@@ -52,7 +52,10 @@ export interface ReleaseProducerConfig {
   enabled: boolean;
   targets: ReleaseProducerTarget[];
   config: Record<string, unknown>;
+  /** Single input. Absent for producers that consume several inputs (`inputs` is set instead). */
   input?: ArtifactRef;
+  /** Ordered inputs for producers whose definition declares `inputs: "many"`. */
+  inputs?: ArtifactRef[];
 }
 
 export type ArtifactRef = { source: true } | { producerId: string; outputId: string };
@@ -65,6 +68,8 @@ export interface ReleaseBuildProfileConfig {
   engine: string;
   enabled: boolean;
   input?: ReleaseOutputRef;
+  /** Explicit ordered inputs; required for engines whose definition declares `inputs: "many"`. */
+  inputs?: ReleaseOutputRef[];
   config: Record<string, unknown>;
   targets: ReleaseBuildTargetConfig[];
   beforeBuild?: ReleaseBeforeBuildHook[];
@@ -134,6 +139,15 @@ export interface CompiledProducer {
   artifacts: Record<string, CompiledArtifact>;
 }
 
+/** One resolved input handed to a multi-input producer, in the order declared on the build. */
+export interface CompiledInput {
+  artifact: CompiledArtifact;
+  /** The configured reference this input was resolved from. */
+  ref: ReleaseOutputRef;
+  /** Stable, folder-safe name for this input (for example `win-windows-x64` or `source`). */
+  label: string;
+}
+
 export interface ReleaseHostContext {
   platform: string;
   architecture: string;
@@ -178,8 +192,19 @@ export interface ReleaseFieldDefinition {
   showInWizard?: boolean;
   integration?: string;
   required?: boolean;
+  /** Hint shown inside an empty text input. */
+  placeholder?: string;
+  /**
+   * For `select` fields these are the choices. For `text` fields they are one-click suggestions
+   * that fill the input; any other value can still be typed.
+   */
   options?: ReleaseFieldOption[];
   fileExtensions?: string[];
+  /**
+   * How a `file` field is chosen. `open` picks an existing file (the default); `save` picks a path
+   * that may not exist yet, such as an output file.
+   */
+  pathMode?: "open" | "save";
 }
 
 export interface ReleaseFieldOption {
@@ -244,6 +269,11 @@ export interface ReleaseProducerDefinition {
   accepts: ArtifactConstraint;
   planning: ReleaseProducerPlanning;
   supportsBeforeBuildHooks?: boolean;
+  /**
+   * `many` lets a build consume several explicit inputs (`ReleaseBuildProfileConfig.inputs`).
+   * `accepts` then applies to each input. Such producers implement `compileMany`; `compile` is not used.
+   */
+  inputs?: "many";
   targets: ReleaseProducerTargetDefinition[];
   createDefaultConfig(): Record<string, unknown>;
   validate(config: ReleaseProducerConfig, context: ReleaseValidationContext): ValidationIssue[];
@@ -251,8 +281,15 @@ export interface ReleaseProducerDefinition {
     config: ReleaseProducerConfig,
     context: ReleaseProviderContext,
   ): Promise<ProducerInspection>;
+  /** Single-input compilation. Multi-input producers (`inputs: "many"`) never reach it and may throw. */
   compile(
     input: CompiledArtifact,
+    config: ReleaseProducerConfig,
+    context: ReleaseCompileContext,
+  ): CompiledProducer;
+  /** Multi-input compilation, called with every resolved input in declared order. */
+  compileMany?(
+    inputs: CompiledInput[],
     config: ReleaseProducerConfig,
     context: ReleaseCompileContext,
   ): CompiledProducer;
@@ -340,6 +377,7 @@ export interface ReleaseCatalogProducer {
   accepts: ArtifactConstraint;
   planning: ReleaseProducerPlanning;
   supportsBeforeBuildHooks?: boolean;
+  inputs?: "many";
   defaultConfig: Record<string, unknown>;
   targets: ReleaseCatalogTarget[];
   requiresAgentInspection?: boolean;

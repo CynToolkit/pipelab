@@ -18,6 +18,50 @@ const CONSTRUCT_SESSION_REJECTED_MESSAGE =
   "Construct did not confirm a signed-in session. Sign in to the selected browser profile or verify the Construct Account Connection, then retry.";
 const OPEN_RETRY_COUNT = 1;
 const CONSTRUCT_EDITOR_ORIGIN = "https://editor.construct.net";
+const DESKTOP_OPTIONS_DIALOG_TIMEOUT_MS = 10_000;
+
+export const CONSTRUCT_EXPORT_TYPES = ["web", "webview2", "wkwebview", "cef"] as const;
+export type ConstructExportType = (typeof CONSTRUCT_EXPORT_TYPES)[number];
+
+const CONSTRUCT_EXPORT_TYPE_LABELS: Record<ConstructExportType, string> = {
+  web: "Web (HTML5)",
+  webview2: "Windows (WebView2)",
+  wkwebview: "macOS (WKWebView)",
+  cef: "Linux (CEF)",
+};
+
+const CONSTRUCT_EXPORT_ITEM_TEXT: Record<ConstructExportType, string | RegExp> = {
+  web: "Web (HTML5)",
+  webview2: /WebView2/,
+  wkwebview: /WKWebView/,
+  cef: /CEF/,
+};
+
+export const parseConstructExportType = (value: unknown): ConstructExportType => {
+  if (value === undefined || value === "") return "web";
+  const exportType = CONSTRUCT_EXPORT_TYPES.find((type) => type === value);
+  if (exportType) return exportType;
+  throw new Error(`Unsupported Construct export type ${JSON.stringify(value)}`);
+};
+
+export const constructExportTypeLabel = (exportType: ConstructExportType): string =>
+  CONSTRUCT_EXPORT_TYPE_LABELS[exportType];
+
+export const constructExportItemText = (exportType: ConstructExportType): string | RegExp =>
+  CONSTRUCT_EXPORT_ITEM_TEXT[exportType];
+
+class ConstructExportTypeUnavailableError extends Error {}
+
+const isConstructExportItemUnavailable = async (item: Locator) => {
+  const [disabled, ariaDisabled, className] = await Promise.all([
+    item.getAttribute("disabled"),
+    item.getAttribute("aria-disabled"),
+    item.getAttribute("class"),
+  ]);
+  return (
+    disabled !== null || ariaDisabled === "true" || /(?:^|\s)disabled(?:\s|$)/.test(className ?? "")
+  );
+};
 
 const logElapsed = (log: typeof console.log, label: string, startedAt: number) => {
   log(label, `${Date.now() - startedAt} ms`);
@@ -155,6 +199,7 @@ export const waitForConstructExportDownload = async (
   timeoutMs: number,
   diagnosticsDir: string,
   abortSignal?: AbortSignal,
+  exportLabel?: string,
 ): Promise<Locator> => {
   const downloadButton = page.locator(".downloadExportedProject");
   try {
@@ -173,7 +218,7 @@ export const waitForConstructExportDownload = async (
     }
     const timeoutSeconds = Math.ceil(timeoutMs / 1_000);
     throw new Error(
-      `Construct did not make its project download available within ${timeoutSeconds} seconds.${status ? ` Current status: ${status}.` : ""}${screenshotDetails}${error instanceof Error ? ` (${error.message})` : ""}`,
+      `Construct did not make its ${exportLabel ? `${exportLabel} ` : ""}project download available within ${timeoutSeconds} seconds.${status ? ` Current status: ${status}.` : ""}${screenshotDetails}${error instanceof Error ? ` (${error.message})` : ""}`,
     );
   }
   if (!(await downloadButton.isEnabled()))
@@ -811,6 +856,30 @@ export const openConstructProjectFile = async (
   );
 };
 
+const acceptDesktopExportOptions = async (
+  page: Page,
+  log: typeof console.log,
+  exportTypeLabel: string,
+) => {
+  const optionsDialog = page.locator("#exportStandardOptionsDialog");
+  const optionsShown = await optionsDialog
+    .waitFor({ state: "visible", timeout: DESKTOP_OPTIONS_DIALOG_TIMEOUT_MS })
+    .then(
+      () => true,
+      () => false,
+    );
+  if (!optionsShown) {
+    log(`No further export options for ${exportTypeLabel}; waiting for the project download`);
+    return;
+  }
+  const optionsNext = optionsDialog.getByRole("button", { name: "Next" });
+  await optionsNext.waitFor({ state: "visible", timeout: 30_000 });
+  if (!(await optionsNext.isEnabled()))
+    throw new Error(`Construct's ${exportTypeLabel} export options Next button is disabled`);
+  await optionsNext.click({ timeout: 30_000 });
+  log(`Accepted default ${exportTypeLabel} export options`);
+};
+
 export const script = async (
   page: Page,
   log: typeof console.log,
@@ -822,6 +891,7 @@ export const script = async (
   abortSignal: AbortSignal,
   exportTimeoutMs: number,
   reuseCachedAccountSession = false,
+  exportType: ConstructExportType = "web",
 ) => {
   throwIfAborted(abortSignal);
   let url = "https://editor.construct.net/";
@@ -906,16 +976,32 @@ export const script = async (
   logElapsed(log, "Construct export menu selection after", exportMenuStartedAt);
   const exportPlatformStartedAt = Date.now();
   actionStartedAt = Date.now();
-  const webExportOption = page
+  const isDesktopExport = exportType !== "web";
+  const exportTypeLabel = constructExportTypeLabel(exportType);
+  const exportTypeName = isDesktopExport ? exportTypeLabel : "Web";
+  const unavailableMessage = `Construct export type ${exportTypeLabel} is not available for this account/edition`;
+  const exportItem = page
     .locator("ui-iconviewitem")
-    .filter({ hasText: "Web (HTML5)" })
-    .locator("ui-icon");
+    .filter({ hasText: constructExportItemText(exportType) });
+  const webExportOption = exportItem.locator("ui-icon");
   try {
     const optionTimeoutMs = Math.min(exportTimeoutMs, 30_000);
     await webExportOption.waitFor({ state: "visible", timeout: optionTimeoutMs });
+    if (isDesktopExport && (await isConstructExportItemUnavailable(exportItem))) {
+      throw new ConstructExportTypeUnavailableError(unavailableMessage);
+    }
     await webExportOption.click({ timeout: optionTimeoutMs });
+    if (isDesktopExport) {
+      const itemText = await page
+        .locator("body")
+        .innerText({ timeout: 2_000 })
+        .catch(() => "");
+      if (/upgrade/i.test(itemText))
+        throw new ConstructExportTypeUnavailableError(unavailableMessage);
+    }
   } catch (error) {
     if (abortSignal.aborted) throw createAbortError(abortSignal);
+    if (error instanceof ConstructExportTypeUnavailableError) throw error;
     if (isAbortError(error) || isRendererCrash(error) || page.isClosed()) throw error;
     const [pageText, exportItems] = await Promise.all([
       page
@@ -937,11 +1023,11 @@ export const script = async (
       // Keep the selection failure details if the page can no longer be captured.
     }
     throw new Error(
-      `Could not select Construct's Web (HTML5) export option after opening the Export menu.${exportItems.length ? ` Options: ${JSON.stringify(exportItems)}.` : ""}${context ? ` Page says: ${context}.` : ""}${screenshotDetails}${error instanceof Error ? ` (${error.message})` : ""}`,
+      `Could not select Construct's ${exportTypeLabel} export option after opening the Export menu.${exportItems.length ? ` Options: ${JSON.stringify(exportItems)}.` : ""}${context ? ` Page says: ${context}.` : ""}${screenshotDetails}${error instanceof Error ? ` (${error.message})` : ""}`,
     );
   }
-  logElapsed(log, "Construct Web platform click after", actionStartedAt);
-  log('"Web" clicked');
+  logElapsed(log, `Construct ${exportTypeName} platform click after`, actionStartedAt);
+  log(`"${exportTypeName}" clicked`);
 
   const platformDialog = page.locator("#exportSelectPlatformDialog");
   log("Waiting for Construct's export platform dialog");
@@ -956,7 +1042,7 @@ export const script = async (
       .catch(() => "");
     const context = pageText.replace(/\s+/g, " ").trim().slice(0, 500);
     throw new Error(
-      `Construct did not open the export platform dialog after selecting Web${context ? `; page says: ${context}` : ""}${error instanceof Error ? ` (${error.message})` : ""}`,
+      `Construct did not open the export platform dialog after selecting ${exportTypeName}${context ? `; page says: ${context}` : ""}${error instanceof Error ? ` (${error.message})` : ""}`,
     );
   }
 
@@ -987,64 +1073,69 @@ export const script = async (
     );
   }
 
-  const standardOptionsStartedAt = Date.now();
-  const standardOptionsDialog = page.locator("#exportStandardOptionsDialog");
-  log("Waiting for Construct's standard export options");
-  const standardOptionsDialogStartedAt = Date.now();
-  try {
-    await standardOptionsDialog.waitFor({ state: "visible", timeout: 30_000 });
-    logElapsed(
-      log,
-      "Construct standard options dialog ready after",
-      standardOptionsDialogStartedAt,
-    );
-  } catch (error) {
-    const pageText = await page
-      .locator("body")
-      .innerText({ timeout: 2_000 })
-      .catch(() => "");
-    const context = pageText.replace(/\s+/g, " ").trim().slice(0, 500);
-    throw new Error(
-      `Construct did not open the standard export options after selecting the platform${context ? `; page says: ${context}` : ""}${error instanceof Error ? ` (${error.message})` : ""}`,
-    );
-  }
-
-  const offlineSupport = standardOptionsDialog.getByLabel("Offline support");
-  log("Waiting for the Offline support option");
-  const offlineSupportStartedAt = Date.now();
-  try {
-    await offlineSupport.waitFor({ state: "visible", timeout: 10_000 });
-    if (!(await offlineSupport.isEnabled())) {
-      throw new Error("the Offline support option is disabled");
+  if (isDesktopExport) {
+    await acceptDesktopExportOptions(page, log, exportTypeLabel);
+  } else {
+    const standardOptionsStartedAt = Date.now();
+    const standardOptionsDialog = page.locator("#exportStandardOptionsDialog");
+    log("Waiting for Construct's standard export options");
+    const standardOptionsDialogStartedAt = Date.now();
+    try {
+      await standardOptionsDialog.waitFor({ state: "visible", timeout: 30_000 });
+      logElapsed(
+        log,
+        "Construct standard options dialog ready after",
+        standardOptionsDialogStartedAt,
+      );
+    } catch (error) {
+      const pageText = await page
+        .locator("body")
+        .innerText({ timeout: 2_000 })
+        .catch(() => "");
+      const context = pageText.replace(/\s+/g, " ").trim().slice(0, 500);
+      throw new Error(
+        `Construct did not open the standard export options after selecting the platform${context ? `; page says: ${context}` : ""}${error instanceof Error ? ` (${error.message})` : ""}`,
+      );
     }
-    if (await offlineSupport.isChecked()) await offlineSupport.uncheck({ timeout: 10_000 });
-    logElapsed(log, "Construct offline option ready after", offlineSupportStartedAt);
-  } catch (error) {
-    const dialogText = await standardOptionsDialog.innerText({ timeout: 2_000 }).catch(() => "");
-    const context = dialogText.replace(/\s+/g, " ").trim().slice(0, 500);
-    throw new Error(
-      `Construct's standard export options did not expose an available Offline support option${context ? `; dialog says: ${context}` : ""}${error instanceof Error ? ` (${error.message})` : ""}`,
-    );
-  }
-  log("Disabled offline support");
 
-  const optionsNext = standardOptionsDialog.getByRole("button", { name: "Next" });
-  log("Waiting for Construct's export options Next button");
-  const optionsNextStartedAt = Date.now();
-  await optionsNext.waitFor({ state: "visible", timeout: 30_000 });
-  if (!(await optionsNext.isEnabled()))
-    throw new Error("Construct's export options Next button is disabled");
-  await optionsNext.click({ timeout: 30_000 });
-  logElapsed(log, "Construct final Next click after", optionsNextStartedAt);
-  logElapsed(log, "Construct standard export options selection after", standardOptionsStartedAt);
-  logElapsed(log, "Construct Web export options selected after", exportOptionsStartedAt);
-  log('"Next" clicked');
+    const offlineSupport = standardOptionsDialog.getByLabel("Offline support");
+    log("Waiting for the Offline support option");
+    const offlineSupportStartedAt = Date.now();
+    try {
+      await offlineSupport.waitFor({ state: "visible", timeout: 10_000 });
+      if (!(await offlineSupport.isEnabled())) {
+        throw new Error("the Offline support option is disabled");
+      }
+      if (await offlineSupport.isChecked()) await offlineSupport.uncheck({ timeout: 10_000 });
+      logElapsed(log, "Construct offline option ready after", offlineSupportStartedAt);
+    } catch (error) {
+      const dialogText = await standardOptionsDialog.innerText({ timeout: 2_000 }).catch(() => "");
+      const context = dialogText.replace(/\s+/g, " ").trim().slice(0, 500);
+      throw new Error(
+        `Construct's standard export options did not expose an available Offline support option${context ? `; dialog says: ${context}` : ""}${error instanceof Error ? ` (${error.message})` : ""}`,
+      );
+    }
+    log("Disabled offline support");
+
+    const optionsNext = standardOptionsDialog.getByRole("button", { name: "Next" });
+    log("Waiting for Construct's export options Next button");
+    const optionsNextStartedAt = Date.now();
+    await optionsNext.waitFor({ state: "visible", timeout: 30_000 });
+    if (!(await optionsNext.isEnabled()))
+      throw new Error("Construct's export options Next button is disabled");
+    await optionsNext.click({ timeout: 30_000 });
+    logElapsed(log, "Construct final Next click after", optionsNextStartedAt);
+    logElapsed(log, "Construct standard export options selection after", standardOptionsStartedAt);
+    logElapsed(log, "Construct Web export options selected after", exportOptionsStartedAt);
+    log('"Next" clicked');
+  }
   log("Waiting for Construct to finish preparing its project download");
   const downloadButton = await waitForConstructExportDownload(
     page,
     exportTimeoutMs,
     downloadDir,
     abortSignal,
+    isDesktopExport ? exportTypeLabel : undefined,
   );
   const download = await clickConstructDownload(page, downloadButton, exportTimeoutMs);
   await page.getByRole("button", { name: "OK" }).click();

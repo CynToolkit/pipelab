@@ -41,10 +41,12 @@ display name does not change the workflow alias. Renaming an alias updates its
 workflow references and shows a reminder to update any CLI or CI mappings that
 use the old name.
 
-When a workflow has two destinations for the same provider, give each a
-destination name such as **Studio** or **Personal**. The editor shows that name
-beside the provider (for example, **Itch.io — Studio**) and keeps it separate
-from the Connection alias. Before shipping, Pipelab previews the selected saved
+A destination is labelled with its provider name, such as **Steam**. When a
+workflow has two destinations for the same provider they are numbered (**Steam
+1**, **Steam 2**); give each a destination name such as **Studio** or
+**Personal** to tell them apart. The editor shows that name beside the provider
+(for example, **Itch.io — Studio**) and keeps it separate from the Connection
+alias. Before shipping, Pipelab previews the selected saved
 account for each destination and warns if multiple destinations use the same
 Connection; using one account more than once is allowed when that is intended.
 
@@ -117,6 +119,10 @@ Builds with unapplied edits, Pipelab asks whether to keep editing or discard
 those edits. Pending workflow changes save automatically before navigation;
 the browser also warns if you reload or close while a save is pending or has
 failed, or while Build settings remain unapplied.
+
+A Construct source uses the **Construct** engine for its web export, and Electron, Tauri or Poki take that build as input. Pipelab adds the web build for you when a destination needs it. Construct's own desktop exports are declared but not available yet; see [Construct](./integrations/construct.md#desktop-exports).
+
+A **Bundle** build puts the outputs of several other builds into one ZIP. Add it from the Builds tab, then choose its **Inputs**: any enabled build outputs it can read, such as the Windows, Linux and macOS builds. The ZIP holds one top-level folder per input, named after its build and target. A bundle never picks its inputs automatically, cannot include itself, and can itself be an input to another bundle. Its output is a ZIP archive, which the ZIP and itch.io destinations accept; Steam and Poki do not. Bundle builds are never added automatically and do not support Before build hooks.
 
 Electron Build Profiles also support **Before build hooks**. Add, enable,
 disable, reorder, or remove hooks in the profile settings. Hooks run in order on

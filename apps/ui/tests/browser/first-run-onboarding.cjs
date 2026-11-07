@@ -1608,7 +1608,7 @@ async function journey(
     await page.evaluate(() => document.fonts.ready);
     const stepLabels = await dialog.locator(".step").allTextContents();
     assert.deepEqual(
-      stepLabels.map((label) => label.replace(/^0\d\s*/, "").trim()),
+      stepLabels.map((label) => label.replace(/^\d+\s*/, "").trim()),
       ["Name & description", "Source & project path", "Destinations", "Review"],
       "wizard presents the four workflow setup steps in order",
     );

@@ -10,6 +10,7 @@
     <Button
       icon="mdi mdi-folder-open-outline"
       outlined
+      severity="secondary"
       :aria-label="`Choose ${label.toLowerCase()}`"
       @click="pickPath"
     />
@@ -25,12 +26,15 @@ const props = withDefaults(
   defineProps<{
     modelValue?: string;
     kind?: "directory" | "file";
+    /** `save` lets the user name a file that does not exist yet (output paths). */
+    mode?: "open" | "save";
     label?: string;
     placeholder?: string;
     fileExtensions?: string[];
   }>(),
   {
     kind: "directory",
+    mode: "open",
     label: "path",
     placeholder: "Select a location",
     fileExtensions: undefined,
@@ -40,6 +44,19 @@ const emit = defineEmits<{ "update:modelValue": [value: string] }>();
 const api = useAPI();
 
 const pickPath = async () => {
+  if (props.kind === "file" && props.mode === "save") {
+    const result = await api.execute("dialog:showSaveDialog", {
+      title: `Choose ${props.label.toLowerCase()}`,
+      defaultPath: props.modelValue || undefined,
+      properties: ["createDirectory", "showOverwriteConfirmation"],
+      filters: props.fileExtensions?.length
+        ? [{ name: "Supported files", extensions: props.fileExtensions }]
+        : undefined,
+    });
+    if (result.type === "success" && !result.result.canceled && result.result.filePath)
+      emit("update:modelValue", result.result.filePath);
+    return;
+  }
   if (props.kind === "file") {
     const result = await api.execute("dialog:showOpenDialog", {
       title: `Choose ${props.label.toLowerCase()}`,
@@ -65,8 +82,8 @@ const pickPath = async () => {
 <style scoped>
 .path-picker {
   display: flex;
-  align-items: center;
-  gap: 6px;
+  align-items: stretch;
+  gap: 8px;
   width: 100%;
 }
 .path-picker :deep(.p-inputtext) {

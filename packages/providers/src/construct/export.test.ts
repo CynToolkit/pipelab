@@ -7,9 +7,20 @@ import {
   acquireManagedProfileLock,
   constructManagedProfileIdentity,
   preparePlaywrightProfile,
+  sharedParams,
 } from "./export-shared";
 import { fetchPackage, type ProviderHostContext } from "@pipelab/plugin-core";
 import dns from "node:dns/promises";
+
+test("defaults the Construct export type to Web (HTML5) and offers every desktop type", () => {
+  expect(sharedParams.exportType.value).toBe("web");
+  expect(sharedParams.exportType.control.options.options.map((option) => option.value)).toEqual([
+    "web",
+    "webview2",
+    "wkwebview",
+    "cef",
+  ]);
+});
 
 test("isolates a Connection-authenticated profile from its prior selected-profile session", () => {
   const profileSessionIdentity = constructManagedProfileIdentity(

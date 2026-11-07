@@ -1,22 +1,19 @@
 <template>
-  <div class="workflow-shell">
+  <div class="workflow-shell pl-workflow">
     <header class="workflow-header">
-      <div class="workflow-identity">
-        <Button
-          text
-          rounded
-          icon="mdi mdi-arrow-left"
-          :aria-label="$t('home.back-to-workflows')"
-          @click="router.push('/workflows')"
-        />
-        <div class="workflow-icon"><i class="mdi mdi-rocket-launch-outline" /></div>
-        <div class="workflow-heading">
-          <span class="eyebrow">Workflow</span>
-          <h1>{{ title || "Workflow" }}</h1>
-          <p v-if="subtitle">{{ subtitle }}</p>
+      <RouterLink to="/workflows" class="workflow-back" :aria-label="$t('home.back-to-workflows')">
+        <i class="mdi mdi-arrow-left" aria-hidden="true" />{{ $t("home.workflows") }}
+      </RouterLink>
+      <div class="workflow-titlebar">
+        <div class="workflow-identity">
+          <div class="workflow-icon"><i class="mdi mdi-rocket-launch-outline" /></div>
+          <div class="workflow-heading">
+            <h1>{{ title || "Workflow" }}</h1>
+            <p v-if="subtitle">{{ subtitle }}</p>
+          </div>
         </div>
+        <div class="workflow-actions"><slot name="actions" /></div>
       </div>
-      <div class="workflow-actions"><slot name="actions" /></div>
       <nav class="workflow-nav" aria-label="Workflow navigation">
         <RouterLink :to="basePath" :aria-current="active === 'configuration' ? 'page' : undefined">
           <i class="mdi mdi-tune-variant" aria-hidden="true" />Configuration
@@ -44,8 +41,7 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { RouterLink, useRouter } from "vue-router";
-import Button from "primevue/button";
+import { RouterLink } from "vue-router";
 
 const props = defineProps<{
   flowId: string;
@@ -54,153 +50,168 @@ const props = defineProps<{
   subtitle?: string;
   active: "configuration" | "builds" | "artifacts" | "runs";
 }>();
-const router = useRouter();
 const basePath = computed(() => `/workflows/${props.flowId}/${props.projectId}`);
 </script>
 
 <style scoped>
 .workflow-shell {
   width: 100%;
-  max-width: 1240px;
+  max-width: 1080px;
   margin: 0 auto;
-  padding: 24px clamp(16px, 2.5vw, 32px) 48px;
+  padding: 20px clamp(16px, 3vw, 40px) 64px;
   box-sizing: border-box;
 }
 .workflow-header {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.workflow-back {
+  display: inline-flex;
   align-items: center;
-  gap: 12px 20px;
-  margin-bottom: 24px;
+  gap: 6px;
+  width: fit-content;
+  padding: 3px 8px 3px 4px;
+  margin-left: -4px;
+  border-radius: 8px;
+  color: var(--pl-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    color 0.15s var(--pl-ease),
+    background 0.15s var(--pl-ease);
+}
+.workflow-back:hover {
+  color: var(--p-text-color);
+  background: var(--pl-hover);
+}
+.workflow-back:focus-visible,
+.workflow-nav a:focus-visible {
+  outline: none;
+  box-shadow: var(--pl-ring);
+}
+.workflow-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px 24px;
+  flex-wrap: wrap;
 }
 .workflow-identity {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   min-width: 0;
 }
 .workflow-icon {
   display: grid;
   place-items: center;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   flex: 0 0 auto;
-  color: var(--primary-color);
-  background: var(--p-surface-100, var(--surface-ground));
-  border-radius: 8px;
-  font-size: 20px;
+  color: var(--pl-accent);
+  background: linear-gradient(
+    145deg,
+    var(--pl-sunken),
+    color-mix(in srgb, var(--p-text-color) 7%, var(--p-content-background))
+  );
+  border: 1px solid var(--pl-border);
+  border-radius: 12px;
+  box-shadow: var(--pl-shadow-xs);
+  font-size: 22px;
 }
 .workflow-heading {
   min-width: 0;
 }
-.workflow-heading .eyebrow {
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-}
 .workflow-heading h1 {
-  margin: 1px 0 0;
-  font-size: 1.3rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 650;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
   overflow-wrap: anywhere;
 }
 .workflow-heading p {
-  margin: 2px 0 0;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.8rem;
+  margin: 3px 0 0;
+  color: var(--pl-muted);
+  font-size: 0.84rem;
 }
 .workflow-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
 }
 .workflow-nav {
-  grid-column: 1 / -1;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 2px;
   overflow-x: auto;
-  border-bottom: 1px solid var(--p-surface-200, var(--surface-border));
+  border-bottom: 1px solid var(--pl-border);
+  scrollbar-width: none;
 }
 .workflow-nav a {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   margin-bottom: -1px;
-  padding: 10px 12px;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  border-bottom: 2px solid transparent;
+  padding: 10px 14px;
+  color: var(--pl-muted);
+  border-radius: 8px 8px 0 0;
   text-decoration: none;
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: 0.86rem;
+  font-weight: 500;
   white-space: nowrap;
   transition:
-    color 0.15s,
-    border-color 0.15s,
-    background 0.15s;
+    color 0.15s var(--pl-ease),
+    background 0.15s var(--pl-ease);
+}
+.workflow-nav a i {
+  font-size: 1.05rem;
+  opacity: 0.75;
 }
 .workflow-nav a:hover {
-  color: var(--text-color);
-  background: var(--p-surface-50, var(--surface-ground));
+  color: var(--p-text-color);
+  background: var(--pl-hover);
 }
-.workflow-nav a:focus-visible {
-  position: relative;
-  z-index: 1;
-  outline: 2px solid var(--primary-color);
-  outline-offset: 2px;
-  box-shadow:
-    0 0 0 2px var(--surface-ground, #fff),
-    0 0 0 4px var(--primary-color);
-  border-radius: 4px;
+.workflow-nav a::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  bottom: 0;
+  left: 12px;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--pl-accent);
+  transform: scaleX(0);
+  transition: transform 0.2s var(--pl-ease);
 }
 .workflow-nav a[aria-current="page"] {
-  color: var(--text-color);
-  border-bottom-color: var(--primary-color);
+  color: var(--p-text-color);
+  font-weight: 600;
 }
-:root.dark .workflow-icon {
-  background: var(--p-surface-800, #27272a);
+.workflow-nav a[aria-current="page"] i {
+  opacity: 1;
 }
-:root.dark .workflow-nav {
-  border-color: var(--p-surface-700, #3f3f46);
-}
-:root.dark .workflow-nav a:hover {
-  background: var(--p-surface-800, #27272a);
-}
-:root.dark .workflow-nav a:focus-visible {
-  box-shadow:
-    0 0 0 2px var(--p-surface-900, #18181b),
-    0 0 0 4px var(--p-primary-400, #818cf8);
+.workflow-nav a[aria-current="page"]::after {
+  transform: scaleX(1);
 }
 @media (max-width: 640px) {
   .workflow-shell {
-    padding: 18px 12px 36px;
+    padding: 14px 14px 40px;
   }
-  .workflow-header {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 10px;
-  }
-  .workflow-identity {
-    gap: 8px;
+  .workflow-titlebar {
+    align-items: flex-start;
   }
   .workflow-actions {
-    grid-column: 1;
     justify-content: flex-start;
-    flex-wrap: wrap;
-  }
-  .workflow-actions :deep(.p-select) {
-    min-width: 0;
-  }
-  .workflow-nav {
-    gap: 2px;
   }
   .workflow-nav a {
     flex: 0 0 auto;
-    justify-content: center;
-    padding-inline: 5px;
+    padding-inline: 10px;
   }
 }
 </style>

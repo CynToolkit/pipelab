@@ -5,9 +5,12 @@ import type { Locator, Page } from "playwright";
 import {
   clickConstructDownload,
   constructAccountOrigin,
+  constructExportItemText,
+  constructExportTypeLabel,
   getConstructLoginData,
   navigateToConstruct,
   openConstructProjectFile,
+  parseConstructExportType,
   prepareConstructEditor,
   requestConstructLogin,
   script,
@@ -1024,5 +1027,258 @@ describe("Construct export download readiness", () => {
       "Construct download button failed",
     );
     expect(page.waitForEvent).toHaveBeenCalledWith("download", { timeout: 120_000 });
+  });
+});
+
+describe("Construct export type selection", () => {
+  it("defaults to the Web (HTML5) export when no type is given", () => {
+    expect(parseConstructExportType(undefined)).toBe("web");
+    expect(parseConstructExportType("")).toBe("web");
+    expect(parseConstructExportType("web")).toBe("web");
+  });
+
+  it("accepts the desktop export types and rejects unknown values", () => {
+    expect(parseConstructExportType("webview2")).toBe("webview2");
+    expect(parseConstructExportType("wkwebview")).toBe("wkwebview");
+    expect(parseConstructExportType("cef")).toBe("cef");
+    expect(() => parseConstructExportType("electron")).toThrow(
+      'Unsupported Construct export type "electron"',
+    );
+    expect(() => parseConstructExportType(42)).toThrow("Unsupported Construct export type");
+  });
+
+  it("labels each export type with the Construct option it targets", () => {
+    expect(constructExportTypeLabel("web")).toBe("Web (HTML5)");
+    expect(constructExportTypeLabel("webview2")).toBe("Windows (WebView2)");
+    expect(constructExportTypeLabel("wkwebview")).toBe("macOS (WKWebView)");
+    expect(constructExportTypeLabel("cef")).toBe("Linux (CEF)");
+  });
+
+  it("matches the visible option text for each export type", () => {
+    expect(constructExportItemText("web")).toBe("Web (HTML5)");
+    expect(constructExportItemText("webview2")).toEqual(/WebView2/);
+    expect(constructExportItemText("wkwebview")).toEqual(/WKWebView/);
+    expect(constructExportItemText("cef")).toEqual(/CEF/);
+    expect(constructExportItemText("webview2")).not.toEqual(constructExportItemText("cef"));
+  });
+});
+
+class ExportFlowPage extends AccountOriginPage {
+  hidden = new Set<string>([
+    "#okDialog",
+    "#missingAddonsDialog",
+    "#exportStandardOptionsDialog",
+    ".downloadExportedProject",
+  ]);
+  disabled = new Set<string>();
+  attributes = new Map<string, Record<string, string>>();
+  texts = new Map<string, string>();
+  bodyText = "";
+  checked = new Set<string>();
+  clicks: string[] = [];
+  onClick = new Map<string, () => void>();
+  download = { suggestedFilename: () => "project.zip", saveAs: vi.fn(async () => undefined) };
+  screenshot = vi.fn(async () => undefined);
+  close = vi.fn(async () => undefined);
+  keyboard = { press: vi.fn(async () => undefined) };
+
+  isClosed() {
+    return false;
+  }
+
+  locator(selector: string) {
+    return this.createLocator(selector);
+  }
+
+  getByRole(role: string, options: { name?: string | RegExp }) {
+    return this.createLocator(`role:${role}:${String(options.name)}`);
+  }
+
+  getByText(text: string) {
+    return this.createLocator(`text:${text}`);
+  }
+
+  waitForEvent(event: string) {
+    if (event === "filechooser") return Promise.resolve({ setFiles: vi.fn(async () => undefined) });
+    if (event === "download") return Promise.resolve(this.download);
+    return Promise.reject(new Error(`Unexpected browser event: ${event}`));
+  }
+
+  private createLocator(key: string): Locator {
+    const locator = {
+      first: () => locator,
+      filter: (options: { hasText?: string | RegExp }) =>
+        this.createLocator(`${key} filter:${String(options.hasText)}`),
+      locator: (child: string) => this.createLocator(`${key} > ${child}`),
+      getByRole: (role: string, options: { name?: string | RegExp }) =>
+        this.createLocator(`${key} > role:${role}:${String(options.name)}`),
+      getByLabel: (text: string) => this.createLocator(`${key} > label:${text}`),
+      waitFor: async (options?: { timeout?: number }) => {
+        if (options?.timeout === 0 || this.hidden.has(key)) throw new Error(`not visible: ${key}`);
+      },
+      isVisible: async () => !this.hidden.has(key),
+      isEnabled: async () => !this.disabled.has(key),
+      isChecked: async () => this.checked.has(key),
+      uncheck: async () => {
+        this.clicks.push(`${key}:uncheck`);
+        this.checked.delete(key);
+      },
+      click: async () => {
+        this.clicks.push(key);
+        this.onClick.get(key)?.();
+      },
+      innerText: async () => (key === "body" ? this.bodyText : (this.texts.get(key) ?? "")),
+      getAttribute: async (name: string) => this.attributes.get(key)?.[name] ?? null,
+      allInnerTexts: async () => [],
+    };
+    return locator as unknown as Locator;
+  }
+}
+
+const exportItemKey = (text: string | RegExp) => `ui-iconviewitem filter:${String(text)}`;
+const platformNextKey = "#exportSelectPlatformDialog > role:button:Next";
+const optionsNextKey = "#exportStandardOptionsDialog > role:button:Next";
+const offlineSupportKey = "#exportStandardOptionsDialog > label:Offline support";
+
+const setupExportFlow = (
+  page: ExportFlowPage,
+  { itemText, withOptionsDialog }: { itemText: string | RegExp; withOptionsDialog: boolean },
+) => {
+  page.onClick.set(platformNextKey, () => {
+    if (withOptionsDialog) page.hidden.delete("#exportStandardOptionsDialog");
+    else page.hidden.delete(".downloadExportedProject");
+  });
+  page.onClick.set(optionsNextKey, () => page.hidden.delete(".downloadExportedProject"));
+  page.hidden.delete(`${exportItemKey(itemText)} > ui-icon`);
+  page.hidden.delete(exportItemKey(itemText));
+};
+
+const runExport = (page: ExportFlowPage, exportType?: string) => {
+  const login = vi.fn(
+    async () =>
+      new Response(
+        JSON.stringify({
+          request: { status: "ok" },
+          response: { userID: 42, token: "export-flow-token" },
+        }),
+        { status: 200 },
+      ),
+  );
+  vi.stubGlobal("fetch", login);
+  return script(
+    page as unknown as Page,
+    vi.fn(),
+    "/project.c3p",
+    "construct-user@example.test",
+    "construct-password-secret",
+    "r466-2",
+    exportRunPath,
+    new AbortController().signal,
+    1_000,
+    false,
+    exportType as never,
+  ).finally(() => vi.unstubAllGlobals());
+};
+
+describe("Construct export type automation", () => {
+  it("keeps the Web (HTML5) export and unchecks Offline support", async () => {
+    const page = new ExportFlowPage();
+    setupExportFlow(page, { itemText: "Web (HTML5)", withOptionsDialog: true });
+    page.checked.add(offlineSupportKey);
+    page.hidden.delete(offlineSupportKey);
+
+    await expect(runExport(page, "web")).resolves.toBe(join(exportRunPath, "project.zip"));
+
+    expect(page.clicks).toEqual([
+      "role:button:Menu",
+      "role:menuitem:Project",
+      "role:menuitem:Export",
+      "ui-iconviewitem filter:Web (HTML5) > ui-icon",
+      platformNextKey,
+      `${offlineSupportKey}:uncheck`,
+      optionsNextKey,
+      ".downloadExportedProject",
+      "role:button:OK",
+    ]);
+    expect(page.download.saveAs).toHaveBeenCalledWith(join(exportRunPath, "project.zip"));
+  });
+
+  it.each([
+    ["webview2", "Windows (WebView2)", /WebView2/],
+    ["wkwebview", "macOS (WKWebView)", /WKWebView/],
+    ["cef", "Linux (CEF)", /CEF/],
+  ] as const)(
+    "selects the %s export item and downloads without a standard options dialog",
+    async (exportType, label, itemText) => {
+      const page = new ExportFlowPage();
+      setupExportFlow(page, { itemText, withOptionsDialog: false });
+
+      await expect(runExport(page, exportType)).resolves.toBe(join(exportRunPath, "project.zip"));
+
+      expect(page.clicks).toContain(`${exportItemKey(itemText)} > ui-icon`);
+      expect(page.clicks).toContain(platformNextKey);
+      expect(page.clicks).not.toContain(optionsNextKey);
+      expect(page.clicks.some((click) => click.includes("Offline"))).toBe(false);
+      expect(page.download.saveAs).toHaveBeenCalledWith(join(exportRunPath, "project.zip"));
+      expect(label).toBeTruthy();
+    },
+  );
+
+  it("accepts default options on a desktop options dialog without touching Offline support", async () => {
+    const page = new ExportFlowPage();
+    setupExportFlow(page, { itemText: /WebView2/, withOptionsDialog: true });
+    page.checked.add(offlineSupportKey);
+
+    await expect(runExport(page, "webview2")).resolves.toBe(join(exportRunPath, "project.zip"));
+
+    expect(page.clicks).toContain(optionsNextKey);
+    expect(page.clicks.some((click) => click.includes("Offline"))).toBe(false);
+    expect(page.checked.has(offlineSupportKey)).toBe(true);
+  });
+
+  it("reports a disabled desktop export item as unavailable for the account", async () => {
+    const page = new ExportFlowPage();
+    setupExportFlow(page, { itemText: /WebView2/, withOptionsDialog: false });
+    page.attributes.set(exportItemKey(/WebView2/), { "aria-disabled": "true" });
+
+    await expect(runExport(page, "webview2")).rejects.toThrow(
+      "Construct export type Windows (WebView2) is not available for this account/edition",
+    );
+    expect(page.clicks).not.toContain(`${exportItemKey(/WebView2/)} > ui-icon`);
+  });
+
+  it("reports an upgrade prompt raised by a desktop export item as unavailable", async () => {
+    const page = new ExportFlowPage();
+    setupExportFlow(page, { itemText: /CEF/, withOptionsDialog: false });
+    page.onClick.set(`${exportItemKey(/CEF/)} > ui-icon`, () => {
+      page.bodyText = "Upgrade your plan to export to Linux (CEF)";
+    });
+
+    await expect(runExport(page, "cef")).rejects.toThrow(
+      "Construct export type Linux (CEF) is not available for this account/edition",
+    );
+  });
+
+  it("names the export type and captures a screenshot when the option is missing", async () => {
+    const page = new ExportFlowPage();
+    setupExportFlow(page, { itemText: /WKWebView/, withOptionsDialog: false });
+    page.hidden.add(`${exportItemKey(/WKWebView/)} > ui-icon`);
+
+    await expect(runExport(page, "wkwebview")).rejects.toThrow(
+      /Could not select Construct's macOS \(WKWebView\) export option/,
+    );
+    expect(page.screenshot).toHaveBeenCalled();
+  });
+
+  it("names the export type when Construct never makes the download available", async () => {
+    const page = new ExportFlowPage();
+    setupExportFlow(page, { itemText: /CEF/, withOptionsDialog: false });
+    page.hidden.add(".downloadExportedProject");
+    page.onClick.delete(platformNextKey);
+
+    await expect(runExport(page, "cef")).rejects.toThrow(
+      /Construct did not make its Linux \(CEF\) project download available/,
+    );
+    expect(page.screenshot).toHaveBeenCalled();
   });
 });
