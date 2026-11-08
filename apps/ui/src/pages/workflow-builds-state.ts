@@ -121,6 +121,7 @@ export const buildIssueControlId = (
 
   if (path === "engine") return `settings-engine-${build.id}`;
   if (path === "input" || path.startsWith("input.")) return `settings-input-${build.id}`;
+  if (path === "inputs" || path.startsWith("inputs.")) return `settings-inputs-${build.id}`;
   if (path.startsWith("config.")) return `build-${build.id}-${path.slice("config.".length)}`;
 
   const targetMatch = path.match(/^targets\.(\d+)(?:\.(.*))?$/);

@@ -6,7 +6,7 @@ import {
   type ReleaseProducerDefinition,
   type ReleaseSourceDefinition,
 } from "@pipelab/shared";
-import { CORE_WORKFLOW_TASKS } from "@pipelab/workflow-runtime";
+import { CORE_WORKFLOW_TASKS, type WorkflowStep } from "@pipelab/workflow-runtime";
 export { CORE_WORKFLOW_TASKS } from "@pipelab/workflow-runtime";
 
 const folderOutput = { kind: "files", container: "directory" } as const;
@@ -137,7 +137,9 @@ const webZipSource = zipSource("@pipelab/core/source/web-zip", "Web app ZIP", {
 const folderDestination: ReleaseDestinationDefinition = {
   id: "@pipelab/core/destination/folder",
   label: "Folder",
+  icon: { type: "icon", icon: "mdi-folder-outline" },
   accepts: {},
+  requiresBuild: true,
   fields: [{ key: "outputDir", type: "directory", label: "Output folder", required: true }],
   createDefaultConfig: () => ({ outputDir: "" }),
   validate: (destination) =>
@@ -172,8 +174,22 @@ const folderDestination: ReleaseDestinationDefinition = {
 const zipDestination: ReleaseDestinationDefinition = {
   id: "@pipelab/core/destination/zip",
   label: "ZIP",
-  accepts: { container: "directory" },
-  fields: [{ key: "outputPath", type: "file", label: "ZIP output path", required: true }],
+  icon: { type: "icon", icon: "mdi-folder-zip-outline" },
+  accepts: { container: ["directory", "archive"] },
+  acceptsWhen: (artifact) =>
+    artifact.container === "directory" || artifact.format === "zip"
+      ? { accepted: true }
+      : { accepted: false, reason: "A ZIP destination accepts folders and ZIP archives." },
+  fields: [
+    {
+      key: "outputPath",
+      type: "file",
+      label: "ZIP output path",
+      required: true,
+      fileExtensions: ["zip"],
+      pathMode: "save",
+    },
+  ],
   createDefaultConfig: () => ({ outputPath: "" }),
   validate: (destination) =>
     typeof destination.config.outputPath === "string" && destination.config.outputPath.trim()
@@ -186,16 +202,108 @@ const zipDestination: ReleaseDestinationDefinition = {
             path: "config.outputPath",
           },
         ],
-  compile: (artifact, destination, slot) => [
+  compile: (artifact, destination, slot) =>
+    artifact.descriptor.container === "archive"
+      ? [
+          {
+            // An archive is already a ZIP, so the destination copies it rather than zipping it again.
+            id: `release-zip-${destination.id}-${slot.id}`,
+            uses: CORE_WORKFLOW_TASKS.copy,
+            needs: [artifact.reference.stepId],
+            artifactInputs: { from: artifact.reference },
+            with: { to: destination.config.outputPath, overwrite: true, ...slot.config },
+            delivery: {
+              destinationId: destination.id,
+              slotId: slot.id,
+              artifact: artifact.reference,
+            },
+          },
+        ]
+      : [
+          {
+            id: `release-zip-${destination.id}-${slot.id}`,
+            uses: CORE_WORKFLOW_TASKS.zip,
+            needs: [artifact.reference.stepId],
+            artifactInputs: { from: artifact.reference },
+            with: { to: destination.config.outputPath, ...slot.config },
+            delivery: {
+              destinationId: destination.id,
+              slotId: slot.id,
+              artifact: artifact.reference,
+            },
+          },
+        ],
+};
+
+const bundleZipOutput = { kind: "files", container: "archive", format: "zip" } as const;
+
+/**
+ * Puts every input into one ZIP with one top-level folder per input, named by its label. Folder
+ * inputs are copied into a staging folder; ZIP inputs (for nested bundles) are extracted into it.
+ */
+const bundleProducer: ReleaseProducerDefinition = {
+  id: "@pipelab/core/bundle",
+  label: "Bundle",
+  planning: { mode: "build" },
+  inputs: "many",
+  accepts: { kind: ["application", "files"], container: ["directory", "archive"] },
+  acceptsWhen: (artifact) =>
+    artifact.container === "directory" || artifact.format === "zip"
+      ? { accepted: true }
+      : { accepted: false, reason: "A bundle accepts folders and ZIP archives." },
+  targets: [
     {
-      id: `release-zip-${destination.id}-${slot.id}`,
-      uses: CORE_WORKFLOW_TASKS.zip,
-      needs: [artifact.reference.stepId],
-      artifactInputs: { from: artifact.reference },
-      with: { to: destination.config.outputPath, ...slot.config },
-      delivery: { destinationId: destination.id, slotId: slot.id, artifact: artifact.reference },
+      id: "zip",
+      label: "ZIP archive",
+      buildType: "bundle",
+      output: bundleZipOutput,
+      createDefaultConfig: () => ({}),
     },
   ],
+  createDefaultConfig: () => ({}),
+  validate: () => [],
+  compile: () => {
+    throw new Error("A bundle consumes several inputs; it is compiled with compileMany.");
+  },
+  compileMany: (inputs, config) => {
+    const stagingDir = `\${{ variables.workspace }}/${config.id}-staging`;
+    const archivePath = `\${{ variables.workspace }}/${config.id}.zip`;
+    const stageSteps = inputs.map((input): WorkflowStep => {
+      const stepId = `${config.id}-input-${input.label}`;
+      const to = `${stagingDir}/${input.label}`;
+      return input.artifact.descriptor.container === "archive"
+        ? {
+            id: stepId,
+            uses: CORE_WORKFLOW_TASKS.unzip,
+            needs: [input.artifact.reference.stepId],
+            artifactInputs: { file: input.artifact.reference },
+            with: { to },
+          }
+        : {
+            id: stepId,
+            uses: CORE_WORKFLOW_TASKS.copy,
+            needs: [input.artifact.reference.stepId],
+            artifactInputs: { from: input.artifact.reference },
+            with: { to, recursive: true, overwrite: true, cleanup: true },
+          };
+    });
+    const stepId = `${config.id}-output`;
+    return {
+      steps: [
+        ...stageSteps,
+        {
+          id: stepId,
+          uses: CORE_WORKFLOW_TASKS.zip,
+          needs: stageSteps.map((step) => step.id),
+          with: { from: stagingDir, to: archivePath },
+          artifacts: { output: { descriptor: bundleZipOutput } },
+        },
+      ],
+      artifacts: {
+        zip: { reference: { stepId, artifact: "output" }, descriptor: bundleZipOutput },
+      },
+    };
+  },
 };
 
 const unzipProducer: ReleaseProducerDefinition = {
@@ -265,6 +373,6 @@ const passthroughProducer: ReleaseProducerDefinition = {
 
 export const builtInReleaseDefinitions: ProviderReleaseDefinition = {
   sources: [folderSource, webFolderSource, genericZipSource, webZipSource],
-  producers: [passthroughProducer, unzipProducer],
+  producers: [passthroughProducer, unzipProducer, bundleProducer],
   destinations: [folderDestination, zipDestination],
 };

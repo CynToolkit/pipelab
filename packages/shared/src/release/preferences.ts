@@ -1,41 +1,77 @@
 import { nanoid } from "nanoid";
-import { planRelease } from "./planner";
+import { evaluateArtifactAcceptance } from "./matcher";
+import {
+  HOST_RELEASE_TARGET,
+  hostTargetOf,
+  RELEASE_DEFAULTS,
+  type ReleaseDefaultEntry,
+} from "./defaults";
+import { planArtifactAccepted, planRelease } from "./planner";
+import type { ReleasePlanningContext } from "./planner";
 import type {
+  ArtifactDescriptor,
+  PlannedReleaseOutput,
   ReleaseBuildProfileConfig,
   ReleaseConfig,
+  ReleaseDestinationDefinition,
+  ReleaseHostContext,
   ReleaseOutputRef,
   ReleasePlan,
+  ReleaseProducerDefinition,
+  ReleaseProducerTargetDefinition,
   ReleaseRegistry,
 } from "./types";
-import type { ReleasePlanningContext } from "./planner";
 
-export interface ReleaseBuildPreferences {
-  buildTypes: Record<
-    string,
-    {
-      engine?: string;
-      targets?: string[];
-    }
-  >;
+/** The most builds the defaults add in one chain for one slot. */
+const MAX_CHAIN_BUILDS = 4;
+
+/** A defaults entry that can fill a build: its engine target is registered and available here. */
+interface Candidate {
+  entry: ReleaseDefaultEntry;
+  producer: ReleaseProducerDefinition;
+  target: ReleaseProducerTargetDefinition;
 }
 
-export const DEFAULT_RELEASE_BUILD_PREFERENCES: ReleaseBuildPreferences = {
-  buildTypes: {
-    desktop: {
-      engine: "@pipelab/plugin-electron/producer",
-      targets: ["windows-x64"],
-    },
-  },
-};
+/** Fixed state of one resolution: the config being filled, its planning inputs and the candidates. */
+interface ResolveScope {
+  config: ReleaseConfig;
+  registry: ReleaseRegistry;
+  context: ReleasePlanningContext;
+  candidates: Candidate[];
+  /** Build types in table order; earlier types are preferred when an existing output is reused. */
+  buildTypeOrder: string[];
+}
 
-export const getReleaseBuildPreferences = (): ReleaseBuildPreferences =>
-  DEFAULT_RELEASE_BUILD_PREFERENCES;
+/** Address of one destination slot in the config. */
+interface SlotPosition {
+  destinationIndex: number;
+  slotIndex: number;
+}
+
+/** Builds to add, in order, and the output reference the slot or the next build reads. */
+interface Feed {
+  builds: ReleaseBuildProfileConfig[];
+  ref: ReleaseOutputRef;
+}
+
+/** A consumer's acceptance test over an output descriptor. */
+type Accepts = (artifact: ArtifactDescriptor) => boolean;
 
 const cloneConfig = (config: ReleaseConfig): ReleaseConfig => structuredClone(config);
 
+const slotInputPath = ({ destinationIndex, slotIndex }: SlotPosition) =>
+  `destinations.${destinationIndex}.slots.${slotIndex}.input`;
+
+const isSourceRef = (ref: ReleaseOutputRef): ref is { source: true } => "source" in ref;
+
+const artifactRefOf = (ref: ReleaseOutputRef) =>
+  isSourceRef(ref)
+    ? { source: true as const }
+    : { producerId: ref.buildId, outputId: ref.targetId };
+
 const artifactRefEquals = (
   left: ReleasePlan["destinations"][number]["slots"][number]["input"] | undefined,
-  right: NonNullable<ReleasePlan["outputs"][number]["artifactRef"]>,
+  right: ReturnType<typeof artifactRefOf>,
 ) =>
   Boolean(
     left &&
@@ -45,34 +81,6 @@ const artifactRefEquals = (
         left.producerId === right.producerId &&
         left.outputId === right.outputId),
   );
-
-const preferredBuild = (
-  registry: ReleaseRegistry,
-  type: string,
-  id: string,
-  preference: { engine?: string; targets?: string[] },
-): ReleaseBuildProfileConfig | undefined => {
-  if (!preference.engine) return undefined;
-  const producer = registry.producers.find(
-    (candidate) => candidate.id === preference.engine && candidate.planning.mode === "build",
-  );
-  if (!producer) return undefined;
-  const targets = producer.targets.filter((target) => target.buildType === type);
-  if (!targets.length) return undefined;
-  const enabledTargets = preference.targets?.length ? preference.targets : [targets[0].id];
-  return {
-    id,
-    type,
-    engine: producer.id,
-    enabled: true,
-    config: producer.createDefaultConfig(),
-    targets: targets.map((target) => ({
-      id: target.id,
-      enabled: enabledTargets.includes(target.id),
-      config: target.createDefaultConfig(),
-    })),
-  };
-};
 
 const hasBlockingIssue = (plan: ReleasePlan, paths: string[]) =>
   plan.issues.some((issue) => {
@@ -84,108 +92,222 @@ const hasBlockingIssue = (plan: ReleasePlan, paths: string[]) =>
     );
   });
 
-const plannerAcceptsOutput = (
-  config: ReleaseConfig,
+/** Whether the target is usable on this host. */
+const isAvailable = (target: ReleaseProducerTargetDefinition, host: ReleaseHostContext) =>
+  !target.isAvailable || target.isAvailable(host).available;
+
+/** Whether the planner reports this slot as missing its input. */
+const requiresInput = (plan: ReleasePlan, at: SlotPosition) =>
+  plan.issues.some(
+    (issue) =>
+      issue.code === "release.destination.input.required" && issue.path === slotInputPath(at),
+  );
+
+/** The output technology of the configured source, when the source is registered. */
+const sourceTechnologyOf = (config: ReleaseConfig, registry: ReleaseRegistry) =>
+  registry.sources.find((source) => source.id === config.source.provider)?.output.technology;
+
+/**
+ * The defaults entries that can fill a build for this source on this host, in table order. A
+ * source-specific entry removes the generic entries of its build type.
+ */
+const candidatesOf = (
   registry: ReleaseRegistry,
-  context: ReleasePlanningContext,
-  destinationIndex: number,
-  slotIndex: number,
-  ref: ReleaseOutputRef,
-  artifactRef: ReleasePlan["outputs"][number]["artifactRef"],
-) => {
-  const candidate = cloneConfig(config);
-  candidate.destinations[destinationIndex].slots[slotIndex].input = ref;
-  const plan = planRelease(candidate, registry, context);
-  const path = `destinations.${destinationIndex}.slots.${slotIndex}.input`;
-  return (
-    !hasBlockingIssue(plan, [path]) &&
-    artifactRefEquals(plan.destinations[destinationIndex]?.slots[slotIndex]?.input, artifactRef)
+  host: ReleaseHostContext,
+  defaults: ReleaseDefaultEntry[],
+  sourceTechnology: string | undefined,
+): Candidate[] => {
+  const candidates = defaults.flatMap((entry): Candidate[] => {
+    if (entry.source !== undefined && entry.source !== sourceTechnology) return [];
+    const producer = registry.producers.find((item) => item.id === entry.engine);
+    if (!producer || producer.planning.mode !== "build") return [];
+    const target =
+      entry.target === HOST_RELEASE_TARGET
+        ? hostTargetOf(producer, entry.buildType, host)
+        : producer.targets.find((item) => item.id === entry.target);
+    if (!target || target.buildType !== entry.buildType || !isAvailable(target, host)) return [];
+    return [{ entry, producer, target }];
+  });
+  return candidates.filter(
+    (candidate) =>
+      candidate.entry.source !== undefined ||
+      !candidates.some(
+        (other) =>
+          other.entry.source !== undefined && other.entry.buildType === candidate.entry.buildType,
+      ),
   );
 };
 
+/** A new build of one candidate that reads the given input. */
+const newBuild = (candidate: Candidate, input: ReleaseOutputRef): ReleaseBuildProfileConfig => {
+  const { entry, producer, target } = candidate;
+  return {
+    id: nanoid(),
+    type: entry.buildType,
+    engine: producer.id,
+    enabled: true,
+    input,
+    config: producer.createDefaultConfig(),
+    targets: producer.targets
+      .filter((item) => item.buildType === entry.buildType)
+      .map((item) =>
+        item.id === target.id
+          ? {
+              id: item.id,
+              enabled: true,
+              config: {
+                ...item.createDefaultConfig(),
+                ...entry.targetConfig,
+                ...entry.targetConfigs?.[item.id],
+              },
+            }
+          : { id: item.id, enabled: false, config: item.createDefaultConfig() },
+      ),
+  };
+};
+
+/**
+ * Reuse rank of a build output: builds by the table's build type order, and builds of build types the
+ * table does not name last. Equal ranks keep the planner order.
+ */
+const reuseRank = (scope: ResolveScope, output: PlannedReleaseOutput) => {
+  const type = scope.config.builds.find((build) => build.id === output.buildId)?.type;
+  const index = type === undefined ? -1 : scope.buildTypeOrder.indexOf(type);
+  return index === -1 ? scope.buildTypeOrder.length : index;
+};
+
+/**
+ * Every feed that gives a consumer an output it accepts, in preference order: the raw source when the
+ * consumer accepts it, then existing builds the consumer accepts (by build type order), then a new
+ * chain for each candidate whose output is accepted (in table order; a producer is never repeated in
+ * one chain).
+ */
+const feedsFor = (
+  scope: ResolveScope,
+  outputs: PlannedReleaseOutput[],
+  accepts: Accepts,
+  used: ReadonlySet<string>,
+  remaining: number,
+): Feed[] => {
+  const reused = outputs
+    .filter((output) => output.buildId !== undefined && accepts(output.descriptor))
+    .sort((left, right) => reuseRank(scope, left) - reuseRank(scope, right))
+    .map((output): Feed => ({ builds: [], ref: output.ref }));
+  const built =
+    remaining <= 0
+      ? []
+      : scope.candidates.flatMap((candidate): Feed[] => {
+          const { producer, target } = candidate;
+          if (used.has(producer.id) || !target.output || !accepts(target.output)) return [];
+          const inputs = feedsFor(
+            scope,
+            outputs,
+            (artifact) => planArtifactAccepted(artifact, producer, scope.context.host).accepted,
+            new Set([...used, producer.id]),
+            remaining - 1,
+          );
+          return inputs.map((input): Feed => {
+            const build = newBuild(candidate, input.ref);
+            return {
+              builds: [...input.builds, build],
+              ref: { buildId: build.id, targetId: target.id },
+            };
+          });
+        });
+  const raw = outputs
+    .filter((output) => output.buildId === undefined && accepts(output.descriptor))
+    .map((output): Feed => ({ builds: [], ref: output.ref }));
+  return [...raw, ...reused, ...built];
+};
+
+/** Whether the slot accepts the feed's last output without blocking issues on the slot or the new builds. */
+const slotAcceptsFeed = (scope: ResolveScope, at: SlotPosition, feed: Feed) => {
+  const { config, registry, context } = scope;
+  const destination = config.destinations[at.destinationIndex];
+  const slot = destination.slots[at.slotIndex];
+  const firstIndex = config.builds.length;
+  const previousInput = slot.input;
+  config.builds.push(...feed.builds);
+  slot.input = feed.ref;
+  const plan = planRelease(config, registry, context);
+  const buildPaths = feed.builds.map((_, offset) => `builds.${firstIndex + offset}`);
+  // The planner omits disabled destinations and slots, so the planned slot is found by id.
+  const plannedSlot = plan.destinations
+    .find((item) => item.id === destination.id)
+    ?.slots.find((item) => item.id === slot.id);
+  const accepted =
+    !hasBlockingIssue(plan, [...buildPaths, slotInputPath(at)]) &&
+    artifactRefEquals(plannedSlot?.input, artifactRefOf(feed.ref));
+  config.builds.splice(firstIndex);
+  slot.input = previousInput;
+  return accepted;
+};
+
+/** Destination acceptance of an output, as the planner evaluates it. */
+const destinationAccepts =
+  (definition: ReleaseDestinationDefinition, host: ReleaseHostContext): Accepts =>
+  (artifact) =>
+    evaluateArtifactAcceptance(
+      artifact,
+      definition.accepts,
+      () =>
+        definition.acceptsWhen?.(artifact, { host, destination: definition }) ?? { accepted: true },
+    ).accepted;
+
+/**
+ * Fills one empty slot: reuse a compatible planner output, else add the first chain of builds, in
+ * table order, that the slot accepts.
+ */
+const resolveSlot = (scope: ResolveScope, at: SlotPosition) => {
+  const plan = planRelease(scope.config, scope.registry, scope.context);
+  if (!requiresInput(plan, at)) return;
+  const destinationConfig = scope.config.destinations[at.destinationIndex];
+  const definition = scope.registry.destinations.find(
+    (candidate) => candidate.id === destinationConfig.provider,
+  );
+  if (!definition) return;
+  const feeds = feedsFor(
+    scope,
+    plan.outputs,
+    destinationAccepts(definition, scope.context.host),
+    new Set(),
+    MAX_CHAIN_BUILDS,
+  ).filter((feed) => !(definition.requiresBuild && isSourceRef(feed.ref)));
+  const feed = feeds.find((candidate) => slotAcceptsFeed(scope, at, candidate));
+  if (!feed) return;
+  scope.config.builds.push(...feed.builds);
+  scope.config.destinations[at.destinationIndex].slots[at.slotIndex].input = feed.ref;
+};
+
+/**
+ * Fills the empty enabled slots of the config from the defaults table. Every build created here
+ * stores its explicit input, so the saved config does not depend on destination order.
+ */
 export const resolveReleaseDefaults = (
   config: ReleaseConfig,
   registry: ReleaseRegistry,
   context: ReleasePlanningContext,
-  preferences: ReleaseBuildPreferences = getReleaseBuildPreferences(),
+  defaults: ReleaseDefaultEntry[] = RELEASE_DEFAULTS,
 ): ReleaseConfig => {
   const resolved = cloneConfig(config);
-  const buildTypes = [
-    ...new Set([
-      ...Object.keys(preferences.buildTypes),
-      ...Object.keys(DEFAULT_RELEASE_BUILD_PREFERENCES.buildTypes),
-    ]),
-  ];
+  const scope: ResolveScope = {
+    config: resolved,
+    registry,
+    context,
+    candidates: candidatesOf(
+      registry,
+      context.host,
+      defaults,
+      sourceTechnologyOf(config, registry),
+    ),
+    buildTypeOrder: [...new Set(defaults.map((entry) => entry.buildType))],
+  };
 
   for (const [destinationIndex, destination] of resolved.destinations.entries()) {
     if (!destination.enabled) continue;
     for (const [slotIndex, slot] of destination.slots.entries()) {
       if (!slot.enabled || slot.input) continue;
-      const path = `destinations.${destinationIndex}.slots.${slotIndex}.input`;
-      const currentPlan = planRelease(resolved, registry, context);
-      if (
-        !currentPlan.issues.some(
-          (issue) => issue.code === "release.destination.input.required" && issue.path === path,
-        )
-      )
-        continue;
-
-      const existing = currentPlan.outputs.find((output) =>
-        plannerAcceptsOutput(
-          resolved,
-          registry,
-          context,
-          destinationIndex,
-          slotIndex,
-          output.ref,
-          output.artifactRef,
-        ),
-      );
-      if (existing) {
-        slot.input = existing.ref;
-        continue;
-      }
-
-      for (const buildType of buildTypes) {
-        for (const preference of [
-          preferences.buildTypes[buildType],
-          DEFAULT_RELEASE_BUILD_PREFERENCES.buildTypes[buildType],
-        ]) {
-          const build = preference
-            ? preferredBuild(registry, buildType, nanoid(), preference)
-            : undefined;
-          if (!build) continue;
-          const buildIndex = resolved.builds.length;
-          resolved.builds.push(build);
-          const target = build.targets.find((candidate) => candidate.enabled);
-          const outputRef = target ? { buildId: build.id, targetId: target.id } : undefined;
-          const candidateAccepted =
-            target &&
-            outputRef &&
-            plannerAcceptsOutput(
-              resolved,
-              registry,
-              context,
-              destinationIndex,
-              slotIndex,
-              outputRef,
-              { producerId: build.id, outputId: target.id },
-            );
-          if (candidateAccepted) {
-            slot.input = outputRef;
-            if (
-              !hasBlockingIssue(planRelease(resolved, registry, context), [
-                `builds.${buildIndex}`,
-                path,
-              ])
-            )
-              break;
-            slot.input = undefined;
-          }
-          resolved.builds.pop();
-        }
-        if (slot.input) break;
-      }
+      resolveSlot(scope, { destinationIndex, slotIndex });
     }
   }
   return resolved;

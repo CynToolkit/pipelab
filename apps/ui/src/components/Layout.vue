@@ -53,7 +53,9 @@
                 <span class="project-initial" aria-hidden="true">
                   {{ activeProject.name.slice(0, 1).toUpperCase() }}
                 </span>
-                <span v-if="!isSidebarCollapsed" class="project-name">{{ activeProject.name }}</span>
+                <span v-if="!isSidebarCollapsed" class="project-name">{{
+                  activeProject.name
+                }}</span>
               </span>
               <span v-else>{{ slotProps.placeholder }}</span>
             </template>
@@ -852,18 +854,13 @@ handle("update:set-status", async (event, { value }) => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--p-surface-50);
-  border-right: 1px solid var(--p-surface-200);
+  background: var(--pl-sunken);
+  border-right: 1px solid var(--pl-border);
   transition:
     width 0.25s cubic-bezier(0.4, 0, 0.2, 1),
     min-width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
   z-index: 100;
-
-  :root.dark & {
-    background: var(--p-surface-900);
-    border-right-color: var(--p-surface-700);
-  }
 }
 
 .sidebar-collapsed .sidebar {
@@ -949,12 +946,9 @@ handle("update:set-status", async (event, { value }) => {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 0 8px 8px;
-  border-bottom: 1px solid var(--p-surface-200);
-
-  :root.dark & {
-    border-bottom-color: var(--p-surface-700);
-  }
+  padding: 0 10px 10px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--pl-border);
 }
 
 /* Visually hidden: the select keeps an accessible name without a label row. */
@@ -1015,19 +1009,19 @@ handle("update:set-status", async (event, { value }) => {
   flex: 1;
   width: 0;
   min-width: 0;
-  min-height: 34px;
-  border-color: transparent;
-  background: transparent;
-  box-shadow: none;
-  transition: background-color 0.15s;
+  min-height: 36px;
+  border-color: var(--pl-border);
+  border-radius: var(--pl-radius-sm);
+  background: var(--pl-card);
+  box-shadow: var(--pl-shadow-xs);
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
 
   &:not(.p-disabled):hover {
-    border-color: transparent;
-    background: var(--p-surface-200);
-
-    :root.dark & {
-      background: var(--p-surface-800);
-    }
+    border-color: var(--pl-border-strong);
+    background: var(--pl-card);
+    box-shadow: var(--pl-shadow-sm);
   }
 
   :deep(.p-select-label) {
@@ -1196,16 +1190,16 @@ handle("update:set-status", async (event, { value }) => {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 0 8px;
+  padding: 0 10px;
 }
 
 .sidebar-nav-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  font-size: 0.825rem;
+  padding: 8px 10px;
+  border-radius: var(--pl-radius-sm);
+  font-size: 0.84rem;
   font-weight: 500;
   color: var(--p-text-muted-color);
   text-decoration: none;
@@ -1224,12 +1218,8 @@ handle("update:set-status", async (event, { value }) => {
   }
 
   &:hover {
-    background: var(--p-surface-200);
+    background: var(--pl-hover);
     color: var(--p-text-color);
-
-    :root.dark & {
-      background: var(--p-surface-700);
-    }
   }
 
   &.disabled {
@@ -1243,12 +1233,15 @@ handle("update:set-status", async (event, { value }) => {
   }
 
   &.active {
-    background: var(--p-surface-200);
+    background: var(--pl-card);
     color: var(--p-text-color);
     font-weight: 600;
+    box-shadow:
+      0 0 0 1px var(--pl-border),
+      var(--pl-shadow-xs);
 
-    :root.dark & {
-      background: var(--p-surface-700);
+    .nav-icon {
+      color: var(--pl-accent);
     }
   }
 

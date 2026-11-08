@@ -391,10 +391,10 @@ watch(
   display: flex;
   flex-direction: column;
   gap: 28px;
-  width: min(100%, 1320px);
+  width: min(100%, 1080px);
   min-height: 100%;
   margin: 0 auto;
-  padding: 38px 44px 48px;
+  padding: 36px clamp(16px, 3vw, 40px) 64px;
 }
 
 .dashboard-header {
@@ -402,12 +402,7 @@ watch(
   align-items: flex-end;
   justify-content: space-between;
   gap: 24px;
-  padding-bottom: 26px;
-  border-bottom: 1px solid var(--p-surface-200);
-
-  :root.dark & {
-    border-bottom-color: var(--p-surface-800);
-  }
+  padding-bottom: 4px;
 }
 
 .dashboard-heading {
@@ -416,10 +411,10 @@ watch(
   h1 {
     margin: 0;
     color: var(--p-text-color);
-    font-size: 1.9rem;
-    font-weight: 700;
-    line-height: 1.15;
-    letter-spacing: -0.04em;
+    font-size: 1.6rem;
+    font-weight: 650;
+    line-height: 1.2;
+    letter-spacing: -0.03em;
     overflow-wrap: anywhere;
   }
 }
@@ -525,16 +520,10 @@ watch(
   gap: 14px;
   min-width: 0;
   padding: 22px;
-  border: 1px solid var(--p-surface-200);
-  border-radius: 12px;
-  background: var(--p-surface-0);
-  box-shadow: 0 2px 8px rgb(15 23 42 / 3%);
-
-  :root.dark & {
-    border-color: var(--p-surface-800);
-    background: var(--p-surface-900);
-    box-shadow: 0 2px 12px rgb(0 0 0 / 12%);
-  }
+  border: 1px solid var(--pl-border);
+  border-radius: var(--pl-radius);
+  background: var(--pl-card);
+  box-shadow: var(--pl-shadow-xs);
 }
 
 .card-heading {
@@ -591,10 +580,10 @@ watch(
   gap: 12px;
   min-width: 0;
   min-height: 52px;
-  padding: 4px 6px 4px 10px;
-  border: 1px solid var(--p-surface-200);
-  border-radius: 7px;
-  background: var(--p-surface-0);
+  padding: 4px 6px 4px 12px;
+  border: 1px solid var(--pl-border);
+  border-radius: var(--pl-radius-sm);
+  background: var(--pl-card);
   transition:
     background-color 140ms ease,
     border-color 140ms ease;

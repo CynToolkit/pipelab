@@ -1,89 +1,149 @@
 <template>
   <Dialog
     v-model:visible="uiStore.isFilePickerVisible"
+    class="file-picker-dialog"
     modal
     :header="dialogTitle"
-    :style="{ width: '70vw', height: '80vh' }"
+    :style="{ width: '880px', maxWidth: '96vw', height: '640px', maxHeight: '92vh' }"
     :closable="true"
     @hide="onCancel"
   >
     <div class="web-file-picker">
       <Message v-if="errorMessage" severity="error">{{ errorMessage }}</Message>
       <Message v-if="options?.message" severity="info">{{ options.message }}</Message>
-      <div class="toolbar mb-3 flex gap-2 align-items-center">
-        <Button icon="pi pi-home" text @click="goToHome" />
-        <Button icon="pi pi-arrow-up" text @click="goUp" :disabled="isAtRoot" />
-        <InputText v-model="currentPath" class="flex-grow-1" @keydown.enter="loadDirectory" />
-        <Button v-if="canCreateDirectory" icon="pi pi-folder-plus" text @click="createDirectory" />
-        <Button icon="pi pi-refresh" text @click="loadDirectory" />
-      </div>
-      <div class="picker-body flex flex-grow-1 min-h-0 gap-3">
-        <nav class="roots-sidebar flex-shrink-0 border-1 border-300 border-round p-2">
-          <div class="text-xs text-600 font-semibold px-2 mb-2">Locations</div>
+      <div class="picker-toolbar">
+        <div class="toolbar-group">
           <Button
+            v-tooltip.bottom="'Home'"
+            icon="pi pi-home"
+            text
+            rounded
+            severity="secondary"
+            aria-label="Go to home folder"
+            @click="goToHome"
+          />
+          <Button
+            v-tooltip.bottom="'Parent folder'"
+            icon="pi pi-arrow-up"
+            text
+            rounded
+            severity="secondary"
+            aria-label="Go to parent folder"
+            :disabled="isAtRoot"
+            @click="goUp"
+          />
+        </div>
+        <div class="path-field">
+          <i class="pi pi-folder-open path-icon" aria-hidden="true" />
+          <InputText
+            v-model="currentPath"
+            class="path-input"
+            aria-label="Current folder"
+            spellcheck="false"
+            @keydown.enter="loadDirectory"
+          />
+        </div>
+        <div class="toolbar-group">
+          <Button
+            v-if="canCreateDirectory"
+            v-tooltip.bottom="'New folder'"
+            icon="pi pi-folder-plus"
+            text
+            rounded
+            severity="secondary"
+            aria-label="Create folder"
+            @click="createDirectory"
+          />
+          <Button
+            v-tooltip.bottom="'Refresh'"
+            icon="pi pi-refresh"
+            text
+            rounded
+            severity="secondary"
+            aria-label="Refresh"
+            @click="loadDirectory"
+          />
+        </div>
+      </div>
+      <div class="picker-body">
+        <nav class="roots-sidebar" aria-label="Locations">
+          <span class="roots-title">Locations</span>
+          <button
             v-for="root in roots"
             :key="root.path"
-            :label="root.name"
-            :icon="root.name === 'Home' ? 'pi pi-home' : 'pi pi-database'"
-            text
-            class="root-button w-full justify-content-start"
-            :class="{ 'root-button-active': samePath(root.path, currentPath) }"
+            type="button"
+            class="root-item"
+            :class="{ active: samePath(root.path, currentPath) }"
+            :aria-current="samePath(root.path, currentPath) ? 'true' : undefined"
             @click="navigateToRoot(root.path)"
-          />
+          >
+            <i :class="root.name === 'Home' ? 'pi pi-home' : 'pi pi-database'" aria-hidden="true" />
+            <span>{{ root.name }}</span>
+          </button>
         </nav>
-        <div class="file-list-container flex-grow-1 overflow-auto border-1 border-300 border-round">
+        <div class="file-list-container">
           <DataTable
             :value="visibleFiles"
             v-model:selection="selection"
             :selectionMode="allowMultiple ? 'multiple' : 'single'"
             dataKey="name"
-            class="p-datatable-sm"
+            class="file-table"
+            scrollable
+            scrollHeight="flex"
             @row-dblclick="onRowDblClick"
             :loading="isLoading"
           >
+            <template #empty>
+              <div class="file-empty"><i class="pi pi-folder-open" />This folder is empty</div>
+            </template>
             <Column v-if="allowMultiple" selectionMode="multiple" headerStyle="width: 3rem" />
             <Column field="name" header="Name" sortable
               ><template #body="{ data }"
-                ><div class="flex align-items-center gap-2">
+                ><div class="file-name">
                   <i :class="getFileIcon(data)" /><span>{{ data.name }}</span>
                 </div></template
               ></Column
             >
-            <Column field="size" header="Size" sortable
-              ><template #body="{ data }">{{
-                data.isDirectory ? "--" : formatSize(data.size)
-              }}</template></Column
+            <Column field="size" header="Size" sortable headerStyle="width: 7rem"
+              ><template #body="{ data }"
+                ><span class="file-meta">{{
+                  data.isDirectory ? "—" : formatSize(data.size)
+                }}</span></template
+              ></Column
             >
-            <Column field="mtime" header="Modified" sortable
-              ><template #body="{ data }">{{ formatDate(data.mtime) }}</template></Column
+            <Column field="mtime" header="Modified" sortable headerStyle="width: 12rem"
+              ><template #body="{ data }"
+                ><span class="file-meta">{{ formatDate(data.mtime) }}</span></template
+              ></Column
             >
           </DataTable>
         </div>
       </div>
-      <div class="footer mt-3 flex justify-content-between align-items-center">
-        <div class="selected-name flex-grow-1 mr-3">
-          <label v-if="isSave" class="block text-sm mb-1">{{
-            options?.nameFieldLabel || "File name"
-          }}</label
-          ><InputText
-            v-if="isSave"
-            v-model="saveFileName"
-            class="w-full"
-            @keydown.enter="onConfirm"
-          />
-          <div v-else class="text-sm text-600 truncate">
+      <div class="picker-footer">
+        <div class="selected-name">
+          <template v-if="isSave">
+            <label for="file-picker-name">{{ options?.nameFieldLabel || "File name" }}</label>
+            <InputText
+              id="file-picker-name"
+              v-model="saveFileName"
+              class="w-full"
+              @keydown.enter="onConfirm"
+            />
+          </template>
+          <span v-else class="selection-summary" :class="{ empty: !selectedFiles.length }">
             {{
               selectedFiles.length
                 ? selectedFiles.map((f) => f.name).join(", ")
                 : "No file selected"
             }}
-          </div>
+          </span>
         </div>
-        <div class="actions flex gap-2">
-          <Button label="Cancel" text severity="secondary" @click="onCancel" /><Button
+        <div class="actions">
+          <Button label="Cancel" text severity="secondary" @click="onCancel" />
+          <Button
             :label="options?.buttonLabel || (isSave ? 'Save' : 'Open')"
-            @click="onConfirm"
             :disabled="!canConfirm"
+            @click="onConfirm"
           />
         </div>
       </div>
@@ -267,11 +327,7 @@ const initialize = async (value: FilePickerOptions | null) => {
   else await loadDirectory();
 };
 const getFileIcon = (f: FileItem) =>
-  f.isDirectory
-    ? "pi pi-folder text-primary"
-    : f.isSymbolicLink
-      ? "pi pi-link"
-      : "pi pi-file text-600";
+  f.isDirectory ? "pi pi-folder is-folder" : f.isSymbolicLink ? "pi pi-link" : "pi pi-file";
 const formatSize = (b: number) =>
   b === 0
     ? "0 B"
@@ -291,21 +347,219 @@ onMounted(() => {
 .web-file-picker {
   display: flex;
   flex-direction: column;
+  gap: 12px;
   height: 100%;
+  min-height: 0;
+}
+.picker-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.path-field {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+.path-icon {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  color: var(--pl-muted);
+  font-size: 0.95rem;
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+.path-input {
+  width: 100%;
+  padding-left: 2.4rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.82rem;
+}
+.picker-body {
+  display: flex;
+  flex: 1;
+  gap: 14px;
+  min-height: 0;
 }
 .roots-sidebar {
-  width: 12rem;
-  overflow-y: auto;
-}
-.root-button {
   display: flex;
+  flex: 0 0 11.5rem;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px;
+  overflow-y: auto;
+  border: 1px solid var(--pl-border);
+  border-radius: var(--pl-radius);
+  background: var(--pl-sunken);
 }
-.root-button-active {
-  background: var(--surface-200);
+.roots-title {
+  padding: 2px 8px 8px;
+  color: var(--pl-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
-.truncate {
+.root-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--pl-radius-sm);
+  background: transparent;
+  color: var(--pl-muted);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.15s var(--pl-ease),
+    color 0.15s var(--pl-ease);
+}
+.root-item i {
+  font-size: 0.95rem;
+}
+.root-item:hover {
+  background: var(--pl-hover);
+  color: var(--p-text-color);
+}
+.root-item:focus-visible {
+  outline: none;
+  box-shadow: var(--pl-ring);
+}
+.root-item.active {
+  background: var(--pl-card);
+  color: var(--p-text-color);
+  font-weight: 600;
+  box-shadow:
+    0 0 0 1px var(--pl-border),
+    var(--pl-shadow-xs);
+}
+.root-item.active i {
+  color: var(--pl-accent);
+}
+.file-list-container {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--pl-border);
+  border-radius: var(--pl-radius);
+  background: var(--pl-card);
+}
+.file-table {
+  flex: 1;
+  min-height: 0;
+}
+.file-table :deep(.p-datatable-table-container) {
+  height: 100%;
+}
+.file-table :deep(.p-datatable-thead > tr > th) {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--pl-border);
+  background: var(--pl-sunken);
+  color: var(--pl-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.file-table :deep(.p-datatable-tbody > tr) {
+  cursor: pointer;
+  transition: background 0.12s var(--pl-ease);
+}
+.file-table :deep(.p-datatable-tbody > tr > td) {
+  padding: 9px 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--pl-border) 55%, transparent);
+  font-size: 0.86rem;
+}
+.file-table :deep(.p-datatable-tbody > tr:hover) {
+  background: var(--pl-hover);
+}
+.file-table :deep(.p-datatable-tbody > tr.p-datatable-row-selected) {
+  background: color-mix(in srgb, var(--pl-accent) 9%, var(--pl-card));
+  color: var(--p-text-color);
+}
+.file-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.file-name span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.file-name i {
+  flex: 0 0 auto;
+  color: var(--pl-muted);
+  font-size: 1rem;
+}
+.file-name i.is-folder {
+  color: var(--pl-accent);
+}
+.file-meta {
+  color: var(--pl-muted);
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.file-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 56px 16px;
+  color: var(--pl-muted);
+  font-size: 0.86rem;
+}
+.file-empty i {
+  font-size: 1.6rem;
+  opacity: 0.6;
+}
+.picker-footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--pl-border);
+}
+.selected-name {
+  display: grid;
+  flex: 1;
+  gap: 6px;
+  min-width: 0;
+}
+.selected-name label {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.selection-summary {
+  overflow: hidden;
+  color: var(--p-text-color);
+  font-size: 0.86rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.selection-summary.empty {
+  color: var(--pl-muted);
+  font-weight: 400;
+}
+.actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
 }
 </style>

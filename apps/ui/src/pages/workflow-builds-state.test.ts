@@ -142,6 +142,9 @@ describe("workflow builds page state", () => {
     expect(buildIssueControlId(build, 0, "builds.0.targets.0")).toBe(
       "build-target-desktop-build-windows-x64",
     );
+    expect(buildIssueControlId(build, 0, "builds.0.inputs.1")).toBe(
+      "settings-inputs-desktop-build",
+    );
     expect(buildIssueControlId(build, 0, "builds.1.config.projectPath")).toBeUndefined();
   });
 

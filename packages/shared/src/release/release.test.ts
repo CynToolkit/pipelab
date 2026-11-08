@@ -109,6 +109,37 @@ describe("release descriptors", () => {
     ]);
   });
 
+  it("exposes requiresBuild on catalog destinations that set it", () => {
+    const registry: ReleaseRegistry = {
+      sources: [],
+      producers: [],
+      destinations: [
+        {
+          id: "@example/folder",
+          label: "Folder",
+          accepts: {},
+          requiresBuild: true,
+          createDefaultConfig: () => ({}),
+          validate: () => [],
+          compile: () => [],
+        },
+        {
+          id: "@example/any",
+          label: "Any",
+          accepts: {},
+          createDefaultConfig: () => ({}),
+          validate: () => [],
+          compile: () => [],
+        },
+      ],
+    };
+    const catalog = buildReleaseCatalog(registry);
+    expect(catalog.destinations.map((destination) => destination.requiresBuild)).toEqual([
+      true,
+      undefined,
+    ]);
+  });
+
   it("accepts only the V3 Build Profile shape", () => {
     expect(validateReleaseConfigShape({ version: "2.0.0" })).toEqual(
       expect.arrayContaining([expect.objectContaining({ code: "release.config.version" })]),

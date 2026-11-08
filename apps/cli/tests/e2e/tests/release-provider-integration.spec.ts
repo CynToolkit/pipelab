@@ -85,10 +85,20 @@ describe("release provider integration wiring", () => {
       },
       builds: [
         {
+          id: "construct",
+          type: "web",
+          engine: "@pipelab/plugin-construct/producer",
+          enabled: true,
+          input: { source: true },
+          config: {},
+          targets: [{ id: "web", enabled: true, config: {} }],
+        },
+        {
           id: "electron",
           type: "desktop",
           engine: "@pipelab/plugin-electron/producer",
           enabled: true,
+          input: { buildId: "construct", targetId: "web" },
           config: { patchExecutable: true },
           targets: [{ id: "windows-x64", enabled: true, config: {} }],
         },
@@ -113,11 +123,11 @@ describe("release provider integration wiring", () => {
     const workflow = compileWorkflow(config, buildCoreReleaseRegistry(), context);
     const electronStep = workflow.steps.find((step) => step.uses.includes("plugin-electron"));
     const steamStep = workflow.steps.find((step) => step.uses.includes("plugin-steam"));
-    expect(workflow.steps.find((step) => step.id === "construct-source-extract")?.uses).toBe(
+    expect(workflow.steps.find((step) => step.id === "construct-web-extract")?.uses).toBe(
       CORE_WORKFLOW_TASKS.unzip,
     );
     expect(electronStep?.artifactInputs?.["input-folder"]).toEqual({
-      stepId: "construct-source-extract",
+      stepId: "construct-web-extract",
       artifact: "output",
     });
     expect(electronStep?.with).toMatchObject({

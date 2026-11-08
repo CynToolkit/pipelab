@@ -516,20 +516,48 @@ describe("ReleasePersistence", () => {
     const password = "construct-password-secret";
     vi.stubEnv("CONSTRUCT_USERNAME", "daemon-user@example.test");
     vi.stubEnv("CONSTRUCT_PASSWORD", "daemon-password-secret");
-    const config = createReleaseConfig({
-      id: "workflow-1",
-      project: "project-1",
-      name: "Construct release",
-      source: {
-        provider: "@pipelab/plugin-construct/source",
-        config: {
-          path: join(context.userDataPath, "project.c3p"),
-          profilePath: join(context.userDataPath, "profile"),
-          accountConnectionId: "construct-production",
-          version: "",
+    const config = {
+      ...createReleaseConfig({
+        id: "workflow-1",
+        project: "project-1",
+        name: "Construct release",
+        source: {
+          provider: "@pipelab/plugin-construct/source",
+          config: {
+            path: join(context.userDataPath, "project.c3p"),
+            profilePath: join(context.userDataPath, "profile"),
+            accountConnectionId: "construct-production",
+            version: "",
+          },
         },
-      },
-    });
+      }),
+      builds: [
+        {
+          id: "construct",
+          type: "web",
+          engine: "@pipelab/plugin-construct/producer",
+          enabled: true,
+          config: {},
+          targets: [{ id: "web", enabled: true, config: {} }],
+        },
+      ],
+      destinations: [
+        {
+          id: "folder",
+          provider: "@pipelab/core/destination/folder",
+          enabled: true,
+          config: { outputDir: join(context.userDataPath, "output") },
+          slots: [
+            {
+              id: "web",
+              enabled: true,
+              config: {},
+              input: { buildId: "construct", targetId: "web" },
+            },
+          ],
+        },
+      ],
+    };
     await mkdir(context.getConfigPath("workflows"), { recursive: true });
     await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));
 
@@ -551,11 +579,12 @@ describe("ReleasePersistence", () => {
         }),
       ).rejects.toThrow("stop after compile");
 
-      expect(compiled?.steps[0]?.with).toMatchObject({
+      const exportStep = compiled?.steps.find((step) => step.id === "construct-web-export");
+      expect(exportStep?.with).toMatchObject({
         accountConnectionId: "construct-production",
       });
-      expect(compiled?.steps[0]?.with).not.toHaveProperty("username");
-      expect(compiled?.steps[0]?.with).not.toHaveProperty("password");
+      expect(exportStep?.with).not.toHaveProperty("username");
+      expect(exportStep?.with).not.toHaveProperty("password");
       expect(JSON.stringify(compiled)).not.toContain(username);
       expect(JSON.stringify(compiled)).not.toContain(password);
       expect(JSON.stringify(compiled)).not.toContain("CONSTRUCT_USERNAME");

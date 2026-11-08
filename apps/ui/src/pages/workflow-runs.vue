@@ -4,7 +4,6 @@
       <div class="list-heading">
         <div>
           <h2>Runs</h2>
-          <p>Recent executions for this workflow.</p>
         </div>
         <span v-if="!loading && !historyError && !workflowError" class="run-count"
           >{{ entries.length }} {{ entries.length === 1 ? "run" : "runs" }}</span
@@ -348,6 +347,9 @@ onUnmounted(() => {
   justify-items: center;
   gap: 9px;
   padding: 64px 20px;
+  border: 1px dashed var(--pl-border-strong);
+  border-radius: var(--pl-radius);
+  background: var(--pl-sunken);
   text-align: center;
   color: var(--p-text-muted-color, var(--text-color-secondary));
 }

@@ -297,9 +297,9 @@ watch(
 <style scoped>
 .cloud-files-page {
   box-sizing: border-box;
-  width: min(100%, 1480px);
+  width: min(100%, 1080px);
   margin: 0 auto;
-  padding: 38px 44px 48px;
+  padding: 36px clamp(16px, 3vw, 40px) 64px;
   color: var(--p-text-color, #18181b);
 }
 .page-header,
@@ -312,8 +312,7 @@ watch(
 }
 .page-header {
   margin-bottom: 1.5rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid var(--p-content-border-color, #e2e8f0);
+  padding-bottom: 0;
 }
 .empty-state.signin-state {
   display: flex;
@@ -349,10 +348,10 @@ p {
 }
 h1 {
   margin-bottom: 0.5rem;
-  font-size: 1.85rem;
-  font-weight: 700;
+  font-size: 1.6rem;
+  font-weight: 650;
   line-height: 1.15;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.03em;
 }
 h2 {
   margin-bottom: 0.5rem;
@@ -380,8 +379,8 @@ h3 {
 .usage-card,
 .artifact-card,
 .empty-state {
-  border: 1px solid var(--p-content-border-color, #e2e8f0);
-  border-radius: 12px;
+  border: 1px solid var(--pl-border);
+  border-radius: var(--pl-radius);
   background: var(--p-surface-0, #ffffff);
 }
 .notice,

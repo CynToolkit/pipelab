@@ -1,7 +1,8 @@
 import { expect, test, describe, afterEach } from "vitest";
-import { writeFile, access, mkdir } from "node:fs/promises";
+import { writeFile, access, mkdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createSandbox, runCLI } from "@pipelab/test-utils";
+import { extractZip } from "@pipelab/core-node";
 
 describe("End-to-End: Multi-Plugin Integration Test", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>>;
@@ -18,7 +19,7 @@ describe("End-to-End: Multi-Plugin Integration Test", () => {
       sandbox = await createSandbox("release-e2e");
       const { paths } = sandbox;
       const sourcePath = join(paths.input, "release-source");
-      const destinationPath = join(paths.output, "release-destination");
+      const destinationPath = join(paths.output, "release-destination.zip");
       const configPath = join(paths.userData, "config");
 
       await mkdir(sourcePath, { recursive: true });
@@ -55,9 +56,9 @@ describe("End-to-End: Multi-Plugin Integration Test", () => {
           destinations: [
             {
               id: "copy-output",
-              provider: "@pipelab/core/destination/folder",
+              provider: "@pipelab/core/destination/zip",
               enabled: true,
-              config: { outputDir: destinationPath },
+              config: { outputPath: destinationPath },
               slots: [{ id: "source", enabled: true, input: { source: true }, config: {} }],
             },
           ],
@@ -75,7 +76,11 @@ describe("End-to-End: Multi-Plugin Integration Test", () => {
         resultPath,
       ]);
 
-      await expect(access(join(destinationPath, "index.html"))).resolves.not.toThrow();
+      await expect(access(destinationPath)).resolves.not.toThrow();
+      await extractZip(destinationPath, join(sandbox.path, "release-extracted"));
+      await expect(
+        readFile(join(sandbox.path, "release-extracted", "index.html"), "utf8"),
+      ).resolves.toBe("<h1>CLI release</h1>");
       await expect(access(resultPath)).resolves.not.toThrow();
     },
     30 * 60 * 1000,

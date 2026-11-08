@@ -89,10 +89,7 @@
               @click="loadConnectionData"
             />
           </div>
-          <div
-            v-else-if="filteredConnections.length === 0"
-            class="empty-list"
-          >
+          <div v-else-if="filteredConnections.length === 0" class="empty-list">
             {{ searchQuery ? "No connections match your filter." : "No active connections." }}
           </div>
         </div>
@@ -1137,17 +1134,12 @@ watch([() => connectionsStore.status, connectedAccounts], ([status, accounts]) =
 
 /* ─── Drawer ────────────────────────────────────────────── */
 .drawer {
-  width: 240px;
-  flex: 0 0 240px;
-  border-right: 1px solid var(--p-surface-200);
-  background: var(--p-surface-0);
+  width: 256px;
+  flex: 0 0 256px;
+  border-right: 1px solid var(--pl-border);
+  background: var(--pl-sunken);
   display: flex;
   flex-direction: column;
-
-  :root.dark & {
-    border-right-color: var(--p-surface-700);
-    background: var(--p-surface-950);
-  }
 
   .plugin-list {
     display: flex;
@@ -1161,9 +1153,9 @@ watch([() => connectionsStore.status, connectedAccounts], ([status, accounts]) =
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 6px 10px;
-    border-radius: 8px;
-    font-size: 0.825rem;
+    padding: 8px 10px;
+    border-radius: var(--pl-radius-sm);
+    font-size: 0.84rem;
     font-weight: 500;
     color: var(--p-text-muted-color);
     cursor: pointer;
@@ -1171,22 +1163,17 @@ watch([() => connectionsStore.status, connectedAccounts], ([status, accounts]) =
     user-select: none;
 
     &:hover {
-      background: var(--p-surface-200);
+      background: var(--pl-hover);
       color: var(--p-text-color);
-
-      :root.dark & {
-        background: var(--p-surface-800);
-      }
     }
 
     &.active {
-      background: var(--p-surface-200);
+      background: var(--pl-card);
       color: var(--p-text-color);
       font-weight: 600;
-
-      :root.dark & {
-        background: var(--p-surface-800);
-      }
+      box-shadow:
+        0 0 0 1px var(--pl-border),
+        var(--pl-shadow-xs);
     }
 
     .plugin-item-content {
@@ -1282,7 +1269,11 @@ watch([() => connectionsStore.status, connectedAccounts], ([status, accounts]) =
 }
 
 .pane-content {
-  padding: 16px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 32px clamp(16px, 3vw, 40px);
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -1292,14 +1283,14 @@ watch([() => connectionsStore.status, connectedAccounts], ([status, accounts]) =
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   gap: 12px;
   flex-shrink: 0;
 
   .pane-title {
-    font-size: 1.05rem;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-size: 1.2rem;
+    font-weight: 650;
+    letter-spacing: -0.025em;
     color: var(--p-text-color);
     margin: 0;
   }
@@ -1313,18 +1304,20 @@ watch([() => connectionsStore.status, connectedAccounts], ([status, accounts]) =
 }
 
 .plugin-large-icon-wrapper {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  background: var(--p-surface-100);
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--pl-border);
+  border-radius: 12px;
+  background: linear-gradient(
+    145deg,
+    var(--pl-card),
+    color-mix(in srgb, var(--p-text-color) 5%, var(--pl-card))
+  );
+  box-shadow: var(--pl-shadow-xs);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-
-  :root.dark & {
-    background: var(--p-surface-800);
-  }
 
   .plugin-large-icon {
     width: 24px;
@@ -1350,15 +1343,11 @@ watch([() => connectionsStore.status, connectedAccounts], ([status, accounts]) =
 }
 
 .connection-edit-form {
-  background: var(--p-surface-0);
-  border: 1px solid var(--p-surface-200);
-  border-radius: 12px;
-  padding: 20px;
-
-  :root.dark & {
-    background: var(--p-surface-900);
-    border-color: var(--p-surface-800);
-  }
+  background: var(--pl-card);
+  border: 1px solid var(--pl-border);
+  border-radius: var(--pl-radius);
+  box-shadow: var(--pl-shadow-xs);
+  padding: 24px;
 }
 
 .integrations-selection-list {
@@ -1371,9 +1360,9 @@ watch([() => connectionsStore.status, connectedAccounts], ([status, accounts]) =
 }
 
 .integration-selection-row {
-  background: var(--p-surface-0);
-  border: 1px solid var(--p-surface-200);
-  border-radius: 8px;
+  background: var(--pl-card);
+  border: 1px solid var(--pl-border);
+  border-radius: 12px;
   padding: 12px 14px;
   display: flex;
   align-items: center;
@@ -1381,19 +1370,9 @@ watch([() => connectionsStore.status, connectedAccounts], ([status, accounts]) =
   cursor: pointer;
   transition: all 0.12s ease;
 
-  :root.dark & {
-    background: var(--p-surface-900);
-    border-color: var(--p-surface-800);
-  }
-
   &:hover {
-    background: var(--p-surface-50);
-    border-color: var(--p-surface-300);
-
-    :root.dark & {
-      background: var(--p-surface-850);
-      border-color: var(--p-surface-700);
-    }
+    background: var(--pl-sunken);
+    border-color: var(--pl-border-strong);
   }
 
   &:active {
@@ -1407,11 +1386,11 @@ watch([() => connectionsStore.status, connectedAccounts], ([status, accounts]) =
 }
 
 .plugin-icon-wrapper {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  background: var(--p-surface-50);
-  border: 1px solid var(--p-surface-100);
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--pl-card);
+  border: 1px solid var(--pl-border);
   flex-shrink: 0;
   display: flex;
   align-items: center;

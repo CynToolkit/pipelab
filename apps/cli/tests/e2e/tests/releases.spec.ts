@@ -69,6 +69,33 @@ const steam = (input?: Record<string, string>) => ({
   ],
 });
 
+/** The Construct web export build that the defaults create for a Construct project. */
+const constructWebBuild = (id = "construct") => ({
+  id,
+  type: "web",
+  engine: "@pipelab/plugin-construct/producer",
+  enabled: true,
+  input: { source: true },
+  config: {},
+  targets: [{ id: "web", enabled: true, config: {} }],
+});
+
+/** The engine target the defaults enable for the planning host (linux x64 CI runs `linux-x64`). */
+const hostElectronTarget = () =>
+  `${({ win32: "windows", darwin: "macos" } as Record<string, string>)[process.platform] ?? "linux"}-${process.arch}`;
+
+/** A ZIP destination that reads one build output. */
+const zipFrom = (
+  outputPath: string,
+  input: { buildId: string; targetId: string } | { source: true },
+) => ({
+  id: "zip",
+  provider: "@pipelab/core/destination/zip",
+  enabled: true,
+  config: { outputPath },
+  slots: [{ id: "archive", enabled: true, input, config: {} }],
+});
+
 describe("CLI release dry-run", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>> | undefined;
 
@@ -254,7 +281,7 @@ describe("CLI release dry-run", () => {
     async () => {
       sandbox = await createSandbox("release-dry-run");
       const sourcePath = join(sandbox.paths.input, "source");
-      const destinationPath = join(sandbox.paths.output, "destination");
+      const destinationPath = join(sandbox.paths.output, "destination.zip");
       const configPath = join(sandbox.paths.userData, "config");
       const resultPath = join(sandbox.path, "dry-run.json");
 
@@ -292,9 +319,9 @@ describe("CLI release dry-run", () => {
           destinations: [
             {
               id: "copy-output",
-              provider: "@pipelab/core/destination/folder",
+              provider: "@pipelab/core/destination/zip",
               enabled: true,
-              config: { outputDir: destinationPath },
+              config: { outputPath: destinationPath },
               slots: [
                 {
                   id: "source",
@@ -326,7 +353,7 @@ describe("CLI release dry-run", () => {
       });
       expect(result.workflow.steps.map((step: { id: string }) => step.id)).toEqual([
         "release-folder-source",
-        "release-folder-copy-output-source",
+        "release-zip-copy-output-source",
       ]);
       await expect(access(destinationPath)).rejects.toThrow();
     },
@@ -356,7 +383,18 @@ describe("CLI release dry-run", () => {
             provider: "@pipelab/core/source/folder",
             config: { path: sourcePath },
           },
-          builds: [],
+          // A Folder destination delivers a build output, so a Bundle build packs the source first.
+          builds: [
+            {
+              id: "bundle",
+              type: "bundle",
+              engine: "@pipelab/core/bundle",
+              enabled: true,
+              inputs: [{ source: true }],
+              config: {},
+              targets: [{ id: "zip", enabled: true, config: {} }],
+            },
+          ],
           destinations: [
             {
               id: "folder",
@@ -367,7 +405,7 @@ describe("CLI release dry-run", () => {
                 {
                   id: "source",
                   enabled: true,
-                  input: { source: true },
+                  input: { buildId: "bundle", targetId: "zip" },
                   config: {},
                 },
               ],
@@ -377,7 +415,10 @@ describe("CLI release dry-run", () => {
         workspace,
       );
       expect(folderResult.status).toBe("completed");
-      expect(await readFile(join(folderOutput, "index.html"), "utf8")).toBe("core release");
+      await extractZip(folderOutput, join(sandbox.path, "folder-extracted"));
+      expect(
+        await readFile(join(sandbox.path, "folder-extracted", "source", "index.html"), "utf8"),
+      ).toBe("core release");
 
       const zipResult = await executeCoreRelease(
         {
@@ -542,7 +583,13 @@ describe("CLI release dry-run", () => {
             targets: [{ id: "windows-x64", enabled: true, config: {} }],
           },
         ],
-        destinations: [],
+        // The Electron build is compiled only when a destination consumes it.
+        destinations: [
+          zipFrom(join(sandbox.paths.output, "game.zip"), {
+            buildId: "electron",
+            targetId: "windows-x64",
+          }),
+        ],
       };
       const context = { host: { platform: process.platform, architecture: process.arch } };
       const plan = planRelease(config, registry, context);
@@ -579,15 +626,24 @@ describe("CLI release dry-run", () => {
         name: "Construct Poki",
         source: constructSource,
         builds: [],
-        destinations: [poki({ source: true })],
+        destinations: [poki()],
       });
 
-      expect(result.config.builds).toHaveLength(0);
+      // The Poki slot is empty, so the defaults add one Construct web build and no Desktop build.
+      expect(result.config.builds).toHaveLength(1);
+      expect(result.config.builds[0]).toMatchObject({
+        engine: "@pipelab/plugin-construct/producer",
+        type: "web",
+      });
       expect(result.plan.destinations[0].slots[0].input).toEqual({
-        source: true,
+        producerId: result.config.builds[0].id,
+        outputId: "web",
       });
       expect(
-        result.workflow.steps.find((step: { id: string }) => step.id === "construct-source-export"),
+        result.workflow.steps.find(
+          (step: { uses: string }) =>
+            step.uses === "@pipelab/plugin-construct/export-construct-project",
+        ),
       ).toMatchObject({
         with: { file: "/game.c3p", customProfile: "/profile", version: "" },
       });
@@ -611,11 +667,14 @@ describe("CLI release dry-run", () => {
           config: { ...constructSource.config, version: "r397" },
         },
         builds: [],
-        destinations: [poki({ source: true })],
+        destinations: [poki()],
       });
 
       expect(
-        result.workflow.steps.find((step: { id: string }) => step.id === "construct-source-export"),
+        result.workflow.steps.find(
+          (step: { uses: string }) =>
+            step.uses === "@pipelab/plugin-construct/export-construct-project",
+        ),
       ).toMatchObject({ with: { version: "r397" } });
     },
     30 * 60 * 1000,
@@ -634,26 +693,27 @@ describe("CLI release dry-run", () => {
         destinations: [steam()],
       });
 
-      expect(result.config.builds).toHaveLength(1);
-      expect(result.config.builds[0].engine).toBe("@pipelab/plugin-electron/producer");
-      expect(result.config.builds[0].targets).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ id: "windows-x64", enabled: true }),
-          expect.objectContaining({ id: "linux-x64", enabled: false }),
-          expect.objectContaining({ id: "macos-arm64", enabled: false }),
-        ]),
-      );
+      // Construct web export, then one Electron build for the planning host that Steam reads.
+      const host = hostElectronTarget();
+      const [web, desktop] = result.config.builds;
+      expect(result.config.builds).toHaveLength(2);
+      expect(web).toMatchObject({ engine: "@pipelab/plugin-construct/producer", type: "web" });
+      expect(desktop.engine).toBe("@pipelab/plugin-electron/producer");
+      expect(desktop.input).toEqual({ buildId: web.id, targetId: "web" });
+      expect(desktop.targets.filter((target: { enabled: boolean }) => target.enabled)).toEqual([
+        expect.objectContaining({ id: host, enabled: true }),
+      ]);
       expect(result.plan.destinations[0].slots[0].input).toEqual({
-        producerId: result.config.builds[0].id,
-        outputId: "windows-x64",
+        producerId: desktop.id,
+        outputId: host,
       });
       expect(result.config.destinations[0].slots[0].input).toEqual({
-        buildId: result.config.builds[0].id,
-        targetId: "windows-x64",
+        buildId: desktop.id,
+        targetId: host,
       });
       expect(
-        result.workflow.steps.find((step: { id: string }) => step.id.endsWith("windows-x64")),
-      ).toMatchObject({ needs: ["construct-source-extract"] });
+        result.workflow.steps.find((step: { id: string }) => step.id === `${desktop.id}-${host}`),
+      ).toMatchObject({ needs: [`${web.id}-web-extract`] });
       expect(
         result.workflow.steps.filter((step: { uses: string }) =>
           step.uses.includes("plugin-electron"),
@@ -699,7 +759,13 @@ describe("CLI release dry-run", () => {
               ],
             },
           ],
-          destinations: [],
+          // The Electron build is compiled only when a destination consumes it.
+          destinations: [
+            zipFrom(join(testSandbox.paths.output, "hook-output.zip"), {
+              buildId: "electron-profile",
+              targetId: "windows-x64",
+            }),
+          ],
         };
       });
 
@@ -747,11 +813,13 @@ describe("CLI release dry-run", () => {
         name: "Construct existing build",
         source: constructSource,
         builds: [
+          constructWebBuild(),
           {
             id: "desktop",
             type: "desktop",
             engine: "@pipelab/plugin-electron/producer",
             enabled: true,
+            input: { buildId: "construct", targetId: "web" },
             config: {},
             targets: [{ id: "windows-x64", enabled: true, config: {} }],
           },
@@ -759,8 +827,11 @@ describe("CLI release dry-run", () => {
         destinations: [steam()],
       });
 
-      expect(result.config.builds).toHaveLength(1);
-      expect(result.config.builds[0].id).toBe("desktop");
+      // The configured Desktop build already reads the Construct web build, so Steam reuses it.
+      expect(result.config.builds.map((build: { id: string }) => build.id)).toEqual([
+        "construct",
+        "desktop",
+      ]);
       expect(result.config.destinations[0].slots[0].input).toEqual({
         buildId: "desktop",
         targetId: "windows-x64",
@@ -784,16 +855,27 @@ describe("CLI release dry-run", () => {
         name: "Construct Steam and Poki",
         source: constructSource,
         builds: [],
-        destinations: [poki({ source: true }), steam()],
+        destinations: [poki(), steam()],
       });
 
-      expect(result.config.builds).toHaveLength(1);
+      // One Construct web build feeds Poki and the one Electron build that Steam reads.
+      const [web, desktop] = result.config.builds;
+      expect(result.config.builds).toHaveLength(2);
+      expect(web.engine).toBe("@pipelab/plugin-construct/producer");
       expect(result.plan.destinations[0].slots[0].input).toEqual({
-        source: true,
+        producerId: web.id,
+        outputId: "web",
       });
-      expect(result.plan.destinations[1].slots[0].input).toMatchObject({
-        outputId: "windows-x64",
+      expect(result.plan.destinations[1].slots[0].input).toEqual({
+        producerId: desktop.id,
+        outputId: hostElectronTarget(),
       });
+      expect(
+        result.workflow.steps.filter(
+          (step: { uses: string }) =>
+            step.uses === "@pipelab/plugin-construct/export-construct-project",
+        ).length,
+      ).toBe(1);
       expect(
         result.workflow.steps.filter((step: { uses: string }) =>
           step.uses.includes("plugin-electron"),
@@ -803,7 +885,8 @@ describe("CLI release dry-run", () => {
     30 * 60 * 1000,
   );
 
-  test(
+  // TODO(release-model): Godot no longer gets an Electron default; it gets a native Godot desktop export that Steam accepts, so there is no incompatible default left to reject. Rewrite as a positive Godot-to-Steam expectation.
+  test.skip(
     "rejects the incompatible Electron default for Godot to Steam",
     async () => {
       sandbox = await createSandbox("godot-steam");
@@ -940,12 +1023,14 @@ describe("Release beforeBuild hooks", () => {
           config: { path: projectFile, profilePath: "/fixture/browser-profile" },
         },
         builds: [
+          constructWebBuild("construct-web"),
           {
             id: "sdk-off",
             name: "SDK disabled",
             type: "desktop",
             engine: "@pipelab/plugin-electron/producer",
             enabled: true,
+            input: { buildId: "construct-web", targetId: "web" },
             config: {},
             targets: [{ id: "windows-x64", enabled: true, config: {} }],
             beforeBuild: [
@@ -962,6 +1047,7 @@ describe("Release beforeBuild hooks", () => {
             type: "desktop",
             engine: "@pipelab/plugin-electron/producer",
             enabled: true,
+            input: { buildId: "construct-web", targetId: "web" },
             config: {},
             targets: [{ id: "windows-x64", enabled: true, config: {} }],
             beforeBuild: [
@@ -973,7 +1059,20 @@ describe("Release beforeBuild hooks", () => {
             ],
           },
         ],
-        destinations: [],
+        // Each Electron build is compiled only when a destination consumes it.
+        destinations: [
+          zipFrom(join(sandbox.paths.output, "sdk-off.zip"), {
+            buildId: "sdk-off",
+            targetId: "windows-x64",
+          }),
+          {
+            ...zipFrom(join(sandbox.paths.output, "sdk-on.zip"), {
+              buildId: "sdk-on",
+              targetId: "windows-x64",
+            }),
+            id: "zip-sdk-on",
+          },
+        ],
       };
       await writeFile(savedWorkflowPath, JSON.stringify(config));
       const savedConfig = JSON.parse(await readFile(savedWorkflowPath, "utf8")) as ReleaseConfig;
@@ -1003,7 +1102,7 @@ describe("Release beforeBuild hooks", () => {
         workflow.steps.filter((step) => step.uses === "@pipelab/core/archive/unzip"),
       ).toHaveLength(1);
 
-      const extraction = workflow.steps.find((step) => step.id === "construct-source-extract");
+      const extraction = workflow.steps.find((step) => step.id === "construct-web-web-extract");
       const electronInputs: Array<{ id: string; path: string; value: number; output: string }> = [];
       const logMessages: string[] = [];
       let constructExportCount = 0;
@@ -1218,7 +1317,13 @@ describe("Release beforeBuild hooks", () => {
               ],
             },
           ],
-          destinations: [],
+          // The Electron branch is compiled only when a destination consumes it.
+          destinations: [
+            zipFrom(join(sandbox!.paths.output, `${id}.zip`), {
+              buildId: "electron-profile",
+              targetId: "windows-x64",
+            }),
+          ],
         };
         const registry = buildCoreReleaseRegistry();
         const context = {

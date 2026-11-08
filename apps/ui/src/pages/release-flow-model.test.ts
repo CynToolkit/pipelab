@@ -1,7 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { reactive, toRaw, watch } from "vue";
 import {
+  addCompatibleBuild,
   buildEnginesFor,
+  buildUsesExplicitInput,
+  bundleCandidateOutputs,
+  createBundleBuild,
+  setBuildInputs,
   dashboardShipIntentAction,
   buildProfileSummary,
   buildTargetsFor,
@@ -41,15 +46,19 @@ import {
   releaseOutputRefValue,
   runAfterSuccessfulSave,
   selectBuildInput,
+  selectSlotOutput,
   setBuildTargetEnabled,
+  slotOutputOptionsFor,
   switchBuildProfileEngine,
 } from "./release-flow-model";
 import type {
   ReleaseBuildProfileConfig,
   ReleaseCatalog,
   ReleaseConfig,
+  ReleaseDestinationSlot,
   ReleasePlan,
 } from "@pipelab/shared";
+import type { SlotDestinationDefinition } from "./release-flow-model";
 
 const catalog: ReleaseCatalog = {
   buildTypes: [
@@ -131,9 +140,10 @@ describe("release flow model", () => {
       "steam-one",
       "steam-two",
     ]);
+    // Generated names are never persisted; labels are derived from the provider instead.
     expect(flow.destinations.map((destination) => destination.name)).toEqual([
-      "Destination 1",
-      "Destination 2",
+      undefined,
+      undefined,
     ]);
     expect(flow.destinations.map((destination) => destination.slots[0].id)).toEqual([
       "slot-one",
@@ -144,30 +154,6 @@ describe("release flow model", () => {
     expect(flow.destinations[1].config.accountConnectionId).toBe("");
     (flow.destinations[0].config.options as { channel: string }).channel = "beta";
     expect(flow.destinations[1].config.options).toEqual({ channel: "public" });
-  });
-
-  it("chooses an unused destination name after deleting a same-provider destination", () => {
-    const flow = structuredClone(config);
-    const definition = {
-      id: "destination/steam",
-      label: "Steam",
-      accepts: {},
-      defaultConfig: {},
-    } satisfies ReleaseCatalog["destinations"][number];
-    const ids = ["steam-one", "slot-one", "steam-two", "slot-two", "steam-three", "slot-three"];
-    const createId = () => ids.shift()!;
-
-    appendReleaseDestinationInstance(flow, definition, createId);
-    appendReleaseDestinationInstance(flow, definition, createId);
-    const survivingName = flow.destinations[1]!.name;
-    flow.destinations = flow.destinations.filter((destination) => destination.id !== "steam-one");
-    appendReleaseDestinationInstance(flow, definition, createId);
-
-    expect(flow.destinations.map((destination) => destination.name)).toEqual([
-      survivingName,
-      "Destination 1",
-    ]);
-    expect(new Set(flow.destinations.map((destination) => destination.name)).size).toBe(2);
   });
 
   it("suggests a readable workflow alias for each new same-provider destination", () => {
@@ -1275,6 +1261,87 @@ describe("release flow model", () => {
     ).toContain("Store · Production");
   });
 
+  it("adds a compatible build and routes the deployment slot to its target", () => {
+    const workflow: ReleaseConfig = {
+      ...structuredClone(config),
+      builds: [],
+      destinations: [
+        {
+          id: "destination-a",
+          provider: "store",
+          enabled: true,
+          config: {},
+          slots: [{ id: "slot-a", name: "Production", enabled: true, config: {} }],
+        },
+      ],
+    };
+    const choice = {
+      type: "desktop",
+      engine: "engine-a",
+      target: "windows",
+      typeLabel: "Desktop",
+      engineLabel: "Engine A",
+      targetLabel: "Windows",
+    };
+
+    expect(
+      addCompatibleBuild(workflow, catalog, "destination-a", "slot-a", choice, () => "new-build"),
+    ).toBe(true);
+    expect(workflow.builds).toHaveLength(1);
+    expect(workflow.builds[0]).toMatchObject({
+      id: "new-build",
+      type: "desktop",
+      engine: "engine-a",
+    });
+    expect(workflow.builds[0]!.targets.filter((target) => target.enabled).map((t) => t.id)).toEqual(
+      ["windows"],
+    );
+    expect(workflow.destinations[0]!.slots[0]!.input).toEqual({
+      buildId: "new-build",
+      targetId: "windows",
+    });
+  });
+
+  it("leaves the workflow untouched when the slot or target is no longer available", () => {
+    const workflow: ReleaseConfig = {
+      ...structuredClone(config),
+      builds: [],
+      destinations: [
+        {
+          id: "destination-a",
+          provider: "store",
+          enabled: true,
+          config: {},
+          slots: [{ id: "slot-a", name: "Production", enabled: true, config: {} }],
+        },
+      ],
+    };
+    const choice = {
+      type: "desktop",
+      engine: "engine-a",
+      target: "windows",
+      typeLabel: "Desktop",
+      engineLabel: "Engine A",
+      targetLabel: "Windows",
+    };
+    const before = structuredClone(workflow);
+
+    expect(
+      addCompatibleBuild(workflow, catalog, "destination-a", "missing", choice, () => "b"),
+    ).toBe(false);
+    expect(
+      addCompatibleBuild(
+        workflow,
+        catalog,
+        "destination-a",
+        "slot-a",
+        { ...choice, target: "nope" },
+        () => "b",
+      ),
+    ).toBe(false);
+    expect(workflow).toEqual(before);
+  });
+
   it("planner-filters compatible build candidates and excludes unavailable targets", async () => {
     const workflow: ReleaseConfig = {
       ...config,
@@ -1867,5 +1934,407 @@ describe("release flow model", () => {
         severity: "error",
       }),
     ).toBe("issues");
+  });
+});
+
+describe("destination slot outputs", () => {
+  const sourceOption = {
+    value: "source",
+    label: "Source — Project",
+    ref: { source: true as const },
+  };
+  const buildOption = {
+    value: "build-a:windows",
+    label: "Build A — Windows",
+    ref: { buildId: "build-a", targetId: "windows" },
+  };
+  const outputs = [sourceOption, buildOption];
+  const destinationFor = (requiresBuild?: boolean): SlotDestinationDefinition => ({
+    id: "destination/folder",
+    label: "Folder",
+    accepts: {},
+    defaultConfig: {},
+    requiresBuild,
+  });
+  const slot = (): ReleaseDestinationSlot => ({
+    id: "slot-a",
+    name: "Slot",
+    enabled: true,
+    config: {},
+  });
+
+  it("offers the source output for a destination that does not require a build", () => {
+    expect(slotOutputOptionsFor(destinationFor(false), outputs)).toEqual(outputs);
+    expect(slotOutputOptionsFor(destinationFor(undefined), outputs)).toEqual(outputs);
+  });
+
+  it("hides the raw source output for a destination that requires a build", () => {
+    expect(slotOutputOptionsFor(destinationFor(true), outputs)).toEqual([buildOption]);
+  });
+
+  it("keeps the other outputs when no destination definition is known", () => {
+    expect(slotOutputOptionsFor(undefined, outputs)).toEqual(outputs);
+  });
+
+  it("refuses to assign the source to a slot of a destination that requires a build", () => {
+    const target = slot();
+
+    selectSlotOutput(target, destinationFor(true), outputs, "source");
+    expect(target.input).toBeUndefined();
+
+    selectSlotOutput(target, destinationFor(true), outputs, "build-a:windows");
+    expect(target.input).toEqual({ buildId: "build-a", targetId: "windows" });
+  });
+
+  it("assigns the source to a slot of a destination that does not require a build", () => {
+    const target = slot();
+
+    selectSlotOutput(target, destinationFor(false), outputs, "source");
+    expect(target.input).toEqual({ source: true });
+  });
+});
+
+describe("multi-input builds", () => {
+  const electronWindows = {
+    kind: "application" as const,
+    platform: "windows",
+    architecture: "x64",
+    container: "directory" as const,
+  };
+  const electronLinux = { ...electronWindows, platform: "linux" };
+  const zipOutput = {
+    kind: "application" as const,
+    platform: "desktop-bundle",
+    container: "archive" as const,
+    format: "zip",
+  };
+  const bundleCatalog: ReleaseCatalog = {
+    buildTypes: [
+      { id: "desktop", label: "Desktop" },
+      { id: "bundle", label: "Bundle" },
+    ],
+    sources: [
+      {
+        id: "source",
+        label: "Project",
+        output: { kind: "project", container: "directory" },
+        defaultConfig: {},
+      },
+    ],
+    producers: [
+      {
+        id: "electron",
+        label: "Electron",
+        accepts: { kind: "project" },
+        planning: { mode: "build" },
+        defaultConfig: {},
+        targets: [
+          {
+            id: "windows-x64",
+            label: "windows-x64",
+            buildType: "desktop",
+            output: electronWindows,
+            defaultConfig: {},
+          },
+          {
+            id: "linux-x64",
+            label: "linux-x64",
+            buildType: "desktop",
+            output: electronLinux,
+            defaultConfig: {},
+          },
+        ],
+      },
+      {
+        id: "docs",
+        label: "Docs",
+        accepts: { kind: "project" },
+        planning: { mode: "build" },
+        defaultConfig: {},
+        targets: [
+          {
+            id: "pdf",
+            label: "pdf",
+            buildType: "desktop",
+            output: { kind: "files", container: "file" },
+            defaultConfig: {},
+          },
+        ],
+      },
+      {
+        id: "bundle-engine",
+        label: "Bundle",
+        inputs: "many",
+        accepts: { kind: "application" },
+        planning: { mode: "build" },
+        defaultConfig: {},
+        targets: [
+          {
+            id: "zip",
+            label: "zip",
+            buildType: "bundle",
+            output: zipOutput,
+            defaultConfig: {},
+          },
+        ],
+      },
+    ],
+    destinations: [],
+  };
+  const enabledTargets = (...ids: string[]) => ids.map((id) => ({ id, enabled: true, config: {} }));
+  const bundleBuild = (
+    id: string,
+    inputs: ReleaseBuildProfileConfig["inputs"],
+    overrides: Partial<ReleaseBuildProfileConfig> = {},
+  ): ReleaseBuildProfileConfig => ({
+    id,
+    type: "bundle",
+    engine: "bundle-engine",
+    enabled: true,
+    config: {},
+    inputs,
+    targets: enabledTargets("zip"),
+    ...overrides,
+  });
+  const electronBuild = (
+    id: string,
+    targets: string[],
+    overrides: Partial<ReleaseBuildProfileConfig> = {},
+  ): ReleaseBuildProfileConfig => ({
+    id,
+    type: "desktop",
+    engine: "electron",
+    enabled: true,
+    config: {},
+    targets: enabledTargets(...targets),
+    ...overrides,
+  });
+  const workflowWith = (builds: ReleaseBuildProfileConfig[]): ReleaseConfig => ({
+    ...config,
+    builds,
+  });
+
+  it("offers outputs of other enabled builds that the bundle accepts, in build order", () => {
+    const workflow = workflowWith([
+      electronBuild("electron-win", ["windows-x64", "linux-x64"]),
+      electronBuild("electron-named", ["windows-x64"], { name: "Desktop shell" }),
+      electronBuild("electron-off", ["windows-x64"], { enabled: false }),
+      electronBuild("docs-like", [], {
+        type: "desktop",
+        engine: "docs",
+        targets: enabledTargets("pdf"),
+      }),
+      bundleBuild("bundle-a", [{ buildId: "electron-win", targetId: "windows-x64" }]),
+      bundleBuild("bundle-b", []),
+      bundleBuild("bundle-c", [{ buildId: "bundle-a", targetId: "zip" }]),
+    ]);
+
+    const options = bundleCandidateOutputs(workflow, bundleCatalog, "bundle-a");
+
+    expect(options.map((option) => option.value)).toEqual([
+      "electron-win:windows-x64",
+      "electron-win:linux-x64",
+      "electron-named:windows-x64",
+      "bundle-b:zip",
+    ]);
+    expect(options.map((option) => option.label)).toEqual([
+      "Electron · windows-x64",
+      "Electron · linux-x64",
+      "Desktop shell · windows-x64",
+      "Bundle · zip",
+    ]);
+    expect(options[0]?.ref).toEqual({ buildId: "electron-win", targetId: "windows-x64" });
+  });
+
+  it("returns no candidates for an unknown build", () => {
+    expect(bundleCandidateOutputs(workflowWith([]), bundleCatalog, "missing")).toEqual([]);
+  });
+
+  it("sets ordered inputs without duplicates and rejects refs that do not exist", () => {
+    const workflow = workflowWith([
+      electronBuild("electron-win", ["windows-x64", "linux-x64"]),
+      electronBuild("electron-named", ["windows-x64"]),
+      bundleBuild("bundle-a", []),
+    ]);
+    const winRef = { buildId: "electron-win", targetId: "windows-x64" };
+    const linuxRef = { buildId: "electron-win", targetId: "linux-x64" };
+    const namedRef = { buildId: "electron-named", targetId: "windows-x64" };
+
+    expect(setBuildInputs(workflow, "bundle-a", [linuxRef, namedRef, winRef, linuxRef])).toBe(true);
+    expect(workflow.builds[2]?.inputs).toEqual([linuxRef, namedRef, winRef]);
+
+    expect(setBuildInputs(workflow, "bundle-a", [])).toBe(true);
+    expect(workflow.builds[2]?.inputs).toEqual([]);
+
+    expect(
+      setBuildInputs(workflow, "bundle-a", [{ buildId: "missing", targetId: "windows-x64" }]),
+    ).toBe(false);
+    expect(
+      setBuildInputs(workflow, "bundle-a", [{ buildId: "electron-win", targetId: "nope" }]),
+    ).toBe(false);
+    expect(setBuildInputs(workflow, "bundle-a", [{ buildId: "bundle-a", targetId: "zip" }])).toBe(
+      false,
+    );
+    expect(setBuildInputs(workflow, "missing", [winRef])).toBe(false);
+    expect(workflow.builds[2]?.inputs).toEqual([]);
+  });
+
+  it("creates a bundle build with an empty ordered input list only for multi-input engines", () => {
+    const build = createBundleBuild(bundleCatalog, "bundle", "bundle-engine", "bundle-1", ["zip"]);
+
+    expect(build).toMatchObject({
+      id: "bundle-1",
+      type: "bundle",
+      engine: "bundle-engine",
+      enabled: true,
+      inputs: [],
+    });
+    expect(build?.input).toBeUndefined();
+    expect(build?.targets).toEqual([expect.objectContaining({ id: "zip", enabled: true })]);
+    expect(
+      createBundleBuild(bundleCatalog, "desktop", "electron", "desktop-1", []),
+    ).toBeUndefined();
+  });
+
+  it("reports whether a build has explicit inputs", () => {
+    expect(buildUsesExplicitInput(bundleBuild("a", []))).toBe(false);
+    expect(buildUsesExplicitInput(bundleBuild("a", [{ source: true }]))).toBe(true);
+    expect(
+      buildUsesExplicitInput(electronBuild("b", ["windows-x64"], { input: { source: true } })),
+    ).toBe(true);
+    expect(buildUsesExplicitInput(electronBuild("c", ["windows-x64"]))).toBe(false);
+  });
+
+  it("labels every planned or explicit input of a multi-input build", () => {
+    const workflow = workflowWith([
+      electronBuild("electron-win", ["windows-x64"]),
+      electronBuild("electron-named", ["windows-x64"], { name: "Desktop shell" }),
+      bundleBuild("bundle-a", [
+        { buildId: "electron-named", targetId: "windows-x64" },
+        { buildId: "electron-win", targetId: "windows-x64" },
+      ]),
+    ]);
+    expect(plannedBuildInputLabel(workflow, undefined, bundleCatalog, "bundle-a")).toBe(
+      "Desktop shell — windows-x64, Electron — windows-x64",
+    );
+
+    const planned = {
+      outputs: [],
+      producers: [
+        {
+          id: "bundle-a",
+          inputs: [{ producerId: "electron-win", outputId: "windows-x64" }, { source: true }],
+        },
+      ],
+      destinations: [],
+      issues: [],
+      graph: { nodes: [], edges: [] },
+    } as unknown as ReleasePlan;
+    const empty = workflowWith([
+      electronBuild("electron-win", ["windows-x64"]),
+      bundleBuild("bundle-a", []),
+    ]);
+    expect(plannedBuildInputLabel(empty, planned, bundleCatalog, "bundle-a")).toBe(
+      "Electron — windows-x64, Source — Project",
+    );
+    expect(plannedBuildInputLabel(empty, undefined, bundleCatalog, "bundle-a")).toBeUndefined();
+  });
+
+  it("lists a multi-input build as a consumer of each referenced output", () => {
+    const workflow = workflowWith([
+      electronBuild("electron-win", ["windows-x64"]),
+      bundleBuild("bundle-a", [
+        { source: true },
+        { buildId: "electron-win", targetId: "windows-x64" },
+      ]),
+    ]);
+
+    expect(outputReferenceConsumers(workflow, { buildId: "electron-win" }, bundleCatalog)).toEqual([
+      {
+        kind: "build",
+        ownerId: "bundle-a",
+        label: "Bundle build",
+        path: "builds.1.inputs.1",
+      },
+    ]);
+  });
+
+  it("refuses to attach a multi-input engine to a deployment slot", () => {
+    const workflow: ReleaseConfig = {
+      ...config,
+      destinations: [
+        {
+          id: "destination-a",
+          provider: "store",
+          enabled: true,
+          config: {},
+          slots: [{ id: "slot-a", enabled: true, config: {} }],
+        },
+      ],
+    };
+
+    expect(
+      addCompatibleBuild(
+        workflow,
+        bundleCatalog,
+        "destination-a",
+        "slot-a",
+        {
+          type: "bundle",
+          engine: "bundle-engine",
+          target: "zip",
+          typeLabel: "Bundle",
+          engineLabel: "Bundle",
+          targetLabel: "zip",
+        },
+        () => "bundle-1",
+      ),
+    ).toBe(false);
+    expect(workflow.builds).toEqual([]);
+  });
+
+  it("never offers multi-input engines as deployment build candidates", async () => {
+    const workflow: ReleaseConfig = {
+      ...config,
+      destinations: [
+        {
+          id: "destination-a",
+          provider: "store",
+          enabled: true,
+          config: {},
+          slots: [{ id: "slot-a", enabled: true, config: {} }],
+        },
+      ],
+    };
+    const planned: ReleaseConfig[] = [];
+    const candidates = await probeCompatibleBuildCandidates(
+      workflow,
+      bundleCatalog,
+      "destination-a",
+      "slot-a",
+      async (candidate) => {
+        planned.push(candidate);
+        return {
+          producers: candidate.builds.map((build) => ({ id: build.id })),
+          issues: [],
+        } as unknown as ReleasePlan;
+      },
+    );
+
+    expect(candidates.map((candidate) => candidate.engine)).not.toContain("bundle-engine");
+    expect(planned.some((candidate) => candidate.builds.at(-1)?.engine === "bundle-engine")).toBe(
+      false,
+    );
+  });
+
+  it("drops a single input and starts an empty input list when switching to a multi-input engine", () => {
+    const build = electronBuild("electron-win", ["windows-x64"], {
+      input: { source: true },
+    });
+    const switched = switchBuildProfileEngine(bundleCatalog, build, "bundle-engine");
+
+    expect(switched?.engine).toBe("bundle-engine");
+    expect(switched?.input).toBeUndefined();
+    expect(switched?.inputs).toEqual([]);
   });
 });

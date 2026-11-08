@@ -113,7 +113,7 @@ const {
       .getByRole("button", { name: /New workflow/ })
       .first()
       .click();
-    const dialog = page.getByRole("dialog", { name: "New release" });
+    const dialog = page.getByRole("dialog", { name: "New workflow" });
     await dialog.getByLabel("Name", { exact: true }).fill("Connected browser draft");
     await dialog.locator(".wizard-panel:visible").getByRole("button", { name: "Continue" }).click();
     await dialog.getByRole("button", { name: /Godot project/ }).click();

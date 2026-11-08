@@ -21,6 +21,10 @@ const browserProviderSpecs = {
         id: "console",
         label: "Console",
       },
+      {
+        id: "bundle",
+        label: "Bundle",
+      },
     ],
     sources: [
       {
@@ -119,36 +123,43 @@ const browserProviderSpecs = {
             label: "Project file",
             required: true,
             fileExtensions: ["c3p"],
+            showInWizard: true,
           },
           {
             key: "profilePath",
             type: "select",
             label: "Browser profile",
             required: true,
-            deferUntilEditor: true,
           },
           {
             key: "accountConnectionId",
             type: "connection",
             integration: "Construct Account",
             label: "Construct account",
-            description:
-              "Optional. Use a saved Construct session from the selected browser profile instead.",
             required: false,
           },
           {
             key: "version",
             type: "text",
             label: "Construct version",
-            description:
-              "Leave blank to use the release saved with the project. Enter latest or a release such as r397 to override it.",
+            placeholder: "Empty: the project's saved release",
+            options: [
+              {
+                label: "latest",
+                value: "latest",
+              },
+              {
+                label: "beta",
+                value: "beta",
+              },
+            ],
             required: false,
           },
         ],
         output: {
-          kind: "application",
-          platform: "web",
-          container: "directory",
+          kind: "project",
+          technology: "construct",
+          container: "file",
         },
         defaultConfig: {
           path: "",
@@ -167,6 +178,7 @@ const browserProviderSpecs = {
             type: "directory",
             label: "Project path",
             required: true,
+            showInWizard: true,
           },
         ],
         output: {
@@ -224,6 +236,103 @@ const browserProviderSpecs = {
               remove: ["format"],
             },
             defaultConfig: {},
+          },
+        ],
+      },
+      {
+        id: "@pipelab/core/bundle",
+        label: "Bundle",
+        accepts: {
+          kind: ["application", "files"],
+          container: ["directory", "archive"],
+        },
+        planning: {
+          mode: "build",
+        },
+        inputs: "many",
+        defaultConfig: {},
+        requiresAgentInspection: false,
+        targets: [
+          {
+            id: "zip",
+            label: "ZIP archive",
+            buildType: "bundle",
+            output: {
+              kind: "files",
+              container: "archive",
+              format: "zip",
+            },
+            defaultConfig: {},
+          },
+        ],
+      },
+      {
+        id: "@pipelab/plugin-construct/producer",
+        label: "Construct",
+        accepts: {
+          kind: "project",
+          technology: "construct",
+        },
+        planning: {
+          mode: "build",
+        },
+        defaultConfig: {},
+        requiresAgentInspection: false,
+        targets: [
+          {
+            id: "web",
+            label: "web",
+            buildType: "web",
+            output: {
+              kind: "application",
+              technology: "construct",
+              platform: "web",
+              container: "directory",
+            },
+            defaultConfig: {},
+            availabilityStatus: "unknown",
+          },
+          {
+            id: "webview2-windows-x64",
+            label: "webview2-windows-x64",
+            buildType: "desktop",
+            output: {
+              kind: "application",
+              technology: "webview2",
+              platform: "windows",
+              architecture: "x64",
+              container: "directory",
+            },
+            defaultConfig: {},
+            availabilityStatus: "unknown",
+          },
+          {
+            id: "wkwebview-macos-arm64",
+            label: "wkwebview-macos-arm64",
+            buildType: "desktop",
+            output: {
+              kind: "application",
+              technology: "wkwebview",
+              platform: "macos",
+              architecture: "arm64",
+              container: "directory",
+            },
+            defaultConfig: {},
+            availabilityStatus: "unknown",
+          },
+          {
+            id: "cef-linux-x64",
+            label: "cef-linux-x64",
+            buildType: "desktop",
+            output: {
+              kind: "application",
+              technology: "cef",
+              platform: "linux",
+              architecture: "x64",
+              container: "directory",
+            },
+            defaultConfig: {},
+            availabilityStatus: "unknown",
           },
         ],
       },
@@ -490,6 +599,10 @@ const browserProviderSpecs = {
       {
         id: "@pipelab/core/destination/folder",
         label: "Folder",
+        icon: {
+          type: "icon",
+          icon: "mdi-folder-outline",
+        },
         fields: [
           {
             key: "outputDir",
@@ -499,6 +612,7 @@ const browserProviderSpecs = {
           },
         ],
         accepts: {},
+        requiresBuild: true,
         defaultConfig: {
           outputDir: "",
         },
@@ -506,16 +620,22 @@ const browserProviderSpecs = {
       {
         id: "@pipelab/core/destination/zip",
         label: "ZIP",
+        icon: {
+          type: "icon",
+          icon: "mdi-folder-zip-outline",
+        },
         fields: [
           {
             key: "outputPath",
             type: "file",
             label: "ZIP output path",
             required: true,
+            fileExtensions: ["zip"],
+            pathMode: "save",
           },
         ],
         accepts: {
-          container: "directory",
+          container: ["directory", "archive"],
         },
         defaultConfig: {
           outputPath: "",
@@ -636,6 +756,10 @@ const browserProviderSpecs = {
         id: "@pipelab/pipelab-cloud/destination",
         label: "Pipelab Cloud",
         description: "Store selected build artifacts in your private Pipelab Cloud storage.",
+        icon: {
+          type: "icon",
+          icon: "mdi-cloud-upload-outline",
+        },
         accepts: {
           kind: "application",
           container: ["file", "directory", "archive"],

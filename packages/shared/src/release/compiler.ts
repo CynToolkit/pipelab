@@ -3,9 +3,13 @@ import { RELEASE_BEFORE_BUILD_TASK_ID } from "./types";
 import type {
   ArtifactRef,
   CompiledArtifact,
+  CompiledInput,
+  CompiledProducer,
   ReleaseCompileContext,
   ReleaseConfig,
+  ReleaseOutputRef,
   ReleasePlan,
+  ReleaseProducerConfig,
   ReleaseRegistry,
 } from "./types";
 import { isSafePersistedId } from "../persisted-id";
@@ -20,6 +24,38 @@ const provider = <T extends { id: string }>(providers: T[], id: string, kind: st
 
 const isSourceRef = (ref: ArtifactRef): ref is { source: true } =>
   "source" in ref && ref.source === true;
+
+/**
+ * Keys (`producerId:outputId`) of the producer outputs that something reads: each enabled
+ * destination slot, and transitively every input of a producer that has a consumed output.
+ * Exposed but unconsumed outputs are not in the set and are not compiled.
+ */
+const consumedOutputKeys = (plan: ReleasePlan): Set<string> => {
+  const producers = new Map(plan.producers.map((item) => [item.id, item]));
+  const consumed = new Set<string>();
+  const pending: ArtifactRef[] = plan.destinations.flatMap((destination) =>
+    destination.slots.flatMap((slot) => (slot.input ? [slot.input] : [])),
+  );
+  while (pending.length) {
+    const ref = pending.pop()!;
+    if (isSourceRef(ref)) continue;
+    const key = `${ref.producerId}:${ref.outputId}`;
+    if (consumed.has(key)) continue;
+    consumed.add(key);
+    const producer = producers.get(ref.producerId);
+    if (producer) pending.push(...(producer.inputs ?? (producer.input ? [producer.input] : [])));
+  }
+  return consumed;
+};
+
+const toOutputRef = (ref: ArtifactRef): ReleaseOutputRef =>
+  isSourceRef(ref) ? { source: true } : { buildId: ref.producerId, targetId: ref.outputId };
+
+/** Stable, folder-safe label for a multi-input producer's input. */
+const inputLabel = (ref: ArtifactRef): string =>
+  isSourceRef(ref)
+    ? "source"
+    : `${ref.producerId}-${ref.outputId}`.replace(/[^A-Za-z0-9._-]+/g, "-");
 
 const addArtifactDependencies = (step: WorkflowStep): WorkflowStep => {
   const artifactDependencies = Object.values(step.artifactInputs ?? {}).map(
@@ -67,9 +103,23 @@ export const compileReleasePlan = (
   const source = sourceDefinition.compile(configuration.source.config, context);
   const steps: WorkflowStep[] = source.steps.map(addArtifactDependencies);
   validateCompiledArtifact(source.artifact, steps, "source");
+  // Producers compile against the same source configuration the source was compiled from.
+  const producerContext: ReleaseCompileContext = {
+    ...context,
+    sourceConfig: configuration.source.config,
+  };
   const artifacts = new Map<string, CompiledArtifact>([["source", source.artifact]]);
   const states = new Map<string, "visiting" | "compiled">();
   const producers = new Map(plan.producers.map((item) => [item.id, item]));
+  const consumed = consumedOutputKeys(plan);
+  // Producers see only the targets that are consumed; the planned configuration is left untouched.
+  const withConsumedTargets = (producer: ReleaseProducerConfig): ReleaseProducerConfig => ({
+    ...producer,
+    targets: producer.targets.map((target) => ({
+      ...target,
+      enabled: target.enabled && consumed.has(`${producer.id}:${target.id}`),
+    })),
+  });
   const buildProfiles = new Map(configuration.builds.map((item) => [item.id, item]));
 
   const compileBeforeBuildHooks = (
@@ -132,6 +182,18 @@ export const compileReleasePlan = (
     return { steps: compiledSteps, artifact };
   };
 
+  const resolveInput = (inputRef: ArtifactRef): CompiledArtifact => {
+    if (!isSourceRef(inputRef)) compileProducer(inputRef.producerId);
+    const input = artifacts.get(
+      isSourceRef(inputRef) ? "source" : `${inputRef.producerId}:${inputRef.outputId}`,
+    );
+    if (!input)
+      throw new Error(
+        `Producer references an unknown artifact ${isSourceRef(inputRef) ? "source" : `${inputRef.producerId}/${inputRef.outputId}`}.`,
+      );
+    return input;
+  };
+
   const compileProducer = (producerId: string): void => {
     if (states.get(producerId) === "compiled") return;
     if (states.get(producerId) === "visiting")
@@ -140,27 +202,37 @@ export const compileReleasePlan = (
     if (!producer)
       throw new Error(`Producer references an unknown artifact producer ${producerId}.`);
     if (!producer.enabled) throw new Error(`Producer ${producerId} is not enabled.`);
-    if (!producer.input) throw new Error(`Producer ${producer.id} is missing an artifact input.`);
-    states.set(producerId, "visiting");
     const definition = provider(registry.producers, producer.provider, "producer");
-    const inputRef = producer.input;
-    if (!isSourceRef(inputRef)) compileProducer(inputRef.producerId);
-    const input = artifacts.get(
-      isSourceRef(inputRef) ? "source" : `${inputRef.producerId}:${inputRef.outputId}`,
-    );
-    if (!input)
-      throw new Error(
-        `Producer ${producer.id} references an unknown artifact ${isSourceRef(inputRef) ? "source" : `${inputRef.producerId}/${inputRef.outputId}`}.`,
+    const compilable = withConsumedTargets(producer);
+    let compiled: CompiledProducer;
+    if (definition.inputs === "many") {
+      if (!producer.inputs?.length)
+        throw new Error(`Producer ${producer.id} is missing its artifact inputs.`);
+      states.set(producerId, "visiting");
+      const inputs: CompiledInput[] = producer.inputs.map((inputRef) => ({
+        artifact: resolveInput(inputRef),
+        ref: toOutputRef(inputRef),
+        label: inputLabel(inputRef),
+      }));
+      if (!definition.compileMany)
+        throw new Error(
+          `Producer ${definition.id} consumes several inputs but does not implement compileMany.`,
+        );
+      compiled = definition.compileMany(inputs, compilable, producerContext);
+    } else {
+      if (!producer.input) throw new Error(`Producer ${producer.id} is missing an artifact input.`);
+      states.set(producerId, "visiting");
+      const input = resolveInput(producer.input);
+      const hookedInput = compileBeforeBuildHooks(
+        producerId,
+        input,
+        definition.supportsBeforeBuildHooks,
       );
-    const hookedInput = compileBeforeBuildHooks(
-      producerId,
-      input,
-      definition.supportsBeforeBuildHooks,
-    );
-    steps.push(...hookedInput.steps);
-    const compiled = definition.compile(hookedInput.artifact, producer, context);
+      steps.push(...hookedInput.steps);
+      compiled = definition.compile(hookedInput.artifact, compilable, producerContext);
+    }
     const compiledSteps = compiled.steps.map(addArtifactDependencies);
-    for (const target of producer.targets.filter((item) => item.enabled)) {
+    for (const target of compilable.targets.filter((item) => item.enabled)) {
       if (!compiled.artifacts[target.id])
         throw new Error(`Producer ${producer.id} did not compile artifact ${target.id}.`);
     }
@@ -172,7 +244,11 @@ export const compileReleasePlan = (
     states.set(producerId, "compiled");
   };
 
-  for (const producer of plan.producers.filter((item) => item.enabled))
+  // A producer is compiled only when at least one of its targets is consumed.
+  for (const producer of plan.producers.filter(
+    (item) =>
+      item.enabled && item.targets.some((target) => consumed.has(`${item.id}:${target.id}`)),
+  ))
     compileProducer(producer.id);
   for (const destination of plan.destinations) {
     const definition = provider(registry.destinations, destination.provider, "destination");

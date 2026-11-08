@@ -22,7 +22,7 @@ the compact recap, resolved defaults, multiple blocker navigation, and the
 contextual Steam connection action. Construct and Godot journeys also cover
 light/dark rendering, narrow layout, Back navigation, and a resolver response
 arriving after the wizard closes. Set `UI_BASE_URL` to any running UI server;
-when `SCREENSHOT_DIR` is set, the run saves Step 1, Destinations, Recap, and
+when `SCREENSHOT_DIR` is set, the run saves Step 1, Destinations, Review, and
 Configuration captures there for review.
 It also saves representative empty/populated Dashboard and Workflows screenshots
 at desktop and narrow widths in the selected theme.

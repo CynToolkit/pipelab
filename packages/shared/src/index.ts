@@ -67,6 +67,7 @@ export * from "./release/compiler";
 export * from "./release/validate";
 export * from "./release/planner";
 export * from "./release/preferences";
+export * from "./release/defaults";
 
 // 4. Configuration Sub-packages
 export * from "./config/projects-definition"; // <-- RE-ADDED

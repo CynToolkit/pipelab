@@ -1,3 +1,5 @@
+import AdmZip from "adm-zip";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { describe, expect, it, vi } from "vitest";
 import { tmpdir } from "node:os";
 import { join, normalize } from "node:path";
@@ -20,6 +22,26 @@ vi.mock("./browser-profiles", async (importOriginal) => ({
 }));
 
 import { constructSource } from "./index";
+import { constructProducer } from "./producer";
+
+const compileWebExport = (
+  sourceConfig: Record<string, unknown>,
+  context: Record<string, unknown> = {},
+) =>
+  constructProducer.compile(
+    {
+      reference: { stepId: "release-construct-source", artifact: "output" },
+      descriptor: constructSource.output,
+    },
+    {
+      id: "construct",
+      provider: constructProducer.id,
+      enabled: true,
+      targets: [{ id: "web", enabled: true, config: {} }],
+      config: {},
+    },
+    { host: { platform: "linux", architecture: "x64" }, sourceConfig, ...context },
+  );
 
 describe("Construct source inspection", () => {
   it("compiles a workflow-scoped account alias without reading or storing process credentials", () => {
@@ -29,7 +51,7 @@ describe("Construct source inspection", () => {
     vi.stubEnv("CONSTRUCT_PASSWORD", password);
 
     try {
-      const compiled = constructSource.compile(
+      const compiled = compileWebExport(
         {
           path: "/project.c3p",
           profilePath,
@@ -37,7 +59,6 @@ describe("Construct source inspection", () => {
           version: "",
         },
         {
-          host: { platform: "linux", architecture: "x64" },
           getEnvironmentVariableStatus: () => ({ configured: false, nonEmpty: false }),
         },
       );
@@ -60,10 +81,7 @@ describe("Construct source inspection", () => {
     vi.stubEnv("CONSTRUCT_PASSWORD", undefined);
 
     try {
-      const compiled = constructSource.compile(
-        { path: "/project.c3p", profilePath, version: "" },
-        { host: { platform: "linux", architecture: "x64" } },
-      );
+      const compiled = compileWebExport({ path: "/project.c3p", profilePath, version: "" });
 
       expect(compiled.steps[0]?.with).not.toHaveProperty("username");
       expect(compiled.steps[0]?.with).not.toHaveProperty("password");
@@ -92,6 +110,39 @@ describe("Construct source inspection", () => {
     expect(discoverBrowserProfiles).not.toHaveBeenCalled();
     expect(first.fieldOptions).toEqual(second.fieldOptions);
     expect(second.issues).toEqual([]);
+  });
+
+  it("offers keywords, with the project's saved release first when it can be read", async () => {
+    listChromiumBrowserProfiles.mockResolvedValue([]);
+    const inspect = constructSource.inspect;
+    if (!inspect) throw new Error("Expected Construct source inspection");
+    const host = { platform: "linux", architecture: "x64" } as const;
+
+    const unreadable = await inspect(
+      { path: join(tmpdir(), "missing.c3p"), profilePath: "" },
+      { host },
+    );
+    expect(unreadable.fieldOptions?.version).toEqual([
+      { label: "latest", value: "latest" },
+      { label: "beta", value: "beta" },
+    ]);
+
+    const directory = await mkdtemp(join(tmpdir(), "pipelab-inspect-"));
+    try {
+      const archive = new AdmZip();
+      archive.addFile("project.c3proj", Buffer.from(JSON.stringify({ savedWithRelease: 46602 })));
+      const file = join(directory, "game.c3p");
+      await writeFile(file, archive.toBuffer());
+
+      const readable = await inspect({ path: file, profilePath: "" }, { host });
+      expect(readable.fieldOptions?.version).toEqual([
+        { label: "r466-2 · saved in project", value: "r466-2" },
+        { label: "latest", value: "latest" },
+        { label: "beta", value: "beta" },
+      ]);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 
   it("blocks a selected profile that disappeared since it was listed", async () => {

@@ -1,15 +1,12 @@
 <template>
   <Dialog
     v-model:visible="visible"
+    class="pl-dialog pl-workflow"
     modal
-    header="New release"
-    :style="{ width: '680px', maxWidth: '96vw' }"
+    header="New workflow"
+    :style="{ width: '720px', maxWidth: '96vw' }"
   >
-    <p v-if="!isReady && isBrowser" role="status">
-      Provider options are available from this browser package. Agent checks and workflow creation
-      require a Pipelab agent.
-    </p>
-    <p v-else-if="!isReady" role="status">
+    <p v-if="!isReady && !isBrowser" role="status">
       Reconnect the agent to continue setting up this workflow.
     </p>
     <p v-else-if="catalogLoading" role="status">Loading workflow options…</p>
@@ -22,30 +19,33 @@
       :linear="!isBrowser"
       :inert="catalogLoading || (!isBrowser && (!isReady || Boolean(catalogError)))"
     >
-      <StepList class="wizard-step-list" tabindex="0" aria-label="Wizard steps">
+      <StepList class="wizard-step-list" aria-label="Wizard steps">
         <Step
           v-for="item in steps"
           :key="item.value"
           :value="item.value"
           asChild
-          v-slot="{ activateCallback, a11yAttrs, active }"
+          v-slot="{ active }"
         >
-          <button
+          <div
             class="step"
-            v-bind="a11yAttrs.header"
-            :aria-selected="active"
+            :class="{ done: isStepDone(item.value) }"
             :aria-current="active ? 'step' : undefined"
-            @click="activateCallback"
           >
-            {{ item.number }} <span>{{ item.label }}</span>
-          </button>
+            <span class="step-index"
+              ><i v-if="isStepDone(item.value)" class="pi pi-check" aria-hidden="true" /><template
+                v-else
+                >{{ item.index }}</template
+              ></span
+            >
+            <span class="step-label">{{ item.label }}</span>
+          </div>
         </Step>
       </StepList>
       <StepPanels>
         <StepPanel value="details">
           <div class="wizard-panel">
             <h2>Name your workflow</h2>
-            <p>Add a name and description for this release.</p>
             <div class="field wide">
               <label for="release-name">Name</label>
               <InputText id="release-name" v-model="draft.name" />
@@ -68,7 +68,6 @@
         <StepPanel value="source">
           <div class="wizard-panel">
             <h2>Choose a source</h2>
-            <p>Choose the project or files this release represents.</p>
             <div class="choice-grid source-grid">
               <button
                 v-for="source in catalog.sources"
@@ -86,29 +85,21 @@
                 />
                 <i v-else :class="providerIconClass(sourceIcon(source))" aria-hidden="true" />
                 <strong>{{ source.label }}</strong>
-                <small>{{ sourceCaption(source) }}</small>
               </button>
             </div>
-            <p v-if="!draft.source.provider" class="helper-copy">Choose a source to continue.</p>
             <template v-if="sourceDefinition">
-              <small
-                v-if="isOfflineBrowserDraft && sourceDefinition.requiresAgentInspection"
-                class="helper-copy"
-              >
-                Additional source options require the Pipelab agent.
-              </small>
-              <ReleaseFieldControl
-                v-for="field in sourceDefinition.fields?.filter((item) => !item.deferUntilEditor) ||
-                []"
-                :key="field.key"
-                :field="field"
-                :value="String(draft.source.config[field.key] || '')"
-                :options="field.options || []"
-                :issues="[]"
-                :input-id="`wizard-source-${field.key}`"
-                :allow-path-edit="isOfflineBrowserDraft"
-                @update:value="setSourceField(field.key, $event)"
-              />
+              <template v-for="field in wizardFields(sourceDefinition.fields)" :key="field.key">
+                <ReleaseFieldControl
+                  :field="field"
+                  :value="String(draft.source.config[field.key] || '')"
+                  :options="field.options || []"
+                  :issues="[]"
+                  :input-id="`wizard-source-${field.key}`"
+                  :allow-path-edit="isOfflineBrowserDraft"
+                  hide-advanced
+                  @update:value="setSourceField(field.key, $event)"
+                />
+              </template>
             </template>
             <div class="wizard-actions">
               <Button
@@ -127,166 +118,36 @@
             </div>
           </div>
         </StepPanel>
-        <StepPanel v-if="isBrowser" value="builds">
-          <div class="wizard-panel">
-            <h2>Configure a build</h2>
-            <p>Select a packaged build provider to add it to this in-memory draft.</p>
-            <div class="choice-grid">
-              <button
-                v-for="producer in buildProducers"
-                :key="producer.id"
-                type="button"
-                class="choice-card"
-                :class="{ selected: selectedBuild?.engine === producer.id }"
-                :aria-pressed="selectedBuild?.engine === producer.id"
-                @click="chooseBuildProducer(producer.id)"
-              >
-                <i :class="providerIconClass(producer.icon)" aria-hidden="true" />
-                <strong>{{ producer.label }}</strong>
-                <small>{{
-                  producer.requiresAgentInspection
-                    ? "Agent inspection required"
-                    : producer.planning.mode
-                }}</small>
-              </button>
-            </div>
-            <template v-if="selectedBuildProducer && selectedBuild">
-              <small
-                v-if="selectedBuildProducer.requiresAgentInspection"
-                class="helper-copy"
-                role="status"
-              >
-                {{
-                  isOfflineBrowserDraft
-                    ? "This provider needs agent inspection. Fields below are draft values only; readiness is Unknown."
-                    : "The connected agent will inspect this provider during workflow validation."
-                }}
-              </small>
-              <small v-if="producerInspectionLoading" class="helper-copy" role="status">
-                Loading build options from the connected agent…
-              </small>
-              <small v-else-if="producerInspectionError" class="helper-copy" role="alert">
-                The connected agent could not load build options. Reconnect and try again.
-              </small>
-              <ReleaseFieldControl
-                v-for="field in selectedBuildProducer.fields || []"
-                :key="field.key"
-                :field="field"
-                :value="String(selectedBuild.config[field.key] ?? '')"
-                :options="buildFieldOptions(field.key, field.options || [])"
-                :issues="[]"
-                :input-id="`wizard-build-${field.key}`"
-                :allow-path-edit="isOfflineBrowserDraft"
-                @update:value="setBuildField(field.key, $event)"
-              />
-              <h3>Target</h3>
-              <div class="choice-grid">
-                <button
-                  v-for="target in selectedBuildProducer.targets.filter(
-                    (candidate) => candidate.buildType,
-                  )"
-                  :key="target.id"
-                  type="button"
-                  class="choice-card"
-                  :class="{ selected: selectedBuild.targets[0]?.id === target.id }"
-                  :aria-pressed="selectedBuild.targets[0]?.id === target.id"
-                  @click="chooseBuildTarget(target.id)"
-                >
-                  <strong>{{ target.label }}</strong>
-                  <small>{{ releaseWizardTargetAvailability(target, isReady) }}</small>
-                </button>
-              </div>
-              <ReleaseFieldControl
-                v-for="field in selectedBuildTarget?.fields || []"
-                :key="field.key"
-                :field="field"
-                :value="String(selectedBuild.targets[0]?.config[field.key] ?? '')"
-                :options="buildFieldOptions(field.key, field.options || [])"
-                :issues="[]"
-                :input-id="`wizard-build-target-${field.key}`"
-                :allow-path-edit="isOfflineBrowserDraft"
-                @update:value="setBuildTargetField(field.key, $event)"
-              />
-            </template>
-            <p v-else class="helper-copy">A build is optional for this draft.</p>
-            <div class="wizard-actions">
-              <Button
-                label="Back"
-                text
-                severity="secondary"
-                @click="step = releaseWizardPreviousStep(step, activeSteps)"
-              />
-              <Button
-                label="Continue"
-                icon="pi pi-arrow-right"
-                iconPos="right"
-                @click="step = releaseWizardNextStep(step, activeSteps)"
-              />
-            </div>
-          </div>
-        </StepPanel>
         <StepPanel value="destinations">
           <div class="wizard-panel">
             <h2>Where do you want to ship?</h2>
-            <p>
-              You can add one or more destinations. You can configure accounts and settings later.
-            </p>
-            <div class="destination-list">
-              <div
+            <div class="destination-grid">
+              <button
                 v-for="destination in catalog.destinations"
                 :key="destination.id"
-                class="destination-option"
+                type="button"
+                class="destination-card"
+                :class="{ selected: hasDestination(destination.id) }"
+                :aria-pressed="hasDestination(destination.id)"
+                @click="toggleDestination(destination.id)"
               >
-                <button
-                  type="button"
-                  class="destination-row"
-                  :class="{ selected: hasDestination(destination.id) }"
-                  :aria-pressed="hasDestination(destination.id)"
-                  @click="toggleDestination(destination.id)"
-                >
-                  <span class="destination-selection" aria-hidden="true">
-                    <i :class="hasDestination(destination.id) ? 'pi pi-check' : 'pi pi-circle'" />
-                  </span>
-                  <img
-                    v-if="providerIconImage(destinationIcon(destination.id, destination.icon))"
-                    :src="providerIconImage(destinationIcon(destination.id, destination.icon))"
-                    alt=""
-                  />
-                  <i
-                    v-else
-                    :class="providerIconClass(destinationIcon(destination.id, destination.icon))"
-                    aria-hidden="true"
-                  />
-                  <span class="destination-copy">
-                    <strong>{{ destination.label }}</strong>
-                    <small>{{ destination.description || "Ship your release" }}</small>
-                  </span>
-                </button>
-                <div v-if="isBrowser && hasDestination(destination.id)" class="destination-fields">
-                  <small
-                    v-if="isOfflineBrowserDraft && destination.fields?.length"
-                    class="helper-copy"
-                    role="status"
-                  >
-                    These settings remain in the browser draft until connected to an agent.
-                  </small>
-                  <template v-for="field in destination.fields || []" :key="field.key">
-                    <small v-if="field.type === 'connection'" class="helper-copy" role="status">
-                      Account selection is available in Configuration after creating the workflow.
-                    </small>
-                    <ReleaseFieldControl
-                      v-else
-                      :field="field"
-                      :value="String(selectedDestination(destination.id)?.config[field.key] ?? '')"
-                      :options="field.options || []"
-                      :issues="[]"
-                      :input-id="`wizard-destination-${destination.id}-${field.key}`"
-                      :allow-path-edit="isOfflineBrowserDraft"
-                      @update:value="setDestinationField(destination.id, field.key, $event)"
-                    />
-                  </template>
-                </div>
-              </div>
+                <img
+                  v-if="providerIconImage(destinationIcon(destination.id, destination.icon))"
+                  :src="providerIconImage(destinationIcon(destination.id, destination.icon))"
+                  alt=""
+                />
+                <i
+                  v-else
+                  :class="providerIconClass(destinationIcon(destination.id, destination.icon))"
+                  aria-hidden="true"
+                />
+                <strong>{{ destination.label }}</strong>
+                <i
+                  v-if="hasDestination(destination.id)"
+                  class="pi pi-check-circle"
+                  aria-hidden="true"
+                />
+              </button>
             </div>
             <div class="wizard-actions">
               <Button
@@ -307,27 +168,15 @@
         </StepPanel>
         <StepPanel value="recap">
           <div class="wizard-panel">
-            <h2>Review your choices</h2>
-            <p class="review-intro">
-              This will create your workflow. You can select the project or files, configure builds,
-              connections, and destination details in Configuration afterward.
-            </p>
-            <div class="review-list">
-              <div>
-                <span class="review-label">Name</span>
-                <span
-                  ><strong>{{ recap.name }}</strong></span
-                >
+            <h2>Review and create</h2>
+            <div class="review-card">
+              <div class="review-title">
+                <strong>{{ recap.name }}</strong>
+                <small v-if="recap.description">{{ recap.description }}</small>
               </div>
-              <div v-if="recap.description">
-                <span class="review-label">Description</span>
-                <span
-                  ><strong>{{ recap.description }}</strong></span
-                >
-              </div>
-              <div>
+              <div class="review-section">
                 <span class="review-label">Source</span>
-                <span class="review-value">
+                <span class="review-item">
                   <img
                     v-if="providerIconImage(sourceIcon(sourceDefinition))"
                     :src="providerIconImage(sourceIcon(sourceDefinition))"
@@ -338,28 +187,19 @@
                     :class="providerIconClass(sourceIcon(sourceDefinition))"
                     aria-hidden="true"
                   />
-                  <span>
+                  <span class="review-item-text">
                     <strong>{{ recap.sourceLabel }}</strong>
-                    <small v-if="recap.sourcePath" class="review-detail">{{
-                      recap.sourcePath
-                    }}</small>
+                    <small v-if="recap.sourcePath">{{ recap.sourcePath }}</small>
                   </span>
                 </span>
               </div>
-              <div v-if="draft.builds.length">
-                <span class="review-label">Build</span>
-                <span
-                  ><strong>{{ selectedBuildProducer?.label }}</strong> ·
-                  {{ selectedBuildTarget?.label }}</span
-                >
-              </div>
-              <div>
-                <span class="review-label">Destinations ({{ recap.destinations.length }})</span>
-                <span class="review-destinations">
+              <div class="review-section">
+                <span class="review-label">Destinations</span>
+                <span class="review-chips">
                   <span
                     v-for="destination in recap.destinations"
                     :key="destination.provider"
-                    class="review-destination"
+                    class="review-chip"
                   >
                     <img
                       v-if="
@@ -377,29 +217,12 @@
                       "
                       aria-hidden="true"
                     />
-                    <strong>{{ destination.label }}</strong>
+                    {{ destination.label }}
                   </span>
                 </span>
               </div>
             </div>
-            <p class="review-notice">
-              <i class="pi pi-info-circle" aria-hidden="true" />
-              <span v-if="isOfflineBrowserDraft"
-                >Build fields and destination settings in this browser draft are not validated until
-                the Pipelab agent checks them.</span
-              >
-              <span v-else
-                >Configuration, builds and connections can be set up after creation in the workflow
-                Configuration.</span
-              >
-            </p>
-            <p v-if="!isReady" class="review-notice">
-              Runtime checks and saving this draft require a Pipelab agent.
-            </p>
-            <p v-else-if="!projectId" class="review-notice" role="status">
-              Choose a project before creating this workflow.
-            </p>
-            <p v-if="invalidEnvironmentBindingCount" class="review-notice" role="alert">
+            <p v-if="invalidEnvironmentBindingCount" class="review-error" role="alert">
               Fix invalid environment variable names before creating this workflow.
             </p>
             <div v-if="createError" class="wizard-create-error" role="alert">
@@ -439,18 +262,21 @@ import InputText from "primevue/inputtext";
 import Textarea from "primevue/textarea";
 import Button from "primevue/button";
 import { nanoid } from "nanoid";
-import type {
-  IconType,
-  ProducerInspection,
-  ReleaseConfig,
-  ReleaseFieldOption,
-} from "@pipelab/shared";
+import type { IconType, ReleaseConfig, ReleaseFieldDefinition } from "@pipelab/shared";
 import { useAPI } from "../composables/api";
 import { useAgentAvailability } from "../composables/useAgentAvailability";
 import { uiEnvironment } from "../composables/ui-runtime";
 import { useAppStore } from "../store/app";
-import { shouldInspectReleaseProviderConfig } from "../pages/release-flow-model";
+import {
+  destinationIcon as resolveDestinationIcon,
+  providerIconClass,
+  providerIconImage,
+  sourceIcon as resolveSourceIcon,
+} from "../utils/provider-icons";
 import ReleaseFieldControl from "./ReleaseFieldControl.vue";
+
+const wizardFields = (fields?: ReleaseFieldDefinition[]) =>
+  fields?.filter((field) => field.showInWizard) ?? [];
 import { invalidEnvironmentBindingPaths } from "../utils/environment-bindings";
 import {
   buildReleaseWizardConfig,
@@ -468,7 +294,6 @@ import {
   suggestReleaseWizardConnectionAliases,
   releaseWizardTargetAvailability,
   RELEASE_WIZARD_STEPS,
-  HOSTED_RELEASE_WIZARD_STEPS,
   type ReleaseWizardStep,
 } from "./ReleaseFlowWizard-state";
 
@@ -486,12 +311,7 @@ const isOfflineBrowserDraft = computed(() =>
 );
 const catalogLoading = ref(false);
 const catalogError = ref("");
-const producerInspectionOptions = ref<Record<string, ReleaseFieldOption[]>>({});
-const producerInspectionLoading = ref(false);
-const producerInspectionError = ref(false);
 let catalogRequest = 0;
-let producerInspectionRequest = 0;
-let producerInspectionTimer: ReturnType<typeof setTimeout> | undefined;
 let createRequest = 0;
 const createPending = ref(false);
 const createError = ref("");
@@ -502,47 +322,23 @@ const visible = computed({
 const stepLabels: Record<ReleaseWizardStep, string> = {
   details: "Name & description",
   source: "Source & project path",
-  builds: "Builds",
   destinations: "Destinations",
-  recap: "Recap",
+  recap: "Review",
 };
-const activeSteps = isBrowser ? HOSTED_RELEASE_WIZARD_STEPS : RELEASE_WIZARD_STEPS;
+const activeSteps = RELEASE_WIZARD_STEPS;
 const steps = activeSteps.map((value, index) => ({
   value,
   label: stepLabels[value],
-  number: `0${index + 1}`,
+  index: index + 1,
 }));
 const step = ref<ReleaseWizardStep>("details");
+const isStepDone = (value: ReleaseWizardStep) =>
+  activeSteps.indexOf(value) < activeSteps.indexOf(step.value);
 const workflowId = ref("");
 const catalog = computed(() => appStore.releaseCatalog);
 const draft = ref(createReleaseWizardDraft());
 const sourceDefinition = computed(() =>
   catalog.value.sources.find((source) => source.id === draft.value.source.provider),
-);
-const buildProducers = computed(() =>
-  catalog.value.producers.filter(
-    (producer) =>
-      producer.planning.mode === "build" &&
-      producer.targets.some((target) => Boolean(target.buildType)),
-  ),
-);
-const selectedBuild = computed(() => draft.value.builds[0]);
-const selectedBuildProducer = computed(() =>
-  buildProducers.value.find((producer) => producer.id === selectedBuild.value?.engine),
-);
-const selectedBuildTarget = computed(() =>
-  selectedBuildProducer.value?.targets.find(
-    (target) => target.id === selectedBuild.value?.targets[0]?.id,
-  ),
-);
-const producerInspectionSignature = computed(() =>
-  JSON.stringify({
-    visible: props.visible,
-    ready: isReady.value,
-    producer: selectedBuildProducer.value?.id,
-    sourceConfig: draft.value.source.config,
-    build: selectedBuild.value,
-  }),
 );
 const canContinueDetails = computed(() => releaseWizardCanContinueDetails(draft.value));
 const canContinueSource = computed(() =>
@@ -570,41 +366,10 @@ const canCreate = computed(() =>
   }),
 );
 const recap = computed(() => releaseWizardRecap(draft.value, catalog.value));
-const providerIconClass = (icon?: IconType) => {
-  if (icon?.type !== "icon") return "mdi mdi-puzzle-outline";
-  if (icon.icon.includes("mdi ") || icon.icon.includes("pi ")) return icon.icon;
-  if (icon.icon.startsWith("pi-")) return `pi ${icon.icon}`;
-  return `mdi ${icon.icon}`;
-};
-const providerIconImage = (icon?: IconType) => (icon?.type === "image" ? icon.image : undefined);
-const metadataIcon = (id: string) =>
-  appStore.providerDefinitions.find(
-    (provider) => id === provider.packageName || id.startsWith(`${provider.packageName}/`),
-  )?.icon;
-const sourceIcon = (source?: (typeof catalog.value.sources)[number]) => {
-  if (!source) return undefined;
-  if (source.icon?.type === "image") return source.icon;
-  const icon = metadataIcon(source.id);
-  if (icon) return icon;
-  if (source.icon) return source.icon;
-  const file = source.fields?.find((field) => field.type === "file");
-  if (file?.fileExtensions?.includes("c3p")) return { type: "icon", icon: "pi pi-clone" } as const;
-  if (source.output.technology === "godot") return { type: "icon", icon: "pi pi-gamepad" } as const;
-  if (source.output.platform === "web") return { type: "icon", icon: "pi pi-globe" } as const;
-  if (file?.fileExtensions?.includes("zip")) return { type: "icon", icon: "pi pi-file" } as const;
-  return { type: "icon", icon: "pi pi-folder" } as const;
-};
-const sourceCaption = (source: (typeof catalog.value.sources)[number]) => {
-  if (source.description) return source.description;
-  const file = source.fields?.find((field) => field.type === "file");
-  if (file?.fileExtensions?.includes("c3p")) return "Construct .c3p";
-  if (source.output.technology === "godot") return "Godot project";
-  if (source.output.platform === "web")
-    return file?.fileExtensions?.includes("zip") ? "A web app ZIP" : "A web app folder";
-  if (file?.fileExtensions?.includes("zip")) return "A ZIP file";
-  return "A local folder";
-};
-const destinationIcon = (id: string, icon?: IconType) => icon || metadataIcon(id);
+const sourceIcon = (source?: (typeof catalog.value.sources)[number]) =>
+  resolveSourceIcon(appStore.providerDefinitions, source);
+const destinationIcon = (id: string, icon?: IconType) =>
+  resolveDestinationIcon(appStore.providerDefinitions, id, icon);
 const hasDestination = (id: string) =>
   draft.value.destinations.some((item) => item.provider === id);
 const chooseSource = (provider: string) => {
@@ -619,108 +384,8 @@ const toggleDestination = (provider: string) => {
     suggestReleaseWizardConnectionAliases(draft.value, toRaw(catalog.value));
   }
 };
-const selectedDestination = (provider: string) =>
-  draft.value.destinations.find((item) => item.provider === provider);
 const setSourceField = (key: string, value: unknown) => {
   draft.value.source.config[key] = value;
-};
-const chooseBuildProducer = (producerId: string) => {
-  const producer = buildProducers.value.find((candidate) => candidate.id === producerId);
-  const target = producer?.targets.find((candidate) => candidate.buildType);
-  if (!producer || !target?.buildType) return;
-  const existing = selectedBuild.value;
-  draft.value.builds = [
-    {
-      id: existing?.id || nanoid(),
-      type: target.buildType,
-      engine: producer.id,
-      enabled: true,
-      config: structuredClone(toRaw(producer.defaultConfig)),
-      targets: [
-        {
-          id: target.id,
-          enabled: true,
-          config: structuredClone(toRaw(target.defaultConfig)),
-        },
-      ],
-    },
-  ];
-  suggestReleaseWizardConnectionAliases(draft.value, toRaw(catalog.value));
-};
-const chooseBuildTarget = (targetId: string) => {
-  const target = selectedBuildProducer.value?.targets.find(
-    (candidate) => candidate.id === targetId,
-  );
-  if (!target?.buildType || !selectedBuild.value) return;
-  selectedBuild.value.type = target.buildType;
-  selectedBuild.value.targets = [
-    {
-      id: target.id,
-      enabled: true,
-      config: structuredClone(toRaw(target.defaultConfig)),
-    },
-  ];
-  suggestReleaseWizardConnectionAliases(draft.value, toRaw(catalog.value));
-};
-const setBuildField = (key: string, value: unknown) => {
-  if (selectedBuild.value) selectedBuild.value.config[key] = value;
-};
-const setBuildTargetField = (key: string, value: unknown) => {
-  const target = selectedBuild.value?.targets[0];
-  if (target) target.config[key] = value;
-};
-const buildFieldOptions = (key: string, fallback: ReleaseFieldOption[]) =>
-  producerInspectionOptions.value[key] || fallback;
-const inspectSelectedBuild = async () => {
-  const requestId = ++producerInspectionRequest;
-  const producer = selectedBuildProducer.value;
-  const build = selectedBuild.value;
-  producerInspectionError.value = false;
-  producerInspectionLoading.value = false;
-  if (!props.visible || !isReady.value || !producer?.requiresAgentInspection || !build) {
-    producerInspectionOptions.value = {};
-    return;
-  }
-
-  const buildSnapshot = structuredClone(toRaw(build));
-  const sourceConfig = structuredClone(toRaw(draft.value.source.config));
-  const config = {
-    id: buildSnapshot.id,
-    provider: buildSnapshot.engine,
-    enabled: buildSnapshot.enabled,
-    config: buildSnapshot.config,
-    targets: buildSnapshot.targets,
-  };
-  if (!shouldInspectReleaseProviderConfig({ sourceConfig, config })) {
-    producerInspectionOptions.value = {};
-    return;
-  }
-  const isCurrent = () =>
-    requestId === producerInspectionRequest &&
-    props.visible &&
-    isReady.value &&
-    selectedBuild.value?.id === buildSnapshot.id &&
-    selectedBuildProducer.value?.id === producer.id;
-  producerInspectionLoading.value = true;
-  try {
-    const result = await api.execute("release:producer:inspect", {
-      provider: buildSnapshot.engine,
-      sourceConfig,
-      config,
-    });
-    if (!isCurrent()) return;
-    if (result.type === "error") throw new Error(result.ipcError);
-    const inspection = result.result as ProducerInspection;
-    producerInspectionOptions.value = inspection.fieldOptions || {};
-  } catch {
-    if (isCurrent()) producerInspectionError.value = true;
-  } finally {
-    if (isCurrent()) producerInspectionLoading.value = false;
-  }
-};
-const setDestinationField = (provider: string, key: string, value: unknown) => {
-  const destination = selectedDestination(provider);
-  if (destination) destination.config[key] = value;
 };
 const invalidateCreateRequest = () => {
   createRequest++;
@@ -728,8 +393,6 @@ const invalidateCreateRequest = () => {
 };
 onBeforeUnmount(() => {
   catalogRequest++;
-  producerInspectionRequest++;
-  clearTimeout(producerInspectionTimer);
   invalidateCreateRequest();
 });
 const create = async () => {
@@ -799,31 +462,6 @@ watch(
   { flush: "sync" },
 );
 watch(
-  producerInspectionSignature,
-  () => {
-    producerInspectionRequest++;
-    clearTimeout(producerInspectionTimer);
-    producerInspectionTimer = undefined;
-    producerInspectionError.value = false;
-    const producer = selectedBuildProducer.value;
-    if (
-      !props.visible ||
-      !isReady.value ||
-      !producer?.requiresAgentInspection ||
-      !selectedBuild.value
-    ) {
-      producerInspectionOptions.value = {};
-      producerInspectionLoading.value = false;
-      return;
-    }
-    producerInspectionTimer = setTimeout(() => {
-      producerInspectionTimer = undefined;
-      void inspectSelectedBuild();
-    }, 250);
-  },
-  { flush: "sync" },
-);
-watch(
   draft,
   () => {
     if (createPending.value) invalidateCreateRequest();
@@ -858,302 +496,398 @@ watch(
 </script>
 
 <style scoped>
+/* ── Stepper ────────────────────────────────────────────────────── */
+.wizard-step-list {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 4px 0 18px;
+  border-bottom: 1px solid var(--pl-border);
+}
 .step {
   display: flex;
-  flex: 0 0 auto;
-  gap: 7px;
+  flex: 1 1 auto;
   align-items: center;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  padding: 9px 10px;
-  background: transparent;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.72rem;
+  gap: 10px;
+  min-width: 0;
+  color: var(--pl-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
   white-space: nowrap;
-  cursor: pointer;
+  cursor: default;
+  user-select: none;
 }
-.step:hover {
-  color: var(--text-color);
+.step:last-child {
+  flex: 0 0 auto;
 }
-.step[aria-selected="true"] {
-  border-bottom-color: var(--p-primary-color, var(--primary-color, #6366f1));
-  color: var(--text-color);
+.step::after {
+  content: "";
+  flex: 1 1 24px;
+  min-width: 16px;
+  height: 2px;
+  margin: 0 12px 0 2px;
+  border-radius: 2px;
+  background: var(--pl-border);
+  transition: background 0.3s var(--pl-ease);
 }
-.step[aria-selected="true"] span {
-  font-weight: 700;
+.step:last-child::after {
+  display: none;
 }
-.step span {
-  font-weight: 600;
+.step-index {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 26px;
+  height: 26px;
+  border: 1.5px solid var(--pl-border-strong);
+  border-radius: 50%;
+  background: var(--pl-card);
+  font-size: 0.72rem;
+  font-weight: 650;
+  transition:
+    background 0.2s var(--pl-ease),
+    border-color 0.2s var(--pl-ease),
+    color 0.2s var(--pl-ease),
+    box-shadow 0.2s var(--pl-ease);
 }
+.step-index i {
+  font-size: 0.68rem;
+}
+.step[aria-current="step"] {
+  color: var(--p-text-color);
+  font-weight: 650;
+}
+.step[aria-current="step"] .step-index {
+  border-color: var(--pl-accent);
+  background: var(--pl-accent);
+  color: var(--p-primary-contrast-color, #fff);
+  box-shadow: var(--pl-ring);
+}
+.step.done {
+  color: var(--p-text-color);
+}
+.step.done .step-index {
+  border-color: var(--pl-accent);
+  background: color-mix(in srgb, var(--pl-accent) 10%, var(--pl-card));
+  color: var(--pl-accent);
+}
+.step.done::after {
+  background: var(--pl-accent);
+}
+
+/* ── Panels ─────────────────────────────────────────────────────── */
 .wizard-panel {
   display: grid;
-  gap: 12px;
-  padding: 20px 4px 4px;
+  gap: 16px;
+  padding: 24px 0 0;
+  animation: pl-step-in 0.22s var(--pl-ease);
+}
+@keyframes pl-step-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
 }
 .wizard-panel h2 {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1.3rem;
+  font-weight: 650;
+  letter-spacing: -0.025em;
 }
 .wizard-panel h3 {
   margin: 2px 0 -4px;
   font-size: 0.9rem;
 }
 .wizard-panel p {
-  margin: -4px 0 6px;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.8rem;
+  margin: -10px 0 4px;
+  color: var(--pl-muted);
+  font-size: 0.88rem;
 }
 .eyebrow {
-  color: var(--p-text-muted-color, var(--text-color-secondary));
+  color: var(--pl-muted);
   font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.form-grid,
-.review-list {
+.form-grid {
   display: grid;
-  gap: 12px;
+  gap: 16px;
 }
 .field {
   display: grid;
-  gap: 5px;
+  gap: 7px;
 }
 .field label {
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 600;
 }
 .wide {
   grid-column: 1 / -1;
 }
-.choice-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
-}
-.choice-card {
-  display: grid;
-  gap: 5px;
-  border: 1px solid var(--p-surface-200, var(--surface-border));
-  border-radius: 8px;
-  padding: 12px;
-  background: transparent;
-  color: var(--text-color);
-  text-align: left;
-  cursor: pointer;
-}
-.choice-card:hover,
-.choice-card.selected {
-  border-color: var(--p-primary-color, var(--primary-color, #6366f1));
-  background: color-mix(
-    in srgb,
-    var(--p-primary-color, var(--primary-color, #6366f1)) 7%,
-    transparent
-  );
-}
-.choice-card i {
-  color: var(--p-primary-color, var(--primary-color, #6366f1));
-  font-size: 20px;
-}
-.choice-card img,
-.destination-row > img,
-.review-list > div > img {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-}
-.choice-card strong {
-  font-size: 0.78rem;
-}
-.choice-card small {
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.68rem;
-}
 .wizard-actions {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 8px;
+  margin-top: 12px;
+  padding-top: 18px;
+  border-top: 1px solid var(--pl-border);
 }
-.destination-list {
+
+/* ── Selectable cards ───────────────────────────────────────────── */
+.choice-grid {
   display: grid;
-  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
 }
-.destination-option {
+.choice-card,
+.destination-card {
+  position: relative;
+  border: 1px solid var(--pl-border);
+  border-radius: 12px;
+  background: var(--pl-card);
+  color: var(--p-text-color);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s var(--pl-ease),
+    background 0.15s var(--pl-ease),
+    box-shadow 0.2s var(--pl-ease),
+    transform 0.15s var(--pl-ease);
+}
+.choice-card:hover,
+.destination-card:hover {
+  border-color: var(--pl-border-strong);
+  background: var(--pl-sunken);
+  box-shadow: var(--pl-shadow-sm);
+}
+.choice-card:focus-visible,
+.destination-card:focus-visible {
+  outline: none;
+  border-color: var(--pl-accent);
+  box-shadow: var(--pl-ring);
+}
+.choice-card.selected,
+.destination-card.selected {
+  border-color: var(--pl-accent);
+  background: color-mix(in srgb, var(--pl-accent) 5%, var(--pl-card));
+  box-shadow:
+    0 0 0 1px var(--pl-accent),
+    var(--pl-shadow-sm);
+}
+.choice-card.selected::after {
+  content: "\e909";
+  position: absolute;
+  top: 10px;
+  right: 10px;
   display: grid;
-  gap: 8px;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--pl-accent);
+  color: var(--p-primary-contrast-color, #fff);
+  font-family: primeicons;
+  font-size: 0.6rem;
 }
-.destination-fields {
+.choice-card {
   display: grid;
-  gap: 8px;
-  padding: 0 12px 12px;
+  gap: 6px;
+  padding: 16px 14px 14px;
 }
-.destination-row {
+.choice-card i,
+.choice-card img {
+  width: 36px;
+  height: 36px;
+  margin-bottom: 4px;
+  padding: 7px;
+  border: 1px solid var(--pl-border);
+  border-radius: 10px;
+  background: var(--pl-card);
+  box-shadow: var(--pl-shadow-xs);
+  box-sizing: border-box;
+}
+.choice-card i {
+  display: grid;
+  place-items: center;
+  color: var(--pl-accent);
+  font-size: 18px;
+}
+.choice-card img {
+  object-fit: contain;
+}
+.choice-card strong {
+  font-size: 0.86rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.choice-card small {
+  color: var(--pl-muted);
+  font-size: 0.74rem;
+}
+.destination-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.destination-card {
   display: flex;
   align-items: center;
   gap: 12px;
-  width: 100%;
   min-width: 0;
-  border: 1px solid var(--p-surface-200, var(--surface-border));
-  border-radius: 8px;
-  padding: 12px;
-  background: transparent;
-  color: var(--text-color);
-  text-align: left;
-  cursor: pointer;
+  padding: 12px 14px;
 }
-.destination-row > i {
-  flex: 0 0 24px;
-  color: var(--p-primary-color, var(--primary-color, #6366f1));
-  font-size: 22px;
-  text-align: center;
-}
-.destination-row:hover,
-.destination-row.selected {
-  border-color: var(--p-primary-color, var(--primary-color, #6366f1));
-  background: color-mix(
-    in srgb,
-    var(--p-primary-color, var(--primary-color, #6366f1)) 7%,
-    transparent
-  );
-}
-.destination-copy {
+.destination-card > img,
+.destination-card > i:first-child {
   display: grid;
-  flex: 1;
-  gap: 3px;
-  min-width: 0;
-}
-.destination-copy strong {
-  font-size: 0.8rem;
-}
-.destination-copy small {
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.7rem;
-}
-.destination-selection {
-  display: grid;
-  flex: 0 0 20px;
-  width: 20px;
-  height: 20px;
   place-items: center;
-  border: 1px solid var(--p-surface-400, var(--surface-border));
-  border-radius: 4px;
-  color: var(--p-primary-color, var(--primary-color, #6366f1));
-  font-size: 0.72rem;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  padding: 7px;
+  border: 1px solid var(--pl-border);
+  border-radius: 10px;
+  background: var(--pl-card);
+  box-shadow: var(--pl-shadow-xs);
+  box-sizing: border-box;
 }
-.destination-row.selected .destination-selection {
-  border-color: var(--p-primary-color, var(--primary-color, #6366f1));
-  background: var(--p-primary-color, var(--primary-color, #6366f1));
-  color: var(--p-primary-contrast-color, var(--primary-contrast-color, white));
-}
-.review-list > div {
-  display: grid;
-  grid-template-columns: minmax(112px, 0.38fr) minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
-  border: 1px solid var(--p-surface-200, var(--surface-border));
-  border-radius: 7px;
-  padding: 9px;
-}
-.review-label {
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.72rem;
-  font-weight: 600;
-}
-.review-value {
-  display: flex !important;
-  align-items: center;
-  gap: 8px !important;
-  min-width: 0;
-}
-.review-value > span {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-.review-value > img {
-  flex: 0 0 24px;
-  width: 24px;
-  height: 24px;
+.destination-card > img {
   object-fit: contain;
 }
-.review-value > i {
-  flex: 0 0 20px;
-}
-.review-intro {
-  margin-bottom: 0 !important;
-}
-.review-notice {
-  display: flex;
-  align-items: flex-start;
-  gap: 9px;
-  border: 1px solid color-mix(in srgb, var(--p-indigo-500, #6366f1) 25%, transparent);
-  border-radius: 7px;
-  padding: 10px;
-  background: color-mix(in srgb, var(--p-indigo-500, #6366f1) 7%, transparent);
-}
-.review-notice > i {
-  flex: 0 0 16px;
-  color: var(--p-indigo-500, #6366f1);
-}
-.review-notice > span {
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.74rem;
-}
-.review-list i {
-  color: var(--p-primary-color, var(--primary-color, #6366f1));
+.destination-card > i:first-child {
+  color: var(--pl-accent);
   font-size: 18px;
 }
-.review-list span {
+.destination-card strong {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.destination-card > i:last-child:not(:first-child) {
+  color: var(--pl-accent);
+  font-size: 1.1rem;
+}
+
+/* ── Review ─────────────────────────────────────────────────────── */
+.review-card {
   display: grid;
-  gap: 2px;
+  border: 1px solid var(--pl-border);
+  border-radius: var(--pl-radius);
+  background: var(--pl-card);
+  box-shadow: var(--pl-shadow-xs);
 }
-.review-list small {
-  color: var(--p-text-muted-color, var(--text-color-secondary));
+.review-card > div {
+  display: grid;
+  gap: 8px;
+  padding: 16px 18px;
+}
+.review-card > div + div {
+  border-top: 1px solid var(--pl-border);
+}
+.review-title {
+  background: var(--pl-sunken);
+  border-radius: var(--pl-radius) var(--pl-radius) 0 0;
+}
+.review-title strong {
+  font-size: 1.05rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+.review-title small,
+.review-item-text small {
+  color: var(--pl-muted);
+  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+}
+.review-label {
+  color: var(--pl-muted);
   font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
-.review-list strong {
-  font-size: 0.8rem;
-}
-.review-destinations {
-  min-width: 0;
-}
-.review-destination {
-  display: flex !important;
+.review-item {
+  display: flex;
   align-items: center;
-  gap: 7px !important;
+  gap: 12px;
   min-width: 0;
-  margin-top: 4px;
 }
-.review-destination i {
-  font-size: 15px;
-}
-.review-destination img {
-  width: 18px;
-  height: 18px;
+.review-item > img,
+.review-chip > img {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
   object-fit: contain;
 }
-.review-detail {
-  margin-top: 3px;
+.review-item > i,
+.review-chip > i {
+  color: var(--pl-accent);
+  font-size: 20px;
+}
+.review-item-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.review-item-text strong {
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+.review-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.review-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--pl-border);
+  border-radius: 999px;
+  padding: 5px 13px 5px 9px;
+  background: var(--pl-sunken);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.review-chip > i {
+  font-size: 16px;
+}
+.review-error {
+  color: var(--red-500, #ef4444) !important;
+}
+.wizard-create-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid color-mix(in srgb, var(--red-500, #ef4444) 35%, transparent);
+  border-radius: 10px;
+  color: var(--red-500, #ef4444);
+  background: color-mix(in srgb, var(--red-500, #ef4444) 7%, var(--pl-card));
+  font-size: 0.82rem;
 }
 .helper-copy {
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.75rem;
+  color: var(--pl-muted);
+  font-size: 0.78rem;
 }
 @media (max-width: 640px) {
   .wizard-step-list {
-    min-width: 0;
-    max-width: 100%;
-    justify-content: flex-start;
-    gap: 8px;
     overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: thin;
+    scrollbar-width: none;
+  }
+  .step:not([aria-current="step"]) .step-label {
+    display: none;
   }
   .choice-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .review-list > div {
-    grid-template-columns: 92px minmax(0, 1fr);
+  .destination-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 </style>

@@ -1,6 +1,6 @@
 # Construct 3
 
-Pipelab can export a Construct project for use as a web application. The Release workflow source accepts a `.c3p` project file and produces a web directory artifact. It opens Construct in a local Chromium browser and extracts the exported archive.
+Pipelab can export a Construct project for use as a web application. The Release workflow source accepts a `.c3p` project file, and the **Construct** build engine exports it as a web directory through a local Chromium browser. Electron, Tauri and Poki consume that web build.
 
 ## Release workflow source
 
@@ -11,9 +11,9 @@ Add **Construct project** as the source, then choose:
 | Project file      | Required `.c3p` file | Empty                                                                                             |
 | Browser profile   | Required             | A local Chromium profile used to seed Pipelab's managed profile                                   |
 | Construct account | Optional             | A workflow alias for a Construct Account Connection with username and password fields             |
-| Construct version | Optional             | Blank uses the saved release when present; enter `latest` or a release such as `r397` to override |
+| Construct version | Optional             | Empty uses the release saved in the project; anything entered is appended as-is to the editor URL |
 
-The source compiles to an export action followed by an unzip action. Its final artifact is an application for **web**, stored as a **directory**. Use that artifact as input to a compatible producer or destination.
+The source only provides the project and these settings. They are shared by every Construct build in the workflow. Pipelab adds the **Construct** web build automatically when a destination or packager needs a web app, so you normally do not add it yourself. Its output is an application for **web**, stored as a **directory**, which compatible builds and destinations accept as input.
 
 Exports run in Chromium's full headless mode by default and do not require
 Xvfb. Native Workflow tasks can set `headless: false` for visual debugging.
@@ -25,6 +25,20 @@ It also disables **Check for updates for installed addons** in Construct
 releases that support that setting (r422 and later). Other saved Construct
 settings are preserved, and the selected Chromium profile stays unchanged.
 
+## Desktop exports
+
+The Construct engine also declares Construct's own desktop exports as targets:
+
+| Target                  | Construct export   | Output                     |
+| ----------------------- | ------------------ | -------------------------- |
+| `webview2-windows-x64`  | Windows (WebView2) | Windows application folder |
+| `wkwebview-macos-arm64` | macOS (WKWebView)  | macOS application folder   |
+| `cef-linux-x64`         | Linux (CEF)        | Linux application folder   |
+
+These targets are not available yet and cannot be selected. They are never added automatically. Once enabled, each would run its own export from the workflow's Construct source, one after another because they share the browser profile, and Steam and itch.io would accept their outputs. Poki accepts web builds only.
+
+A workflow can combine builds: for example a Construct web build feeding an Electron build next to a Construct desktop build. The web build is a normal build you can edit or remove later.
+
 ## Requirements and failures
 
 Choose a compatible local Chromium profile that can access the Construct editor and project. Pipelab refreshes its managed profile from the selected profile before each run, while keeping the managed browser and Construct cache in place. This picks up current login state and installed Construct addons without requiring a profile reset. With no Construct Account Connection, the managed profile is scoped to the Pipelab project and selected browser profile and uses that profile's saved login. With a Connection, the profile is also scoped to the account username; Pipelab keeps a separate account session and does not import the selected profile's Construct login data. Changing Construct versions reuses that account-scoped profile while keeping stable and beta account sessions separate. Pipelab does not modify the selected browser profile. Same-profile exports run one at a time.
@@ -34,12 +48,15 @@ include site data from the selected Chromium profile beyond Construct. Pipelab
 does not automatically expire or remove this managed copy. On POSIX systems,
 its managed profile directories are restricted to the current user.
 
-When **Construct version** is blank, Pipelab reads `savedWithRelease` from
+**Construct version** is not shown in the creation wizard; set it in
+Configuration after creating the workflow. When it is blank, Pipelab reads `savedWithRelease` from
 `project.c3proj` inside the selected `.c3p` file and opens that Construct
 release. If the project has no saved release metadata, Pipelab uses the current
-editor. Enter `latest` to use the current editor or provide a release such as
-`r397` or the patch release `r432-2` to override the project version for that
-run. Saved patch releases are preserved when the version is blank.
+editor. Anything you enter is appended as-is to `editor.construct.net/`, with no
+interpretation, so `r397`, the patch release `r432-2`, `latest` or `beta` all work
+as typed. The field offers the project's saved release (for example `r466-2`),
+`latest` and `beta` as one-click suggestions; clicking a selected suggestion again
+clears the field. Saved patch releases are preserved when the version is empty.
 
 If required profile data cannot be refreshed, Pipelab stops the export rather
 than using an older copy. Cancelling a queued export or an export refreshing

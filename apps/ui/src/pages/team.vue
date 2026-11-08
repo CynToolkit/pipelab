@@ -20,18 +20,13 @@
   display: flex;
   flex-direction: column;
   gap: 28px;
-  width: min(100%, 1480px);
+  width: min(100%, 1080px);
   margin: 0 auto;
-  padding: 38px 44px 48px;
+  padding: 36px clamp(16px, 3vw, 40px) 64px;
 }
 
 .team-header {
-  padding-bottom: 26px;
-  border-bottom: 1px solid var(--p-surface-200);
-
-  :root.dark & {
-    border-bottom-color: var(--p-surface-800);
-  }
+  padding-bottom: 4px;
 }
 
 .eyebrow {
@@ -45,10 +40,10 @@
 
 h1 {
   margin: 0;
-  font-size: 1.85rem;
-  font-weight: 700;
+  font-size: 1.6rem;
+  font-weight: 650;
   line-height: 1.15;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.03em;
 }
 
 .description {
@@ -63,8 +58,8 @@ h1 {
   align-items: center;
   gap: 8px;
   padding: 56px 24px;
-  border: 1px dashed var(--p-surface-300);
-  border-radius: 12px;
+  border: 1px dashed var(--pl-border-strong);
+  border-radius: var(--pl-radius);
   text-align: center;
 
   :root.dark & {

@@ -28,6 +28,17 @@
         {{ saveStateLabel }}</span
       >
       <Button
+        v-if="flow && plan?.graph.nodes.length"
+        v-tooltip.top="'View resolved plan'"
+        icon="pi pi-sitemap"
+        text
+        rounded
+        severity="secondary"
+        aria-label="View resolved plan"
+        @click="planExpanded = true"
+      />
+      <Button
+        class="ship-button"
         label="Ship"
         icon="mdi mdi-rocket-launch-outline"
         :loading="running"
@@ -47,7 +58,7 @@
       >
       <span v-if="planning"><i class="pi pi-spin pi-spinner" /> Planning release…</span>
     </div>
-    <main v-if="flow" class="release-page">
+    <main v-if="flow" class="release-page pl-workflow">
       <Message v-if="loadError" severity="error" role="alert">
         <div class="planner-error">
           <span>{{ loadError }}</span>
@@ -77,47 +88,46 @@
           <Button label="Retry save" text size="small" @click="save().catch(() => {})" />
         </div>
       </Message>
-      <section v-if="plan?.graph.nodes.length" class="plan-shortcut">
-        <span>Need to inspect the compiled steps?</span>
-        <Button label="Advanced · View plan" text size="small" @click="planExpanded = true" />
-      </section>
       <section v-if="selectedBlocker" class="action-required-card" aria-live="polite">
         <div class="blocker-icon" aria-hidden="true">
-          <i class="pi pi-info-circle" />
+          <i class="pi pi-exclamation-circle" />
         </div>
         <div class="blocker-copy">
-          <div class="blocker-heading">
-            <span class="eyebrow">Action required</span>
-            <div class="blocker-navigation">
-              <span aria-live="polite"
-                >{{ activeBlockerIndex + 1 }} of {{ blockingIssues.length }}</span
-              >
-              <template v-if="blockingIssues.length > 1">
-                <Button
-                  icon="pi pi-chevron-left"
-                  text
-                  rounded
-                  size="small"
-                  aria-label="Previous blocker"
-                  :disabled="activeBlockerIndex === 0"
-                  @click="moveBlocker(-1)"
-                />
-                <Button
-                  icon="pi pi-chevron-right"
-                  text
-                  rounded
-                  size="small"
-                  aria-label="Next blocker"
-                  :disabled="activeBlockerIndex >= blockingIssues.length - 1"
-                  @click="moveBlocker(1)"
-                />
-              </template>
-            </div>
-          </div>
+          <span class="eyebrow"
+            >Action required
+            <span class="blocker-count" aria-live="polite"
+              >{{ activeBlockerIndex + 1 }} of {{ blockingIssues.length }}</span
+            ></span
+          >
           <strong>{{ blockerPresentation.title }}</strong>
           <span>{{ blockerPresentation.description }}</span>
+        </div>
+        <div class="blocker-actions">
+          <div v-if="blockingIssues.length > 1" class="blocker-navigation">
+            <Button
+              icon="pi pi-chevron-left"
+              text
+              rounded
+              size="small"
+              severity="secondary"
+              aria-label="Previous blocker"
+              :disabled="activeBlockerIndex === 0"
+              @click="moveBlocker(-1)"
+            />
+            <Button
+              icon="pi pi-chevron-right"
+              text
+              rounded
+              size="small"
+              severity="secondary"
+              aria-label="Next blocker"
+              :disabled="activeBlockerIndex >= blockingIssues.length - 1"
+              @click="moveBlocker(1)"
+            />
+          </div>
           <Button
             class="blocker-repair-button"
+            size="small"
             :label="blockerPresentation.actionLabel"
             @click="repairSelectedBlocker"
           />
@@ -127,41 +137,61 @@
         <div class="section-heading">
           <div>
             <h2>Source</h2>
-            <p>Choose the project or files this release represents.</p>
           </div>
         </div>
         <article class="source-card" :class="{ invalid: cardIssues('source').length }">
           <div class="provider-icon">
-            <i :class="providerIcon(sourceDefinition?.icon, 'mdi mdi-source-branch')" />
+            <img
+              v-if="providerIconImage(sourceIconFor(sourceDefinition))"
+              :src="providerIconImage(sourceIconFor(sourceDefinition))"
+              alt=""
+            />
+            <i
+              v-else
+              :class="providerIconClass(sourceIconFor(sourceDefinition))"
+              aria-hidden="true"
+            />
           </div>
           <div class="source-copy">
             <strong>{{ sourceDefinition?.label || flow.source.provider }}</strong>
             <span>{{ sourcePath || "No source selected" }}</span>
           </div>
-          <span
-            class="readiness-label"
-            :class="{ 'readiness-problem': cardIssues('source').length }"
-          >
-            {{
-              cardIssues("source").length
-                ? "Needs attention"
+          <ReleaseStatus
+            :label="
+              cardIssues('source').length
+                ? 'Needs attention'
                 : sourcePath
-                  ? "Ready"
-                  : "Not configured"
-            }}
-          </span>
-          <Button label="Edit" text icon="pi pi-pencil" @click="sourceSettingsVisible = true" />
+                  ? 'Ready'
+                  : 'Not configured'
+            "
+          />
+          <Button
+            text
+            rounded
+            size="small"
+            severity="secondary"
+            icon="pi pi-pencil"
+            v-tooltip.top="'Edit source'"
+            aria-label="Edit source"
+            @click="sourceSettingsVisible = true"
+          />
         </article>
       </section>
       <section class="release-section">
         <div class="section-heading">
           <div>
-            <h2>Destinations</h2>
+            <h2>
+              Destinations<span v-if="flow.destinations.length" class="section-count">{{
+                flow.destinations.length
+              }}</span>
+            </h2>
           </div>
           <Button
             label="Add destination"
             icon="pi pi-plus"
-            text
+            outlined
+            size="small"
+            severity="secondary"
             @click="addDestinationVisible = true"
           />
         </div>
@@ -180,39 +210,77 @@
         >
           <div class="job-header">
             <div class="provider-icon">
-              <i
-                :class="
-                  providerIcon(
-                    destinationDefinition(destination.provider)?.icon,
-                    'mdi mdi-cloud-upload-outline',
+              <img
+                v-if="
+                  providerIconImage(
+                    destinationIconFor(
+                      destination.provider,
+                      destinationDefinition(destination.provider)?.icon,
+                    ),
                   )
                 "
+                :src="
+                  providerIconImage(
+                    destinationIconFor(
+                      destination.provider,
+                      destinationDefinition(destination.provider)?.icon,
+                    ),
+                  )
+                "
+                alt=""
+              />
+              <i
+                v-else
+                :class="
+                  providerIconClass(
+                    destinationIconFor(
+                      destination.provider,
+                      destinationDefinition(destination.provider)?.icon,
+                    ),
+                  )
+                "
+                aria-hidden="true"
               />
             </div>
             <div class="job-title">
               <strong>{{ destinationDisplayLabel(destination) }}</strong
-              ><span
-                >{{ destination.slots.length }} deployment slot{{
-                  destination.slots.length === 1 ? "" : "s"
-                }}</span
-              >
+              ><span>{{ destinationSummary(destination) }}</span>
             </div>
-            <span
-              class="readiness-label"
-              :class="{
-                'readiness-problem': destinationReadiness(destination, index) === 'Needs attention',
-              }"
-            >
-              {{ destinationReadiness(destination, index) }}
-            </span>
+            <ReleaseStatus :label="destinationReadiness(destination, index)" />
             <Button
-              label="Edit"
               text
+              rounded
+              size="small"
+              severity="secondary"
               icon="pi pi-pencil"
+              v-tooltip.top="'Edit destination settings'"
+              :aria-label="`Edit ${destinationDisplayLabel(destination)}`"
               @click="openDestinationSettings(destination)"
             />
+            <Button
+              v-if="destination.enabled"
+              class="destination-toggle"
+              v-tooltip.top="
+                isDestinationExpanded(destination.id) ? 'Hide deployments' : 'Show deployments'
+              "
+              text
+              rounded
+              severity="secondary"
+              size="small"
+              :icon="
+                isDestinationExpanded(destination.id) ? 'pi pi-chevron-up' : 'pi pi-chevron-down'
+              "
+              :aria-expanded="isDestinationExpanded(destination.id)"
+              :aria-controls="`destination-slots-${destination.id}`"
+              :aria-label="`${isDestinationExpanded(destination.id) ? 'Hide' : 'Show'} deployments for ${destinationDisplayLabel(destination)}`"
+              @click="toggleDestinationExpanded(destination.id)"
+            />
           </div>
-          <div v-if="destination.enabled" class="slot-list">
+          <div
+            v-if="destination.enabled && isDestinationExpanded(destination.id)"
+            :id="`destination-slots-${destination.id}`"
+            class="slot-list"
+          >
             <div v-for="(slot, slotIndex) in destination.slots" :key="slot.id" class="slot-row">
               <div class="deployment-main">
                 <i class="mdi mdi-package-variant-closed" /><span
@@ -220,33 +288,48 @@
                   ><small>{{ artifactLabel(slot.input) }}</small></span
                 >
               </div>
-              <span
-                class="readiness-label"
-                :class="{ 'readiness-problem': slotCardIssues(slot).length || !slot.input }"
-              >
-                {{
+              <ReleaseStatus
+                :label="
                   slotCardIssues(slot).length
-                    ? "Needs attention"
+                    ? 'Needs attention'
                     : slot.input
-                      ? "Ready"
-                      : "Output required"
-                }}
-              </span>
-              <Button
+                      ? 'Ready'
+                      : 'Output required'
+                "
+              />
+              <Select
                 v-if="!slot.input || slotIssues(slot).length"
-                label="Configure build"
-                text
-                icon="mdi mdi-hammer-wrench"
-                @click="openBuildsForSlot(destination, slot)"
+                :key="`${slot.id}:${outputPickerResets}`"
+                class="slot-output-select"
+                size="small"
+                :model-value="releaseOutputRefValue(slot.input)"
+                :options="slotOutputChoices(destination)"
+                optionLabel="label"
+                optionValue="value"
+                placeholder="Choose output"
+                :aria-label="`Output for ${deploymentSlotLabel(slot, slotIndex)}`"
+                @update:model-value="chooseSlotOutput(destination, slot, $event)"
               />
               <Button
-                v-else
-                label="Edit"
                 text
+                rounded
+                severity="secondary"
+                size="small"
                 icon="pi pi-pencil"
+                v-tooltip.top="'Edit deployment settings'"
+                :aria-label="`Edit ${deploymentSlotLabel(slot, slotIndex)}`"
                 @click="openSlotSettings(destination, slot)"
               />
             </div>
+            <Button
+              label="Add deployment"
+              icon="pi pi-plus"
+              text
+              severity="secondary"
+              size="small"
+              class="add-slot"
+              @click="addSlot(destination)"
+            />
           </div>
         </article>
       </section>
@@ -255,7 +338,6 @@
           <div>
             <span class="eyebrow">Advanced</span>
             <h2>Resolved plan</h2>
-            <p>Automatic transforms are planner plumbing, not configurable builds.</p>
           </div>
           <Button label="Close" text size="small" @click="planExpanded = false" />
         </div>
@@ -282,6 +364,7 @@
     </main>
   </WorkflowShell>
   <Dialog
+    class="pl-dialog"
     v-if="dashboardMode && dashboardRecoveryVisible"
     :visible="true"
     :modal="!(workflowLoading || sourceInspectionPending || planning || saveState === 'saving')"
@@ -374,6 +457,7 @@
   </Dialog>
   <ConfirmDialog group="workflow-destructive" />
   <Dialog
+    class="pl-dialog"
     v-model:visible="addDestinationVisible"
     modal
     header="Add destination"
@@ -388,11 +472,19 @@
         @click="addDestination(destination.id)"
       >
         <span class="provider-icon">
-          <i :class="providerIcon(destination.icon, 'mdi mdi-cloud-upload-outline')" />
+          <img
+            v-if="providerIconImage(destinationIconFor(destination.id, destination.icon))"
+            :src="providerIconImage(destinationIconFor(destination.id, destination.icon))"
+            alt=""
+          />
+          <i
+            v-else
+            :class="providerIconClass(destinationIconFor(destination.id, destination.icon))"
+            aria-hidden="true"
+          />
         </span>
         <span
-          ><strong>{{ destination.label }}</strong
-          ><small>Add destination</small></span
+          ><strong>{{ destination.label }}</strong></span
         >
         <i class="pi pi-plus" aria-hidden="true" />
       </button>
@@ -402,7 +494,13 @@
       <Button label="Cancel" text @click="addDestinationVisible = false" />
     </template>
   </Dialog>
-  <Dialog v-model:visible="attentionVisible" modal header="Needs attention" :style="dialogStyle">
+  <Dialog
+    class="pl-dialog"
+    v-model:visible="attentionVisible"
+    modal
+    header="Needs attention"
+    :style="dialogStyle"
+  >
     <p class="attention-copy">The planner is authoritative. Fix these issues before shipping.</p>
     <ul class="issue-summary">
       <li
@@ -435,7 +533,20 @@
       </li>
     </ul>
   </Dialog>
-  <Dialog v-model:visible="sourceSettingsVisible" modal header="Edit source" :style="dialogStyle"
+  <NewBuildDialog
+    v-model:visible="newBuildVisible"
+    :flow="flow"
+    :catalog="catalog"
+    :destination-id="newBuildTarget?.destinationId"
+    :slot-id="newBuildTarget?.slotId"
+    @create="createNewBuild"
+  />
+  <Dialog
+    class="pl-dialog"
+    v-model:visible="sourceSettingsVisible"
+    modal
+    header="Edit source"
+    :style="dialogStyle"
     ><div v-if="flow && sourceDefinition" class="settings-grid">
       <div class="release-field wide">
         <label for="source-provider">Source</label>
@@ -448,9 +559,6 @@
           @update:model-value="selectSource"
         />
       </div>
-      <small v-if="sourceDefinition.requiresAgentInspection" class="field-note">
-        Additional source options require the Pipelab agent.
-      </small>
       <template v-for="field in sourceDefinition.fields || []" :key="field.key">
         <ReleaseFieldControl
           :field="field"
@@ -467,16 +575,15 @@
               ? setConnectionFieldAlias(flow.source.config, field, $event)
               : setSourceField(field.key, $event)
           "
-          @update:connection-binding="
-            setConnectionBinding(fieldValue(flow.source.config, field.key), $event)
-          "
-          @add-connection="openConnection"
+          @update:connection-binding="bindConnectionField(flow.source.config, field, $event)"
+          @add-connection="openConnection($event, flow.source.config, field)"
         />
       </template>
     </div>
     <template #footer><Button label="Done" @click="sourceSettingsVisible = false" /></template
   ></Dialog>
   <Dialog
+    class="pl-dialog"
     v-model:visible="destinationSettingsVisible"
     modal
     header="Edit destination"
@@ -484,24 +591,21 @@
     ><div v-if="settingsDestination" class="settings-grid">
       <div class="release-field wide destination-toggle">
         <label :for="`destination-enabled-${settingsDestination.id}`">Destination</label>
+        <span>{{ settingsDestination.enabled ? "Included in this release" : "Disabled" }}</span>
         <ToggleSwitch
           v-model="settingsDestination.enabled"
           :inputId="`destination-enabled-${settingsDestination.id}`"
           aria-label="Destination enabled"
         />
-        <span>{{ settingsDestination.enabled ? "Included in this release" : "Disabled" }}</span>
       </div>
       <div class="release-field wide">
         <label :for="`destination-name-${settingsDestination.id}`">Destination name</label>
         <InputText
           :id="`destination-name-${settingsDestination.id}`"
           v-model="settingsDestination.name"
-          :placeholder="releaseDestinationLocalName(settingsDestination, flow?.destinations || [])"
+          :placeholder="'Optional, for example Studio'"
           autocomplete="off"
         />
-        <small
-          >Shown beside the provider name; changing it does not rename Connection aliases.</small
-        >
       </div>
       <template
         v-for="field in destinationDefinition(settingsDestination.provider)?.fields || []"
@@ -528,26 +632,33 @@
               : setField(settingsDestination.config, field.key, $event)
           "
           @update:connection-binding="
-            setConnectionBinding(fieldValue(settingsDestination.config, field.key), $event)
+            bindConnectionField(settingsDestination.config, field, $event)
           "
-          @add-connection="openConnection"
+          @add-connection="openConnection($event, settingsDestination.config, field)"
       /></template>
     </div>
-    <template #footer
-      ><Button
-        label="Add deployment"
-        icon="pi pi-plus"
-        text
-        @click="settingsDestination && addSlot(settingsDestination)" /><Button
-        label="Remove destination"
-        icon="pi pi-trash"
-        text
-        severity="danger"
-        @click="settingsDestination && removeDestination(settingsDestination.id)" /><Button
-        label="Done"
-        @click="destinationSettingsVisible = false" /></template
-  ></Dialog>
+    <template #footer>
+      <div class="settings-footer">
+        <Button
+          label="Remove destination"
+          icon="pi pi-trash"
+          text
+          severity="danger"
+          @click="settingsDestination && removeDestination(settingsDestination.id)"
+        />
+        <span class="settings-footer-spacer" />
+        <Button
+          label="Add deployment"
+          icon="pi pi-plus"
+          text
+          @click="settingsDestination && addSlot(settingsDestination)"
+        />
+        <Button label="Done" @click="destinationSettingsVisible = false" />
+      </div>
+    </template>
+  </Dialog>
   <Dialog
+    class="pl-dialog"
     v-model:visible="slotSettingsVisible"
     modal
     header="Deployment settings"
@@ -563,21 +674,23 @@
       </div>
       <div class="release-field wide destination-toggle">
         <label :for="`slot-enabled-${settingsSlot.id}`">Deployment</label>
+        <span>{{ settingsSlot.enabled ? "Included in this release" : "Disabled" }}</span>
         <ToggleSwitch
           v-model="settingsSlot.enabled"
           :inputId="`slot-enabled-${settingsSlot.id}`"
           aria-label="Deployment enabled"
         />
-        <span>{{ settingsSlot.enabled ? "Included in this release" : "Disabled" }}</span>
       </div>
       <div class="release-field wide">
         <label>Output</label
         ><Select
           :model-value="releaseOutputRefValue(settingsSlot.input)"
-          :options="outputOptions"
+          :options="
+            slotOutputOptionsFor(destinationDefinition(settingsDestination.provider), outputOptions)
+          "
           optionLabel="label"
           optionValue="value"
-          @update:model-value="setSlotInput(settingsSlot, $event)"
+          @update:model-value="setSlotInput(settingsDestination, settingsSlot, $event)"
         />
         <small
           v-for="issue in slotIssues(settingsSlot)"
@@ -609,23 +722,32 @@
               ? setConnectionFieldAlias(settingsSlot.config, field, $event)
               : setField(settingsSlot.config, field.key, $event)
           "
-          @update:connection-binding="
-            setConnectionBinding(fieldValue(settingsSlot.config, field.key), $event)
-          "
-          @add-connection="openConnection"
+          @update:connection-binding="bindConnectionField(settingsSlot.config, field, $event)"
+          @add-connection="openConnection($event, settingsSlot.config, field)"
       /></template>
     </div>
-    <template #footer
-      ><Button
-        label="Remove deployment"
-        icon="pi pi-trash"
-        text
-        severity="danger"
-        @click="
-          settingsDestination && settingsSlot && removeSlot(settingsDestination, settingsSlot.id)
-        " /><Button label="Done" @click="slotSettingsVisible = false" /></template
-  ></Dialog>
-  <Dialog v-model:visible="connectionVisible" modal header="Add connection" :style="dialogStyle"
+    <template #footer>
+      <div class="settings-footer">
+        <Button
+          label="Remove deployment"
+          icon="pi pi-trash"
+          text
+          severity="danger"
+          @click="
+            settingsDestination && settingsSlot && removeSlot(settingsDestination, settingsSlot.id)
+          "
+        />
+        <span class="settings-footer-spacer" />
+        <Button label="Done" @click="slotSettingsVisible = false" />
+      </div>
+    </template>
+  </Dialog>
+  <Dialog
+    class="pl-dialog"
+    v-model:visible="connectionVisible"
+    modal
+    header="Add connection"
+    :style="dialogStyle"
     ><div class="settings-grid">
       <div class="release-field">
         <label for="connection-name">Name</label
@@ -649,6 +771,7 @@
         @click="createConnection" /></template
   ></Dialog>
   <Dialog
+    class="pl-dialog"
     v-if="!dashboardMode || releaseDetailsVisible"
     :visible="releaseDetailsVisible"
     modal
@@ -715,10 +838,13 @@ import ReleaseDestinationAccountPreview from "../components/ReleaseDestinationAc
 import { useAPI } from "../composables/api";
 import { publishRunEvent } from "./run-events";
 import { useAppStore } from "../store/app";
+import NewBuildDialog from "../components/NewBuildDialog.vue";
+import ReleaseStatus from "../components/ReleaseStatus.vue";
 import { useConnectionsStore } from "../store/connections";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 import { uiEnvironment } from "../composables/ui-runtime";
 import {
+  addCompatibleBuild,
   appendReleaseDestinationInstance,
   connectionMatchesIntegration,
   dashboardShipIntentAction,
@@ -733,6 +859,8 @@ import {
   missingRequiredFieldIssues,
   outputReferenceConsumers,
   planOutputOptions,
+  selectSlotOutput,
+  slotOutputOptionsFor,
   readinessLabel,
   releaseCanRun,
   shouldInspectReleaseProviderConfig,
@@ -741,6 +869,7 @@ import {
   releaseRepairRoute,
   releaseOutputRefValue,
   runAfterSuccessfulSave,
+  type CompatibleBuildCandidate,
 } from "./release-flow-model";
 import {
   hasUnsavedReleaseWorkflowState,
@@ -754,16 +883,22 @@ import {
   persistWorkflowConnectionAliasRename,
   releaseWorkflowConnectionAliases,
   releaseDestinationConnectionPreviews,
-  releaseDestinationDisplayLabel,
-  releaseDestinationLocalName,
+  releaseDestinationLabel,
   renameWorkflowConnectionAlias,
   resolveDesktopWorkflowConnectionValues,
   setWorkflowConnectionBinding,
   suggestUniqueConnectionBinding,
+  resolveFieldConnectionAlias,
   suggestWorkflowConnectionAlias,
   workflowConnectionBindingValue,
 } from "../utils/release-connection-bindings";
 import { submitDesktopWorkflowExecution } from "../utils/workflow-execution-input";
+import {
+  destinationIcon,
+  providerIconClass,
+  providerIconImage,
+  sourceIcon,
+} from "../utils/provider-icons";
 
 const route = useRoute();
 const router = useRouter();
@@ -1153,12 +1288,10 @@ const sourceDefinition = computed(() =>
 const producerDefinition = (id: string) => catalog.value.producers.find((item) => item.id === id);
 const destinationDefinition = (id: string) =>
   catalog.value.destinations.find((item) => item.id === id);
-const providerIcon = (icon: IconType | undefined, fallback: string) =>
-  icon?.type === "icon"
-    ? icon.icon.includes("mdi") || icon.icon.includes("pi-")
-      ? icon.icon
-      : `mdi ${icon.icon}`
-    : fallback;
+const sourceIconFor = (source?: (typeof catalog.value.sources)[number]) =>
+  sourceIcon(appStore.providerDefinitions, source);
+const destinationIconFor = (id: string, icon?: IconType) =>
+  destinationIcon(appStore.providerDefinitions, id, icon);
 const fieldValue = (config: Record<string, unknown>, key: string) => String(config[key] ?? "");
 const setField = (config: Record<string, unknown>, key: string, value: unknown) => {
   config[key] = String(value ?? "");
@@ -1173,9 +1306,10 @@ const shippingConnectionPreviews = computed(() =>
     : [],
 );
 const destinationDisplayLabel = (destination: ReleaseConfig["destinations"][number]) =>
-  releaseDestinationDisplayLabel(
+  releaseDestinationLabel(
     destinationDefinition(destination.provider)?.label || destination.provider,
-    releaseDestinationLocalName(destination, flow.value?.destinations || []),
+    destination,
+    flow.value?.destinations || [],
   );
 const connectionOptions = (field: ReleaseFieldDefinition) =>
   connectionOptionsForIntegration(connections.value, field.integration);
@@ -1226,6 +1360,23 @@ const setConnectionBinding = async (alias: string, connectionId: string) => {
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : "Unable to remember this Connection.";
   }
+};
+const bindConnectionField = async (
+  values: Record<string, unknown>,
+  field: ReleaseFieldDefinition,
+  connectionId: string,
+) => {
+  if (!flow.value) return;
+  let alias = fieldValue(values, field.key);
+  if (!alias && connectionId) {
+    // Picking an account first gives the field a workflow alias, so the user never has to name one.
+    alias = suggestWorkflowConnectionAlias(
+      field.label || field.key,
+      releaseWorkflowConnectionAliases(flow.value, catalog.value),
+    );
+    setField(values, field.key, alias);
+  }
+  if (alias) await setConnectionBinding(alias, connectionId);
 };
 const setConnectionFieldAlias = async (
   values: Record<string, unknown>,
@@ -1358,10 +1509,7 @@ const blockerFieldContext = (issue: ValidationIssue) => {
       ? definition?.slotFields?.find((candidate) => candidate.key === fieldKey)
       : definition?.fields?.find((candidate) => candidate.key === fieldKey);
     targetLabel = definition?.label || "destination";
-    destinationLabel = releaseDestinationDisplayLabel(
-      targetLabel,
-      releaseDestinationLocalName(destination, flow.value.destinations),
-    );
+    destinationLabel = releaseDestinationLabel(targetLabel, destination, flow.value.destinations);
   }
 
   if (field?.type !== "connection" || !field.integration)
@@ -1462,7 +1610,21 @@ const removeDestination = (id: string) => {
     );
   } else remove();
 };
+const expandedDestinations = ref<ReadonlySet<string>>(new Set());
+const isDestinationExpanded = (id: string) => expandedDestinations.value.has(id);
+const toggleDestinationExpanded = (id: string) => {
+  const next = new Set(expandedDestinations.value);
+  if (!next.delete(id)) next.add(id);
+  expandedDestinations.value = next;
+};
+const destinationSummary = (destination: ReleaseDestinationConfig) => {
+  if (!destination.enabled) return "Disabled";
+  const slots = destination.slots.filter((slot) => slot.enabled);
+  if (!slots.length) return "No deployments";
+  return slots.length === 1 ? artifactLabel(slots[0].input) : `${slots.length} deployments`;
+};
 const addSlot = (destination: ReleaseDestinationConfig) => {
+  expandedDestinations.value = new Set(expandedDestinations.value).add(destination.id);
   destination.slots.push({
     id: nanoid(),
     name: `Deployment ${destination.slots.length + 1}`,
@@ -1495,9 +1657,46 @@ const removeSlot = (destination: ReleaseDestinationConfig, id: string) => {
     );
   } else remove();
 };
-const setSlotInput = (slot: ReleaseDestinationSlot, value: string) => {
-  const output = outputOptions.value.find((candidate) => candidate.value === value);
-  if (output) slot.input = output.ref;
+const setSlotInput = (
+  destination: ReleaseDestinationConfig,
+  slot: ReleaseDestinationSlot,
+  value: string,
+) =>
+  selectSlotOutput(slot, destinationDefinition(destination.provider), outputOptions.value, value);
+const newBuildChoice = "__new-build__";
+const newBuildVisible = ref(false);
+// "New build…" is an action, not a value: remounting the select makes it show its placeholder again.
+const outputPickerResets = ref(0);
+const newBuildTarget = ref<{ destinationId: string; slotId: string }>();
+const createNewBuild = (choice: CompatibleBuildCandidate) => {
+  const target = newBuildTarget.value;
+  if (!flow.value || !target) return;
+  addCompatibleBuild(
+    flow.value,
+    catalog.value,
+    target.destinationId,
+    target.slotId,
+    choice,
+    nanoid,
+  );
+};
+// Existing outputs first, then a way to create the build this deployment is missing.
+const slotOutputChoices = (destination: ReleaseDestinationConfig) => [
+  ...slotOutputOptionsFor(destinationDefinition(destination.provider), outputOptions.value).map(
+    (output) => ({ label: output.label, value: output.value }),
+  ),
+  { label: "New build…", value: newBuildChoice },
+];
+const chooseSlotOutput = (
+  destination: ReleaseDestinationConfig,
+  slot: ReleaseDestinationSlot,
+  value: string,
+) => {
+  if (value === newBuildChoice) {
+    newBuildTarget.value = { destinationId: destination.id, slotId: slot.id };
+    newBuildVisible.value = true;
+    outputPickerResets.value++;
+  } else setSlotInput(destination, slot, value);
 };
 const openBuildsForSlot = (destination: ReleaseDestinationConfig, slot: ReleaseDestinationSlot) =>
   router.push({
@@ -1564,9 +1763,18 @@ const setSourceField = (key: string, value: unknown) => {
     void inspectSource();
   }
 };
-const openConnection = (integration: string) => {
+// The field an inline "Add" was opened from, so the new Connection can be selected for it.
+let pendingFieldConnection:
+  | { config: Record<string, unknown>; field: ReleaseFieldDefinition }
+  | undefined;
+const openConnection = (
+  integration: string,
+  config?: Record<string, unknown>,
+  field?: ReleaseFieldDefinition,
+) => {
   connectionDialogGeneration++;
   pendingBlockerConnection.value = undefined;
+  pendingFieldConnection = config && field ? { config, field } : undefined;
   try {
     connectionDraft.value = {
       name: "",
@@ -1583,12 +1791,14 @@ const openConnection = (integration: string) => {
 const cancelConnection = () => {
   connectionDialogGeneration++;
   pendingBlockerConnection.value = undefined;
+  pendingFieldConnection = undefined;
   connectionVisible.value = false;
 };
 const createConnection = async () => {
   if (!connectionFields.value.length || !connectionHasValue.value) return;
   const dialogGeneration = connectionDialogGeneration;
   const pendingAtStart = pendingBlockerConnection.value;
+  const fieldAtStart = pendingFieldConnection;
   connectionSaving.value = true;
   try {
     const integration = connectionDraft.value.integration;
@@ -1605,6 +1815,26 @@ const createConnection = async () => {
     };
     let workflowBindings = localConnectionsConfig.value.workflowBindings || [];
     let pendingAlias: string | undefined;
+    let fieldAlias: string | undefined;
+    if (
+      fieldAtStart &&
+      flow.value &&
+      fieldAtStart.field.integration &&
+      connectionDraftMatchesIntegration(fieldAtStart.field.integration, connectionDraft.value)
+    ) {
+      fieldAlias = resolveFieldConnectionAlias(
+        fieldValue(fieldAtStart.config, fieldAtStart.field.key),
+        fieldAtStart.field.label || fieldAtStart.field.key,
+        connections.value.map((connection) => connection.id),
+        releaseWorkflowConnectionAliases(flow.value, catalog.value),
+      );
+      workflowBindings = setWorkflowConnectionBinding(
+        workflowBindings,
+        flow.value.id,
+        fieldAlias,
+        record.id,
+      );
+    }
     if (pendingAtStart && pendingAtStart.flowId === flow.value?.id) {
       const currentIssue = blockingIssues.value.find(
         (issue) =>
@@ -1649,6 +1879,9 @@ const createConnection = async () => {
       return;
     }
     await connectionsStore.load(true);
+    if (fieldAtStart && fieldAlias && fieldAtStart === pendingFieldConnection)
+      setField(fieldAtStart.config, fieldAtStart.field.key, fieldAlias);
+    if (fieldAtStart === pendingFieldConnection) pendingFieldConnection = undefined;
     const pending = pendingBlockerConnection.value;
     if (
       pendingAtStart &&
@@ -2081,390 +2314,383 @@ watch([flowId, projectId], () => {
 
 <style scoped>
 .release-page {
+  display: grid;
+  gap: 28px;
   max-width: 1040px;
   margin: 0 auto;
   padding-bottom: 48px;
 }
-.autosave-state {
-  color: var(--p-text-muted-color, var(--text-color-secondary));
+
+/* ── Header actions ─────────────────────────────────────────────── */
+.workflow-readiness {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  border: 1px solid var(--pl-border);
+  border-radius: 999px;
+  color: var(--pl-muted);
+  background: var(--pl-sunken);
   font-size: 0.75rem;
+  font-weight: 600;
+}
+.workflow-readiness i {
+  font-size: 0.78rem;
+}
+.workflow-readiness.state-ready {
+  color: color-mix(in srgb, var(--pl-ok) 80%, var(--p-text-color));
+  border-color: color-mix(in srgb, var(--pl-ok) 30%, transparent);
+  background: color-mix(in srgb, var(--pl-ok) 9%, var(--pl-card));
+}
+.workflow-readiness.state-attention,
+.workflow-readiness.state-error {
+  color: color-mix(in srgb, var(--pl-warn) 82%, var(--p-text-color));
+  border-color: color-mix(in srgb, var(--pl-warn) 32%, transparent);
+  background: color-mix(in srgb, var(--pl-warn) 9%, var(--pl-card));
+}
+.autosave-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--pl-muted);
+  font-size: 0.75rem;
+}
+.state-saved i {
+  color: var(--pl-ok);
+}
+.state-error i {
+  color: var(--red-500, #ef4444);
+}
+.ship-button {
+  min-width: 5.5rem;
 }
 .readiness-progress {
   display: flex;
   flex-wrap: wrap;
   gap: 8px 16px;
-  margin: 8px 0;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.75rem;
+  color: var(--pl-muted);
+  font-size: 0.78rem;
 }
 .readiness-progress i {
-  margin-right: 4px;
+  margin-right: 5px;
 }
-.workflow-readiness {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.75rem;
-}
-.workflow-readiness i {
-  font-size: 0.7rem;
-}
-.workflow-readiness.state-ready i {
-  color: var(--green-500, #22c55e);
-}
-.workflow-readiness.state-attention,
-.workflow-readiness.state-error {
-  color: var(--p-orange-700, #c2410c);
-}
-.autosave-state i {
-  margin-right: 4px;
-}
-.state-saved i {
-  color: var(--green-500, #22c55e);
-}
-.state-error i {
-  color: var(--red-500, #ef4444);
-}
-.planner-error,
-.plan-shortcut {
+.planner-error {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
+
+/* ── Action required ────────────────────────────────────────────── */
 .action-required-card {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
-  align-items: start;
-  gap: 4px 12px;
-  margin: 14px 0;
-  border: 1px solid color-mix(in srgb, var(--p-indigo-500, #6366f1) 24%, transparent);
-  border-radius: 8px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
   padding: 14px 16px;
-  background: color-mix(in srgb, var(--p-indigo-100, #eef2ff) 58%, var(--p-surface-0, #fff));
+  border: 1px solid var(--pl-border);
+  border-radius: var(--pl-radius);
+  background: var(--pl-card);
+  box-shadow: var(--pl-shadow-sm);
 }
 .blocker-icon {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  margin-top: 1px;
-  border-radius: 50%;
-  color: var(--p-indigo-700, #4338ca);
-  background: color-mix(in srgb, var(--p-indigo-500, #6366f1) 18%, transparent);
-  font-size: 0.85rem;
+  width: 38px;
+  height: 38px;
+  border-radius: 11px;
+  color: color-mix(in srgb, var(--pl-warn) 85%, var(--p-text-color));
+  background: color-mix(in srgb, var(--pl-warn) 12%, var(--pl-card));
+  font-size: 1.1rem;
 }
 .blocker-copy {
   display: grid;
-  gap: 5px;
+  gap: 2px;
   min-width: 0;
 }
-.blocker-heading {
+.blocker-copy .eyebrow {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.blocker-copy .eyebrow {
-  color: var(--p-indigo-700, #4338ca);
+  gap: 8px;
+  color: var(--pl-muted);
   font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
-.blocker-copy strong {
-  color: var(--p-text-color, var(--text-color));
-  font-size: 1rem;
+.blocker-count {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--pl-hover);
+  font-size: 0.68rem;
+  letter-spacing: 0;
+  text-transform: none;
 }
-.blocker-copy > span,
-.plan-shortcut span {
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.78rem;
+.blocker-copy strong {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.blocker-copy > span:not(.eyebrow) {
+  color: var(--pl-muted);
+  font-size: 0.82rem;
+}
+.blocker-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .blocker-navigation {
   display: flex;
   align-items: center;
-  flex: 0 0 auto;
   gap: 2px;
 }
-.blocker-navigation span {
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.75rem;
-  margin-right: 2px;
-  white-space: nowrap;
-}
-.blocker-copy > .p-button {
-  justify-self: start;
-  margin-top: 3px;
-}
-.blocker-copy :deep(.blocker-repair-button) {
-  border-color: var(--p-indigo-500, #6366f1);
-  background: var(--p-indigo-500, #6366f1);
-  color: white;
-}
-.blocker-copy :deep(.blocker-repair-button:hover:not(:disabled)) {
-  border-color: var(--p-indigo-600, #4f46e5);
-  background: var(--p-indigo-600, #4f46e5);
-}
-:root.dark .action-required-card {
-  border-color: #4338ca;
-  background: #1e1b4b;
-}
-:root.dark .blocker-icon {
-  color: #e0e7ff;
-  background: #3730a3;
-}
-:root.dark .blocker-copy .eyebrow,
-:root.dark .blocker-copy strong {
-  color: #e0e7ff;
-}
-:root.dark .blocker-copy > span,
-:root.dark .blocker-navigation span,
-:root.dark .blocker-navigation :deep(.p-button) {
-  color: #c7d2fe;
-}
-.plan-shortcut {
-  justify-content: flex-end;
-  margin: 0 2px -8px;
-}
-.readiness-label {
-  flex: 0 0 auto;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.73rem;
-}
-.readiness-problem {
-  color: var(--p-orange-700, #c2410c);
-  font-weight: 600;
-}
-@media (max-width: 640px) {
-  .action-required-card {
-    grid-template-columns: 28px minmax(0, 1fr);
-    padding: 12px;
-  }
-  .blocker-heading {
-    align-items: flex-start;
-  }
-}
-.destination-toggle {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.destination-toggle label {
-  margin-right: auto;
-}
-.destination-toggle span {
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.75rem;
-}
-.issue-summary {
-  display: grid;
-  gap: 5px;
-  margin: 9px 0 0;
-  padding-left: 18px;
-}
-.issue-summary li {
-  font-size: 0.78rem;
-}
-.issue-summary .p-tag {
-  margin-right: 5px;
-}
+
+/* ── Sections ───────────────────────────────────────────────────── */
 .release-section,
 .plan-panel {
   display: grid;
   gap: 0;
 }
-.release-section + .release-section {
-  margin-top: 22px;
-}
 .section-heading {
   display: flex;
-  align-items: end;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-  margin: 0 0 14px;
+  margin: 0 0 12px;
 }
 .section-heading h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin: 0;
-  font-size: 1.15rem;
+  font-size: 1rem;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+.section-count {
+  min-width: 1.35rem;
+  padding: 1px 7px;
+  border-radius: 999px;
+  color: var(--pl-muted);
+  background: var(--pl-hover);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-align: center;
 }
 .section-heading p {
-  margin: 4px 0 0;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.8rem;
+  margin: 3px 0 0;
+  color: var(--pl-muted);
+  font-size: 0.82rem;
 }
 .eyebrow,
 .field-label {
-  color: var(--p-text-muted-color, var(--text-color-secondary));
+  color: var(--pl-muted);
   font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
+/* ── Cards ──────────────────────────────────────────────────────── */
 .source-card,
 .job-card,
 .empty-card,
 .plan-panel {
-  border: 1px solid var(--p-surface-200, var(--surface-border));
-  border-radius: 10px;
-  background: var(--p-surface-0, var(--surface-card));
+  border: 1px solid var(--pl-border);
+  border-radius: var(--pl-radius);
+  background: var(--pl-card);
+  box-shadow: var(--pl-shadow-xs);
+}
+.source-card,
+.job-card {
+  transition:
+    border-color 0.15s var(--pl-ease),
+    box-shadow 0.2s var(--pl-ease);
+}
+.source-card:hover,
+.job-card:hover {
+  border-color: var(--pl-border-strong);
+  box-shadow: var(--pl-shadow-sm);
 }
 .source-card,
 .job-header {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-.field-issue {
-  display: block;
-  margin-top: 4px;
-  font-size: 0.72rem;
-}
-.field-issue-error {
-  color: var(--red-500, #ef4444);
-}
-.field-issue-warning {
-  color: var(--orange-500, #f97316);
+  gap: 14px;
 }
 .source-card {
-  padding: 12px 14px;
+  padding: 12px 16px;
+}
+.job-card {
+  overflow: hidden;
+}
+.job-card + .job-card {
+  margin-top: 8px;
+}
+.job-card.disabled .job-header {
+  opacity: 0.6;
+}
+.job-header {
+  padding: 12px 14px 12px 16px;
 }
 .source-copy,
 .job-title {
   display: grid;
-  gap: 3px;
+  gap: 2px;
   min-width: 0;
   flex: 1;
 }
 .source-copy strong,
 .job-title strong {
   font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
 }
 .source-copy span,
 .job-title span,
 .field-value {
   overflow: hidden;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.75rem;
+  color: var(--pl-muted);
+  font-size: 0.78rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .source-copy small {
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.7rem;
+  color: var(--pl-muted);
+  font-size: 0.72rem;
 }
 .provider-icon {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   flex: 0 0 auto;
-  border: 1px solid var(--p-surface-200, var(--surface-border));
-  border-radius: 8px;
-  color: var(--primary-color);
-  background: var(--p-surface-50, var(--surface-ground));
+  border: 1px solid var(--pl-border);
+  border-radius: 11px;
+  color: var(--pl-accent);
+  background: linear-gradient(
+    145deg,
+    var(--pl-card),
+    color-mix(in srgb, var(--p-text-color) 5%, var(--pl-card))
+  );
+  box-shadow: var(--pl-shadow-xs);
   font-size: 18px;
 }
-.job-card {
-  overflow: hidden;
+.provider-icon > img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
 }
-.job-card + .job-card {
-  margin-top: 10px;
+.destination-toggle {
+  flex: 0 0 auto;
 }
-.destination-picker {
-  display: grid;
-  gap: 8px;
-}
-.destination-choice {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--p-surface-200, var(--surface-border));
-  border-radius: 8px;
-  background: var(--p-surface-0, var(--surface-card));
-  color: var(--text-color);
-  text-align: left;
-  cursor: pointer;
-}
-.destination-choice > span:nth-child(2) {
-  display: grid;
-  flex: 1;
-  gap: 3px;
-}
-.destination-choice small {
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.7rem;
-}
-.destination-choice:hover {
-  border-color: var(--primary-color);
-}
-.job-header {
-  padding: 12px 14px;
-}
-.settings-grid,
+
+/* Deployments */
 .slot-list {
   display: grid;
-  gap: 8px;
-  padding: 0 14px 14px;
+  gap: 2px;
+  padding: 6px 14px 12px 16px;
+  border-top: 1px solid var(--pl-border);
+  background: var(--pl-sunken);
+  animation: pl-reveal 0.18s var(--pl-ease);
 }
-.slot-list {
-  padding-top: 2px;
-}
-.release-field {
-  display: grid;
-  gap: 5px;
-}
-.release-field label,
-.field-label {
-  letter-spacing: 0.02em;
+@keyframes pl-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
 }
 .slot-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  border: 1px solid var(--p-surface-200, var(--surface-border));
-  border-radius: 7px;
-  padding: 9px 10px;
+  gap: 12px;
+  padding: 7px 4px 7px 8px;
+  border: 0;
+  border-radius: 10px;
   background: transparent;
-  color: var(--text-color);
+  color: var(--p-text-color);
   text-align: left;
+  transition: background 0.15s var(--pl-ease);
+}
+.slot-row:hover {
+  background: var(--pl-hover);
 }
 .slot-row > :first-child {
   flex: 1;
 }
+.deployment-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.deployment-main > i {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--pl-border);
+  border-radius: 8px;
+  color: var(--pl-muted);
+  background: var(--pl-card);
+  font-size: 15px;
+}
 .deployment-main > span {
   display: grid;
-  gap: 2px;
+  gap: 1px;
   min-width: 0;
+}
+.deployment-main strong {
+  font-size: 0.82rem;
+  font-weight: 600;
 }
 .deployment-main small {
   overflow: hidden;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.7rem;
+  color: var(--pl-muted);
+  font-size: 0.74rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.slot-output-select {
+  min-width: 13rem;
+  max-width: 16rem;
+  height: 2.1rem;
+  border-radius: var(--pl-radius-sm);
+}
+.slot-output-select :deep(.p-select-label) {
+  display: flex;
+  align-items: center;
+  padding: 0 0.75rem;
+  font-size: 0.8rem;
+}
+.slot-output-select :deep(.p-select-dropdown) {
+  width: 2rem;
+}
+.add-slot {
+  justify-self: start;
+  margin-top: 4px;
+}
+
 .empty-card {
   display: grid;
   place-items: center;
   gap: 6px;
-  padding: 30px;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
+  padding: 36px;
+  border-style: dashed;
+  box-shadow: none;
+  color: var(--pl-muted);
   text-align: center;
 }
 .empty-card i {
-  color: var(--primary-color);
-  font-size: 25px;
+  color: var(--pl-accent);
+  font-size: 26px;
 }
+
+/* ── Plan panel ─────────────────────────────────────────────────── */
 .plan-panel {
   margin-top: 8px;
-  padding: 14px;
-}
-.plan-panel .section-heading h2 {
-  font-size: 1.05rem;
+  padding: 18px;
 }
 .plan-list {
   display: grid;
@@ -2477,46 +2703,153 @@ watch([flowId, projectId], () => {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--surface-border);
-  font-size: 0.8rem;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--pl-border);
+  font-size: 0.82rem;
 }
 .plan-list li:last-child {
   border-bottom: 0;
 }
 .plan-list i {
-  color: var(--primary-color);
+  color: var(--pl-accent);
 }
-:root.dark .source-card,
-:root.dark .job-card,
-:root.dark .empty-card,
-:root.dark .plan-panel {
-  border-color: var(--p-surface-700, #3f3f46);
-  background: var(--p-surface-900, #18181b);
+
+/* ── Dialogs: pickers, forms, footers ───────────────────────────── */
+.destination-picker {
+  display: grid;
+  gap: 8px;
 }
-:root.dark .provider-icon {
-  border-color: var(--p-surface-700, #3f3f46);
-  background: var(--p-surface-800, #27272a);
+.destination-choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--pl-border);
+  border-radius: 12px;
+  background: var(--pl-card);
+  color: var(--p-text-color);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.15s var(--pl-ease),
+    box-shadow 0.15s var(--pl-ease),
+    background 0.15s var(--pl-ease);
 }
-:root.dark .destination-choice {
-  border-color: var(--p-surface-700, #3f3f46);
-  background: var(--p-surface-900, #18181b);
+.destination-choice > span:nth-child(2) {
+  display: grid;
+  flex: 1;
+  gap: 2px;
 }
-:root.dark .slot-row {
-  border-color: var(--p-surface-700, #3f3f46);
+.destination-choice small {
+  color: var(--pl-muted);
+  font-size: 0.74rem;
 }
-:root.dark .slot-row:hover {
-  background: var(--p-surface-800, #27272a);
+.destination-choice:hover {
+  border-color: var(--pl-border-strong);
+  background: var(--pl-sunken);
+  box-shadow: var(--pl-shadow-xs);
 }
-.field-note {
-  margin: 0;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  font-size: 0.75rem;
+.destination-choice:focus-visible {
+  outline: none;
+  border-color: var(--pl-accent);
+  box-shadow: var(--pl-ring);
 }
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 16px;
+}
+.settings-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+.settings-footer-spacer {
+  flex: 1;
+}
+.release-field {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+.release-field > label,
+.field-label {
+  color: var(--p-text-color);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.release-field > small {
+  color: var(--pl-muted);
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+.release-field.wide,
 .wide {
   grid-column: 1 / -1;
 }
+.release-field.destination-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--pl-border);
+  border-radius: 12px;
+  background: var(--pl-sunken);
+}
+.destination-toggle label {
+  margin-right: auto;
+}
+.destination-toggle span {
+  color: var(--pl-muted);
+  font-size: 0.78rem;
+}
+.field-issue {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.74rem;
+}
+.field-issue-error {
+  color: var(--red-500, #ef4444);
+}
+.field-issue-warning {
+  color: color-mix(in srgb, var(--pl-warn) 85%, var(--p-text-color));
+}
+.field-note {
+  margin: 0;
+  color: var(--pl-muted);
+  font-size: 0.78rem;
+}
+.issue-summary {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding-left: 18px;
+}
+.issue-summary li {
+  font-size: 0.8rem;
+}
+.issue-summary .p-tag {
+  margin-right: 6px;
+}
+
 @media (max-width: 640px) {
+  .release-page {
+    gap: 22px;
+  }
+  .action-required-card {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+  .blocker-actions {
+    grid-column: 1 / -1;
+    justify-content: space-between;
+  }
+  .settings-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .section-heading,
   .job-header,
   .source-card {

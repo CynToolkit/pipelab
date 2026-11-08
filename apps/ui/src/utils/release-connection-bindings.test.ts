@@ -12,9 +12,11 @@ import {
   connectionOptionsForIntegration,
   releaseDestinationConnectionPreviews,
   persistWorkflowConnectionAliasRename,
+  releaseDestinationLabel,
   releaseDestinationLocalName,
   renameWorkflowConnectionAliasWithDraft,
   renameWorkflowConnectionAlias,
+  resolveFieldConnectionAlias,
   releaseWorkflowConnectionAliases,
   resolveDesktopWorkflowConnectionValues,
   setWorkflowConnectionBinding,
@@ -266,7 +268,7 @@ describe("Desktop workflow connection bindings", () => {
     expect(releaseDestinationConnectionPreviews(config, catalog, connections)).toEqual([
       {
         destinationId: "store-one",
-        destinationLabel: "Store — Destination 1",
+        destinationLabel: "Store",
         locationLabel: "Destination",
         fieldLabel: "Account",
         connectionId: "store-prod",
@@ -275,7 +277,7 @@ describe("Desktop workflow connection bindings", () => {
       },
       {
         destinationId: "store-one",
-        destinationLabel: "Store — Destination 1",
+        destinationLabel: "Store",
         locationLabel: "Deployment 1",
         fieldLabel: "Delivery account",
         connectionId: "store-archive",
@@ -330,6 +332,32 @@ describe("Desktop workflow connection bindings", () => {
     ];
 
     expect(releaseDestinationLocalName(destinations[0]!, destinations)).toBe("Destination 2");
+  });
+
+  it("labels a lone destination with just its provider name", () => {
+    const destinations = [{ ...workflow().destinations[0]!, name: undefined }];
+
+    expect(releaseDestinationLabel("Store", destinations[0]!, destinations)).toBe("Store");
+  });
+
+  it("numbers unnamed destinations only when several share a provider", () => {
+    const destinations = [
+      { ...workflow().destinations[0]!, id: "one", name: undefined },
+      { ...workflow().destinations[0]!, id: "two", name: undefined },
+    ];
+
+    expect(releaseDestinationLabel("Store", destinations[0]!, destinations)).toBe("Store 1");
+    expect(releaseDestinationLabel("Store", destinations[1]!, destinations)).toBe("Store 2");
+  });
+
+  it("shows a chosen name after the provider and ignores generated legacy names", () => {
+    const destinations = [
+      { ...workflow().destinations[0]!, id: "named", name: " Studio " },
+      { ...workflow().destinations[0]!, id: "legacy", name: "Destination 2" },
+    ];
+
+    expect(releaseDestinationLabel("Store", destinations[0]!, destinations)).toBe("Store — Studio");
+    expect(releaseDestinationLabel("Store", destinations[1]!, destinations)).toBe("Store 2");
   });
 
   it("omits disabled destination and slot accounts from the Ship preview", () => {
@@ -967,5 +995,22 @@ describe("Desktop workflow connection bindings", () => {
       "production-store-2",
     );
     expect(suggestWorkflowConnectionAlias(" 9 test! ", [])).toBe("connection-9-test");
+  });
+
+  it("keeps a field's usable alias and names a fresh one otherwise when adding a Connection inline", () => {
+    expect(
+      resolveFieldConnectionAlias("steam-account", "Steam account", [], ["steam-account"]),
+    ).toBe("steam-account");
+    expect(resolveFieldConnectionAlias("", "Steam account", [], [])).toBe("steam-account");
+    expect(resolveFieldConnectionAlias("", "Steam account", [], ["steam-account"])).toBe(
+      "steam-account-2",
+    );
+    // An alias that is really a Connection id is replaced, not reused.
+    expect(resolveFieldConnectionAlias("conn-1", "Steam account", ["conn-1"], [])).toBe(
+      "steam-account",
+    );
+    expect(resolveFieldConnectionAlias("not valid!", "Steam account", [], [])).toBe(
+      "steam-account",
+    );
   });
 });

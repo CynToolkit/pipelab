@@ -14,6 +14,7 @@ import "@mdi/font/css/materialdesignicons.css";
 import "driver.js/dist/driver.css";
 import { definePreset } from "@primevue/themes";
 import "./style/main.scss";
+import "./style/workflow.scss";
 import VueDOMPurifyHTML from "vue-dompurify-html";
 
 import ToastService from "primevue/toastservice";

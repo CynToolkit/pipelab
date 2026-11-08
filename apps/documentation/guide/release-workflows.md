@@ -11,7 +11,7 @@ destinations.
    project file or folder. Source-specific file rules apply, such as `.c3p` for
    Construct projects or `.zip` for ZIP sources.
 4. In **Destinations**, choose one or more places to publish the release.
-5. Check the **Recap** for the workflow name, description, source and path, and
+5. Check **Review** for the workflow name, description, source and path, and
    destinations, then choose **Create workflow**. Pipelab applies any existing
    build and output defaults that can be resolved. It opens the workflow's
    **Configuration** section after creation.
@@ -32,23 +32,31 @@ credentials, tools, and target limitations for each provider.
 ### Connections and values
 
 Connection fields use workflow aliases such as `itch-studio` or
-`steam-production`. The workflow stores the alias; Desktop remembers which
+`steam-production`. Pipelab names the alias for you when you pick an account;
+it appears under the account field, where the pencil icon renames it. The
+workflow stores the alias; Desktop remembers which
 saved Connection fulfills it for that workflow. The same alias can resolve to
 a different saved Connection in another workflow. Changing a saved Connection's
 display name does not change the workflow alias. Renaming an alias updates its
 workflow references and shows a reminder to update any CLI or CI mappings that
 use the old name.
 
-When a workflow has two destinations for the same provider, give each a
-destination name such as **Studio** or **Personal**. The editor shows that name
-beside the provider (for example, **Itch.io — Studio**) and keeps it separate
-from the Connection alias. Before shipping, Pipelab previews the selected saved
+A destination is labelled with its provider name, such as **Steam**. When a
+workflow has two destinations for the same provider they are numbered (**Steam
+1**, **Steam 2**); give each a destination name such as **Studio** or
+**Personal** to tell them apart. The editor shows that name beside the provider
+(for example, **Itch.io — Studio**) and keeps it separate from the Connection
+alias. Before shipping, Pipelab previews the selected saved
 account for each destination and warns if multiple destinations use the same
 Connection; using one account more than once is allowed when that is intended.
 
+The creation wizard stays focused on the essentials and does not show these
+advanced controls; set up accounts, aliases, and value sources in
+Configuration after creating the workflow.
+
 Ordinary provider properties are literal values by default. To save an
-environment binding instead, open **Advanced · Value source** and choose **Use
-environment variable**. Pipelab reads that variable from the environment of
+environment binding instead, turn on **Use environment variable** beside the
+field's label in Configuration and enter the variable name. Pipelab reads that variable from the environment of
 the client that starts the run and checks required bindings before starting any
 workflow steps. Connection fields are managed through aliases and do not use
 this ordinary-property control.
@@ -111,6 +119,14 @@ Builds with unapplied edits, Pipelab asks whether to keep editing or discard
 those edits. Pending workflow changes save automatically before navigation;
 the browser also warns if you reload or close while a save is pending or has
 failed, or while Build settings remain unapplied.
+
+A Construct source uses the **Construct** engine for its web export, and Electron, Tauri or Poki take that build as input. Pipelab adds the web build for you when a destination needs it. Construct's own desktop exports are declared but not available yet; see [Construct](./integrations/construct.md#desktop-exports).
+
+A build **exposes** every enabled target as an output, but Pipelab only **builds** the targets something uses: a destination slot, a Bundle input, or another build. An Electron build can expose Windows, Linux and macOS while two Steam slots read only the Windows and Linux outputs; macOS is not built. A build that nothing uses does not run. Each target runs separately, so one run builds one operating system.
+
+Automatic builds always target the operating system Pipelab runs on. A Construct source with an empty Folder or Steam slot gets a Construct web build and an Electron build for the current OS; a Godot source gets Godot's native desktop export for the current OS instead. If the engine has no target for the current OS, nothing is added. Slots are not tied to an operating system: choose any output for any slot.
+
+A **Bundle** build puts the outputs of several other builds into one ZIP. Add it from the Builds tab, then choose its **Inputs**: any enabled build outputs it can read, such as the Windows, Linux and macOS builds. The ZIP holds one top-level folder per input, named after its build and target. A bundle never picks its inputs automatically, cannot include itself, and can itself be an input to another bundle. Its output is a ZIP archive, which the ZIP and itch.io destinations accept; Steam and Poki do not. Bundle builds are never added automatically and do not support Before build hooks.
 
 Electron Build Profiles also support **Before build hooks**. Add, enable,
 disable, reorder, or remove hooks in the profile settings. Hooks run in order on

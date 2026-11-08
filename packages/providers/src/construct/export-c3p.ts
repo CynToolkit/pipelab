@@ -1,40 +1,10 @@
 import { fileExists } from "@pipelab/plugin-core";
 import type { WorkflowTask } from "@pipelab/workflow-runtime";
-import StreamZip from "node-stream-zip";
 import { exportc3p, type ConstructExportExecutionContext } from "./export-shared.js";
+import { parseConstructExportType } from "./assets/script.js";
+import { getSavedConstructVersion } from "./saved-version.js";
 
-export const formatSavedConstructVersion = (savedWithRelease: unknown): string | undefined => {
-  if (typeof savedWithRelease !== "number" || !Number.isSafeInteger(savedWithRelease)) {
-    return undefined;
-  }
-
-  const release = Math.floor(savedWithRelease / 100);
-  if (release <= 0) return undefined;
-
-  const patch = savedWithRelease % 100;
-  return `r${release}${patch > 0 ? `-${patch}` : ""}`;
-};
-
-const getSavedConstructVersion = async (file: string): Promise<string | undefined> => {
-  // Construct archives created on Windows can contain backslashes in entry
-  // names; we only read the fixed root project.c3proj entry and never extract.
-  const archive = new StreamZip.async({ file, skipEntryNameValidation: true });
-  try {
-    const projectEntry = await archive.entry("project.c3proj");
-    if (!projectEntry || projectEntry.isDirectory) return undefined;
-
-    const project: unknown = JSON.parse((await archive.entryData(projectEntry)).toString("utf8"));
-    if (!project || typeof project !== "object" || !("savedWithRelease" in project)) {
-      return undefined;
-    }
-
-    return formatSavedConstructVersion(project.savedWithRelease);
-  } catch {
-    return undefined;
-  } finally {
-    await archive.close().catch(() => {});
-  }
-};
+export { formatSavedConstructVersion } from "./saved-version.js";
 
 export interface ConstructWorkflowTaskServices {
   context: ConstructExportExecutionContext["context"] & {
@@ -77,6 +47,7 @@ export const constructExportWorkflowTaskFactory =
       inputs.username = account.username;
       inputs.password = account.password;
     }
+    inputs = { ...inputs, exportType: parseConstructExportType(task.inputs.exportType) };
     const requestedVersion =
       typeof task.inputs.version === "string" ? task.inputs.version.trim() : "";
     if (!requestedVersion) {

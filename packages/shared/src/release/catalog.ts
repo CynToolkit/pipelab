@@ -20,6 +20,7 @@ export const buildReleaseCatalog = (
     { id: "web", label: "Web" },
     { id: "mobile", label: "Mobile" },
     { id: "console", label: "Console" },
+    { id: "bundle", label: "Bundle" },
   ],
   sources: registry.sources.map((source) => ({
     id: source.id,
@@ -40,6 +41,7 @@ export const buildReleaseCatalog = (
     accepts: producer.accepts,
     planning: producer.planning ?? { mode: "build" },
     supportsBeforeBuildHooks: producer.supportsBeforeBuildHooks,
+    inputs: producer.inputs,
     defaultConfig: producer.createDefaultConfig(),
     requiresAgentInspection: Boolean(producer.inspect),
     targets: producer.targets.map((target) => ({
@@ -62,6 +64,7 @@ export const buildReleaseCatalog = (
     fields: destination.fields,
     slotFields: destination.slotFields,
     accepts: destination.accepts,
+    requiresBuild: destination.requiresBuild,
     defaultConfig: destination.createDefaultConfig(),
   })),
 });

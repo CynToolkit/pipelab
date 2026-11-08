@@ -174,6 +174,29 @@ export const releaseDestinationLocalName = (
 export const releaseDestinationDisplayLabel = (providerLabel: string, localName: string) =>
   `${providerLabel} — ${localName}`;
 
+// Older workflows persisted generated names such as "Destination 1"; they carry no information.
+const generatedDestinationName = /^Destination \d+$/;
+
+/**
+ * The label a destination is shown with: "Steam — Studio" when it was named, plain "Steam" when it
+ * is the only one for its provider, and "Steam 1", "Steam 2" when several share a provider.
+ */
+export const releaseDestinationLabel = (
+  providerLabel: string,
+  destination: ReleaseConfig["destinations"][number],
+  destinations: ReleaseConfig["destinations"],
+) => {
+  const savedName = destination.name?.trim();
+  if (savedName && !generatedDestinationName.test(savedName))
+    return releaseDestinationDisplayLabel(providerLabel, savedName);
+  const sameProvider = destinations.filter(
+    (candidate) => candidate.provider === destination.provider,
+  );
+  if (sameProvider.length <= 1) return providerLabel;
+  const position = sameProvider.findIndex((candidate) => candidate.id === destination.id);
+  return `${providerLabel} ${position + 1}`;
+};
+
 export const releaseDestinationConnectionPreviews = (
   config: ReleaseConfig,
   catalog: ReleaseCatalog,
@@ -194,9 +217,10 @@ export const releaseDestinationConnectionPreviews = (
       (candidate) => candidate.id === destination.provider,
     );
     if (!definition) continue;
-    const destinationLabel = releaseDestinationDisplayLabel(
+    const destinationLabel = releaseDestinationLabel(
       definition.label || destination.provider,
-      releaseDestinationLocalName(destination, config.destinations),
+      destination,
+      config.destinations,
     );
     const addFields = (
       fields: ReleaseFieldDefinition[] | undefined,
@@ -377,6 +401,20 @@ export const suggestWorkflowConnectionAlias = (name: string, usedAliases: readon
   while (used.has(`${base}-${suffix}`)) suffix++;
   return `${base}-${suffix}`;
 };
+
+/**
+ * Chooses the workflow alias a field should use for a newly created Connection: the field's own
+ * alias when it is already usable, otherwise a fresh one named after the field.
+ */
+export const resolveFieldConnectionAlias = (
+  existingAlias: string,
+  fieldLabel: string,
+  connectionIds: readonly string[],
+  usedAliases: readonly string[],
+) =>
+  /^[A-Za-z_][A-Za-z0-9_-]*$/.test(existingAlias) && !connectionIds.includes(existingAlias)
+    ? existingAlias
+    : suggestWorkflowConnectionAlias(fieldLabel, usedAliases);
 
 const renameFieldAlias = (
   fields: ReleaseFieldDefinition[] | undefined,

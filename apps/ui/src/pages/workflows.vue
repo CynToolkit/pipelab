@@ -63,9 +63,7 @@
               <Button
                 :label="$t('home.new-workflow')"
                 icon="mdi mdi-rocket-launch-outline"
-                :disabled="
-                  !isBrowser && (!filesReady || !agent.isReady.value || !activeProjectId)
-                "
+                :disabled="!isBrowser && (!filesReady || !agent.isReady.value || !activeProjectId)"
                 @click="openWorkflowWizard"
               />
               <Button
@@ -148,11 +146,9 @@
                   <span class="workflow-name" :title="flow.content.name">{{
                     flow.content.name
                   }}</span>
-                  <Tag severity="info" :value="$t('home.release')" class="type-tag" />
                 </div>
                 <div class="workflow-desc" :title="workflowRouteDescription(flow)">
-                  {{ sourceLabel(flow.content.source.provider) }} →
-                  {{ flow.content.destinations.map(destinationLabel).join(", ") }}
+                  {{ workflowRouteDescription(flow) }}
                 </div>
               </div>
             </RouterLink>
@@ -237,7 +233,6 @@ import { useI18n } from "vue-i18n";
 import Skeleton from "primevue/skeleton";
 import { useConfirm } from "primevue/useconfirm";
 import Message from "primevue/message";
-import Tag from "primevue/tag";
 import IconField from "primevue/iconfield";
 import InputIcon from "primevue/inputicon";
 import { loadWorkflowEntries, mergeWorkflowLoadState } from "./workflow-load-state";
@@ -429,10 +424,18 @@ const sourceLabel = (id: string) => sourceDefinition(id)?.label || readableProvi
 const destinationLabel = (destination: ReleaseConfig["destinations"][number]) =>
   catalog.value.destinations.find((item) => item.id === destination.provider)?.label ||
   readableProviderId(destination.provider);
-const workflowRouteDescription = (flow: (typeof workflowsEnhanced.value)[number]) =>
-  `${sourceLabel(flow.content.source.provider)} → ${flow.content.destinations
-    .map(destinationLabel)
-    .join(", ")}`;
+// "Construct project → Folder ×2, Steam": repeated providers are counted, not repeated.
+const workflowRouteDescription = (flow: (typeof workflowsEnhanced.value)[number]) => {
+  const counts = new Map<string, number>();
+  for (const destination of flow.content.destinations) {
+    const label = destinationLabel(destination);
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  const destinations = [...counts].map(([label, count]) =>
+    count > 1 ? `${label} ×${count}` : label,
+  );
+  return `${sourceLabel(flow.content.source.provider)} → ${destinations.join(", ") || "no destinations"}`;
+};
 const sourceIcon = (id: string) => {
   const catalogIcon = sourceDefinition(id)?.icon;
   if (catalogIcon?.type === "image") return catalogIcon;
@@ -542,19 +545,26 @@ watch(
 
 <style lang="scss" scoped>
 .workflow-icon {
-  color: var(--primary-color);
-  font-size: 24px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 32px;
-  height: 32px;
-  margin-right: 20px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  margin-right: 14px;
   flex-shrink: 0;
+  border: 1px solid var(--pl-border);
+  border-radius: 12px;
+  color: var(--pl-accent);
+  background: linear-gradient(
+    145deg,
+    var(--pl-card),
+    color-mix(in srgb, var(--p-text-color) 5%, var(--pl-card))
+  );
+  box-shadow: var(--pl-shadow-xs);
+  font-size: 20px;
 
   img {
-    max-width: 100%;
-    max-height: 100%;
+    width: 24px;
+    height: 24px;
     object-fit: contain;
   }
 }
@@ -569,11 +579,11 @@ watch(
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 28px;
-  width: min(100%, 1480px);
+  gap: 24px;
+  width: min(100%, 1080px);
   min-height: 100%;
   margin: 0 auto;
-  padding: 38px 44px 48px;
+  padding: 36px clamp(16px, 3vw, 40px) 64px;
 }
 
 .workspace-header {
@@ -581,12 +591,7 @@ watch(
   align-items: flex-start;
   justify-content: space-between;
   gap: 28px;
-  padding-bottom: 26px;
-  border-bottom: 1px solid var(--p-surface-200);
-
-  :root.dark & {
-    border-bottom-color: var(--p-surface-800);
-  }
+  padding-bottom: 4px;
 }
 
 .workspace-heading {
@@ -595,10 +600,10 @@ watch(
   h1 {
     margin: 0;
     color: var(--p-text-color);
-    font-size: 1.85rem;
-    font-weight: 700;
-    line-height: 1.15;
-    letter-spacing: -0.04em;
+    font-size: 1.6rem;
+    font-weight: 650;
+    line-height: 1.2;
+    letter-spacing: -0.03em;
   }
 }
 
@@ -650,10 +655,10 @@ watch(
   h2 {
     margin: 0;
     color: var(--p-text-color);
-    font-size: 1.2rem;
+    font-size: 1rem;
     font-weight: 650;
     line-height: 1.25;
-    letter-spacing: -0.025em;
+    letter-spacing: -0.015em;
   }
 }
 
@@ -674,7 +679,7 @@ watch(
     width: 100%;
     min-height: 44px;
     padding-left: 2.25rem !important;
-    border-radius: 9px;
+    border-radius: var(--pl-radius-sm);
   }
 }
 
@@ -734,33 +739,22 @@ watch(
 }
 
 .workflow-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px;
-  background: var(--p-surface-0);
-  border: 1px solid var(--p-surface-200);
-  border-left: 3px solid var(--primary-color);
-  border-radius: 8px;
+  padding: 12px 14px 12px 16px;
+  border: 1px solid var(--pl-border);
+  border-radius: var(--pl-radius);
+  background: var(--pl-card);
+  box-shadow: var(--pl-shadow-xs);
   transition:
-    border-color 140ms ease,
-    background-color 140ms ease;
-  position: relative;
-  background: color-mix(in srgb, var(--primary-color) 4%, var(--p-surface-0));
-
-  :root.dark & {
-    background: var(--p-surface-900);
-    border-color: var(--p-surface-800);
-  }
+    border-color 0.15s var(--pl-ease),
+    box-shadow 0.2s var(--pl-ease);
 
   &:hover {
-    border-color: var(--p-surface-300);
-    background: color-mix(in srgb, var(--primary-color) 9%, var(--p-surface-0));
-
-    :root.dark & {
-      background: var(--p-surface-850);
-      border-color: var(--p-surface-700);
-    }
+    border-color: var(--pl-border-strong);
+    box-shadow: var(--pl-shadow-sm);
   }
 }
 
@@ -797,7 +791,8 @@ watch(
 
 .workflow-name {
   min-width: 0;
-  font-size: 0.875rem;
+  font-size: 0.92rem;
+  letter-spacing: -0.01em;
   font-weight: 600;
   color: var(--p-text-color);
   line-height: 1.35;
@@ -806,16 +801,9 @@ watch(
   flex: 0 1 auto;
 }
 
-.type-tag {
-  font-size: 0.7rem;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-weight: 600;
-}
-
 .workflow-desc {
   min-width: 0;
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: var(--p-text-muted-color);
   line-height: 1.45;
   white-space: normal;
@@ -892,15 +880,10 @@ watch(
   align-self: stretch;
   box-sizing: border-box;
   max-width: 100%;
-  padding: 56px 24px;
-  border: 1px dashed var(--p-surface-300);
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.01);
-
-  :root.dark & {
-    border-color: var(--p-surface-700);
-    background: rgba(255, 255, 255, 0.01);
-  }
+  padding: 64px 24px;
+  border: 1px dashed var(--pl-border-strong);
+  border-radius: var(--pl-radius);
+  background: var(--pl-sunken);
 
   .empty-icon {
     font-size: 2rem;

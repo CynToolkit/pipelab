@@ -1,0 +1,141 @@
+/*
+ * Pipelab design layer.
+ *
+ * App-wide tokens and PrimeVue control refinements. Everything is derived from PrimeVue semantic
+ * variables with color-mix, so light and dark modes both work without per-mode overrides.
+ * Page-level patterns (`.pl-page`, `.pl-card`, ...) live at the bottom of this file.
+ */
+:root:root {
+  --pl-radius: 14px;
+  --pl-radius-sm: 10px;
+  --pl-border: var(--p-content-border-color);
+  --pl-border-strong: color-mix(in srgb, var(--p-text-color) 22%, var(--p-content-background));
+  --pl-card: var(--p-content-background);
+  --pl-sunken: color-mix(in srgb, var(--p-text-color) 3.5%, var(--p-content-background));
+  --pl-hover: color-mix(in srgb, var(--p-text-color) 5.5%, transparent);
+  --pl-muted: var(--p-text-muted-color);
+  --pl-accent: var(--p-primary-color);
+  --pl-warn: #d97706;
+  --pl-ok: #16a34a;
+  --pl-shadow-xs: 0 1px 2px rgb(0 0 0 / 0.05);
+  --pl-shadow-sm: 0 1px 3px rgb(0 0 0 / 0.06), 0 1px 2px rgb(0 0 0 / 0.04);
+  --pl-shadow-md: 0 10px 28px -12px rgb(0 0 0 / 0.2), 0 2px 6px rgb(0 0 0 / 0.04);
+  --pl-ring: 0 0 0 3px color-mix(in srgb, var(--p-primary-color) 16%, transparent);
+  --pl-ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* Controls */
+  --p-button-border-radius: 10px;
+  --p-button-padding-y: 0.5rem;
+  --p-button-padding-x: 0.95rem;
+  --p-button-sm-padding-y: 0.36rem;
+  --p-button-sm-padding-x: 0.7rem;
+  --p-button-label-font-weight: 600;
+  --p-inputtext-border-radius: 10px;
+  --p-inputtext-padding-y: 0.6rem;
+  --p-inputtext-padding-x: 0.85rem;
+  --p-select-border-radius: 10px;
+  --p-select-padding-y: 0.6rem;
+  --p-select-padding-x: 0.85rem;
+  --p-stepper-steppanels-padding: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --pl-ease: linear;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+/* Primary and secondary buttons get a crisp edge; text buttons stay flat. */
+.p-button:not(.p-button-text):not(.p-button-link) {
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.14),
+    inset 0 1px 0 rgb(255 255 255 / 0.1);
+  transition:
+    background-color 0.15s var(--pl-ease),
+    box-shadow 0.15s var(--pl-ease),
+    transform 0.1s var(--pl-ease);
+}
+.p-button:not(.p-button-text):not(.p-button-link):active {
+  transform: translateY(0.5px);
+}
+.p-button.p-button-text:not(:disabled):hover {
+  background: var(--pl-hover);
+}
+.p-button.p-button-text.p-button-secondary {
+  color: var(--pl-muted);
+}
+.p-button.p-button-text.p-button-secondary:not(:disabled):hover {
+  color: var(--p-text-color);
+}
+.p-button.p-button-icon-only.p-button-sm {
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+}
+
+/* Inputs: taller, softer, with a visible-but-gentle focus ring. */
+.p-inputtext,
+.p-select {
+  font-size: 0.875rem;
+  transition:
+    border-color 0.15s var(--pl-ease),
+    box-shadow 0.15s var(--pl-ease);
+}
+.p-inputtext:enabled:focus,
+.p-select.p-focus {
+  border-color: var(--pl-accent);
+  box-shadow: var(--pl-ring);
+  outline: none;
+}
+.p-inputtext::placeholder {
+  color: color-mix(in srgb, var(--pl-muted) 75%, transparent);
+}
+
+/* Dialogs */
+.p-dialog-mask {
+  background: rgb(9 9 11 / 0.42);
+  backdrop-filter: blur(3px);
+}
+.p-dialog {
+  --p-dialog-border-radius: 18px;
+  --p-dialog-header-padding: 1.25rem 1.5rem 0.5rem;
+  --p-dialog-content-padding: 0.5rem 1.5rem 1.5rem;
+  --p-dialog-footer-padding: 0.9rem 1.5rem;
+  --p-dialog-title-font-size: 1.05rem;
+  --p-dialog-title-font-weight: 650;
+  overflow: hidden;
+  border: 1px solid var(--pl-border);
+  box-shadow:
+    0 28px 70px -20px rgb(0 0 0 / 0.38),
+    0 6px 16px rgb(0 0 0 / 0.08);
+}
+.p-dialog .p-dialog-title {
+  letter-spacing: -0.015em;
+}
+.p-dialog .p-dialog-footer {
+  gap: 8px;
+  border-top: 1px solid var(--pl-border);
+  background: var(--pl-sunken);
+}
+.p-dialog .p-dialog-close-button {
+  color: var(--pl-muted);
+}
+
+/* Form labels written with primeflex utilities elsewhere in the app share the system label style. */
+label.text-xs.font-bold {
+  color: var(--p-text-color);
+  font-size: 0.78rem;
+  font-weight: 600;
+  opacity: 1;
+}
+
+/* Select and menu overlays use the same type size as the controls that open them. */
+.p-select-overlay .p-select-option,
+.p-select-overlay .p-select-option-group,
+.p-select-overlay .p-select-empty-message {
+  font-size: 0.875rem;
+}
