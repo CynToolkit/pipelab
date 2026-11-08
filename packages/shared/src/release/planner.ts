@@ -722,6 +722,14 @@ export const planRelease = (
         );
         return [{ id: slot.id, enabled: slot.enabled, config: slot.config }];
       }
+      if (definition.requiresBuild && sourceRef(slot.input))
+        issues.push(
+          error(
+            "release.destination.input.build-required",
+            "Choose a build output for this destination.",
+            `destinations.${index}.slots.${slotIndex}.input`,
+          ),
+        );
       const candidate = resolveRef(slot.input, `destinations.${index}.slots.${slotIndex}.input`);
       if (!candidate) return [{ ...slot, input: internalRef(slot.input) }];
       const acceptance = evaluateArtifactAcceptance(

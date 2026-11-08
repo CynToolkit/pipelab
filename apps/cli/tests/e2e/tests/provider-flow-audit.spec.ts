@@ -8,7 +8,12 @@ import {
   createCoreFilesystemWorkflowTasks,
   zipFolder,
 } from "@pipelab/core-node";
-import { compileReleasePlan, planRelease, type ReleaseConfig } from "@pipelab/shared";
+import {
+  compileReleasePlan,
+  planRelease,
+  type ReleaseBuildProfileConfig,
+  type ReleaseConfig,
+} from "@pipelab/shared";
 import { createLocalHost, runWorkflow } from "@pipelab/workflow-runtime";
 
 const flows = [
@@ -49,7 +54,25 @@ describe("built-in provider flow audit", () => {
         '[preset.0]\nname="Windows Desktop"\nplatform="Windows Desktop"\n[preset.1]\nname="Web"\nplatform="Web"\n',
       );
       const direct = engine === "direct";
-      const input = direct ? { source: true as const } : { buildId: "build", targetId: target };
+      // A Construct project is exported to a Construct web build first; engines and destinations read that build.
+      const constructWeb =
+        source === "construct" ? { buildId: "construct", targetId: "web" } : undefined;
+      const input = direct
+        ? (constructWeb ?? { source: true as const })
+        : { buildId: "build", targetId: target };
+      const constructBuilds: ReleaseBuildProfileConfig[] = constructWeb
+        ? [
+            {
+              id: "construct",
+              type: "web",
+              engine: "@pipelab/plugin-construct/producer",
+              enabled: true,
+              input: { source: true },
+              config: {},
+              targets: [{ id: "web", enabled: true, config: {} }],
+            },
+          ]
+        : [];
       const config: ReleaseConfig = {
         version: "3.0.0",
         id: "provider-audit",
@@ -62,27 +85,31 @@ describe("built-in provider flow audit", () => {
               ? { path: join(project, "game.c3p"), profilePath: join(project, "profile") }
               : { path: project },
         },
-        builds: direct
-          ? []
-          : [
-              {
-                id: "build",
-                type: target === "web" ? "web" : "desktop",
-                engine: `@pipelab/plugin-${engine}/producer`,
-                enabled: true,
-                config: engine === "godot" ? { executable: "godot" } : {},
-                targets: [
-                  {
-                    id: target,
-                    enabled: true,
-                    config:
-                      engine === "godot"
-                        ? { preset: target === "web" ? "Web" : "Windows Desktop" }
-                        : {},
-                  },
-                ],
-              },
-            ],
+        builds: [
+          ...constructBuilds,
+          ...(direct
+            ? []
+            : [
+                {
+                  id: "build",
+                  type: target === "web" ? "web" : "desktop",
+                  engine: `@pipelab/plugin-${engine}/producer`,
+                  enabled: true,
+                  ...(constructWeb ? { input: constructWeb } : {}),
+                  config: engine === "godot" ? { executable: "godot" } : {},
+                  targets: [
+                    {
+                      id: target,
+                      enabled: true,
+                      config:
+                        engine === "godot"
+                          ? { preset: target === "web" ? "Web" : "Windows Desktop" }
+                          : {},
+                    },
+                  ],
+                },
+              ]),
+        ],
         destinations: [
           {
             id: "publish",

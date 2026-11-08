@@ -237,12 +237,10 @@ describe("core Bundle planning", () => {
   });
 
   it("compiles one copy step per input and one ZIP step that all of them feed", () => {
-    const config = releaseWith([
-      electronBuild,
-      tauriLinuxBuild,
-      tauriMacosBuild,
-      bundleBuild("bundle", threeInputs),
-    ]);
+    const config = releaseWith(
+      [electronBuild, tauriLinuxBuild, tauriMacosBuild, bundleBuild("bundle", threeInputs)],
+      [bundleDestinations[0][1]],
+    );
     const plan = planRelease(config, registry, context);
     const workflow = compileReleasePlan(config, plan, registry, context);
     const bundleSteps = workflow.steps.filter((step) => step.id.startsWith("bundle-"));
@@ -300,18 +298,36 @@ describe("core Bundle planning", () => {
   });
 
   it("plans a nested bundle (a bundle of a bundle) without errors", () => {
-    const config = releaseWith([
-      electronBuild,
-      tauriLinuxBuild,
-      bundleBuild("inner", [
-        { buildId: "electron", targetId: "windows-x64" },
-        { buildId: "tauri-linux", targetId: "linux-x64" },
-      ]),
-      bundleBuild("outer", [
-        { buildId: "inner", targetId: "zip" },
-        { buildId: "tauri-linux", targetId: "linux-x64" },
-      ]),
-    ]);
+    const config = releaseWith(
+      [
+        electronBuild,
+        tauriLinuxBuild,
+        bundleBuild("inner", [
+          { buildId: "electron", targetId: "windows-x64" },
+          { buildId: "tauri-linux", targetId: "linux-x64" },
+        ]),
+        bundleBuild("outer", [
+          { buildId: "inner", targetId: "zip" },
+          { buildId: "tauri-linux", targetId: "linux-x64" },
+        ]),
+      ],
+      [
+        {
+          id: "dest",
+          provider: ZIP,
+          enabled: true,
+          config: { outputPath: "/out/outer.zip" },
+          slots: [
+            {
+              id: "bundle",
+              enabled: true,
+              config: {},
+              input: { buildId: "outer", targetId: "zip" },
+            },
+          ],
+        },
+      ],
+    );
     const plan = planRelease(config, registry, context);
     expect(errorsOf(plan)).toEqual([]);
     const workflow = compileReleasePlan(config, plan, registry, context);

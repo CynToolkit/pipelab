@@ -61,6 +61,25 @@ const fake = registry([
   ]),
 ]);
 
+const desktopOutput = (platform: string, architecture: string) =>
+  ({
+    kind: "application",
+    technology: "engine",
+    platform,
+    architecture,
+    container: "directory",
+  }) as const;
+
+const desktopRegistry = registry([
+  producer("engine-desktop", [
+    target("windows-x64", "desktop", {
+      output: desktopOutput("windows", "x64"),
+      createDefaultConfig: () => ({ preset: "" }),
+    }),
+    target("linux-x64", "desktop", { output: desktopOutput("linux", "x64") }),
+  ]),
+]);
+
 describe("validateReleaseDefaults", () => {
   it("reports no problem for an entry that names a target of its build type", () => {
     expect(validateReleaseDefaults([entry("web", "engine-a", "web")], fake)).toEqual([]);
@@ -154,5 +173,51 @@ describe("validateReleaseDefaults", () => {
     expect(problems).toHaveLength(2);
     expect(problems[0]).toContain("engine-missing");
     expect(problems[1]).toContain("web");
+  });
+
+  it("accepts a host entry, which resolves per host and so names no target itself", () => {
+    expect(
+      validateReleaseDefaults([entry("desktop", "engine-desktop", "host")], desktopRegistry),
+    ).toEqual([]);
+  });
+
+  it("reports a host entry targetConfig key that a desktop target it can resolve to does not declare", () => {
+    const problems = validateReleaseDefaults(
+      [entry("desktop", "engine-desktop", "host", { targetConfig: { preset: "Desktop" } })],
+      desktopRegistry,
+    );
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("linux-x64");
+  });
+
+  it("reports a targetConfigs key that the engine does not have as a target", () => {
+    const problems = validateReleaseDefaults(
+      [entry("web", "engine-a", "web", { targetConfigs: { "no-such-target": {} } })],
+      fake,
+    );
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("no-such-target");
+  });
+
+  it("reports a targetConfigs config key that its target does not declare", () => {
+    const problems = validateReleaseDefaults(
+      [entry("web", "engine-a", "web", { targetConfigs: { "preset-web": { unknown: 1 } } })],
+      fake,
+    );
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toContain("unknown");
+  });
+
+  it("accepts targetConfigs keyed by host-resolvable targets that declare their keys", () => {
+    expect(
+      validateReleaseDefaults(
+        [
+          entry("desktop", "engine-desktop", "host", {
+            targetConfigs: { "windows-x64": { preset: "Windows" }, "linux-x64": {} },
+          }),
+        ],
+        desktopRegistry,
+      ),
+    ).toEqual([]);
   });
 });

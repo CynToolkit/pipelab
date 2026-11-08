@@ -64,6 +64,7 @@ export const buildReleaseCatalog = (
     fields: destination.fields,
     slotFields: destination.slotFields,
     accepts: destination.accepts,
+    requiresBuild: destination.requiresBuild,
     defaultConfig: destination.createDefaultConfig(),
   })),
 });

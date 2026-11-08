@@ -315,6 +315,8 @@ export interface ReleaseDestinationDefinition {
   fields?: ReleaseFieldDefinition[];
   slotFields?: ReleaseFieldDefinition[];
   accepts: ArtifactConstraint;
+  /** The destination only takes a build output; a slot may not read the raw source directly. */
+  requiresBuild?: boolean;
   createDefaultConfig(): Record<string, unknown>;
   validate(config: ReleaseDestinationConfig, context: ReleaseValidationContext): ValidationIssue[];
   compile(
@@ -391,6 +393,8 @@ export interface ReleaseCatalogDestination {
   fields?: ReleaseFieldDefinition[];
   slotFields?: ReleaseFieldDefinition[];
   accepts: ArtifactConstraint;
+  /** The destination only takes a build output; a slot may not read the raw source directly. */
+  requiresBuild?: boolean;
   defaultConfig: Record<string, unknown>;
 }
 

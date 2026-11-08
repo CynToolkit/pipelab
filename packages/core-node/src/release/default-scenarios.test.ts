@@ -179,10 +179,10 @@ describe("Construct to Steam: Electron chained from the Construct web export", (
     );
     expect(summarizeBuilds(resolved)).toEqual([
       { engine: "construct", enabledTargets: ["web"], input: "source" },
-      { engine: "electron", enabledTargets: ["windows-x64"], input: "b0.web" },
+      { engine: "electron", enabledTargets: ["linux-x64"], input: "b0.web" },
     ]);
     expect(summarizeSlots(resolved)).toEqual([
-      { destination: "steam", slot: "windows", input: "b1.windows-x64" },
+      { destination: "steam", slot: "windows", input: "b1.linux-x64" },
     ]);
     expect(steps).toEqual([
       { id: "release-construct-source", uses: "@pipelab/core/passthrough", needs: [] },
@@ -194,14 +194,14 @@ describe("Construct to Steam: Electron chained from the Construct web export", (
       },
       { id: "b0-web-extract", uses: "@pipelab/core/archive/unzip", needs: ["b0-web-export"] },
       {
-        id: "b1-windows-x64",
+        id: "b1-linux-x64",
         uses: "@pipelab/plugin-electron/electron:package:v2",
         needs: ["b0-web-extract"],
       },
       {
         id: "steam-steam-windows",
         uses: "@pipelab/plugin-steam/steam-upload",
-        needs: ["b1-windows-x64"],
+        needs: ["b1-linux-x64"],
       },
     ]);
   });
@@ -237,13 +237,13 @@ describe("Construct to Steam, itch and Poki together: one web build and one Elec
     );
     expect(summarizeBuilds(resolved)).toEqual([
       { engine: "construct", enabledTargets: ["web"], input: "source" },
-      { engine: "electron", enabledTargets: ["windows-x64"], input: "b0.web" },
+      { engine: "electron", enabledTargets: ["linux-x64"], input: "b0.web" },
     ]);
     // Steam reads the Electron build. itch accepts both the web and the Electron output, and reuse
     // prefers the desktop build type (earlier in the defaults table) over the web build.
     expect(summarizeSlots(resolved)).toEqual([
-      { destination: "steam", slot: "windows", input: "b1.windows-x64" },
-      { destination: "itch", slot: "windows", input: "b1.windows-x64" },
+      { destination: "steam", slot: "windows", input: "b1.linux-x64" },
+      { destination: "itch", slot: "windows", input: "b1.linux-x64" },
       { destination: "poki", slot: "web", input: "b0.web" },
     ]);
     expect(steps.filter((step) => step.uses.includes("construct"))).toHaveLength(1);
@@ -252,7 +252,7 @@ describe("Construct to Steam, itch and Poki together: one web build and one Elec
       "release-construct-source",
       "b0-web-export",
       "b0-web-extract",
-      "b1-windows-x64",
+      "b1-linux-x64",
       "steam-steam-windows",
       "itch-itch-windows",
       "poki-poki-web",
@@ -269,19 +269,19 @@ describe("Construct to Steam with two depot slots: both slots read the same Elec
     );
     expect(summarizeBuilds(resolved)).toEqual([
       { engine: "construct", enabledTargets: ["web"], input: "source" },
-      { engine: "electron", enabledTargets: ["windows-x64"], input: "b0.web" },
+      { engine: "electron", enabledTargets: ["linux-x64"], input: "b0.web" },
     ]);
     expect(summarizeSlots(resolved)).toEqual([
-      { destination: "steam", slot: "windows", input: "b1.windows-x64" },
-      { destination: "steam", slot: "windows-beta", input: "b1.windows-x64" },
+      { destination: "steam", slot: "windows", input: "b1.linux-x64" },
+      { destination: "steam", slot: "windows-beta", input: "b1.linux-x64" },
     ]);
     expect(steps.map((step) => [step.id, step.needs])).toEqual([
       ["release-construct-source", []],
       ["b0-web-export", []],
       ["b0-web-extract", ["b0-web-export"]],
-      ["b1-windows-x64", ["b0-web-extract"]],
-      ["steam-steam-windows", ["b1-windows-x64"]],
-      ["steam-steam-windows-beta", ["b1-windows-x64"]],
+      ["b1-linux-x64", ["b0-web-extract"]],
+      ["steam-steam-windows", ["b1-linux-x64"]],
+      ["steam-steam-windows-beta", ["b1-linux-x64"]],
     ]);
   });
 });
@@ -297,33 +297,32 @@ const godotWebBuild: ReleaseBuildProfileConfig = {
   targets: [{ id: "web", enabled: true, config: { preset: "Web" } }],
 };
 
-describe("Godot to Steam: Electron chained from the Godot web export", () => {
-  it("chains one Electron Windows build from the user-configured Godot web build", () => {
+describe("Godot to Steam: Godot's native desktop export, not Electron", () => {
+  it("builds the Godot desktop export from the source beside the user-configured Godot web build", () => {
     const { resolved, steps } = resolveAndCompile(
       scenario(godotSource, [steam(slot("windows", { depotId: "480101" }))], [godotWebBuild]),
     );
     expect(summarizeBuilds(resolved)).toEqual([
       { engine: "godot", enabledTargets: ["web"], input: "source" },
-      { engine: "electron", enabledTargets: ["windows-x64"], input: "b0.web" },
+      { engine: "godot", enabledTargets: ["linux-x64"], input: "source" },
     ]);
     expect(summarizeSlots(resolved)).toEqual([
-      { destination: "steam", slot: "windows", input: "b1.windows-x64" },
+      { destination: "steam", slot: "windows", input: "b1.linux-x64" },
     ]);
+    // The configured web build feeds no destination, so only the desktop export is compiled.
     expect(steps.map((step) => [step.id, step.needs])).toEqual([
       ["release-godot-source", []],
-      ["b0-web", ["release-godot-source"]],
-      ["b1-windows-x64", ["b0-web"]],
-      ["steam-steam-windows", ["b1-windows-x64"]],
+      ["b1-linux-x64", ["release-godot-source"]],
+      ["steam-steam-windows", ["b1-linux-x64"]],
     ]);
   });
 
-  it("adds the Godot web default by itself when no Godot build is configured", () => {
+  it("adds the Godot desktop export by itself when no Godot build is configured", () => {
     const { resolved } = resolveAndCompile(
       scenario(godotSource, [steam(slot("windows", { depotId: "480101" }))]),
     );
     expect(summarizeBuilds(resolved)).toEqual([
-      { engine: "godot", enabledTargets: ["web"], input: "source" },
-      { engine: "electron", enabledTargets: ["windows-x64"], input: "b0.web" },
+      { engine: "godot", enabledTargets: ["linux-x64"], input: "source" },
     ]);
   });
 });
@@ -440,10 +439,10 @@ describe("Construct with the auto-added web build removed and the Steam slot sti
     );
     expect(summarizeBuilds(resolved)).toEqual([
       { engine: "construct", enabledTargets: ["web"], input: "source" },
-      { engine: "electron", enabledTargets: ["windows-x64"], input: "b0.web" },
+      { engine: "electron", enabledTargets: ["linux-x64"], input: "b0.web" },
     ]);
     expect(summarizeSlots(resolved)).toEqual([
-      { destination: "steam", slot: "windows", input: "b1.windows-x64" },
+      { destination: "steam", slot: "windows", input: "b1.linux-x64" },
     ]);
   });
 });
@@ -459,7 +458,7 @@ describe("Construct desktop targets (webview2, wkwebview, cef)", () => {
       ]),
     );
     const enabled = summarizeBuilds(resolved).flatMap((build) => build.enabledTargets);
-    expect(enabled).toEqual(["web", "windows-x64"]);
+    expect(enabled).toEqual(["web", "linux-x64"]);
     expect(enabled.some((target) => CONSTRUCT_DESKTOP_TARGETS.includes(target))).toBe(false);
   });
 
@@ -517,7 +516,7 @@ describe("Disabled destinations, disabled slots and explicit inputs", () => {
       "electron",
     ]);
     expect(summarizeSlots(resolved)).toEqual([
-      { destination: "steam", slot: "windows-beta", input: "b1.windows-x64" },
+      { destination: "steam", slot: "windows-beta", input: "b1.linux-x64" },
       { destination: "steam", slot: "windows", input: "empty" },
     ]);
   });
@@ -533,7 +532,7 @@ describe("Disabled destinations, disabled slots and explicit inputs", () => {
     );
     expect(summarizeSlots(resolved)).toEqual([
       { destination: "steam", slot: "windows", input: "empty" },
-      { destination: "steam", slot: "windows-beta", input: "b1.windows-x64" },
+      { destination: "steam", slot: "windows-beta", input: "b1.linux-x64" },
     ]);
   });
 
@@ -598,11 +597,11 @@ describe("Order independence of destinations that need the same chain", () => {
     expect(summarizeBuilds(pokiFirst)).toEqual(summarizeBuilds(steamFirst));
     expect(summarizeBuilds(steamFirst)).toEqual([
       { engine: "construct", enabledTargets: ["web"], input: "source" },
-      { engine: "electron", enabledTargets: ["windows-x64"], input: "b0.web" },
+      { engine: "electron", enabledTargets: ["linux-x64"], input: "b0.web" },
     ]);
     expect(summarizeSlots(pokiFirst)).toEqual([
       { destination: "poki", slot: "web", input: "b0.web" },
-      { destination: "steam", slot: "windows", input: "b1.windows-x64" },
+      { destination: "steam", slot: "windows", input: "b1.linux-x64" },
     ]);
   });
 });

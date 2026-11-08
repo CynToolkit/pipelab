@@ -139,6 +139,7 @@ const folderDestination: ReleaseDestinationDefinition = {
   label: "Folder",
   icon: { type: "icon", icon: "mdi-folder-outline" },
   accepts: {},
+  requiresBuild: true,
   fields: [{ key: "outputDir", type: "directory", label: "Output folder", required: true }],
   createDefaultConfig: () => ({ outputDir: "" }),
   validate: (destination) =>

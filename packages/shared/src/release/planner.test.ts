@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { planRelease } from "./planner";
-import type { ReleaseBuildProfileConfig, ReleaseConfig, ReleaseRegistry } from "./types";
+import type {
+  ReleaseBuildProfileConfig,
+  ReleaseConfig,
+  ReleaseOutputRef,
+  ReleaseRegistry,
+} from "./types";
 
 const project = { kind: "project" as const, technology: "engine", container: "directory" as const };
 const web = { kind: "application" as const, platform: "web", container: "directory" as const };
@@ -621,6 +626,80 @@ describe("release planner", () => {
         path: "destinations.0.slots.0.input",
       }),
     );
+  });
+
+  describe("destinations that require a build", () => {
+    const anyDestination = { id: "folder", label: "Folder", accepts: {} };
+    const requiringRegistry: ReleaseRegistry = {
+      ...registry,
+      destinations: [
+        {
+          ...anyDestination,
+          requiresBuild: true,
+          createDefaultConfig: () => ({}),
+          validate: () => [],
+          compile: () => [],
+        },
+      ],
+    };
+    const acceptingRegistry: ReleaseRegistry = {
+      ...registry,
+      destinations: [
+        {
+          ...anyDestination,
+          createDefaultConfig: () => ({}),
+          validate: () => [],
+          compile: () => [],
+        },
+      ],
+    };
+    const withSlotInput = (input: ReleaseOutputRef): ReleaseConfig => ({
+      ...config([
+        {
+          id: "build",
+          type: "web",
+          engine: "engine-a",
+          enabled: true,
+          config: {},
+          targets: [{ id: "web", enabled: true, config: {} }],
+        },
+      ]),
+      destinations: [
+        {
+          id: "folder",
+          provider: "folder",
+          enabled: true,
+          config: {},
+          slots: [{ id: "slot", enabled: true, input, config: {} }],
+        },
+      ],
+    });
+    const host = { host: { platform: "linux", architecture: "x64" } };
+
+    it("rejects the raw source in a slot of a destination that requires a build", () => {
+      const plan = planRelease(withSlotInput({ source: true }), requiringRegistry, host);
+      expect(plan.issues).toContainEqual(
+        expect.objectContaining({
+          code: "release.destination.input.build-required",
+          severity: "error",
+          path: "destinations.0.slots.0.input",
+        }),
+      );
+    });
+
+    it("accepts a build output in a slot of a destination that requires a build", () => {
+      const plan = planRelease(
+        withSlotInput({ buildId: "build", targetId: "web" }),
+        requiringRegistry,
+        host,
+      );
+      expect(plan.issues.filter((issue) => issue.severity === "error")).toEqual([]);
+    });
+
+    it("still lets a destination without requiresBuild take the raw source", () => {
+      const plan = planRelease(withSlotInput({ source: true }), acceptingRegistry, host);
+      expect(plan.issues.filter((issue) => issue.severity === "error")).toEqual([]);
+    });
   });
 
   it("keeps automatic outputs internal and includes source in public outputs", () => {

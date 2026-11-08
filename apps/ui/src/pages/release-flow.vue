@@ -303,7 +303,7 @@
                 class="slot-output-select"
                 size="small"
                 :model-value="releaseOutputRefValue(slot.input)"
-                :options="slotOutputChoices"
+                :options="slotOutputChoices(destination)"
                 optionLabel="label"
                 optionValue="value"
                 placeholder="Choose output"
@@ -685,10 +685,12 @@
         <label>Output</label
         ><Select
           :model-value="releaseOutputRefValue(settingsSlot.input)"
-          :options="outputOptions"
+          :options="
+            slotOutputOptionsFor(destinationDefinition(settingsDestination.provider), outputOptions)
+          "
           optionLabel="label"
           optionValue="value"
-          @update:model-value="setSlotInput(settingsSlot, $event)"
+          @update:model-value="setSlotInput(settingsDestination, settingsSlot, $event)"
         />
         <small
           v-for="issue in slotIssues(settingsSlot)"
@@ -857,6 +859,8 @@ import {
   missingRequiredFieldIssues,
   outputReferenceConsumers,
   planOutputOptions,
+  selectSlotOutput,
+  slotOutputOptionsFor,
   readinessLabel,
   releaseCanRun,
   shouldInspectReleaseProviderConfig,
@@ -1653,10 +1657,12 @@ const removeSlot = (destination: ReleaseDestinationConfig, id: string) => {
     );
   } else remove();
 };
-const setSlotInput = (slot: ReleaseDestinationSlot, value: string) => {
-  const output = outputOptions.value.find((candidate) => candidate.value === value);
-  if (output) slot.input = output.ref;
-};
+const setSlotInput = (
+  destination: ReleaseDestinationConfig,
+  slot: ReleaseDestinationSlot,
+  value: string,
+) =>
+  selectSlotOutput(slot, destinationDefinition(destination.provider), outputOptions.value, value);
 const newBuildChoice = "__new-build__";
 const newBuildVisible = ref(false);
 // "New build…" is an action, not a value: remounting the select makes it show its placeholder again.
@@ -1675,10 +1681,12 @@ const createNewBuild = (choice: CompatibleBuildCandidate) => {
   );
 };
 // Existing outputs first, then a way to create the build this deployment is missing.
-const slotOutputChoices = computed(() => [
-  ...outputOptions.value.map((output) => ({ label: output.label, value: output.value })),
+const slotOutputChoices = (destination: ReleaseDestinationConfig) => [
+  ...slotOutputOptionsFor(destinationDefinition(destination.provider), outputOptions.value).map(
+    (output) => ({ label: output.label, value: output.value }),
+  ),
   { label: "New build…", value: newBuildChoice },
-]);
+];
 const chooseSlotOutput = (
   destination: ReleaseDestinationConfig,
   slot: ReleaseDestinationSlot,
@@ -1688,7 +1696,7 @@ const chooseSlotOutput = (
     newBuildTarget.value = { destinationId: destination.id, slotId: slot.id };
     newBuildVisible.value = true;
     outputPickerResets.value++;
-  } else setSlotInput(slot, value);
+  } else setSlotInput(destination, slot, value);
 };
 const openBuildsForSlot = (destination: ReleaseDestinationConfig, slot: ReleaseDestinationSlot) =>
   router.push({

@@ -46,15 +46,19 @@ import {
   releaseOutputRefValue,
   runAfterSuccessfulSave,
   selectBuildInput,
+  selectSlotOutput,
   setBuildTargetEnabled,
+  slotOutputOptionsFor,
   switchBuildProfileEngine,
 } from "./release-flow-model";
 import type {
   ReleaseBuildProfileConfig,
   ReleaseCatalog,
   ReleaseConfig,
+  ReleaseDestinationSlot,
   ReleasePlan,
 } from "@pipelab/shared";
+import type { SlotDestinationDefinition } from "./release-flow-model";
 
 const catalog: ReleaseCatalog = {
   buildTypes: [
@@ -1930,6 +1934,63 @@ describe("release flow model", () => {
         severity: "error",
       }),
     ).toBe("issues");
+  });
+});
+
+describe("destination slot outputs", () => {
+  const sourceOption = {
+    value: "source",
+    label: "Source — Project",
+    ref: { source: true as const },
+  };
+  const buildOption = {
+    value: "build-a:windows",
+    label: "Build A — Windows",
+    ref: { buildId: "build-a", targetId: "windows" },
+  };
+  const outputs = [sourceOption, buildOption];
+  const destinationFor = (requiresBuild?: boolean): SlotDestinationDefinition => ({
+    id: "destination/folder",
+    label: "Folder",
+    accepts: {},
+    defaultConfig: {},
+    requiresBuild,
+  });
+  const slot = (): ReleaseDestinationSlot => ({
+    id: "slot-a",
+    name: "Slot",
+    enabled: true,
+    config: {},
+  });
+
+  it("offers the source output for a destination that does not require a build", () => {
+    expect(slotOutputOptionsFor(destinationFor(false), outputs)).toEqual(outputs);
+    expect(slotOutputOptionsFor(destinationFor(undefined), outputs)).toEqual(outputs);
+  });
+
+  it("hides the raw source output for a destination that requires a build", () => {
+    expect(slotOutputOptionsFor(destinationFor(true), outputs)).toEqual([buildOption]);
+  });
+
+  it("keeps the other outputs when no destination definition is known", () => {
+    expect(slotOutputOptionsFor(undefined, outputs)).toEqual(outputs);
+  });
+
+  it("refuses to assign the source to a slot of a destination that requires a build", () => {
+    const target = slot();
+
+    selectSlotOutput(target, destinationFor(true), outputs, "source");
+    expect(target.input).toBeUndefined();
+
+    selectSlotOutput(target, destinationFor(true), outputs, "build-a:windows");
+    expect(target.input).toEqual({ buildId: "build-a", targetId: "windows" });
+  });
+
+  it("assigns the source to a slot of a destination that does not require a build", () => {
+    const target = slot();
+
+    selectSlotOutput(target, destinationFor(false), outputs, "source");
+    expect(target.input).toEqual({ source: true });
   });
 });
 

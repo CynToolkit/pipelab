@@ -284,6 +284,51 @@ describe("resolveReleaseDefaults", () => {
     expect(resolved.builds).toHaveLength(0);
   });
 
+  it("offers the raw source before an existing build for a slot that accepts both", () => {
+    const existingElectron: ReleaseBuildProfileConfig = {
+      id: "manual-electron",
+      type: "desktop",
+      engine: electron.id,
+      enabled: true,
+      input: { buildId: "manual-web", targetId: "web" },
+      config: {},
+      targets: [{ id: "windows-x64", enabled: true, config: {} }],
+    };
+    const anything = destination({});
+    const registryValue = registry([constructWeb, electron], [anything]);
+    const resolved = resolveReleaseDefaults(
+      config(constructSource.id, [existingWeb("manual-web"), existingElectron]),
+      registryValue,
+      context,
+      DEFAULTS,
+    );
+
+    expect(resolved.builds).toHaveLength(2);
+    expect(slotInput(resolved)).toEqual({ source: true });
+  });
+
+  it("never fills a requiresBuild slot with the raw source, even when the source fits", () => {
+    const requiring = destination({}, { requiresBuild: true });
+    const registryValue = registry([constructWeb, electron], [requiring]);
+    const resolved = resolveReleaseDefaults(config(), registryValue, context, []);
+
+    expect(resolved.builds).toHaveLength(0);
+    expect(slotInput(resolved)).toBeUndefined();
+  });
+
+  it("fills a requiresBuild slot with a default chain instead of the raw source", () => {
+    const requiring = destination({}, { requiresBuild: true });
+    const registryValue = registry([constructWeb, electron], [requiring]);
+    const resolved = resolveReleaseDefaults(config(), registryValue, context, DEFAULTS);
+
+    expect(resolved.builds.map((build) => build.engine)).toEqual([constructWeb.id, electron.id]);
+    expect(slotInput(resolved)).toEqual({
+      buildId: resolved.builds[1].id,
+      targetId: "windows-x64",
+    });
+    expect(errorsOf(resolved, registryValue)).toEqual([]);
+  });
+
   it("adds nothing when the table has no entry for the slot, even if an engine is compatible", () => {
     const resolved = resolveReleaseDefaults(
       config(),

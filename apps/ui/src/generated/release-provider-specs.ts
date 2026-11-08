@@ -612,6 +612,7 @@ const browserProviderSpecs = {
           },
         ],
         accepts: {},
+        requiresBuild: true,
         defaultConfig: {
           outputDir: "",
         },

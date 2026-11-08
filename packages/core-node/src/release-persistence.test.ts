@@ -541,6 +541,22 @@ describe("ReleasePersistence", () => {
           targets: [{ id: "web", enabled: true, config: {} }],
         },
       ],
+      destinations: [
+        {
+          id: "folder",
+          provider: "@pipelab/core/destination/folder",
+          enabled: true,
+          config: { outputDir: join(context.userDataPath, "output") },
+          slots: [
+            {
+              id: "web",
+              enabled: true,
+              config: {},
+              input: { buildId: "construct", targetId: "web" },
+            },
+          ],
+        },
+      ],
     };
     await mkdir(context.getConfigPath("workflows"), { recursive: true });
     await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));

@@ -1,12 +1,39 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+
 import { createSandbox } from "@pipelab/test-utils";
 import { prepareReleaseWorkflow } from "@pipelab/core-node";
 import { createLocalHost, runWorkflow, type WorkflowTaskContext } from "@pipelab/workflow-runtime";
 import { parseWorkflowConnectionOverrides } from "../../../src/commands/workflow-connection-overrides";
 
 const CONSTRUCT_TASK_ID = "@pipelab/plugin-construct/export-construct-project";
+
+/** The Construct web export; it is compiled only when a destination reads it. */
+const constructWebBuild = {
+  id: "construct",
+  type: "web",
+  engine: "@pipelab/plugin-construct/producer",
+  enabled: true,
+  input: { source: true },
+  config: {},
+  targets: [{ id: "web", enabled: true, config: {} }],
+};
+
+const zipOf = (outputPath: string) => ({
+  id: "zip",
+  provider: "@pipelab/core/destination/zip",
+  enabled: true,
+  config: { outputPath },
+  slots: [
+    {
+      id: "archive",
+      enabled: true,
+      input: { buildId: "construct", targetId: "web" },
+      config: {},
+    },
+  ],
+});
 describe("CLI connection override through the Construct task boundary", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>> | undefined;
 
@@ -39,8 +66,8 @@ describe("CLI connection override through the Construct task boundary", () => {
         provider: "@pipelab/plugin-construct/source",
         config: { path: file, profilePath: sandbox.path, accountConnectionId: alias },
       },
-      builds: [],
-      destinations: [],
+      builds: [constructWebBuild],
+      destinations: [zipOf(join(sandbox.path, "construct.zip"))],
     };
     const prepared = prepareReleaseWorkflow(config, "1.0.0", env);
     const sourceStep = prepared.workflow.steps.find((step) => step.uses === CONSTRUCT_TASK_ID);
@@ -103,8 +130,8 @@ describe("CLI connection override through the Construct task boundary", () => {
           accountConnectionId: alias,
         },
       },
-      builds: [],
-      destinations: [],
+      builds: [constructWebBuild],
+      destinations: [zipOf(join(sandbox.path, "construct.zip"))],
     };
     const prepared = prepareReleaseWorkflow(config, "1.0.0", {});
     const sourceStep = prepared.workflow.steps.find((step) => step.uses === CONSTRUCT_TASK_ID);

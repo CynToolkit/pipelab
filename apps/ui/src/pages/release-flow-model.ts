@@ -234,6 +234,30 @@ export const selectBuildInput = (
   if (output) build.input = output.ref;
 };
 
+export type SlotDestinationDefinition = ReleaseCatalog["destinations"][number];
+
+/**
+ * Outputs a deployment slot of this destination may read. A destination that requires a build
+ * cannot read the raw source, so the source output is never offered to its slots.
+ */
+export const slotOutputOptionsFor = (
+  destination: SlotDestinationDefinition | undefined,
+  options: ReleaseOutputOption[],
+): ReleaseOutputOption[] =>
+  destination?.requiresBuild ? options.filter((option) => !("source" in option.ref)) : options;
+
+export const selectSlotOutput = (
+  slot: ReleaseDestinationSlot,
+  destination: SlotDestinationDefinition | undefined,
+  options: ReleaseOutputOption[],
+  value: string,
+) => {
+  const output = slotOutputOptionsFor(destination, options).find(
+    (candidate) => candidate.value === value,
+  );
+  if (output) slot.input = output.ref;
+};
+
 export const probeBuildInputCandidates = async (
   config: ReleaseConfig,
   buildId: string,

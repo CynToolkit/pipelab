@@ -30,7 +30,8 @@ packaging producer. It is not a selectable build option in the editor.
 - **Folder** requires an **Output folder** path. It copies the selected
   artifact's files recursively to that directory, clearing that target first.
   Choose the output directory carefully because its existing contents are
-  removed before the copy.
+  removed before the copy. A Folder destination reads a build output, never
+  the source directly.
 - **ZIP** requires a **ZIP output path** and accepts directory artifacts. Use
   the browse button to choose where to save the archive and type a new file name
   (the file does not need to exist yet). It writes the directory contents as an

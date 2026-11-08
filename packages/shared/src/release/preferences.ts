@@ -1,6 +1,11 @@
 import { nanoid } from "nanoid";
 import { evaluateArtifactAcceptance } from "./matcher";
-import { RELEASE_DEFAULTS, type ReleaseDefaultEntry } from "./defaults";
+import {
+  HOST_RELEASE_TARGET,
+  hostTargetOf,
+  RELEASE_DEFAULTS,
+  type ReleaseDefaultEntry,
+} from "./defaults";
 import { planArtifactAccepted, planRelease } from "./planner";
 import type { ReleasePlanningContext } from "./planner";
 import type {
@@ -116,7 +121,10 @@ const candidatesOf = (
     if (entry.source !== undefined && entry.source !== sourceTechnology) return [];
     const producer = registry.producers.find((item) => item.id === entry.engine);
     if (!producer || producer.planning.mode !== "build") return [];
-    const target = producer.targets.find((item) => item.id === entry.target);
+    const target =
+      entry.target === HOST_RELEASE_TARGET
+        ? hostTargetOf(producer, entry.buildType, host)
+        : producer.targets.find((item) => item.id === entry.target);
     if (!target || target.buildType !== entry.buildType || !isAvailable(target, host)) return [];
     return [{ entry, producer, target }];
   });
@@ -147,7 +155,11 @@ const newBuild = (candidate: Candidate, input: ReleaseOutputRef): ReleaseBuildPr
           ? {
               id: item.id,
               enabled: true,
-              config: { ...item.createDefaultConfig(), ...entry.targetConfig },
+              config: {
+                ...item.createDefaultConfig(),
+                ...entry.targetConfig,
+                ...entry.targetConfigs?.[item.id],
+              },
             }
           : { id: item.id, enabled: false, config: item.createDefaultConfig() },
       ),
@@ -155,20 +167,20 @@ const newBuild = (candidate: Candidate, input: ReleaseOutputRef): ReleaseBuildPr
 };
 
 /**
- * Reuse rank of an output: the source first, then builds by the table's build type order, and builds
- * of build types the table does not name last. Equal ranks keep the planner order.
+ * Reuse rank of a build output: builds by the table's build type order, and builds of build types the
+ * table does not name last. Equal ranks keep the planner order.
  */
 const reuseRank = (scope: ResolveScope, output: PlannedReleaseOutput) => {
-  if (!output.buildId) return -1;
   const type = scope.config.builds.find((build) => build.id === output.buildId)?.type;
   const index = type === undefined ? -1 : scope.buildTypeOrder.indexOf(type);
   return index === -1 ? scope.buildTypeOrder.length : index;
 };
 
 /**
- * Every feed that gives a consumer an output it accepts. An output already present (an existing build
- * or the source) is used alone and ends the chain. Otherwise each candidate whose output is accepted
- * adds a build that reads a feed for its own producer, in table order. A producer is never repeated in one chain.
+ * Every feed that gives a consumer an output it accepts, in preference order: the raw source when the
+ * consumer accepts it, then existing builds the consumer accepts (by build type order), then a new
+ * chain for each candidate whose output is accepted (in table order; a producer is never repeated in
+ * one chain).
  */
 const feedsFor = (
   scope: ResolveScope,
@@ -177,29 +189,35 @@ const feedsFor = (
   used: ReadonlySet<string>,
   remaining: number,
 ): Feed[] => {
-  const reused = [...outputs]
+  const reused = outputs
+    .filter((output) => output.buildId !== undefined && accepts(output.descriptor))
     .sort((left, right) => reuseRank(scope, left) - reuseRank(scope, right))
-    .find((output) => accepts(output.descriptor));
-  if (reused) return [{ builds: [], ref: reused.ref }];
-  if (remaining <= 0) return [];
-  return scope.candidates.flatMap((candidate): Feed[] => {
-    const { producer, target } = candidate;
-    if (used.has(producer.id) || !target.output || !accepts(target.output)) return [];
-    const inputs = feedsFor(
-      scope,
-      outputs,
-      (artifact) => planArtifactAccepted(artifact, producer, scope.context.host).accepted,
-      new Set([...used, producer.id]),
-      remaining - 1,
-    );
-    return inputs.map((input): Feed => {
-      const build = newBuild(candidate, input.ref);
-      return {
-        builds: [...input.builds, build],
-        ref: { buildId: build.id, targetId: target.id },
-      };
-    });
-  });
+    .map((output): Feed => ({ builds: [], ref: output.ref }));
+  const built =
+    remaining <= 0
+      ? []
+      : scope.candidates.flatMap((candidate): Feed[] => {
+          const { producer, target } = candidate;
+          if (used.has(producer.id) || !target.output || !accepts(target.output)) return [];
+          const inputs = feedsFor(
+            scope,
+            outputs,
+            (artifact) => planArtifactAccepted(artifact, producer, scope.context.host).accepted,
+            new Set([...used, producer.id]),
+            remaining - 1,
+          );
+          return inputs.map((input): Feed => {
+            const build = newBuild(candidate, input.ref);
+            return {
+              builds: [...input.builds, build],
+              ref: { buildId: build.id, targetId: target.id },
+            };
+          });
+        });
+  const raw = outputs
+    .filter((output) => output.buildId === undefined && accepts(output.descriptor))
+    .map((output): Feed => ({ builds: [], ref: output.ref }));
+  return [...raw, ...reused, ...built];
 };
 
 /** Whether the slot accepts the feed's last output without blocking issues on the slot or the new builds. */
@@ -254,7 +272,7 @@ const resolveSlot = (scope: ResolveScope, at: SlotPosition) => {
     destinationAccepts(definition, scope.context.host),
     new Set(),
     MAX_CHAIN_BUILDS,
-  );
+  ).filter((feed) => !(definition.requiresBuild && isSourceRef(feed.ref)));
   const feed = feeds.find((candidate) => slotAcceptsFeed(scope, at, candidate));
   if (!feed) return;
   scope.config.builds.push(...feed.builds);

@@ -122,6 +122,10 @@ failed, or while Build settings remain unapplied.
 
 A Construct source uses the **Construct** engine for its web export, and Electron, Tauri or Poki take that build as input. Pipelab adds the web build for you when a destination needs it. Construct's own desktop exports are declared but not available yet; see [Construct](./integrations/construct.md#desktop-exports).
 
+A build **exposes** every enabled target as an output, but Pipelab only **builds** the targets something uses: a destination slot, a Bundle input, or another build. An Electron build can expose Windows, Linux and macOS while two Steam slots read only the Windows and Linux outputs; macOS is not built. A build that nothing uses does not run. Each target runs separately, so one run builds one operating system.
+
+Automatic builds always target the operating system Pipelab runs on. A Construct source with an empty Folder or Steam slot gets a Construct web build and an Electron build for the current OS; a Godot source gets Godot's native desktop export for the current OS instead. If the engine has no target for the current OS, nothing is added. Slots are not tied to an operating system: choose any output for any slot.
+
 A **Bundle** build puts the outputs of several other builds into one ZIP. Add it from the Builds tab, then choose its **Inputs**: any enabled build outputs it can read, such as the Windows, Linux and macOS builds. The ZIP holds one top-level folder per input, named after its build and target. A bundle never picks its inputs automatically, cannot include itself, and can itself be an input to another bundle. Its output is a ZIP archive, which the ZIP and itch.io destinations accept; Steam and Poki do not. Bundle builds are never added automatically and do not support Before build hooks.
 
 Electron Build Profiles also support **Before build hooks**. Add, enable,
