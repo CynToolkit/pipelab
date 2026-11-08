@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { createApp, defineComponent, h, nextTick, type App } from "vue";
 import PrimeVue from "primevue/config";
-import Tooltip from "primevue/tooltip";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReleaseConfig, ReleaseFieldDefinition } from "@pipelab/shared";
 import ReleaseFieldControl from "./ReleaseFieldControl.vue";
@@ -79,7 +78,7 @@ const mountField = (
       }),
   });
   app.use(PrimeVue);
-  app.directive("tooltip", Tooltip);
+  app.directive("tooltip", {});
   app.mount(root);
   mountedApps.push(app);
   return { root, updates, bindingUpdates };
@@ -310,7 +309,7 @@ describe("ReleaseFieldControl", () => {
         }),
     });
     app.use(PrimeVue);
-    app.directive("tooltip", Tooltip);
+    app.directive("tooltip", {});
     app.mount(root);
     mountedApps.push(app);
 
