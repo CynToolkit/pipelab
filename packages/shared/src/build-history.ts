@@ -454,18 +454,3 @@ export interface SubscriptionBenefit {
   name: string;
   description?: string;
 }
-
-export interface SubscriptionError extends Error {
-  code: "SUBSCRIPTION_REQUIRED" | "SUBSCRIPTION_EXPIRED" | "BENEFIT_NOT_FOUND" | "UNAUTHORIZED";
-  benefit?: string;
-  userMessage: string;
-}
-
-export interface AuthorizationContext {
-  userId?: string;
-  hasBenefit: (benefitId: string) => boolean;
-  isPaidUser: boolean;
-}
-
-// Authorization check function type
-export type AuthorizationCheck = (context: AuthorizationContext) => void;

@@ -2,7 +2,6 @@
   <div class="artifacts-quick-view">
     <div class="header">
       <h3>Recent Artifacts</h3>
-      <p>Upgrade to Premium for full build history, logs, and advanced analytics.</p>
     </div>
 
     <div v-if="buildHistoryStore.entries.length === 0" class="no-artifacts">
@@ -30,9 +29,7 @@
               @click="openFolder(artifact.path)"
             />
           </div>
-          <div v-else class="no-artifacts-msg">
-            No artifacts generated
-          </div>
+          <div v-else class="no-artifacts-msg">No artifacts generated</div>
         </div>
       </div>
     </div>

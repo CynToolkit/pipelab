@@ -1,7 +1,6 @@
-import { defineStore, storeToRefs } from "pinia";
+import { defineStore } from "pinia";
 import { ref, computed, readonly } from "vue";
 import { useLogger } from "@pipelab/shared";
-import { useAuth } from "./auth";
 import { useAPI } from "@renderer/composables/api";
 import { SandboxFolder } from "@pipelab/constants";
 import type { BuildHistoryEntry, BuildHistoryQuery, BuildHistoryResponse } from "@pipelab/shared";
@@ -24,9 +23,6 @@ interface StorageInfo {
 export const useBuildHistory = defineStore("build-history", () => {
   const api = useAPI();
   const logger = useLogger();
-  const authStore = useAuth();
-
-  const { hasBuildHistoryBenefit } = storeToRefs(authStore);
 
   // IPC API functions
   const buildHistoryAPI = {
@@ -104,7 +100,6 @@ export const useBuildHistory = defineStore("build-history", () => {
   // Computed
   const hasEntries = computed(() => entries.value.length > 0);
   const totalEntries = computed(() => entries.value.length);
-  const canUseHistory = computed(() => hasBuildHistoryBenefit.value);
 
   const setError = (errorMessage: string) => {
     error.value = errorMessage;
@@ -332,7 +327,6 @@ export const useBuildHistory = defineStore("build-history", () => {
     // Computed
     hasEntries,
     totalEntries,
-    canUseHistory,
 
     // Project filtering
     currentProjectId: readonly(currentProjectId),

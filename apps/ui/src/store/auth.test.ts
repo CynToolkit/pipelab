@@ -435,8 +435,8 @@ describe("hosted browser authentication", () => {
 
     await vi.waitFor(() => expect(auth.subscriptionStatus).toBe("ready"));
 
-    expect(auth.getActualBenefit("build-history")).toBe(false);
-    expect(auth.hasBenefit("build-history")).toBe(false);
+    expect(auth.getActualBenefit("cloud-save")).toBe(false);
+    expect(auth.hasBenefit("cloud-save")).toBe(false);
   });
 
   it("clears a legacy authenticated PostHog identity while restoring a browser session", async () => {

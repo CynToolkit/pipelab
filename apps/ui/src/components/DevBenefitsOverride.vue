@@ -44,11 +44,7 @@ import { useAuth } from "../store/auth";
 const auth = useAuth();
 const isCollapsed = ref(true);
 
-const benefits = [
-  { key: "build-history", label: "Build History" },
-  { key: "cloud-save", label: "Cloud Save" },
-  { key: "multiple-projects", label: "Multiple Projects" },
-] as const;
+const benefits = [{ key: "cloud-save", label: "Cloud Save" }] as const;
 
 const isDevMode = computed(() => process.env.NODE_ENV === "development");
 
@@ -57,15 +53,11 @@ const toggleCollapse = () => {
 };
 
 const actualStatus = computed(() => ({
-  "build-history": auth.getActualBenefit("build-history"),
   "cloud-save": auth.getActualBenefit("cloud-save"),
-  "multiple-projects": auth.getActualBenefit("multiple-projects"),
 }));
 
 const effectiveStatus = computed(() => ({
-  "build-history": auth.hasBenefit("build-history"),
   "cloud-save": auth.hasBenefit("cloud-save"),
-  "multiple-projects": auth.hasBenefit("multiple-projects"),
 }));
 
 const setOverride = (benefit: string, value: string) => {
