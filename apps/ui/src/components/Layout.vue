@@ -540,7 +540,6 @@ const confirm = useConfirm();
 const router = useRouter();
 const route = useRoute();
 const { t } = useI18n();
-const { hasMultipleProjectsBenefit } = storeToRefs(authStore);
 const { files } = storeToRefs(fileStore);
 const projects = computed(() => files.value.projects);
 const filesReady = computed(() => fileStore.status === "ready");
@@ -772,9 +771,8 @@ const selectProject = async (projectId: string | undefined) => {
 };
 
 const openNewProject = () => {
-  if (authStore.subscriptionStatus !== "ready" || !filesReady.value || !isReady.value) return;
-  if (hasMultipleProjectsBenefit.value) isNewProjectModalVisible.value = true;
-  else openUpgradeDialog();
+  if (!filesReady.value || !isReady.value) return;
+  isNewProjectModalVisible.value = true;
 };
 
 const openRenameProject = () => {

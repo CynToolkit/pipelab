@@ -23,8 +23,9 @@ their IDs and credentials during the settings upgrade.
 
 The account dialog supports signing in, creating an account, and requesting a
 password reset. Registration may wait for account validation before sign-in is
-available. Subscription and benefit information can affect whether some UI
-actions are available; the app's upgrade dialog shows the current state.
+available. Everything that runs locally, including workflows, run history and
+projects, is available on the Free plan. Plans only gate cloud features such as
+Cloud Save; the app's upgrade dialog shows the current state.
 
 In the browser app, account sign-in works without the local agent when the
 deployment has Supabase configured. The signed-in browser session keeps

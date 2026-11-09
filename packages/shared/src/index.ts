@@ -51,7 +51,6 @@ export * from "./ipc.types";
 export * from "./logger";
 export * from "./plugins/definitions"; // <-- RE-ADDED
 export * from "./quickjs";
-export * from "./subscription-errors";
 export * from "./supabase";
 export * from "./types";
 export * from "./utils";

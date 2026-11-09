@@ -704,8 +704,6 @@ export const useAuth = defineStore("auth", () => {
 
   const benefits = {
     "cloud-save": "16955d3e-3e0f-4574-9093-87a32edf237c",
-    "build-history": "b77e9800-8302-4581-8df3-6f1b979acef5",
-    "multiple-projects": "ad00648e-ba6f-461a-87d0-84cabd53e489",
   };
 
   const devOverrides = ref<Record<string, string>>({});
@@ -767,9 +765,7 @@ export const useAuth = defineStore("auth", () => {
   // Load overrides on store creation
   loadDevOverrides();
 
-  const hasBuildHistoryBenefit = computed(() => hasBenefit("build-history"));
   const hasCloudSaveBenefit = computed(() => hasBenefit("cloud-save"));
-  const hasMultipleProjectsBenefit = computed(() => hasBenefit("multiple-projects"));
 
   return {
     user,
@@ -806,9 +802,7 @@ export const useAuth = defineStore("auth", () => {
     authModalTitle,
     authModalSubTitle,
 
-    hasBuildHistoryBenefit,
     hasCloudSaveBenefit,
-    hasMultipleProjectsBenefit,
 
     onAuthChanged: onAuthChanged.on,
     onSubscriptionChanged: onSubscriptionChanged.on,

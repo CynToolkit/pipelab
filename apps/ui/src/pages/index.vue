@@ -1,27 +1,23 @@
 <template>
   <main class="dashboard-page">
     <header class="dashboard-header">
-      <div class="dashboard-heading">
-        <p class="project-context">
-          <span>{{ $t("home.project") }}</span>
-          {{ activeProject?.name || $t("home.choose-project") }}
-        </p>
-        <h1>{{ $t("home.project-overview") }}</h1>
-        <p class="dashboard-description">
-          {{ $t("home.project-overview-description") }}
-        </p>
-      </div>
+      <h1>{{ activeProject?.name || $t("home.choose-project") }}</h1>
       <div class="dashboard-actions">
         <Button
           :label="$t('home.new-workflow')"
           icon="mdi mdi-plus"
+          severity="secondary"
+          outlined
           :disabled="!isBrowser && (!filesReady || !agent.isReady.value || !activeProject)"
           @click="startWorkflowCreation"
         />
-        <RouterLink class="manage-workflows-link" to="/workflows">
-          {{ $t("home.manage-workflows") }}
-          <i class="mdi mdi-arrow-right" aria-hidden="true" />
-        </RouterLink>
+        <Button
+          :label="$t('home.ship')"
+          icon="mdi mdi-rocket-launch-outline"
+          :disabled="!workflowShortcuts.length"
+          aria-haspopup="menu"
+          @click="onShipClick"
+        />
       </div>
     </header>
 
@@ -57,168 +53,151 @@
     </Message>
 
     <div class="overview-grid">
-      <section
-        class="overview-card workflow-overview"
-        aria-labelledby="workflow-overview-title"
-        :aria-busy="workflowShortcutsLoading"
+      <p v-if="!filesReady" class="empty-copy" role="status">
+        {{
+          agent.isReady.value
+            ? $t("home.executions-waiting-project")
+            : $t("home.project-overview-disconnected")
+        }}
+      </p>
+      <Message
+        v-else-if="!agent.isReady.value"
+        severity="warn"
+        :closable="false"
+        role="status"
+        class="dashboard-message"
       >
-        <div class="card-heading">
-          <div>
-            <p class="eyebrow">{{ $t("home.project-overview") }}</p>
-            <h2 id="workflow-overview-title">
-              {{ $t("home.workflow-overview") }}
-            </h2>
-          </div>
-          <i class="mdi mdi-rocket-launch-outline card-icon" aria-hidden="true" />
-        </div>
-        <p v-if="activeProject?.description" class="project-description">
-          {{ activeProject.description }}
-        </p>
-        <div v-if="filesReady" class="workflow-count">
-          <strong>{{ workflowCount }}</strong>
-          <span>{{
-            workflowCount === 1 ? $t("home.workflow-count-one") : $t("home.workflow-count-many")
-          }}</span>
-        </div>
-        <p v-if="!filesReady" class="empty-copy" role="status">
-          {{
-            agent.isReady.value
-              ? $t("home.executions-waiting-project")
-              : $t("home.project-overview-disconnected")
-          }}
-        </p>
-        <p v-else-if="workflowCount === 0" class="empty-copy">
-          {{ $t("home.no-workflows-in-project") }}
-        </p>
-        <Message
-          v-if="filesReady && workflowCount > 0 && !agent.isReady.value"
-          severity="warn"
-          :closable="false"
-          role="status"
-          class="dashboard-message"
-        >
-          {{ $t("home.workflows-disconnected") }}
-          <Button
-            :label="$t('home.reconnect-engine')"
-            text
-            size="small"
-            @click="agent.reconnect().catch(notifyPersistenceError)"
-          />
-        </Message>
-        <div v-if="filesReady && workflowCount > 0" class="workflow-shortcuts">
-          <div v-for="workflow in workflowShortcuts" :key="workflow.id" class="workflow-shortcut">
+        {{ $t("home.executions-disconnected") }}
+        <Button
+          :label="$t('home.reconnect-engine')"
+          text
+          size="small"
+          @click="agent.reconnect().catch(notifyPersistenceError)"
+        />
+      </Message>
+      <template v-else-if="showWorkflowFallback">
+        <div v-if="workflowShortcuts.length" class="workflow-cards">
+          <article v-for="workflow in workflowShortcuts" :key="workflow.id" class="workflow-card">
             <RouterLink
-              class="workflow-shortcut-open"
+              class="workflow-card-name"
               :to="`/workflows/${workflow.id}/${workflow.projectId}`"
               :aria-label="$t('home.open-workflow', { name: workflow.name })"
             >
-              <span class="workflow-shortcut-name">{{ workflow.name }}</span>
-              <i class="mdi mdi-arrow-top-right" aria-hidden="true" />
+              {{ workflow.name }}
             </RouterLink>
             <Button
-              class="workflow-shortcut-ship"
-              :label="t('home.ship')"
+              :label="$t('home.ship')"
               icon="mdi mdi-rocket-launch-outline"
-              :aria-label="t('home.ship-workflow-named', { name: workflow.name })"
+              :aria-label="$t('home.ship-workflow-named', { name: workflow.name })"
               @click="shipWorkflow(workflow)"
             />
-          </div>
-          <RouterLink class="text-link" to="/workflows">
-            {{ $t("home.manage-workflows") }}
-            <i class="mdi mdi-arrow-right" aria-hidden="true" />
-          </RouterLink>
+          </article>
         </div>
-        <RouterLink
-          v-else-if="filesReady && workflowCount === 0"
-          class="text-link"
-          :to="{ path: '/workflows', query: { create: 'new' } }"
-        >
-          {{ $t("home.new-workflow") }}
-          <i class="mdi mdi-arrow-right" aria-hidden="true" />
-        </RouterLink>
-      </section>
-
-      <section class="overview-card recent-executions" aria-labelledby="recent-executions-title">
-        <div class="card-heading">
-          <div>
-            <p class="eyebrow">{{ $t("home.execution") }}</p>
-            <h2 id="recent-executions-title">
-              {{ $t("home.recent-executions") }}
-            </h2>
-          </div>
-          <i class="mdi mdi-history card-icon" aria-hidden="true" />
-        </div>
-        <p class="card-description">
-          {{ $t("home.recent-executions-description") }}
+        <p v-else-if="workflowCount === 0" class="empty-copy">
+          {{ $t("home.no-workflows-in-project") }}
         </p>
-
-        <div v-if="!hasBuildHistoryBenefit" class="activity-state">
-          {{ $t("home.execution-history-plan-required") }}
-          <RouterLink class="text-link" to="/workflows">
-            {{ $t("home.open-workflows") }}
-            <i class="mdi mdi-arrow-right" aria-hidden="true" />
-          </RouterLink>
-        </div>
-        <div v-else-if="!agent.isReady.value" class="activity-state" role="status">
-          {{ $t("home.executions-disconnected") }}
-        </div>
-        <div v-else-if="!filesReady" class="activity-state" role="status">
-          {{ $t("home.executions-waiting-project") }}
-        </div>
-        <div v-else-if="historyLoading" class="activity-state" role="status" aria-busy="true">
-          {{ $t("home.loading-executions") }}
-        </div>
-        <div v-else-if="historyError" class="activity-state activity-error" role="alert">
-          {{ $t("home.executions-unavailable") }}
-          <Button :label="$t('home.retry')" text size="small" @click="loadRecentExecutions" />
-        </div>
-        <div v-else-if="!recentExecutions.length" class="activity-state">
-          {{ $t("home.no-recent-executions") }}
-          <RouterLink class="text-link" to="/workflows">
-            {{ $t("home.open-workflows") }}
-            <i class="mdi mdi-arrow-right" aria-hidden="true" />
-          </RouterLink>
-        </div>
-        <div v-else class="execution-list" role="list" :aria-label="$t('home.recent-executions')">
-          <template v-for="entry in recentExecutions" :key="entry.id">
+      </template>
+      <div v-else-if="historyLoading" class="activity-state" role="status" aria-busy="true">
+        {{ $t("home.loading-executions") }}
+      </div>
+      <div v-else-if="historyError" class="activity-state activity-error" role="alert">
+        {{ $t("home.executions-unavailable") }}
+        <Button :label="$t('home.retry')" text size="small" @click="loadRecentExecutions" />
+      </div>
+      <template v-else>
+        <section
+          class="latest-card"
+          :class="`latest-${latestExecution.status}`"
+          aria-labelledby="latest-title"
+        >
+          <div class="latest-main">
+            <span class="execution-status" :class="`status-${latestExecution.status}`">
+              {{ statusLabel(latestExecution.status) }}
+            </span>
+            <h2 id="latest-title">
+              {{ latestExecution.workflowName || $t("home.workflow-run") }}
+            </h2>
+            <p class="latest-meta">
+              <span v-if="latestExecution.version">v{{ latestExecution.version }}</span>
+              <time :datetime="new Date(latestExecution.startTime).toISOString()">
+                {{ formatExecutionDate(latestExecution.startTime) }}
+              </time>
+              <span v-if="latestExecution.duration">
+                {{ formatDuration(latestExecution.duration) }}
+              </span>
+            </p>
+            <p v-if="latestFailed && latestExecution.error?.message" class="latest-error">
+              {{ latestExecution.error.message }}
+            </p>
+          </div>
+          <div class="latest-actions">
+            <Button
+              v-if="latestFailed && latestExecution.workflowId"
+              :label="$t('home.retry')"
+              icon="mdi mdi-refresh"
+              @click="retryLatest"
+            />
             <RouterLink
-              v-if="entry.workflowId"
-              class="execution-row"
-              role="listitem"
-              :to="executionPath(entry)"
-              :aria-label="
-                $t('home.open-execution', {
-                  workflow: entry.workflowName || $t('home.workflow-run'),
-                  status: statusLabel(entry.status),
-                })
-              "
+              v-if="latestExecution.workflowId"
+              class="manage-workflows-link"
+              :to="executionPath(latestExecution)"
             >
-              <span class="execution-status" :class="`status-${entry.status}`">
-                {{ statusLabel(entry.status) }}
-              </span>
-              <span class="execution-name">{{
-                entry.workflowName || $t("home.workflow-run")
-              }}</span>
-              <time :datetime="new Date(entry.startTime).toISOString()">
-                {{ formatExecutionDate(entry.startTime) }}
-              </time>
-              <i class="mdi mdi-chevron-right" aria-hidden="true" />
+              {{ $t("home.view-run") }}
+              <i class="mdi mdi-arrow-right" aria-hidden="true" />
             </RouterLink>
-            <div v-else class="execution-row execution-row-static" role="listitem">
-              <span class="execution-status" :class="`status-${entry.status}`">
-                {{ statusLabel(entry.status) }}
-              </span>
-              <span class="execution-name">{{
-                entry.workflowName || $t("home.workflow-run")
-              }}</span>
-              <time :datetime="new Date(entry.startTime).toISOString()">
-                {{ formatExecutionDate(entry.startTime) }}
-              </time>
-            </div>
-          </template>
-        </div>
-      </section>
+          </div>
+        </section>
+
+        <section
+          v-if="olderExecutions.length"
+          class="overview-card recent-executions"
+          aria-labelledby="recent-executions-title"
+        >
+          <h2 id="recent-executions-title">
+            {{ $t("home.recent-executions") }}
+          </h2>
+          <div class="execution-list" role="list" :aria-label="$t('home.recent-executions')">
+            <template v-for="entry in olderExecutions" :key="entry.id">
+              <RouterLink
+                v-if="entry.workflowId"
+                class="execution-row"
+                role="listitem"
+                :to="executionPath(entry)"
+                :aria-label="
+                  $t('home.open-execution', {
+                    workflow: entry.workflowName || $t('home.workflow-run'),
+                    status: statusLabel(entry.status),
+                  })
+                "
+              >
+                <span class="execution-status" :class="`status-${entry.status}`">
+                  {{ statusLabel(entry.status) }}
+                </span>
+                <span class="execution-name">{{
+                  entry.workflowName || $t("home.workflow-run")
+                }}</span>
+                <time :datetime="new Date(entry.startTime).toISOString()">
+                  {{ formatExecutionDate(entry.startTime) }}
+                </time>
+                <i class="mdi mdi-chevron-right" aria-hidden="true" />
+              </RouterLink>
+              <div v-else class="execution-row execution-row-static" role="listitem">
+                <span class="execution-status" :class="`status-${entry.status}`">
+                  {{ statusLabel(entry.status) }}
+                </span>
+                <span class="execution-name">{{
+                  entry.workflowName || $t("home.workflow-run")
+                }}</span>
+                <time :datetime="new Date(entry.startTime).toISOString()">
+                  {{ formatExecutionDate(entry.startTime) }}
+                </time>
+              </div>
+            </template>
+          </div>
+        </section>
+      </template>
     </div>
+    <Menu ref="shipMenu" :model="shipMenuItems" popup />
     <ReleaseFlow
       v-if="dashboardShipWorkflow"
       :dashboard-mode="true"
@@ -230,7 +209,6 @@
 </template>
 
 <script setup lang="ts">
-import { isDashboardAuthSettled } from "./dashboard-state";
 import { useRouteReadiness } from "@renderer/composables/useRouteReadiness";
 import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
@@ -239,13 +217,13 @@ import { useI18n } from "vue-i18n";
 import { useToast } from "primevue/usetoast";
 import Button from "primevue/button";
 import Message from "primevue/message";
+import Menu from "primevue/menu";
 import ReleaseFlow from "./release-flow.vue";
 import type { BuildHistoryEntry } from "@pipelab/shared";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 import { useAPI } from "@renderer/composables/api";
 import { uiEnvironment } from "@renderer/composables/ui-runtime";
 import { useAppStore } from "@renderer/store/app";
-import { useAuth } from "@renderer/store/auth";
 import { useFiles } from "@renderer/store/files";
 import { partitionWorkflowLoads } from "./workflow-load-state";
 
@@ -254,12 +232,10 @@ const api = useAPI();
 const toast = useToast();
 const { t, locale } = useI18n();
 const appStore = useAppStore();
-const authStore = useAuth();
 const fileStore = useFiles();
 const agent = useAgentAvailability();
 const isBrowser = uiEnvironment === "browser";
 const { files, selectedProjectId, error: projectLoadError } = storeToRefs(fileStore);
-const { hasBuildHistoryBenefit } = storeToRefs(authStore);
 const filesReady = computed(() => fileStore.status === "ready");
 const activeProject = computed(() =>
   files.value.projects.find((project) => project.id === selectedProjectId.value),
@@ -272,27 +248,24 @@ const workflowEntryVersion = computed(() =>
   projectWorkflows.value.map((workflow) => `${workflow.id}:${workflow.lastModified}`).join("|"),
 );
 const workflowShortcuts = ref<Array<{ id: string; name: string; projectId: string }>>([]);
-const workflowShortcutsLoading = ref(false);
 const dashboardShipWorkflow = ref<{
   id: string;
   name: string;
   projectId: string;
 }>();
+const workflowShortcutsLoading = ref(false);
 let workflowShortcutRequest = 0;
 
 const recentExecutions = ref<BuildHistoryEntry[]>([]);
 const historyLoading = ref(false);
 const historyError = ref("");
 let historyRequest = 0;
-// Dashboard data is ready once subscription state is known and both the recent execution history
-// and the workflow shortcuts finished (including no-benefit, empty and error outcomes).
+
+// Dashboard data is ready once the run history and workflow shortcuts finished loading
+// (including empty and error outcomes). Local data does not depend on the plan.
 useRouteReadiness(
   computed(
-    () =>
-      !agent.isReady.value ||
-      (isDashboardAuthSettled(authStore.authState, authStore.subscriptionStatus) &&
-        !historyLoading.value &&
-        !workflowShortcutsLoading.value),
+    () => !agent.isReady.value || (!historyLoading.value && !workflowShortcutsLoading.value),
   ),
 );
 
@@ -309,7 +282,7 @@ const loadRecentExecutions = async () => {
   const projectId = selectedProjectId.value;
   recentExecutions.value = [];
   historyError.value = "";
-  if (!projectId || !filesReady.value || !agent.isReady.value || !hasBuildHistoryBenefit.value) {
+  if (!projectId || !filesReady.value || !agent.isReady.value) {
     historyLoading.value = false;
     return;
   }
@@ -324,7 +297,7 @@ const loadRecentExecutions = async () => {
     recentExecutions.value = result.result.entries
       .filter((entry) => entry.projectId === projectId)
       .sort((a, b) => b.startTime - a.startTime)
-      .slice(0, 4);
+      .slice(0, 6);
   } catch (error) {
     if (request === historyRequest) historyError.value = String(error);
   } finally {
@@ -332,11 +305,47 @@ const loadRecentExecutions = async () => {
   }
 };
 
-watch(
-  [selectedProjectId, filesReady, agent.isReady, hasBuildHistoryBenefit],
-  () => void loadRecentExecutions(),
-  { immediate: true },
+watch([selectedProjectId, filesReady, agent.isReady], () => void loadRecentExecutions(), {
+  immediate: true,
+});
+
+const showWorkflowFallback = computed(
+  () => !historyLoading.value && !historyError.value && !latestExecution.value,
 );
+const latestExecution = computed(() => recentExecutions.value[0]);
+const olderExecutions = computed(() => recentExecutions.value.slice(1));
+const latestFailed = computed(
+  () =>
+    latestExecution.value?.status === "failed" ||
+    latestExecution.value?.status === "completed-with-errors",
+);
+const formatDuration = (ms: number) => {
+  const total = Math.round(ms / 1000);
+  const minutes = Math.floor(total / 60);
+  return minutes ? `${minutes}m ${total % 60}s` : `${total}s`;
+};
+const retryLatest = () => {
+  const entry = latestExecution.value;
+  if (!entry?.workflowId) return;
+  shipWorkflow({
+    id: entry.workflowId,
+    projectId: entry.projectId,
+    name: entry.workflowName ?? "",
+  });
+};
+
+const shipMenu = ref<InstanceType<typeof Menu>>();
+const shipMenuItems = computed(() =>
+  workflowShortcuts.value.map((workflow) => ({
+    label: workflow.name,
+    command: () => shipWorkflow(workflow),
+  })),
+);
+const onShipClick = (event: Event) => {
+  const [only] = workflowShortcuts.value;
+  if (workflowShortcuts.value.length === 1 && only) shipWorkflow(only);
+  else shipMenu.value?.toggle(event);
+};
 
 const startWorkflowCreation = () => router.push({ path: "/workflows", query: { create: "new" } });
 const shipWorkflow = (workflow: { id: string; name: string; projectId: string }) => {
@@ -376,7 +385,7 @@ const loadWorkflowShortcuts = async () => {
     return;
   }
 
-  const entries = projectWorkflows.value.slice(0, 3);
+  const entries = projectWorkflows.value.slice(0, 12);
   if (!entries.length) {
     workflowShortcuts.value = [];
     workflowShortcutsLoading.value = false;
@@ -440,17 +449,16 @@ watch(
 
 .dashboard-header {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 24px;
   padding-bottom: 4px;
 }
 
-.dashboard-heading {
-  min-width: 0;
-
+.dashboard-header {
   h1 {
     margin: 0;
+    min-width: 0;
     color: var(--p-text-color);
     font-size: 1.6rem;
     font-weight: 650;
@@ -495,42 +503,6 @@ watch(
 
 .manage-workflows-link,
 .text-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  min-height: 40px;
-  padding: 0 12px;
-  border: 1px solid var(--p-surface-300);
-  border-radius: 8px;
-  color: var(--p-text-color);
-  font-size: 0.875rem;
-  font-weight: 600;
-  text-decoration: none;
-  transition:
-    background-color 140ms ease,
-    border-color 140ms ease;
-
-  &:hover {
-    background: var(--p-surface-100);
-    border-color: var(--p-surface-400);
-  }
-
-  &:focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--primary-color) 55%, transparent);
-    outline-offset: 2px;
-  }
-
-  :root.dark & {
-    border-color: var(--p-surface-700);
-
-    &:hover {
-      background: var(--p-surface-800);
-    }
-  }
-}
-
-.text-link {
   min-height: 32px;
   align-self: flex-start;
   padding-inline: 0;
@@ -550,9 +522,8 @@ watch(
 
 .overview-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.2fr);
-  align-items: stretch;
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 24px;
 }
 
 .overview-card {
@@ -565,139 +536,6 @@ watch(
   border-radius: var(--pl-radius);
   background: var(--pl-card);
   box-shadow: var(--pl-shadow-xs);
-}
-
-.card-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-
-  h2 {
-    margin: 4px 0 0;
-    font-size: 1.1rem;
-    line-height: 1.3;
-    letter-spacing: -0.02em;
-  }
-}
-
-.eyebrow {
-  margin: 0;
-  color: var(--p-text-muted-color);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.card-icon {
-  color: var(--primary-color);
-  font-size: 1.2rem;
-}
-
-.project-description {
-  margin: 0;
-  color: var(--p-text-muted-color);
-  font-size: 0.875rem;
-  line-height: 1.5;
-}
-
-.workflow-shortcuts {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding-top: 8px;
-  border-top: 1px solid var(--p-surface-200);
-
-  :root.dark & {
-    border-top-color: var(--p-surface-800);
-  }
-}
-
-.workflow-shortcut {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-  min-height: 52px;
-  padding: 4px 6px 4px 12px;
-  border: 1px solid var(--pl-border);
-  border-radius: var(--pl-radius-sm);
-  background: var(--pl-card);
-  transition:
-    background-color 140ms ease,
-    border-color 140ms ease;
-
-  &:hover {
-    border-color: var(--p-surface-300);
-    background: var(--p-surface-50);
-  }
-
-  :root.dark & {
-    border-color: var(--p-surface-800);
-    background: var(--p-surface-900);
-
-    &:hover {
-      background: var(--p-surface-850);
-    }
-  }
-}
-
-.workflow-shortcut-open {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 0;
-  min-height: 44px;
-  flex: 1;
-  color: var(--p-text-color);
-  font-size: 0.875rem;
-  font-weight: 600;
-  text-decoration: none;
-
-  &:hover {
-    color: var(--primary-color);
-  }
-
-  &:focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--primary-color) 55%, transparent);
-    outline-offset: 2px;
-  }
-}
-
-.workflow-shortcut-ship {
-  flex: 0 0 auto;
-  min-height: 44px;
-}
-
-.workflow-shortcut-name {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.workflow-count {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 14px 0 6px;
-  border-top: 1px solid var(--p-surface-200);
-
-  :root.dark & {
-    border-top-color: var(--p-surface-800);
-  }
-
-  strong {
-    font-size: 2rem;
-    line-height: 1;
-    letter-spacing: -0.04em;
-  }
-
-  span {
-    color: var(--p-text-muted-color);
-    font-size: 0.875rem;
-  }
 }
 
 .empty-copy,
@@ -715,6 +553,82 @@ watch(
   align-items: flex-start;
   gap: 8px;
   padding: 18px 0 4px;
+}
+
+.workflow-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.workflow-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 16px 20px;
+  border: 1px solid var(--pl-border);
+  border-radius: var(--pl-radius);
+  background: var(--pl-card);
+  box-shadow: var(--pl-shadow-xs);
+}
+
+.workflow-card-name {
+  min-width: 0;
+  color: var(--p-text-color);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+
+  &:hover {
+    color: var(--primary-color);
+  }
+}
+
+.latest-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 28px;
+  border: 1px solid var(--pl-border);
+  border-radius: var(--pl-radius);
+  background: var(--pl-card);
+  box-shadow: var(--pl-shadow-xs);
+
+  h2 {
+    margin: 12px 0 6px;
+    font-size: 1.4rem;
+    letter-spacing: -0.02em;
+  }
+}
+
+.latest-failed,
+.latest-completed-with-errors {
+  border-color: color-mix(in srgb, var(--p-red-500, #ef4444) 40%, transparent);
+}
+
+.latest-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+  color: var(--p-text-muted-color);
+  font-size: 0.85rem;
+}
+
+.latest-error {
+  margin: 12px 0 0;
+  color: var(--p-red-600, #dc2626);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.latest-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
 }
 
 .activity-error {

@@ -1,19 +1,7 @@
 import { useAPI } from "../ipc-core";
 import { useLogger, type BuildHistoryEntry, type BuildHistoryQuery } from "@pipelab/shared";
 import { BuildHistoryStorage } from "./build-history";
-import { SubscriptionRequiredError } from "@pipelab/shared";
 import { PipelabContext } from "../context";
-
-const checkBuildHistoryAuthorization = async (): Promise<boolean> => {
-  // Always authorize for now - relying on frontend auth checks only
-  const isAuthorized = true;
-
-  if (!isAuthorized) {
-    throw new SubscriptionRequiredError("build-history");
-  }
-
-  return true;
-};
 
 export const filterBuildHistoryEntries = (
   entries: BuildHistoryEntry[],
@@ -33,8 +21,6 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
   // Build History Handlers
   handle("build-history:save", async (event, { send, value }) => {
     try {
-      await checkBuildHistoryAuthorization();
-
       await buildHistoryStorage.save(value.entry);
       send({
         type: "end",
@@ -45,14 +31,6 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
       });
     } catch (error) {
       logger().error("Failed to save build history entry:", error);
-
-      if (error instanceof SubscriptionRequiredError) {
-        send({
-          type: "end",
-          data: { type: "error", ipcError: error.userMessage, code: error.code },
-        });
-        return;
-      }
 
       send({
         type: "end",
@@ -67,7 +45,6 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
   handle("build-history:get", async (event, { send, value }) => {
     try {
       logger().debug("Processing build-history:get request");
-      await checkBuildHistoryAuthorization();
 
       const entry = await buildHistoryStorage.get(value.id, value.projectId);
       send({
@@ -76,14 +53,6 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
       });
     } catch (error) {
       logger().error("Failed to get build history entry:", error);
-
-      if (error instanceof SubscriptionRequiredError) {
-        send({
-          type: "end",
-          data: { type: "error", ipcError: error.userMessage, code: error.code },
-        });
-        return;
-      }
 
       send({
         type: "end",
@@ -98,7 +67,6 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
   handle("build-history:get-all", async (event, { send, value }) => {
     try {
       logger().debug("Processing build-history:get-all request");
-      await checkBuildHistoryAuthorization();
 
       const allEntries = await buildHistoryStorage.getAll();
       const filteredEntries = filterBuildHistoryEntries(allEntries, value?.query);
@@ -116,14 +84,6 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
     } catch (error) {
       logger().error("Failed to get build history entries:", error);
 
-      if (error instanceof SubscriptionRequiredError) {
-        send({
-          type: "end",
-          data: { type: "error", ipcError: error.userMessage, code: error.code },
-        });
-        return;
-      }
-
       send({
         type: "end",
         data: {
@@ -136,8 +96,6 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
 
   handle("build-history:update", async (event, { send, value }) => {
     try {
-      await checkBuildHistoryAuthorization();
-
       await buildHistoryStorage.update(value.id, value.updates, value.projectId);
       send({
         type: "end",
@@ -145,14 +103,6 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
       });
     } catch (error) {
       logger().error("Failed to update build history entry:", error);
-
-      if (error instanceof SubscriptionRequiredError) {
-        send({
-          type: "end",
-          data: { type: "error", ipcError: error.userMessage, code: error.code },
-        });
-        return;
-      }
 
       send({
         type: "end",
@@ -166,8 +116,6 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
 
   handle("build-history:delete", async (event, { send, value }) => {
     try {
-      await checkBuildHistoryAuthorization();
-
       await buildHistoryStorage.delete(value.id, value.projectId);
       send({
         type: "end",
@@ -175,14 +123,6 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
       });
     } catch (error) {
       logger().error("Failed to delete build history entry:", error);
-
-      if (error instanceof SubscriptionRequiredError) {
-        send({
-          type: "end",
-          data: { type: "error", ipcError: error.userMessage, code: error.code },
-        });
-        return;
-      }
 
       send({
         type: "end",
@@ -196,8 +136,6 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
 
   handle("build-history:clear", async (event, { send }) => {
     try {
-      await checkBuildHistoryAuthorization();
-
       await buildHistoryStorage.clear();
       send({
         type: "end",
@@ -205,14 +143,6 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
       });
     } catch (error) {
       logger().error("Failed to clear build history:", error);
-
-      if (error instanceof SubscriptionRequiredError) {
-        send({
-          type: "end",
-          data: { type: "error", ipcError: error.userMessage, code: error.code },
-        });
-        return;
-      }
 
       send({
         type: "end",
@@ -226,8 +156,6 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
 
   handle("build-history:clear-by-project", async (event, { send, value }) => {
     try {
-      await checkBuildHistoryAuthorization();
-
       await buildHistoryStorage.clearByProject(value.projectId);
       send({
         type: "end",
@@ -235,14 +163,6 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
       });
     } catch (error) {
       logger().error(`Failed to clear build history for project ${value.projectId}:`, error);
-
-      if (error instanceof SubscriptionRequiredError) {
-        send({
-          type: "end",
-          data: { type: "error", ipcError: error.userMessage, code: error.code },
-        });
-        return;
-      }
 
       send({
         type: "end",
@@ -257,8 +177,6 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
 
   handle("build-history:get-storage-info", async (event, { send }) => {
     try {
-      await checkBuildHistoryAuthorization();
-
       const info = await buildHistoryStorage.getStorageInfo();
       send({
         type: "end",
@@ -266,14 +184,6 @@ export const registerHistoryHandlers = (context: PipelabContext) => {
       });
     } catch (error) {
       logger().error("Failed to get build history storage info:", error);
-
-      if (error instanceof SubscriptionRequiredError) {
-        send({
-          type: "end",
-          data: { type: "error", ipcError: error.userMessage, code: error.code },
-        });
-        return;
-      }
 
       send({
         type: "end",
