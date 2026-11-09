@@ -5,13 +5,14 @@
     :title="workflowTitle"
     active="artifacts"
   >
-    <main class="artifacts-page">
+    <main class="artifacts-page" :aria-busy="loading">
       <header class="list-heading">
         <div>
           <h2>Artifacts</h2>
         </div>
         <span v-if="!loading && !loadError" class="artifact-count">
-          {{ artifacts.length }} {{ artifacts.length === 1 ? "artifact" : "artifacts" }}
+          {{ artifacts.length }}
+          {{ artifacts.length === 1 ? "artifact" : "artifacts" }}
         </span>
       </header>
 
@@ -108,6 +109,7 @@
 </template>
 
 <script setup lang="ts">
+import { useRouteReadiness } from "@renderer/composables/useRouteReadiness";
 import { computed, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import WorkflowShell from "@renderer/components/WorkflowShell.vue";
@@ -128,6 +130,7 @@ const basePath = computed(() => `/workflows/${flowId.value}/${projectId.value}`)
 const artifacts = ref<ReturnType<typeof aggregateWorkflowArtifacts>>([]);
 const loading = ref(true);
 const loadError = ref("");
+useRouteReadiness(computed(() => !agent.isReady.value || !loading.value));
 const actionError = ref("");
 const workflowName = ref("");
 const workflowTitle = computed(
@@ -180,7 +183,10 @@ const loadArtifacts = async () => {
 };
 
 const formatDate = (timestamp: number) =>
-  new Date(timestamp).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  new Date(timestamp).toLocaleString(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 const formatSize = (bytes: number) => {
   if (!Number.isFinite(bytes) || bytes < 0) return "—";
   if (bytes < 1024) return `${bytes} B`;
@@ -209,7 +215,9 @@ const openArtifact = async (path: string) => {
 const downloadArtifact = async (hostedArtifactId: string) => {
   if (!agent.isReady.value) return;
   try {
-    const response = await api.execute("pipelab-cloud:artifact-download-url", { hostedArtifactId });
+    const response = await api.execute("pipelab-cloud:artifact-download-url", {
+      hostedArtifactId,
+    });
     if (response.type === "error") {
       actionError.value = response.ipcError;
       return;

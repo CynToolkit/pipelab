@@ -1,6 +1,6 @@
 <template>
   <WorkflowShell :flow-id="flowId" :project-id="projectId" :title="workflowName" active="runs">
-    <main class="runs-page">
+    <main class="runs-page" :aria-busy="loading">
       <div class="list-heading">
         <div>
           <h2>Runs</h2>
@@ -99,6 +99,7 @@
 </template>
 
 <script setup lang="ts">
+import { useRouteReadiness } from "@renderer/composables/useRouteReadiness";
 import { computed, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import WorkflowShell from "@renderer/components/WorkflowShell.vue";
@@ -119,6 +120,7 @@ const basePath = computed(() => `/workflows/${flowId.value}/${projectId.value}`)
 const entries = ref<BuildHistoryEntry[]>([]);
 const workflowName = ref("Workflow");
 const loading = ref(true);
+useRouteReadiness(computed(() => !agent.isReady.value || !loading.value));
 const historyError = ref("");
 const workflowError = ref("");
 let refreshTimer: ReturnType<typeof setTimeout> | undefined;
@@ -136,7 +138,10 @@ const loadRuns = async () => {
       api.execute("build-history:get-all", {
         query: { workflowId: flowId.value, projectId: projectId.value },
       }),
-      api.execute("workflow:load", { workflowId: flowId.value, projectId: projectId.value }),
+      api.execute("workflow:load", {
+        workflowId: flowId.value,
+        projectId: projectId.value,
+      }),
     ]);
     if (generation !== loadGeneration) return;
     const history =
@@ -172,7 +177,10 @@ const formatDate = (timestamp: number) =>
     year: "numeric",
   });
 const formatTime = (timestamp: number) =>
-  new Date(timestamp).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  new Date(timestamp).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 const formatDuration = (entry: BuildHistoryEntry) => {
   const seconds = Math.max(
     0,

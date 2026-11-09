@@ -8,7 +8,9 @@
             >{{ activeProject.name }}
           </p>
           <h1>{{ $t("home.workflows") }}</h1>
-          <p class="workspace-description">{{ $t("home.workflows-description") }}</p>
+          <p class="workspace-description">
+            {{ $t("home.workflows-description") }}
+          </p>
         </div>
       </header>
 
@@ -84,7 +86,10 @@
         <div v-if="!filesReady && !agent.isReady.value" class="inline-state" role="status">
           {{ $t("home.workflows-disconnected") }}
         </div>
-        <div v-else-if="!filesReady || isLoading" class="loading-state" aria-busy="true">
+        <div v-else-if="!filesReady && projectLoadError" class="inline-state" role="status">
+          {{ $t("home.projects-unavailable") }}
+        </div>
+        <div v-else-if="showInlineLoading" class="loading-state" aria-busy="true">
           <span class="visually-hidden" role="status">{{ $t("home.loading-workflows") }}</span>
           <div v-for="n in 3" :key="n" class="skeleton-row" aria-hidden="true">
             <Skeleton shape="circle" size="32px" class="mr-3" />
@@ -100,7 +105,9 @@
         <!-- Empty State (No Workflows) -->
         <div v-else-if="dashboardState === 'empty'" class="no-projects">
           <i class="mdi mdi-folder-open-outline empty-icon"></i>
-          <div class="no-workflows-text">{{ $t("home.no-workflows-in-project") }}</div>
+          <div class="no-workflows-text">
+            {{ $t("home.no-workflows-in-project") }}
+          </div>
           <p class="empty-hint">{{ $t("home.no-workflows-hint") }}</p>
           <Button
             :label="$t('home.new-workflow')"
@@ -121,7 +128,7 @@
           </Button>
         </div>
 
-        <div v-else class="workflows-list">
+        <div v-else class="workflows-list" :aria-busy="isLoading">
           <article
             v-for="flow in filteredWorkflowsEnhanced"
             :key="flow.id"
@@ -154,7 +161,9 @@
             </RouterLink>
             <div class="workflow-meta-actions">
               <span v-if="flow.lastModified" class="workflow-updated">{{
-                $t("home.updated", { date: formatLastModified(flow.lastModified) })
+                $t("home.updated", {
+                  date: formatLastModified(flow.lastModified),
+                })
               }}</span>
               <div class="row-actions">
                 <RouterLink
@@ -231,6 +240,7 @@ import { useFiles } from "@renderer/store/files";
 import { useAppStore } from "@renderer/store/app";
 import { useI18n } from "vue-i18n";
 import Skeleton from "primevue/skeleton";
+import { useRouteReadiness } from "@renderer/composables/useRouteReadiness";
 import { useConfirm } from "primevue/useconfirm";
 import Message from "primevue/message";
 import IconField from "primevue/iconfield";
@@ -267,7 +277,12 @@ const catalog = ref<ReleaseCatalog>({
 });
 
 const workflowsEnhanced = ref<
-  Array<{ id: string; project: string; lastModified: string; content: ReleaseConfig }>
+  Array<{
+    id: string;
+    project: string;
+    lastModified: string;
+    content: ReleaseConfig;
+  }>
 >([]);
 const brokenWorkflows = ref<Array<{ id: string; error: string }>>([]);
 let workflowLoadRevision = 0;
@@ -308,7 +323,27 @@ const notifyPersistenceError = (error: unknown) =>
   });
 
 const isLoading = ref(true);
+// True once the first load attempt has settled; later refreshes only toggle isLoading.
+const initialLoadSettled = ref(false);
+let loadedProjectId: string | undefined;
 const filesReady = computed(() => fileStore.status === "ready");
+const showInlineLoading = computed(
+  () =>
+    agent.isReady.value &&
+    !projectLoadError.value &&
+    (!filesReady.value ||
+      (isLoading.value && !workflowsEnhanced.value.length && !brokenWorkflows.value.length)),
+);
+// The startup screen waits for the first workflow load, but never for an offline or failed route.
+useRouteReadiness(
+  computed(
+    () =>
+      initialLoadSettled.value ||
+      !agent.isReady.value ||
+      fileStore.status === "error" ||
+      !!projectLoadError.value,
+  ),
+);
 
 const activeProjectId = computed(() => selectedProjectId.value);
 const activeProject = computed(() =>
@@ -351,17 +386,27 @@ watch(
     }
     const revision = ++workflowLoadRevision;
     const requestedProjectId = activeProjectId.value;
+    if (loadedProjectId !== requestedProjectId) {
+      // Never show another project's workflows while this one loads.
+      workflowsEnhanced.value = [];
+      brokenWorkflows.value = [];
+    }
     isLoading.value = true;
     const requestedEntries = entries.map((flow) => ({ ...flow }));
     try {
       const partitioned = await loadWorkflowEntries(
         requestedEntries,
-        (flow) => api.execute("workflow:load", { workflowId: flow.id, projectId: flow.project }),
+        (flow) =>
+          api.execute("workflow:load", {
+            workflowId: flow.id,
+            projectId: flow.project,
+          }),
         () => revision === workflowLoadRevision && activeProjectId.value === requestedProjectId,
       );
       if (!partitioned) return;
       workflowsEnhanced.value = partitioned.loaded;
       brokenWorkflows.value = partitioned.broken;
+      loadedProjectId = requestedProjectId;
     } catch (error) {
       if (revision !== workflowLoadRevision) return;
       workflowsEnhanced.value = [];
@@ -370,7 +415,10 @@ watch(
         error: error instanceof Error ? error.message : String(error),
       }));
     } finally {
-      if (revision === workflowLoadRevision) isLoading.value = false;
+      if (revision === workflowLoadRevision) {
+        isLoading.value = false;
+        initialLoadSettled.value = true;
+      }
     }
   },
   { immediate: true },
@@ -434,7 +482,9 @@ const workflowRouteDescription = (flow: (typeof workflowsEnhanced.value)[number]
   const destinations = [...counts].map(([label, count]) =>
     count > 1 ? `${label} ×${count}` : label,
   );
-  return `${sourceLabel(flow.content.source.provider)} → ${destinations.join(", ") || "no destinations"}`;
+  return `${sourceLabel(flow.content.source.provider)} → ${
+    destinations.join(", ") || "no destinations"
+  }`;
 };
 const sourceIcon = (id: string) => {
   const catalogIcon = sourceDefinition(id)?.icon;

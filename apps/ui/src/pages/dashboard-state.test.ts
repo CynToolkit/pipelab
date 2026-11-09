@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { getDashboardDisplayState, resolveSelectedProjectId } from "./dashboard-state";
+import {
+  getDashboardDisplayState,
+  isDashboardAuthSettled,
+  resolveSelectedProjectId,
+} from "./dashboard-state";
 
 describe("resolveSelectedProjectId", () => {
   it("replaces a config default with the first persisted project after loading", () => {
@@ -43,5 +47,24 @@ describe("getDashboardDisplayState", () => {
         filteredWorkflows: 0,
       }),
     ).toBe("search-empty");
+  });
+});
+
+describe("isDashboardAuthSettled", () => {
+  it("waits for session restoration", () => {
+    expect(isDashboardAuthSettled("INITIALIZING", "idle")).toBe(false);
+    expect(isDashboardAuthSettled("LOADING", "idle")).toBe(false);
+  });
+
+  it("waits for a settled subscription only when signed in", () => {
+    expect(isDashboardAuthSettled("SIGNED_IN", "idle")).toBe(false);
+    expect(isDashboardAuthSettled("SIGNED_IN", "loading")).toBe(false);
+    expect(isDashboardAuthSettled("SIGNED_IN", "ready")).toBe(true);
+    expect(isDashboardAuthSettled("SIGNED_IN", "error")).toBe(true);
+  });
+
+  it("resolves signed-out and error outcomes", () => {
+    expect(isDashboardAuthSettled("SIGNED_OUT", "idle")).toBe(true);
+    expect(isDashboardAuthSettled("ERROR", "error")).toBe(true);
   });
 });

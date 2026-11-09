@@ -28,7 +28,7 @@
       <Button label="Add build" icon="pi pi-plus" @click="openAddBuild" />
     </template>
 
-    <main class="builds-page">
+    <main class="builds-page" :aria-busy="!flow && !loadError && agent.isReady.value">
       <Message v-if="loadError" severity="error" role="alert">
         <div class="state-copy">
           <strong>Couldn’t load workflow builds</strong>
@@ -74,7 +74,8 @@
               <span class="eyebrow">Configuration shortcut</span>
               <h2>Create a compatible build</h2>
               <p v-if="compatibleSlot">
-                Choices below were checked against {{ compatibleDestinationLabel }} ·
+                Choices below were checked against
+                {{ compatibleDestinationLabel }} ·
                 {{ deploymentSlotLabel(compatibleSlot, compatibleSlotIndex) }}.
               </p>
               <p v-else>The requested destination slot is no longer available.</p>
@@ -120,7 +121,8 @@
               <h2>Build profiles</h2>
             </div>
             <span v-if="!planning && plan" class="build-count">
-              {{ flow.builds.length }} {{ flow.builds.length === 1 ? "build" : "builds" }}
+              {{ flow.builds.length }}
+              {{ flow.builds.length === 1 ? "build" : "builds" }}
             </span>
           </header>
 
@@ -301,7 +303,9 @@
         <label :for="`settings-engine-${draftBuild.id}`">Engine</label>
         <Select
           :id="`settings-engine-${draftBuild.id}`"
-          :class="{ 'issue-focus': isSettingsIssueControl(`settings-engine-${draftBuild.id}`) }"
+          :class="{
+            'issue-focus': isSettingsIssueControl(`settings-engine-${draftBuild.id}`),
+          }"
           :model-value="draftBuild.engine"
           :options="buildEnginesFor(catalog, draftBuild.type)"
           optionLabel="label"
@@ -347,7 +351,9 @@
         <label :for="`settings-inputs-${draftBuild.id}`">Inputs</label>
         <MultiSelect
           :id="`settings-inputs-${draftBuild.id}`"
-          :class="{ 'issue-focus': isSettingsIssueControl(`settings-inputs-${draftBuild.id}`) }"
+          :class="{
+            'issue-focus': isSettingsIssueControl(`settings-inputs-${draftBuild.id}`),
+          }"
           :model-value="draftBuildInputValues"
           :options="draftBundleInputOptions"
           optionLabel="label"
@@ -373,7 +379,9 @@
           <label :for="`settings-input-${draftBuild.id}`">Input</label>
           <Select
             :id="`settings-input-${draftBuild.id}`"
-            :class="{ 'issue-focus': isSettingsIssueControl(`settings-input-${draftBuild.id}`) }"
+            :class="{
+              'issue-focus': isSettingsIssueControl(`settings-input-${draftBuild.id}`),
+            }"
             :model-value="releaseOutputRefValue(draftBuild.input)"
             :options="draftBuildInputOptions"
             optionLabel="label"
@@ -537,6 +545,7 @@
 </template>
 
 <script setup lang="ts">
+import { useRouteReadiness } from "@renderer/composables/useRouteReadiness";
 import { computed, nextTick, onUnmounted, ref, toRaw, watch } from "vue";
 import { nanoid } from "nanoid";
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from "vue-router";
@@ -661,6 +670,7 @@ const plan = ref<ReleasePlan>();
 const planning = ref(false);
 const plannerError = ref("");
 const loadError = ref("");
+useRouteReadiness(computed(() => !agent.isReady.value || !!flow.value || !!loadError.value));
 const saveError = ref("");
 const saveState = ref<"saving" | "saved" | "error">("saved");
 const producerInspectionIssues = ref<ValidationIssue[]>([]);
@@ -702,7 +712,11 @@ const saveStateLabel = computed(() =>
 );
 const connections = computed(() => connectionsStore.connections?.connections || []);
 const localConnectionsConfig = computed(
-  () => connectionsStore.connections || { version: "1.0.0" as const, connections: [] },
+  () =>
+    connectionsStore.connections || {
+      version: "1.0.0" as const,
+      connections: [],
+    },
 );
 const connectionBindingFor = (alias: string) =>
   workflowConnectionBindingValue(
@@ -1058,7 +1072,11 @@ const confirmDiscardStagedBuild = (leavingBuilds = false) =>
         ? "Build settings have not been applied. Discard these changes to leave Builds?"
         : "Build settings have not been applied. Discard these changes?",
       icon: "pi pi-exclamation-triangle",
-      rejectProps: { label: "Keep editing", severity: "secondary", outlined: true },
+      rejectProps: {
+        label: "Keep editing",
+        severity: "secondary",
+        outlined: true,
+      },
       acceptProps: { label: "Discard changes", severity: "danger" },
       defaultFocus: "reject",
       accept: () => settle(true),
@@ -1113,7 +1131,10 @@ const loadWorkflow = async () => {
   try {
     const [, workflowResult] = await Promise.all([
       appStore.loadReleaseCatalog(),
-      api.execute("workflow:load", { workflowId: requestedFlowId, projectId: requestedProjectId }),
+      api.execute("workflow:load", {
+        workflowId: requestedFlowId,
+        projectId: requestedProjectId,
+      }),
       connectionsStore.init(),
       appStore.loadProviderDefinitions(),
     ]);
@@ -1273,7 +1294,9 @@ const refreshCompatibleBuilds = async () => {
       destinationId,
       slotId,
       async (candidateConfig) => {
-        const result = await api.execute("release:plan", { config: candidateConfig });
+        const result = await api.execute("release:plan", {
+          config: candidateConfig,
+        });
         if (result.type === "error") throw new Error(result.ipcError);
         return result.result;
       },
@@ -1318,7 +1341,10 @@ const refreshBuildInputs = async () => {
       () => requestId === latestBuildInputRequest && settingsVisible.value,
     );
     if (requestId === latestBuildInputRequest)
-      buildInputOptions.value = { ...buildInputOptions.value, [buildId]: options };
+      buildInputOptions.value = {
+        ...buildInputOptions.value,
+        [buildId]: options,
+      };
   } catch (cause) {
     if (requestId === latestBuildInputRequest)
       buildInputError.value = cause instanceof Error ? cause.message : String(cause);
@@ -1681,7 +1707,11 @@ const setBuildEnabled = (build: ReleaseBuildProfileConfig, enabled: boolean) => 
     header: `Disable ${buildLabel(build)}`,
     message: impact.message,
     icon: "pi pi-exclamation-triangle",
-    rejectProps: { label: "Keep enabled", severity: "secondary", outlined: true },
+    rejectProps: {
+      label: "Keep enabled",
+      severity: "secondary",
+      outlined: true,
+    },
     acceptProps: { label: "Disable build", severity: "danger" },
     accept: () => {
       build.enabled = false;
