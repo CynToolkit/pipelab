@@ -373,6 +373,7 @@
 </template>
 
 <script setup lang="ts">
+import { useRouteReadiness } from "@renderer/composables/useRouteReadiness";
 import { computed, nextTick, onUnmounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import WorkflowShell from "@renderer/components/WorkflowShell.vue";
@@ -408,6 +409,7 @@ const api = useAPI();
 const agent = useAgentAvailability();
 const entry = ref<BuildHistoryEntry>();
 const error = ref("");
+useRouteReadiness(computed(() => !agent.isReady.value || !!entry.value || !!error.value));
 const cancelFeedback = ref("");
 const stepSelection = reactive(createRunStepSelectionState());
 const selectedStep = computed({

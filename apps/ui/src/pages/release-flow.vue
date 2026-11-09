@@ -51,6 +51,7 @@
       class="readiness-progress"
       role="status"
       aria-live="polite"
+      aria-busy="true"
     >
       <span v-if="workflowLoading"><i class="pi pi-spin pi-spinner" /> Loading workflow…</span>
       <span v-if="sourceInspectionPending"
@@ -807,6 +808,7 @@
 </template>
 
 <script setup lang="ts">
+import { useRouteReadiness } from "@renderer/composables/useRouteReadiness";
 import { computed, onUnmounted, ref, toRaw, watch } from "vue";
 import { nanoid } from "nanoid";
 import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
@@ -971,6 +973,9 @@ const plannerError = ref("");
 const saveError = ref("");
 const running = ref(false);
 const workflowLoading = ref(false);
+// First workflow load (catalog, workflow, connections, source inspection and plan) has settled.
+const initialLoadSettled = ref(false);
+useRouteReadiness(computed(() => !agent.isReady.value || initialLoadSettled.value));
 const sourceInspectionPending = ref(false);
 const planning = ref(false);
 const saveState = ref<"saving" | "saved" | "error">("saved");
@@ -2270,7 +2275,10 @@ const loadWorkflow = async () => {
     if (generation === workflowLoadGeneration)
       loadError.value = cause instanceof Error ? cause.message : String(cause);
   } finally {
-    if (generation === workflowLoadGeneration) workflowLoading.value = false;
+    if (generation === workflowLoadGeneration) {
+      workflowLoading.value = false;
+      initialLoadSettled.value = true;
+    }
   }
 };
 watch(

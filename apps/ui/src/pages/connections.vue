@@ -37,7 +37,16 @@
           </IconField>
         </div>
 
-        <div class="plugin-list px-2 py-1 flex flex-column gap-1 overflow-y-auto flex-grow-1">
+        <div
+          class="plugin-list px-2 py-1 flex flex-column gap-1 overflow-y-auto flex-grow-1"
+          :aria-busy="
+            !connectionDataReady &&
+            !connectionLoadError &&
+            !connectionsStore.error &&
+            appStore.providerStatus !== 'error' &&
+            agent.isReady.value
+          "
+        >
           <div
             v-for="account in filteredConnections"
             :key="account.id"
@@ -120,7 +129,8 @@
                 <div>
                   <h2 class="pane-title">{{ selectedConnection.name }}</h2>
                   <p class="pane-desc">
-                    Settings for {{ selectedConnectionIntegration?.name || "connection" }} on
+                    Settings for
+                    {{ selectedConnectionIntegration?.name || "connection" }} on
                     {{ formatPluginName(selectedConnection.pluginName) }}
                   </p>
                 </div>
@@ -270,7 +280,9 @@
           <!-- Fallback View -->
           <div v-else class="empty-pane">
             <i class="mdi mdi-link-variant empty-pane-icon" aria-hidden="true"></i>
-            <h2>{{ connectedAccounts.length ? "Select a connection" : "No connections yet" }}</h2>
+            <h2>
+              {{ connectedAccounts.length ? "Select a connection" : "No connections yet" }}
+            </h2>
             <p>
               {{
                 connectedAccounts.length
@@ -516,6 +528,7 @@
 </template>
 
 <script lang="ts" setup>
+import { useRouteReadiness } from "@renderer/composables/useRouteReadiness";
 import { buildIntegrationTargets } from "./integration-targets";
 import { ref, computed, toRaw, watch } from "vue";
 import { useConnectionsStore } from "@renderer/store/connections";
@@ -582,6 +595,16 @@ const newConnectionGameId = ref("");
 const dynamicFields = ref<Record<string, string>>({});
 const connectingAccountLoader = ref(false);
 const connectionLoadError = ref("");
+useRouteReadiness(
+  computed(
+    () =>
+      !agent.isReady.value ||
+      connectionDataReady.value ||
+      !!connectionLoadError.value ||
+      !!connectionsStore.error ||
+      appStore.providerStatus === "error",
+  ),
+);
 let connectionLoadGeneration = 0;
 
 // Edit Form State

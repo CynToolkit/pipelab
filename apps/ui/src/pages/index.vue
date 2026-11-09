@@ -7,7 +7,9 @@
           {{ activeProject?.name || $t("home.choose-project") }}
         </p>
         <h1>{{ $t("home.project-overview") }}</h1>
-        <p class="dashboard-description">{{ $t("home.project-overview-description") }}</p>
+        <p class="dashboard-description">
+          {{ $t("home.project-overview-description") }}
+        </p>
       </div>
       <div class="dashboard-actions">
         <Button
@@ -55,11 +57,17 @@
     </Message>
 
     <div class="overview-grid">
-      <section class="overview-card workflow-overview" aria-labelledby="workflow-overview-title">
+      <section
+        class="overview-card workflow-overview"
+        aria-labelledby="workflow-overview-title"
+        :aria-busy="workflowShortcutsLoading"
+      >
         <div class="card-heading">
           <div>
             <p class="eyebrow">{{ $t("home.project-overview") }}</p>
-            <h2 id="workflow-overview-title">{{ $t("home.workflow-overview") }}</h2>
+            <h2 id="workflow-overview-title">
+              {{ $t("home.workflow-overview") }}
+            </h2>
           </div>
           <i class="mdi mdi-rocket-launch-outline card-icon" aria-hidden="true" />
         </div>
@@ -134,11 +142,15 @@
         <div class="card-heading">
           <div>
             <p class="eyebrow">{{ $t("home.execution") }}</p>
-            <h2 id="recent-executions-title">{{ $t("home.recent-executions") }}</h2>
+            <h2 id="recent-executions-title">
+              {{ $t("home.recent-executions") }}
+            </h2>
           </div>
           <i class="mdi mdi-history card-icon" aria-hidden="true" />
         </div>
-        <p class="card-description">{{ $t("home.recent-executions-description") }}</p>
+        <p class="card-description">
+          {{ $t("home.recent-executions-description") }}
+        </p>
 
         <div v-if="!hasBuildHistoryBenefit" class="activity-state">
           {{ $t("home.execution-history-plan-required") }}
@@ -218,6 +230,8 @@
 </template>
 
 <script setup lang="ts">
+import { isDashboardAuthSettled } from "./dashboard-state";
+import { useRouteReadiness } from "@renderer/composables/useRouteReadiness";
 import { computed, ref, watch } from "vue";
 import { storeToRefs } from "pinia";
 import { RouterLink, useRouter } from "vue-router";
@@ -258,13 +272,29 @@ const workflowEntryVersion = computed(() =>
   projectWorkflows.value.map((workflow) => `${workflow.id}:${workflow.lastModified}`).join("|"),
 );
 const workflowShortcuts = ref<Array<{ id: string; name: string; projectId: string }>>([]);
-const dashboardShipWorkflow = ref<{ id: string; name: string; projectId: string }>();
+const workflowShortcutsLoading = ref(false);
+const dashboardShipWorkflow = ref<{
+  id: string;
+  name: string;
+  projectId: string;
+}>();
 let workflowShortcutRequest = 0;
 
 const recentExecutions = ref<BuildHistoryEntry[]>([]);
 const historyLoading = ref(false);
 const historyError = ref("");
 let historyRequest = 0;
+// Dashboard data is ready once subscription state is known and both the recent execution history
+// and the workflow shortcuts finished (including no-benefit, empty and error outcomes).
+useRouteReadiness(
+  computed(
+    () =>
+      !agent.isReady.value ||
+      (isDashboardAuthSettled(authStore.authState, authStore.subscriptionStatus) &&
+        !historyLoading.value &&
+        !workflowShortcutsLoading.value),
+  ),
+);
 
 const notifyPersistenceError = (error: unknown) =>
   toast.add({
@@ -286,7 +316,9 @@ const loadRecentExecutions = async () => {
 
   historyLoading.value = true;
   try {
-    const result = await api.execute("build-history:get-all", { query: { projectId } });
+    const result = await api.execute("build-history:get-all", {
+      query: { projectId },
+    });
     if (request !== historyRequest) return;
     if (result.type === "error") throw new Error(result.ipcError);
     recentExecutions.value = result.result.entries
@@ -324,58 +356,67 @@ const executionPath = (entry: BuildHistoryEntry) =>
   `/workflows/${entry.workflowId}/${entry.projectId}/runs/${entry.id}`;
 const statusLabel = (status: BuildHistoryEntry["status"]) => t(`home.run-status-${status}`);
 const formatExecutionDate = (timestamp: number) =>
-  new Intl.DateTimeFormat(locale.value, { dateStyle: "medium", timeStyle: "short" }).format(
-    timestamp,
-  );
+  new Intl.DateTimeFormat(locale.value, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(timestamp);
 
 const loadWorkflowShortcuts = async () => {
   const request = ++workflowShortcutRequest;
   const projectId = selectedProjectId.value;
   if (!projectId) {
     workflowShortcuts.value = [];
+    workflowShortcutsLoading.value = false;
     return;
   }
   if (!filesReady.value || !agent.isReady.value) {
     if (workflowShortcuts.value.some((workflow) => workflow.projectId !== projectId))
       workflowShortcuts.value = [];
+    workflowShortcutsLoading.value = false;
     return;
   }
 
   const entries = projectWorkflows.value.slice(0, 3);
   if (!entries.length) {
     workflowShortcuts.value = [];
+    workflowShortcutsLoading.value = false;
     return;
   }
 
-  const results = await Promise.all(
-    entries.map(async (workflow) => {
-      try {
-        return await api.execute("workflow:load", {
-          workflowId: workflow.id,
-          projectId: workflow.project,
-        });
-      } catch (error) {
-        return {
-          type: "error" as const,
-          ipcError: error instanceof Error ? error.message : String(error),
-        };
-      }
-    }),
-  );
-  if (
-    request !== workflowShortcutRequest ||
-    projectId !== selectedProjectId.value ||
-    !filesReady.value ||
-    !agent.isReady.value
-  )
-    return;
+  workflowShortcutsLoading.value = true;
+  try {
+    const results = await Promise.all(
+      entries.map(async (workflow) => {
+        try {
+          return await api.execute("workflow:load", {
+            workflowId: workflow.id,
+            projectId: workflow.project,
+          });
+        } catch (error) {
+          return {
+            type: "error" as const,
+            ipcError: error instanceof Error ? error.message : String(error),
+          };
+        }
+      }),
+    );
+    if (
+      request !== workflowShortcutRequest ||
+      projectId !== selectedProjectId.value ||
+      !filesReady.value ||
+      !agent.isReady.value
+    )
+      return;
 
-  const { loaded } = partitionWorkflowLoads(entries, results);
-  workflowShortcuts.value = loaded.map((workflow) => ({
-    id: workflow.id,
-    name: workflow.content.name,
-    projectId: workflow.project,
-  }));
+    const { loaded } = partitionWorkflowLoads(entries, results);
+    workflowShortcuts.value = loaded.map((workflow) => ({
+      id: workflow.id,
+      name: workflow.content.name,
+      projectId: workflow.project,
+    }));
+  } finally {
+    if (request === workflowShortcutRequest) workflowShortcutsLoading.value = false;
+  }
 };
 
 watch(

@@ -104,7 +104,9 @@
         </div>
         <small v-if="!filesReady && fileStore.status === 'error'" class="project-load-error">
           {{ $t("home.projects-unavailable") }}
-          <button type="button" @click="loadProjects">{{ $t("home.retry") }}</button>
+          <button type="button" @click="loadProjects">
+            {{ $t("home.retry") }}
+          </button>
         </small>
       </section>
 
@@ -351,11 +353,21 @@
 
     <!-- Main content area -->
     <div class="layout-main">
-      <div v-if="!isReady" class="agent-notice" role="status" aria-live="polite">
-        <span>{{ agentNotice }}</span>
+      <div
+        v-if="!isReady && (agentStatus !== 'connecting' || showConnectingNotice)"
+        class="agent-notice"
+        :class="`agent-notice-${agentStatus}`"
+        role="status"
+      >
+        <i class="mdi agent-notice-icon" :class="agentNoticeIcon" aria-hidden="true" />
+        <div class="agent-notice-copy">
+          <strong>{{ agentNoticeTitle }}</strong>
+          <span>{{ agentNoticeMessage }}</span>
+        </div>
         <Button
           v-if="!isBrowser && agentStatus === 'offline'"
           label="Reconnect"
+          icon="mdi mdi-refresh"
           text
           size="small"
           @click="reconnect"
@@ -504,6 +516,22 @@ const { logger } = useLogger();
 const shell = useShell();
 const { isReady, status: agentStatus, reconnect } = useAgentAvailability();
 const isBrowser = uiEnvironment === "browser";
+const showConnectingNotice = ref(false);
+let connectingNoticeTimer: ReturnType<typeof setTimeout> | undefined;
+watch(
+  agentStatus,
+  (status) => {
+    if (connectingNoticeTimer) clearTimeout(connectingNoticeTimer);
+    showConnectingNotice.value = false;
+    if (status === "connecting") {
+      connectingNoticeTimer = setTimeout(() => {
+        showConnectingNotice.value = true;
+        connectingNoticeTimer = undefined;
+      }, 400);
+    }
+  },
+  { immediate: true },
+);
 const appStore = useAppStore();
 const fileStore = useFiles();
 const authStore = useAuth();
@@ -531,13 +559,22 @@ const renameProjectName = ref("");
 const canCreateProject = computed(
   () => newProjectName.value.trim().length > 0 && authStore.subscriptionStatus === "ready",
 );
-const agentNotice = computed(() => {
-  if (agentStatus.value === "offline")
-    return "No agent connected. Your data and actions will be available when it reconnects.";
-  if (agentStatus.value === "starting")
-    return "The agent is starting. Data will appear as it becomes available.";
-  return "Connecting to the agent…";
+const agentNoticeTitle = computed(() => {
+  if (agentStatus.value === "offline") return "Pipelab agent not connected";
+  if (agentStatus.value === "starting") return "Starting Pipelab";
+  return "Connecting to Pipelab";
 });
+const agentNoticeMessage = computed(() => {
+  if (agentStatus.value === "offline")
+    return isBrowser
+      ? "Connect a Pipelab agent to load your projects and enable actions."
+      : "Start the Pipelab agent to load your projects and enable actions.";
+  if (agentStatus.value === "starting") return "Pipelab is preparing your projects and actions.";
+  return "Waiting for the Pipelab agent to connect.";
+});
+const agentNoticeIcon = computed(() =>
+  agentStatus.value === "offline" ? "mdi-lan-disconnect" : "mdi-loading mdi-spin",
+);
 
 const isElectron = !!window.electron;
 
@@ -583,7 +620,10 @@ const stopStartupProgress = on("startup:progress", (event) => {
     startupStatus.value = "";
   }
 });
-onUnmounted(stopStartupProgress);
+onUnmounted(() => {
+  stopStartupProgress();
+  if (connectingNoticeTimer) clearTimeout(connectingNoticeTimer);
+});
 
 watch(
   isReady,
@@ -750,14 +790,23 @@ const createProject = async () => {
   const projectName = newProjectName.value.trim();
   try {
     await fileStore.update((state) => {
-      state.projects.push({ id: projectId, name: projectName, description: "" });
+      state.projects.push({
+        id: projectId,
+        name: projectName,
+        description: "",
+      });
     });
     isNewProjectModalVisible.value = false;
     newProjectName.value = "";
     if (route.params.projectId) await router.push("/workflows");
     fileStore.selectProject(projectId);
   } catch (error) {
-    toast.add({ severity: "error", summary: t("base.error"), detail: String(error), life: 5000 });
+    toast.add({
+      severity: "error",
+      summary: t("base.error"),
+      detail: String(error),
+      life: 5000,
+    });
   } finally {
     isSavingProject.value = false;
   }
@@ -781,7 +830,12 @@ const renameProject = async () => {
     });
     isRenameProjectModalVisible.value = false;
   } catch (error) {
-    toast.add({ severity: "error", summary: t("base.error"), detail: String(error), life: 5000 });
+    toast.add({
+      severity: "error",
+      summary: t("base.error"),
+      detail: String(error),
+      life: 5000,
+    });
   } finally {
     isSavingProject.value = false;
   }
@@ -1621,12 +1675,39 @@ handle("update:set-status", async (event, { value }) => {
 .agent-notice {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.5rem 1rem;
+  gap: 0.75rem;
+  padding: 0.65rem 1rem;
   background: var(--p-surface-100);
   border-bottom: 1px solid var(--p-content-border-color);
   font-size: 0.875rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .agent-notice-icon.mdi-spin {
+    animation: none;
+  }
+}
+
+.agent-notice-icon {
+  flex: 0 0 auto;
+  color: var(--p-primary-color);
+  font-size: 1.1rem;
+}
+
+.agent-notice-offline .agent-notice-icon {
+  color: var(--p-orange-500);
+}
+
+.agent-notice-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.agent-notice-copy span {
+  color: var(--p-text-muted-color);
 }
 
 :root.dark .agent-notice {

@@ -48,6 +48,8 @@ import { ref, onMounted, onUnmounted, computed } from "vue";
 import { useWebSocketAPI } from "../composables/websocket-client";
 import { useAPI } from "../composables/api";
 import { useAppSettings } from "../store/settings";
+import { browserPreferences } from "../composables/browser-preferences";
+import { uiEnvironment } from "../composables/ui-runtime";
 
 const { on } = useWebSocketAPI();
 const api = useAPI();
@@ -62,23 +64,25 @@ let stepCounter = 0;
 const currentStep = ref<Step>({ id: stepCounter++, message: "Initialising environment…" });
 const version = ref<string | null>(null);
 
-const theme = computed(() => settingsStore.settings.theme);
+const theme = computed(() =>
+  uiEnvironment === "browser" ? browserPreferences.theme : settingsStore.settings.theme,
+);
 
 let unbind: (() => void) | undefined;
 
 onMounted(async () => {
+  unbind = on("startup:progress", (event: any) => {
+    if (event.type === "progress") {
+      currentStep.value = { id: stepCounter++, message: event.data.message };
+    }
+  });
+
   try {
     const res = await api.execute("agent:version:get");
     if (res.type === "success") version.value = `v${res.result.version}`;
   } catch {
     /* stays null */
   }
-
-  unbind = on("startup:progress", (event: any) => {
-    if (event.type === "progress") {
-      currentStep.value = { id: stepCounter++, message: event.data.message };
-    }
-  });
 });
 
 onUnmounted(() => unbind?.());

@@ -24,7 +24,9 @@
         Your uploaded release artifacts and private share links appear here once you are signed in.
       </p>
     </div>
-    <p v-else-if="loading && !overview" class="notice" role="status">Loading Cloud files…</p>
+    <p v-else-if="loading && !overview" class="notice" role="status" aria-busy="true">
+      Loading Cloud files…
+    </p>
     <p v-else-if="error" class="notice error" role="alert">{{ error }}</p>
 
     <template v-if="auth.user && overview">
@@ -129,6 +131,7 @@
 </template>
 
 <script setup lang="ts">
+import { useRouteReadiness } from "@renderer/composables/useRouteReadiness";
 import { computed, onMounted, ref, watch } from "vue";
 import { useAuth } from "@renderer/store/auth";
 
@@ -158,6 +161,8 @@ const auth = useAuth();
 const workerUrl = process.env.PIPELAB_CLOUD_WORKER_URL;
 const overview = ref<Overview>();
 const loading = ref(false);
+const initialLoadSettled = ref(false);
+useRouteReadiness(initialLoadSettled);
 const error = ref("");
 const shareUrls = ref<Record<string, string>>({});
 const usagePercent = computed(() => {
@@ -189,6 +194,7 @@ const callWorker = async (action: string, payload: Record<string, unknown> = {})
 const load = async () => {
   if (!auth.user) {
     overview.value = undefined;
+    initialLoadSettled.value = true;
     return;
   }
   loading.value = true;
@@ -199,6 +205,7 @@ const load = async () => {
     error.value = cause instanceof Error ? cause.message : "Could not load Cloud files.";
   } finally {
     loading.value = false;
+    initialLoadSettled.value = true;
   }
 };
 

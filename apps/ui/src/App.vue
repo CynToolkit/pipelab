@@ -1,9 +1,13 @@
 <template>
   <div class="app">
-    <Layout>
+    <ConnectingPage v-if="showStartupScreen" />
+    <Layout v-show="!showStartupScreen" :inert="showStartupScreen" :aria-hidden="showStartupScreen">
       <RouterView v-slot="{ Component }">
         <component :is="Component" v-if="Component" />
-        <div v-else class="route-loading" role="status">Loading Pipelab…</div>
+        <div v-else class="route-loading" role="status">
+          <i class="mdi mdi-loading mdi-spin" aria-hidden="true" />
+          <span>Loading Pipelab…</span>
+        </div>
       </RouterView>
     </Layout>
     <Dialog
@@ -26,16 +30,25 @@
 </template>
 
 <script setup lang="ts">
-import { defineAsyncComponent, onMounted, ref, provide, watch } from "vue";
+import { defineAsyncComponent, onMounted, onUnmounted, ref, provide, watch } from "vue";
+import { useRouter } from "vue-router";
 import { handle } from "./composables/handlers";
 import { useLogger, MigrationChannel, MessageSchema, Locales } from "@pipelab/shared";
 import { useI18n } from "vue-i18n";
 import Layout from "./components/Layout.vue";
+import ConnectingPage from "./components/ConnectingPage.vue";
 import Dialog from "primevue/dialog";
 import Toast from "primevue/toast";
 import { OpenMigrationModalKey, OpenUpgradeDialogKey } from "./utils/injection-keys";
 import { useAgentAvailability } from "./composables/useAgentAvailability";
+import {
+  pendingRouteCount,
+  resolveStartupGate,
+  ROUTE_READY_TIMEOUT_MS,
+} from "./composables/useRouteReadiness";
 import { useAppSettings } from "./store/settings";
+import { useAppStore } from "./store/app";
+import { useFiles } from "./store/files";
 import { useUIStore } from "./store/ui";
 import { browserPreferences } from "./composables/browser-preferences";
 import { shouldAutoConnectAgent, uiEnvironment } from "./composables/ui-runtime";
@@ -48,13 +61,67 @@ const WebFilePicker = defineAsyncComponent(() => import("./components/WebFilePic
 const MigrationModal = defineAsyncComponent(() => import("./components/MigrationModal.vue"));
 
 const { logger } = useLogger();
-const { start, isReady } = useAgentAvailability();
+const { start, isReady, status: agentStatus } = useAgentAvailability();
 const { locale, availableLocales } = useI18n<{ message: MessageSchema }, Locales>();
 const settingsStore = useAppSettings();
+const appStore = useAppStore();
+const fileStore = useFiles();
 const uiStore = useUIStore();
 const isUpgradeDialogVisible = ref(false);
 const hasOpenedUpgradeDialog = ref(false);
 const isDevMode = process.env.NODE_ENV === "development";
+const showStartupScreen = ref(shouldAutoConnectAgent);
+const router = useRouter();
+const routerReady = ref(false);
+const routeTimedOut = ref(false);
+let routeTimeout: ReturnType<typeof setTimeout> | undefined;
+
+void router.isReady().then(() => {
+  routerReady.value = true;
+});
+
+// The startup screen stays until agent data is loaded and the active route reports its first data
+// ready (see useRouteReadiness). Offline/error states open the app so they stay visible, and a
+// stuck route can only hold the screen for ROUTE_READY_TIMEOUT_MS.
+// Not immediate: the agent starts "offline" until onMounted calls start(), which must not count
+// as a failure. start() rejecting is handled in onMounted.
+watch(
+  [
+    agentStatus,
+    () => fileStore.status,
+    () => appStore.runtimeStatus,
+    () => appStore.providerStatus,
+    routerReady,
+    pendingRouteCount,
+    routeTimedOut,
+  ],
+  ([agentState, projects, runtime, providers, isRouterReady, pendingRoutes, timedOut]) => {
+    if (!showStartupScreen.value) return;
+    const gate = resolveStartupGate({
+      agent: agentState,
+      projects,
+      runtime,
+      providers,
+      routerReady: isRouterReady,
+      pendingRoutes,
+      routeTimedOut: timedOut,
+    });
+    if (gate === "route" && !routeTimeout) {
+      routeTimeout = setTimeout(() => {
+        routeTimedOut.value = true;
+      }, ROUTE_READY_TIMEOUT_MS);
+    }
+    if (gate === "open" || gate === "failed") {
+      if (routeTimeout) clearTimeout(routeTimeout);
+      routeTimeout = undefined;
+      showStartupScreen.value = false;
+    }
+  },
+  { flush: "post" },
+);
+onUnmounted(() => {
+  if (routeTimeout) clearTimeout(routeTimeout);
+});
 
 const isMigrationModalVisible = ref(false);
 const migrationSourceChannel = ref<MigrationChannel | undefined>(undefined);
@@ -185,7 +252,10 @@ handle("log:message", async (event, { value, send }) => {
 
 onMounted(() => {
   if (shouldAutoConnectAgent) {
-    start().catch((error) => logger().warn("Unable to connect to Pipelab agent:", error));
+    start().catch((error) => {
+      showStartupScreen.value = false;
+      logger().warn("Unable to connect to Pipelab agent:", error);
+    });
   }
 });
 </script>
@@ -194,5 +264,24 @@ onMounted(() => {
 .app {
   height: 100%;
   overflow: hidden;
+}
+
+.route-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  min-height: 12rem;
+  color: var(--p-text-muted-color);
+}
+
+.route-loading i {
+  font-size: 1.25rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .route-loading .mdi-spin {
+    animation: none;
+  }
 }
 </style>
