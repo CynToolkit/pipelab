@@ -9,7 +9,6 @@
     "directory": "packages/providers"
   },
   "files": [
-    "dist",
     "src"
   ],
   "type": "module",
@@ -27,7 +26,6 @@
     "format": "oxfmt .",
     "typecheck": "tsc -b",
     "lint": "oxlint .",
-    "build": "tsdown",
     "test": "vitest run",
     "test:construct": "vitest run src/construct",
     "test:electron": "vitest run src/electron",
@@ -58,7 +56,6 @@
     "@types/node": "^24.12.2",
     "@types/proper-lockfile": "4.1.4",
     "msw": "2.7.5",
-    "tsdown": "0.21.2",
     "typescript": "5.9.3",
     "vitest": "3.1.4"
   }

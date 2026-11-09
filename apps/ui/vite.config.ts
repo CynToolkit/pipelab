@@ -166,7 +166,6 @@ export default defineConfig(({ mode }) => {
       "process.env.UI_VERSION": JSON.stringify(env.npm_package_version || "1.0.0"),
     },
     optimizeDeps: {
-      exclude: ["@pipelab/core-node", "@pipelab/plugin-core"],
       include: [
         "@codemirror/state",
         "@codemirror/view",
@@ -176,22 +175,9 @@ export default defineConfig(({ mode }) => {
         "@codemirror/lang-javascript",
       ],
     },
-    build: {
-      rollupOptions: {
-        external: ["@pipelab/core-node", "@pipelab/plugin-core"],
-      },
-    },
     resolve: {
       tsconfigPaths: true,
-      dedupe: [
-        "primevue",
-        "@codemirror/state",
-        "@codemirror/view",
-        "@codemirror/language",
-        "@codemirror/commands",
-        "@codemirror/autocomplete",
-        "@codemirror/lang-javascript",
-      ],
+      dedupe: ["primevue"],
       alias: {
         "@renderer": resolve(__dirname, "src"),
         // Shared evaluation code has a Node default variant for the CLI. The

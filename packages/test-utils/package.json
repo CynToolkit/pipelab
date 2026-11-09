@@ -22,7 +22,6 @@
     }
   },
   "scripts": {
-    "build": "tsdown",
     "format": "oxfmt .",
     "typecheck": "tsc -b",
     "lint": "oxlint ."
@@ -34,7 +33,6 @@
   "devDependencies": {
     "@pipelab/tsconfig": "workspace:*",
     "@types/node": "24.12.2",
-    "tsdown": "0.21.2",
     "typescript": "^5.0.0"
   }
 }

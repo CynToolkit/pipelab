@@ -215,9 +215,6 @@ importers:
       vite:
         specifier: 6.3.3
         version: 6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)(yaml@2.9.1)
-      vite-tsconfig-paths:
-        specifier: 5.1.4
-        version: 5.1.4(typescript@5.8.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)(yaml@2.9.1))
 
   apps/documentation:
     dependencies:
@@ -264,7 +261,7 @@ importers:
         version: 6.0.3
       vite:
         specifier: ^8.0.12
-        version: 8.0.14(@types/node@24.12.4)(@vitejs/devtools@0.1.13)(esbuild@0.28.1)(jiti@2.6.1)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)(yaml@2.9.1)
+        version: 8.0.14(@types/node@24.12.4)(esbuild@0.28.1)(jiti@2.6.1)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)(yaml@2.9.1)
       vue-tsc:
         specifier: ^3.2.8
         version: 3.3.1(typescript@6.0.3)
@@ -569,7 +566,7 @@ importers:
         version: 22.5.0(@vue/compiler-sfc@3.5.34)
       vite:
         specifier: ^8.0.8
-        version: 8.0.14(@types/node@24.12.4)(@vitejs/devtools@0.1.13)(esbuild@0.28.1)(jiti@2.6.1)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)(yaml@2.9.1)
+        version: 8.0.14(@types/node@24.12.4)(esbuild@0.28.1)(jiti@2.6.1)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)(yaml@2.9.1)
       vitest:
         specifier: ^4.0.14
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(jsdom@27.4.0(@noble/hashes@1.8.0))(msw@2.7.5(@types/node@24.12.4)(typescript@5.9.3))(vite@8.0.14(@types/node@24.12.4)(esbuild@0.28.1)(jiti@2.6.1)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)(yaml@2.9.1))
@@ -594,9 +591,6 @@ importers:
       '@pipelab/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
-      tsdown:
-        specifier: 0.21.2
-        version: 0.21.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
@@ -706,9 +700,6 @@ importers:
       pacote:
         specifier: 21.5.1
         version: 21.5.1
-      tsdown:
-        specifier: 0.21.2
-        version: 0.21.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
@@ -737,9 +728,6 @@ importers:
       '@types/semver':
         specifier: ^7.5.8
         version: 7.7.1
-      tsdown:
-        specifier: 0.21.2
-        version: 0.21.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -804,9 +792,6 @@ importers:
       msw:
         specifier: 2.7.5
         version: 2.7.5(@types/node@24.12.4)(typescript@5.9.3)
-      tsdown:
-        specifier: 0.21.2
-        version: 0.21.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -868,9 +853,6 @@ importers:
       esbuild-plugin-wasm:
         specifier: 1.1.0
         version: 1.1.0
-      tsdown:
-        specifier: 0.21.2
-        version: 0.21.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -893,9 +875,6 @@ importers:
       '@types/node':
         specifier: 24.12.2
         version: 24.12.2
-      tsdown:
-        specifier: 0.21.2
-        version: 0.21.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
       typescript:
         specifier: ^5.0.0
         version: 5.9.3
@@ -920,9 +899,6 @@ importers:
       oxlint:
         specifier: 1.55.0
         version: 1.55.0
-      tsdown:
-        specifier: 0.21.2
-        version: 0.21.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -990,9 +966,6 @@ importers:
       '@types/yauzl':
         specifier: 2.10.3
         version: 2.10.3
-      tsdown:
-        specifier: 0.21.2
-        version: 0.21.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3)
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -6720,9 +6693,6 @@ packages:
     resolution: {integrity: sha512-jhIXaOzy1sb8IyocaruWSn1TjmnBVs8Ayhcy83rmxNJ8q2uWKCAj3CnJY+KpGSXCueAPc0i05kVvVKtP1t9S3g==}
     engines: {node: '>=10'}
 
-  globrex@0.1.2:
-    resolution: {integrity: sha512-uHJgbwAMwNFf5mLst7IWLNg14x1CkeqglJb/K3doi4dw6q2IvAAmM/Y81kevy83wP+Sst+nutFTYOGg3d1lsxg==}
-
   gopd@1.2.0:
     resolution: {integrity: sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==}
     engines: {node: '>= 0.4'}
@@ -6883,6 +6853,7 @@ packages:
   image-size@0.7.5:
     resolution: {integrity: sha512-Hiyv+mXHfFEP7LzUL/llg9RwFxxY+o9N3JVLIeG5E7iFIFAalxvRU9UZthBdYDEVnzHMgjnKJPPpay5BWf1g9g==}
     engines: {node: '>=6.9.0'}
+    deprecated: Please migrate to image-size@2.x
     hasBin: true
 
   immer@11.1.4:
@@ -9226,17 +9197,6 @@ packages:
   ts-pattern@5.5.0:
     resolution: {integrity: sha512-jqbIpTsa/KKTJYWgPNsFNbLVpwCgzXfFJ1ukNn4I8hMwyQzHMJnk/BqWzggB0xpkILuKzaO/aMYhS0SkaJyKXg==}
 
-  tsconfck@3.1.6:
-    resolution: {integrity: sha512-ks6Vjr/jEw0P1gmOVwutM3B7fWxoWBL2KRDb1JfqGVawBmO5UsvmWOQFGHBPl5yxYz4eERr19E6L7NMv+Fej4w==}
-    engines: {node: ^18 || >=20}
-    deprecated: unmaintained
-    hasBin: true
-    peerDependencies:
-      typescript: ^5.0.0
-    peerDependenciesMeta:
-      typescript:
-        optional: true
-
   tsdown@0.21.2:
     resolution: {integrity: sha512-pP8eAcd1XAWjl5gjosuJs0BAuVoheUe3V8VDHx31QK7YOgXjcCMsBSyFWO3CMh/CSUkjRUzR96JtGH3WJFTExQ==}
     engines: {node: '>=20.19.0'}
@@ -9630,14 +9590,6 @@ packages:
     resolution: {integrity: sha512-Iq/024CydcE46FZqWPU4t4lw4uYOdLnFSO1RNxJVt2qY9zxIjmnkBqhHnYaReWM82kmNnaXs7OkfgRrV2GEjyw==}
     peerDependencies:
       vite: ^3.0.0 || ^4.0.0 || ^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0
-
-  vite-tsconfig-paths@5.1.4:
-    resolution: {integrity: sha512-cYj0LRuLV2c2sMqhqhGpaO3LretdtMn/BVX4cPLanIZuwwrkVl+lK84E/miEXkCHWXuq65rhNN4rXsBcOB3S4w==}
-    peerDependencies:
-      vite: '*'
-    peerDependenciesMeta:
-      vite:
-        optional: true
 
   vite@6.3.3:
     resolution: {integrity: sha512-5nXH+QsELbFKhsEfWLkHrvgRpTdGJzqOZ+utSdmPTvwHmvU6ITTm3xx+mRusihkcI8GeC7lCDyn3kDtiki9scw==}
@@ -16881,8 +16833,6 @@ snapshots:
       merge2: 1.4.1
       slash: 3.0.0
 
-  globrex@0.1.2: {}
-
   gopd@1.2.0: {}
 
   got@11.8.6:
@@ -19589,10 +19539,6 @@ snapshots:
 
   ts-pattern@5.5.0: {}
 
-  tsconfck@3.1.6(typescript@5.8.3):
-    optionalDependencies:
-      typescript: 5.8.3
-
   tsdown@0.21.2(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3)(@vitejs/devtools@0.1.13)(publint@0.3.18)(typescript@5.9.3):
     dependencies:
       ansis: 4.2.0
@@ -20013,17 +19959,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  vite-tsconfig-paths@5.1.4(typescript@5.8.3)(vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)(yaml@2.9.1)):
-    dependencies:
-      debug: 4.4.3
-      globrex: 0.1.2
-      tsconfck: 3.1.6(typescript@5.8.3)
-    optionalDependencies:
-      vite: 6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)(yaml@2.9.1)
-    transitivePeerDependencies:
-      - supports-color
-      - typescript
-
   vite@6.3.3(@types/node@24.12.2)(jiti@2.6.1)(lightningcss@1.32.0)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)(yaml@2.9.1):
     dependencies:
       esbuild: 0.25.12
@@ -20081,25 +20016,6 @@ snapshots:
       tsx: 4.19.1
       yaml: 2.9.1
     optional: true
-
-  vite@8.0.14(@types/node@24.12.4)(@vitejs/devtools@0.1.13)(esbuild@0.28.1)(jiti@2.6.1)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)(yaml@2.9.1):
-    dependencies:
-      lightningcss: 1.32.0
-      picomatch: 4.0.4
-      postcss: 8.5.15
-      rolldown: 1.0.2
-      tinyglobby: 0.2.16
-    optionalDependencies:
-      '@types/node': 24.12.4
-      '@vitejs/devtools': 0.1.13(@pnpm/logger@1001.0.1)(typescript@5.9.3)(vite@8.0.14)
-      esbuild: 0.28.1
-      fsevents: 2.3.3
-      jiti: 2.6.1
-      sass: 1.99.0
-      sass-embedded: 1.99.0
-      terser: 5.46.1
-      tsx: 4.19.1
-      yaml: 2.9.1
 
   vite@8.0.14(@types/node@24.12.4)(esbuild@0.28.1)(jiti@2.6.1)(sass-embedded@1.99.0)(sass@1.99.0)(terser@5.46.1)(tsx@4.19.1)(yaml@2.9.1):
     dependencies:

@@ -16,7 +16,6 @@
     "directory": "plugins/plugin-core"
   },
   "files": [
-    "dist",
     "src"
   ],
   "type": "module",
@@ -25,7 +24,6 @@
   "browser": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
-    "build": "tsdown",
     "format": "oxfmt .",
     "typecheck": "tsc -b",
     "lint": "oxlint ."
@@ -52,7 +50,6 @@
     "@types/semver": "^7.7.1",
     "@types/tar": "7.0.87",
     "@types/yauzl": "2.10.3",
-    "tsdown": "0.21.2",
     "typescript": "5.9.3"
   }
 }

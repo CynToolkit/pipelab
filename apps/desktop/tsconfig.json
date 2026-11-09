@@ -21,7 +21,6 @@
     "vite.base.config.mts",
     "vite.main.config.mts",
     "vite.preload.config.mts",
-    "vite.renderer.config.mts",
     "forge.config.ts"
   ],
   "references": [
