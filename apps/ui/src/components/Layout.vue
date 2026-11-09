@@ -93,7 +93,7 @@
               <button
                 type="button"
                 class="project-new-btn"
-                :disabled="!filesReady || !isReady || authStore.subscriptionStatus !== 'ready'"
+                :disabled="!filesReady || !isReady"
                 @click="openNewProject"
               >
                 <i class="mdi mdi-plus" aria-hidden="true" />
@@ -555,9 +555,7 @@ const isRenameProjectModalVisible = ref(false);
 const isSavingProject = ref(false);
 const newProjectName = ref("");
 const renameProjectName = ref("");
-const canCreateProject = computed(
-  () => newProjectName.value.trim().length > 0 && authStore.subscriptionStatus === "ready",
-);
+const canCreateProject = computed(() => newProjectName.value.trim().length > 0);
 const agentNoticeTitle = computed(() => {
   if (agentStatus.value === "offline") return "Pipelab agent not connected";
   if (agentStatus.value === "starting") return "Starting Pipelab";
