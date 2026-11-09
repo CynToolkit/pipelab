@@ -41,9 +41,7 @@ const ignoreDesktopSource = (filePath: string) => {
   const allowed = packagedSourceFiles.concat(packagedSourceRoots);
   return !allowed.some(
     (root) =>
-      normalized === root ||
-      normalized.startsWith(root + "/") ||
-      root.startsWith(normalized + "/"),
+      normalized === root || normalized.startsWith(root + "/") || root.startsWith(normalized + "/"),
   );
 };
 
@@ -75,18 +73,8 @@ async function renameInstallers(platform: string, arch: string) {
 
     const extension = path.extname(file);
     const basename = path.basename(file);
-    if (
-      [".zip", ".dmg", ".exe", ".deb", ".rpm"].includes(extension) &&
-      !basename.includes("-v")
-    ) {
-      const renamed =
-        "pipelab-desktop-v" +
-        packageJson.version +
-        "-" +
-        os +
-        "-" +
-        arch +
-        extension;
+    if ([".zip", ".dmg", ".exe", ".deb", ".rpm"].includes(extension) && !basename.includes("-v")) {
+      const renamed = "pipelab-desktop-v" + packageJson.version + "-" + os + "-" + arch + extension;
       await fs.rename(file, path.join(path.dirname(file), renamed));
     }
   }
@@ -177,7 +165,7 @@ const config: ForgeConfig = {
         { entry: "src/main.ts", config: "vite.main.config.mts" },
         { entry: "src/preload.ts", config: "vite.preload.config.mts" },
       ],
-      renderer: [{ name: "main_window", config: "vite.renderer.config.mts" }],
+      renderer: [],
     }),
     new FusesPlugin({
       version: FuseVersion.V1,

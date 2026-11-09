@@ -10,9 +10,6 @@
       "dependsOn": ["^build", "@pipelab/ui#build"],
       "outputs": ["dist/**"]
     },
-    "@pipelab/core-node#build": {
-      "dependsOn": []
-    },
     "package": {
       "dependsOn": ["build"],
       "outputs": ["out/**", "bin/**"]

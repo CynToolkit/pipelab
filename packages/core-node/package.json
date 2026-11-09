@@ -27,7 +27,6 @@
     }
   },
   "scripts": {
-    "build": "tsdown",
     "format": "oxfmt .",
     "lint": "oxlint .",
     "typecheck": "tsc -b",
@@ -70,7 +69,6 @@
     "@types/yauzl": "2.10.3",
     "memfs": "4.57.6",
     "pacote": "21.5.1",
-    "tsdown": "0.21.2",
     "typescript": "^5.0.0",
     "vitest": "3.1.4"
   }
