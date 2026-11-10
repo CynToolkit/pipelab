@@ -726,6 +726,7 @@ export const registerWorkflowHandlers = (context: PipelabContext) => {
         env: value.env,
         connectionValues: value.connectionValues,
         connectionOverrides: value.connectionOverrides,
+        skipPreflight: value.skipPreflight,
         signal: controller.signal,
         onRunCreated: (id) => {
           runId = id;

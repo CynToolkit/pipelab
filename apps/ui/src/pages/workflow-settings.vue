@@ -1,11 +1,6 @@
 <template>
-  <WorkflowShell
-    :flow-id="flowId"
-    :project-id="projectId"
-    :title="flow?.name || 'Workflow'"
-    active="settings"
-  >
-    <template #actions>
+  <div class="workflow-page">
+    <Teleport v-if="actionsTarget" :to="actionsTarget">
       <span v-if="flow" class="autosave-state" :class="`state-${saveState}`">
         <i
           :class="
@@ -23,16 +18,16 @@
         label="Retry save"
         text
         size="small"
-        @click="save().catch(() => {})"
+        @click="workflowDoc.save().catch(() => {})"
       />
-    </template>
+    </Teleport>
 
     <main class="settings-page" :aria-busy="!flow && !loadError && agent.isReady.value">
       <Message v-if="loadError" severity="error" role="alert">
         <div class="state-copy">
           <strong>Couldn’t load workflow settings</strong>
           <span>{{ loadError }}</span>
-          <Button label="Retry" text size="small" @click="loadWorkflow" />
+          <Button label="Retry" text size="small" @click="workflowDoc.load()" />
         </div>
       </Message>
       <p v-else-if="!agent.isReady.value" class="inline-state" role="status">
@@ -200,29 +195,33 @@
         </section>
       </div>
     </main>
-  </WorkflowShell>
+  </div>
   <ConfirmDialog group="retention-apply" />
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onUnmounted, ref, toRaw, watch } from "vue";
-import { onBeforeRouteLeave, useRoute } from "vue-router";
+import { computed, nextTick, ref, watch } from "vue";
+import { useRoute } from "vue-router";
 import Button from "primevue/button";
 import Checkbox from "primevue/checkbox";
 import ConfirmDialog from "primevue/confirmdialog";
 import { useConfirm } from "primevue/useconfirm";
 import InputNumber from "primevue/inputnumber";
 import Message from "primevue/message";
-import type { BuildHistoryEntry, ReleaseConfig, ReleaseWorkflowSettings } from "@pipelab/shared";
+import type { BuildHistoryEntry, ReleaseWorkflowSettings } from "@pipelab/shared";
 import { useRouteReadiness } from "@renderer/composables/useRouteReadiness";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
-import WorkflowShell from "../components/WorkflowShell.vue";
 import { useAPI } from "../composables/api";
+import { useWorkflowTab } from "../composables/workflow-header-state";
+import { useWorkflowDocument } from "../composables/useWorkflowDocument";
 import { requestNotificationPermission } from "../utils/run-notifications";
-import { createSerializedTaskQueue } from "./release-flow-model";
 import { retentionPreview, type RetentionPreviewRow } from "./workflow-retention-preview";
 
 const route = useRoute();
+const actionsTarget = useWorkflowTab(() => {
+  void workflowDoc.sync();
+  void loadHistory();
+});
 const api = useAPI();
 const agent = useAgentAvailability();
 const confirm = useConfirm();
@@ -245,18 +244,11 @@ const onTabKeydown = (event: KeyboardEvent) => {
   void nextTick(() => document.getElementById(`settings-tab-${activeTab.value}`)?.focus());
 };
 
-const flow = ref<ReleaseConfig>();
-const loadError = ref("");
-const saveError = ref("");
-const saveState = ref<"saving" | "saved" | "error">("saved");
+// The workflow is shared with every tab; this page only edits it.
+const workflowDoc = useWorkflowDocument({ flowId, projectId });
+const { flow, loadError, saveError, saveState } = workflowDoc;
 const notificationsBlocked = ref(false);
 useRouteReadiness(computed(() => !agent.isReady.value || !!flow.value || !!loadError.value));
-
-let hydrating = false;
-let loadGeneration = 0;
-let changeRevision = 0;
-let persistedRevision = 0;
-let saveTimer: ReturnType<typeof setTimeout> | undefined;
 
 const settings = (): ReleaseWorkflowSettings => (flow.value!.settings ??= {});
 const setSetting = (key: "checkDestinations" | "keepFailedArtifacts", value: boolean) => {
@@ -430,8 +422,7 @@ const applyRetentionNow = async () => {
   applyError.value = "";
   try {
     // The server applies the saved policy, so make sure the edits on screen are saved first.
-    clearTimeout(saveTimer);
-    await save();
+    await workflowDoc.flush();
     const result = await api.execute("workflow:retention:apply", {
       workflowId: flowId.value,
       projectId: projectId.value,
@@ -457,94 +448,14 @@ const confirmApplyRetention = () =>
     accept: () => void applyRetentionNow(),
   });
 
-const loadWorkflow = async () => {
-  if (!agent.isReady.value) return;
-  const generation = ++loadGeneration;
-  const requestedFlowId = flowId.value;
-  const requestedProjectId = projectId.value;
-  loadError.value = "";
-  try {
-    const result = await api.execute("workflow:load", {
-      workflowId: requestedFlowId,
-      projectId: requestedProjectId,
-    });
-    if (generation !== loadGeneration) return;
-    if (result.type === "error") throw new Error(result.ipcError);
-    if (result.result.id !== requestedFlowId || result.result.project !== requestedProjectId)
-      throw new Error("Loaded workflow identity does not match the requested route.");
-    hydrating = true;
-    flow.value = result.result;
-    await nextTick();
-    hydrating = false;
-    changeRevision = 0;
-    persistedRevision = 0;
-    saveState.value = "saved";
-    saveError.value = "";
-  } catch (cause) {
-    if (generation === loadGeneration) {
-      hydrating = false;
-      loadError.value = cause instanceof Error ? cause.message : String(cause);
-    }
-  }
-};
-
-const save = createSerializedTaskQueue(async () => {
-  if (!flow.value || persistedRevision === changeRevision) return;
-  if (!agent.isReady.value) {
-    saveState.value = "error";
-    saveError.value = "The engine disconnected before these settings could be saved.";
-    throw new Error(saveError.value);
-  }
-  const revision = changeRevision;
-  const snapshot = structuredClone(toRaw(flow.value));
-  saveState.value = "saving";
-  saveError.value = "";
-  const result = await api.execute("workflow:save", {
-    workflowId: snapshot.id,
-    projectId: snapshot.project,
-    data: snapshot,
-  });
-  if (result.type === "error") {
-    saveState.value = "error";
-    saveError.value = result.ipcError;
-    throw new Error(result.ipcError);
-  }
-  persistedRevision = revision;
-  if (persistedRevision !== changeRevision) void save().catch(() => {});
-  else saveState.value = "saved";
-});
-
-watch(
-  flow,
-  () => {
-    if (hydrating || !flow.value) return;
-    changeRevision += 1;
-    saveState.value = "saving";
-    clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => void save().catch(() => {}), 500);
-  },
-  { deep: true, flush: "sync" },
-);
-
 watch(
   [flowId, projectId, () => agent.isReady.value],
   () => {
-    void loadWorkflow();
     void loadHistory();
+    if (!workflowDoc.flow.value && !workflowDoc.loading.value) void workflowDoc.load();
   },
   { immediate: true },
 );
-
-onBeforeRouteLeave(async () => {
-  clearTimeout(saveTimer);
-  try {
-    await save();
-    return true;
-  } catch {
-    return false;
-  }
-});
-onUnmounted(() => clearTimeout(saveTimer));
 </script>
 
 <style scoped>

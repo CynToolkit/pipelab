@@ -196,6 +196,8 @@ export type IpcDefinition = {
       env?: Readonly<Record<string, string | undefined>>;
       connectionValues?: WorkflowConnectionValues;
       connectionOverrides?: readonly WorkflowConnectionOverride[];
+      /** Run without checking destination accounts first. Same as the CLI's `--skip-preflight`. */
+      skipPreflight?: boolean;
     },
     (
       | { type: "workflow-event"; data: WorkflowEvent }

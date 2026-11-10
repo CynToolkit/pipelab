@@ -14,3 +14,5 @@ feat: preflight checks, host-aware builds, workflow settings and a Plan graph
 - Retention is applied at the end of each run and in the background at app start.
 - Duplicate a build from the Builds page.
 - New Plan tab draws the execution plan as a zoomable, pannable graph.
+- The workflow header and tabs stay mounted while you switch tabs; tabs are kept alive, remember their scroll position, and share one workflow document so an edit on one tab is never overwritten by another.
+- Artifacts moved under Runs, Settings is a gear in the tab bar, and Ship has a menu with "Ship without checking destinations" (`skipPreflight` on `workflow:execute`) and "View plan".

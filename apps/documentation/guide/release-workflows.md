@@ -99,7 +99,12 @@ require the agent.
 ## Workflow sections
 
 The workflow editor has these sections: **Configuration**, **Builds**,
-**Artifacts**, **Plan**, **Runs**, and **Settings**. Configuration is the main view for the source and
+**Plan**, **Runs** (with its **Artifacts** view) and **Settings**, the gear at
+the right of the tab bar. The header and tab bar stay in place while you switch
+sections, and each section keeps its open rows and scroll position; the tab bar sticks to the top as you scroll. Builds shows how many are
+enabled, and a badge next to the title counts planner errors and opens the Plan.
+The arrow next to **Ship** offers *Ship without checking destinations* (the CLI's
+`--skip-preflight`, for one run) and *View plan*. Configuration is the main view for the source and
 destinations. Its settings save automatically as you edit; there is no Save
 button. Opening a workflow does not change its saved build or routing choices.
 Choose **Add destination** to open the provider picker. Provider-specific

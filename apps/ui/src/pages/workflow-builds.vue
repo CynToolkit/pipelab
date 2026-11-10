@@ -1,11 +1,6 @@
 <template>
-  <WorkflowShell
-    :flow-id="flowId"
-    :project-id="projectId"
-    :title="flow?.name || 'Workflow'"
-    active="builds"
-  >
-    <template #actions>
+  <div class="workflow-page">
+    <Teleport v-if="actionsTarget" :to="actionsTarget">
       <span v-if="flow" class="autosave-state" :class="`state-${saveState}`">
         <i
           :class="
@@ -26,7 +21,7 @@
         @click="save().catch(() => {})"
       />
       <Button label="Add build" icon="pi pi-plus" @click="openAddBuild" />
-    </template>
+    </Teleport>
 
     <main class="builds-page" :aria-busy="!flow && !loadError && agent.isReady.value">
       <Message v-if="loadError" severity="error" role="alert">
@@ -213,7 +208,7 @@
         </section>
       </template>
     </main>
-  </WorkflowShell>
+  </div>
 
   <Dialog
     class="pl-dialog"
@@ -553,7 +548,7 @@
 
 <script setup lang="ts">
 import { useRouteReadiness } from "@renderer/composables/useRouteReadiness";
-import { computed, nextTick, onUnmounted, ref, toRaw, watch } from "vue";
+import { computed, nextTick, onScopeDispose, onUnmounted, ref, toRaw, watch } from "vue";
 import { nanoid } from "nanoid";
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from "vue-router";
 import Button from "primevue/button";
@@ -573,14 +568,14 @@ import type {
   ReleaseConfig,
   ReleaseFieldDefinition,
   ReleaseFieldOption,
-  ReleasePlan,
   ValidationIssue,
 } from "@pipelab/shared";
 import { RELEASE_CONFIG_VERSION } from "@pipelab/shared";
-import WorkflowShell from "../components/WorkflowShell.vue";
 import ReleaseFieldControl from "../components/ReleaseFieldControl.vue";
 import ReleaseBeforeBuildHooks from "../components/ReleaseBeforeBuildHooks.vue";
 import { useAPI } from "../composables/api";
+import { useWorkflowTab } from "../composables/workflow-header-state";
+import { useWorkflowDocument } from "../composables/useWorkflowDocument";
 import { useAppStore } from "../store/app";
 import { useConnectionsStore } from "../store/connections";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
@@ -601,7 +596,6 @@ import {
   buildTargetsFor,
   createBuildProfile,
   duplicateBuildProfile,
-  createSerializedTaskQueue,
   deploymentSlotLabel,
   deduplicateValidationIssues,
   invalidEnvironmentBindingPaths,
@@ -625,7 +619,6 @@ import {
   buildIssueControlId,
   buildInspectionSignature,
   hasUnsavedReleaseWorkflowState,
-  persistBuildChangesBeforeNavigation,
   preventBeforeUnloadIfUnsaved,
   producerInspectionResponseIsCurrent,
   resolveUnappliedBuildNavigation,
@@ -647,6 +640,7 @@ import {
 } from "../utils/release-connection-bindings";
 
 const route = useRoute();
+const actionsTarget = useWorkflowTab(() => void workflowDoc.sync().then(loadWorkflow));
 const router = useRouter();
 const api = useAPI();
 const confirm = useConfirm();
@@ -670,17 +664,26 @@ const compatibleRouteRequested = computed(() =>
   Boolean(compatibleDestinationId.value || compatibleSlotId.value),
 );
 const catalog = computed(() => appStore.releaseCatalog);
-const flow = ref<ReleaseConfig>();
+// The workflow, its plan and the save queue are shared with every tab; this page edits them.
+const workflowDoc = useWorkflowDocument({ flowId, projectId });
+const {
+  flow,
+  plan,
+  planning,
+  plannerError,
+  saveError,
+  saveState,
+  changeRevision,
+  persistedRevision,
+  refreshPlan,
+  save,
+} = workflowDoc;
 const invalidEnvironmentPaths = computed(() =>
   flow.value ? invalidEnvironmentBindingPaths(flow.value) : [],
 );
-const plan = ref<ReleasePlan>();
-const planning = ref(false);
-const plannerError = ref("");
+// Problems loading this page's own data (catalog, connections, providers) or the workflow.
 const loadError = ref("");
 useRouteReadiness(computed(() => !agent.isReady.value || !!flow.value || !!loadError.value));
-const saveError = ref("");
-const saveState = ref<"saving" | "saved" | "error">("saved");
 const producerInspectionIssues = ref<ValidationIssue[]>([]);
 const producerInspectionOptions = ref<Record<string, ReleaseFieldOption[]>>({});
 const compatibleCandidates = ref<CompatibleBuildCandidate[]>([]);
@@ -828,8 +831,7 @@ const setConnectionFieldAlias = async (
         if (renamed.draftBuild) draftBuild.value = renamed.draftBuild;
         if (!workflowChanged) return;
         flow.value = renamed.config;
-        clearTimeout(saveTimer);
-        await save();
+        await workflowDoc.flush();
       },
     });
   } catch (cause) {
@@ -1006,16 +1008,9 @@ const setField = (config: Record<string, unknown>, key: string, value: unknown) 
 };
 
 let loadGeneration = 0;
-let saveGeneration = 0;
-let latestPlanRequest = 0;
 let latestCompatibleRequest = 0;
 let latestBuildInputRequest = 0;
 let latestProducerInspectRequest = 0;
-const changeRevision = ref(0);
-const persistedRevision = ref(0);
-let hydrating = false;
-let saveTimer: ReturnType<typeof setTimeout> | undefined;
-let planTimer: ReturnType<typeof setTimeout> | undefined;
 let producerInspectTimer: ReturnType<typeof setTimeout> | undefined;
 let handledBuildIssueKey = "";
 const persistedDraftBuild = computed(() =>
@@ -1092,23 +1087,14 @@ const confirmDiscardStagedBuild = (leavingBuilds = false) =>
       onHide: () => settle(false),
     });
   });
-const persistPendingChanges = () =>
-  persistBuildChangesBeforeNavigation(
-    hasUnsavedWorkflowChanges,
-    () => {
-      clearTimeout(saveTimer);
-      saveTimer = undefined;
-    },
-    save,
-  );
-const prepareToLeaveBuilds = async () => {
-  if (!(await persistPendingChanges())) return false;
-  return resolveUnappliedBuildNavigation(
+// Pending edits are saved by the shared document, so switching tabs needs no flush here;
+// the layout flushes when the workflow itself is left.
+const prepareToLeaveBuilds = () =>
+  resolveUnappliedBuildNavigation(
     hasUnappliedBuildChanges.value,
     () => confirmDiscardStagedBuild(true),
     discardBuildSettings,
   );
-};
 onBeforeRouteLeave(() => prepareToLeaveBuilds());
 onBeforeRouteUpdate((to, from) => {
   if (to.params.flowId === from.params.flowId && to.params.projectId === from.params.projectId)
@@ -1118,164 +1104,47 @@ onBeforeRouteUpdate((to, from) => {
 const loadWorkflow = async () => {
   if (!agent.isReady.value) return;
   const generation = ++loadGeneration;
-  const requestedFlowId = flowId.value;
-  const requestedProjectId = projectId.value;
-  latestPlanRequest += 1;
   latestCompatibleRequest += 1;
-  if (
-    flow.value &&
-    (flow.value.id !== requestedFlowId || flow.value.project !== requestedProjectId)
-  ) {
-    clearTimeout(saveTimer);
-    saveTimer = undefined;
-    clearTimeout(planTimer);
-    if (!(await persistPendingChanges())) return;
-    discardBuildSettings();
-    handledBuildIssueKey = "";
-  }
-  if (generation !== loadGeneration) return;
   loadError.value = "";
-  plannerError.value = "";
   try {
-    const [, workflowResult] = await Promise.all([
+    const [, , , loaded] = await Promise.all([
       appStore.loadReleaseCatalog(),
-      api.execute("workflow:load", {
-        workflowId: requestedFlowId,
-        projectId: requestedProjectId,
-      }),
       connectionsStore.init(),
       appStore.loadProviderDefinitions(),
+      workflowDoc.ensure(),
     ]);
     if (generation !== loadGeneration) return;
-    if (workflowResult.type === "error") throw new Error(workflowResult.ipcError);
+    if (!loaded) throw new Error(workflowDoc.loadError.value || "Unable to load this workflow.");
     if (connectionsStore.status === "error")
       throw new Error(connectionsStore.error || "Unable to load connections.");
     if (appStore.providerStatus === "error")
       throw new Error(appStore.providerError || "Unable to load provider definitions.");
-    if (
-      workflowResult.result.id !== requestedFlowId ||
-      workflowResult.result.project !== requestedProjectId
-    )
-      throw new Error("Loaded workflow identity does not match the requested route.");
-
-    const sameWorkflow =
-      flow.value?.id === requestedFlowId && flow.value?.project === requestedProjectId;
-    const preserveDraft = sameWorkflow && hasUnsavedWorkflowChanges();
-    const loadedWorkflow = workflowResult.result;
-    hydrating = true;
-    if (!preserveDraft) flow.value = loadedWorkflow;
-    await nextTick();
-    hydrating = false;
-    if (!preserveDraft) {
-      changeRevision.value = 0;
-      persistedRevision.value = 0;
-      saveState.value = "saved";
-      saveError.value = "";
-    }
-    await refreshPlan();
+    if (!plan.value && !planning.value) await refreshPlan();
     if (generation === loadGeneration) await openRequestedBuildIssue();
     if (generation === loadGeneration && compatibleRouteRequested.value)
       await refreshCompatibleBuilds();
   } catch (cause) {
-    if (generation === loadGeneration) {
-      hydrating = false;
+    if (generation === loadGeneration)
       loadError.value = cause instanceof Error ? cause.message : String(cause);
-    }
   }
 };
 
-const refreshPlan = async () => {
-  if (!flow.value || !agent.isReady.value) return;
-  const requestId = ++latestPlanRequest;
-  const config = structuredClone(toRaw(flow.value));
-  planning.value = true;
-  plannerError.value = "";
-  try {
-    const result = await api.execute("release:plan", { config });
-    if (requestId !== latestPlanRequest) return;
-    if (result.type === "error") {
-      plan.value = undefined;
-      plannerError.value = result.ipcError;
-      return;
-    }
-    plan.value = result.result;
-  } catch (cause) {
-    if (requestId === latestPlanRequest) {
-      plan.value = undefined;
-      plannerError.value = cause instanceof Error ? cause.message : String(cause);
-    }
-  } finally {
-    if (requestId === latestPlanRequest) planning.value = false;
-  }
-};
-
-const save = createSerializedTaskQueue(async () => {
-  if (!flow.value) return;
-  if (invalidEnvironmentPaths.value.length > 0) {
-    saveState.value = "error";
-    saveError.value = "Fix invalid environment variable names before saving workflow changes.";
-    throw new Error(saveError.value);
-  }
-  if (!agent.isReady.value) {
-    if (!hasUnsavedWorkflowChanges()) return;
-    saveState.value = "error";
-    saveError.value = "The engine disconnected before these workflow changes could be saved.";
-    throw new Error(saveError.value);
-  }
-  if (connectionsStore.status !== "ready" || appStore.providerStatus !== "ready") {
-    if (!hasUnsavedWorkflowChanges()) return;
-    saveState.value = "error";
-    saveError.value = "Required workflow data is unavailable before save.";
-    throw new Error(saveError.value);
-  }
-  const requestGeneration = ++saveGeneration;
-  const revision = changeRevision.value;
-  const snapshot = structuredClone(toRaw(flow.value));
-  saveState.value = "saving";
-  saveError.value = "";
-  const result = await api.execute("workflow:save", {
-    workflowId: snapshot.id,
-    projectId: snapshot.project,
-    data: snapshot,
-  });
-  if (requestGeneration !== saveGeneration || !agent.isReady.value)
-    throw new Error("The connection changed before the save could be confirmed.");
-  if (result.type === "error") {
-    saveState.value = "error";
-    saveError.value = result.ipcError;
-    throw new Error(result.ipcError);
-  }
-  persistedRevision.value = revision;
-  if (persistedRevision.value !== changeRevision.value) void save().catch(() => {});
-  else {
-    saveState.value = "saved";
-    saveError.value = "";
+// Edits and plans can come from any tab; this page only reacts to the ones that matter to it.
+const stopWatchingEdits = workflowDoc.onEdit(() => {
+  latestCompatibleRequest += 1;
+  latestBuildInputRequest += 1;
+  if (compatibleRouteRequested.value) {
+    compatibleCandidates.value = [];
+    compatibleChecking.value = true;
   }
 });
-
-watch(
-  flow,
-  () => {
-    if (hydrating || !flow.value) return;
-    changeRevision.value += 1;
-    latestPlanRequest += 1;
-    latestCompatibleRequest += 1;
-    latestBuildInputRequest += 1;
-    if (compatibleRouteRequested.value) {
-      compatibleCandidates.value = [];
-      compatibleChecking.value = true;
-    }
-    clearTimeout(saveTimer);
-    clearTimeout(planTimer);
-    planning.value = true;
-    saveTimer = setTimeout(() => void save().catch(() => {}), 700);
-    planTimer = setTimeout(async () => {
-      await refreshPlan();
-      if (compatibleRouteRequested.value) void refreshCompatibleBuilds();
-    }, 300);
-  },
-  { deep: true, flush: "sync" },
-);
+const stopWatchingPlans = workflowDoc.onPlanned(() => {
+  if (compatibleRouteRequested.value) void refreshCompatibleBuilds();
+});
+onScopeDispose(() => {
+  stopWatchingEdits();
+  stopWatchingPlans();
+});
 
 const refreshCompatibleBuilds = async () => {
   const requestId = ++latestCompatibleRequest;
@@ -1852,13 +1721,7 @@ watch(
   (ready) => {
     if (!ready) {
       loadGeneration += 1;
-      saveGeneration += 1;
-      latestPlanRequest += 1;
       latestCompatibleRequest += 1;
-      if (hasUnsavedWorkflowChanges()) {
-        saveState.value = "error";
-        saveError.value = "The engine disconnected before these workflow changes could be saved.";
-      }
       if (!flow.value) loadError.value = "";
       return;
     }
@@ -1868,9 +1731,6 @@ watch(
 );
 watch([flowId, projectId], () => {
   loadGeneration++;
-  saveGeneration++;
-  flow.value = undefined;
-  plan.value = undefined;
   loadError.value = "";
   if (agent.isReady.value) void loadWorkflow();
 });
@@ -1886,12 +1746,9 @@ onUnmounted(() => {
     beforeUnloadRegistered = false;
   }
   loadGeneration += 1;
-  latestPlanRequest += 1;
   latestCompatibleRequest += 1;
   latestBuildInputRequest += 1;
   latestProducerInspectRequest += 1;
-  clearTimeout(saveTimer);
-  clearTimeout(planTimer);
   clearTimeout(producerInspectTimer);
 });
 </script>

@@ -1,11 +1,5 @@
 <template>
-  <WorkflowShell
-    :flow-id="flowId"
-    :project-id="projectId"
-    :title="entry?.workflowName || entry?.projectName || 'Workflow'"
-    :subtitle="entry?.version ? `Release ${entry.version}` : `Run #${shortId}`"
-    active="runs"
-  >
+  <div class="workflow-page">
     <main v-if="entry" class="run-page">
       <Message v-if="error" severity="error" :closable="false" role="alert" class="run-error">{{
         error
@@ -27,31 +21,31 @@
             </div>
           </div>
         </div>
-      <nav class="detail-tabs" aria-label="Run detail sections">
-        <button
-          :class="{ active: activePanel === 'logs' }"
-          :aria-current="activePanel === 'logs' ? 'page' : undefined"
-          @click="activePanel = 'logs'"
-        >
-          <i class="mdi mdi-console-line" />Logs
-        </button>
-        <button
-          :class="{ active: activePanel === 'artifacts' }"
-          :aria-current="activePanel === 'artifacts' ? 'page' : undefined"
-          @click="activePanel = 'artifacts'"
-        >
-          <i class="mdi mdi-package-variant-closed" />Artifacts
-          <span>{{ entry.artifacts?.length || 0 }}</span>
-        </button>
-        <button
-          :class="{ active: activePanel === 'deliveries' }"
-          :aria-current="activePanel === 'deliveries' ? 'page' : undefined"
-          @click="activePanel = 'deliveries'"
-        >
-          <i class="mdi mdi-cloud-upload-outline" />Deliveries
-          <span>{{ entry.deliveries?.length || 0 }}</span>
-        </button>
-      </nav>
+        <nav class="detail-tabs" aria-label="Run detail sections">
+          <button
+            :class="{ active: activePanel === 'logs' }"
+            :aria-current="activePanel === 'logs' ? 'page' : undefined"
+            @click="activePanel = 'logs'"
+          >
+            <i class="mdi mdi-console-line" />Logs
+          </button>
+          <button
+            :class="{ active: activePanel === 'artifacts' }"
+            :aria-current="activePanel === 'artifacts' ? 'page' : undefined"
+            @click="activePanel = 'artifacts'"
+          >
+            <i class="mdi mdi-package-variant-closed" />Artifacts
+            <span>{{ entry.artifacts?.length || 0 }}</span>
+          </button>
+          <button
+            :class="{ active: activePanel === 'deliveries' }"
+            :aria-current="activePanel === 'deliveries' ? 'page' : undefined"
+            @click="activePanel = 'deliveries'"
+          >
+            <i class="mdi mdi-cloud-upload-outline" />Deliveries
+            <span>{{ entry.deliveries?.length || 0 }}</span>
+          </button>
+        </nav>
         <Button
           v-if="playwrightVideoPath"
           :label="videoCopied ? 'Copied' : 'Copy video path'"
@@ -105,9 +99,7 @@
 
       <section v-if="activePanel === 'logs'" class="execution-layout" aria-label="Execution logs">
         <aside class="step-sidebar" aria-label="Execution steps">
-          <div class="sidebar-heading">
-            Steps
-          </div>
+          <div class="sidebar-heading">Steps</div>
           <button
             class="step-item all-logs"
             :class="{ selected: selectedStep === null }"
@@ -225,7 +217,9 @@
                 formatLogTime(log.timestamp)
               }}</time>
               <span class="log-level">{{ log.level.toUpperCase() }}</span>
-              <span v-if="log.source && selectedStep === null" class="log-source">{{ log.source }}</span>
+              <span v-if="log.source && selectedStep === null" class="log-source">{{
+                log.source
+              }}</span>
               <pre>{{ log.message }}</pre>
             </div>
             <span v-if="entry.status === 'running'" class="cursor" aria-hidden="true" />
@@ -337,14 +331,13 @@
         >
       </div>
     </main>
-  </WorkflowShell>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { useRouteReadiness } from "@renderer/composables/useRouteReadiness";
 import { computed, nextTick, onUnmounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import WorkflowShell from "@renderer/components/WorkflowShell.vue";
 import Button from "primevue/button";
 import Tag from "primevue/tag";
 import Message from "primevue/message";
@@ -392,13 +385,19 @@ const stepDestination = (step: ExecutionStep) =>
 const stepTitle = (step: ExecutionStep): string => {
   const definition = stepDestination(step);
   if (!definition) return runStepLabel(step);
-  const base = step.destinationName ? `${definition.label} — ${step.destinationName}` : definition.label;
-  const siblings = entry.value?.steps.filter((item) => item.destinationId === step.destinationId) ?? [];
-  return siblings.length > 1 ? `${base} · ${siblings.findIndex((item) => item.id === step.id) + 1}` : base;
+  const base = step.destinationName
+    ? `${definition.label} — ${step.destinationName}`
+    : definition.label;
+  const siblings =
+    entry.value?.steps.filter((item) => item.destinationId === step.destinationId) ?? [];
+  return siblings.length > 1
+    ? `${base} · ${siblings.findIndex((item) => item.id === step.id) + 1}`
+    : base;
 };
 const stepIcon = (step: ExecutionStep) => {
   const definition = stepDestination(step);
-  if (definition) return providerDestinationIcon(appStore.providerDefinitions, definition.id, definition.icon);
+  if (definition)
+    return providerDestinationIcon(appStore.providerDefinitions, definition.id, definition.icon);
   return step.uses ? providerMetadataIcon(appStore.providerDefinitions, step.uses) : undefined;
 };
 const entry = ref<BuildHistoryEntry>();
@@ -422,7 +421,9 @@ const diagnosticTitle = (diagnostic: { stepId?: string; title: string }) => {
 const skipReason = (step: { status: string; blockedBy?: string[] }) => {
   if (step.status !== "skipped" || !step.blockedBy?.length) return "";
   const blocker = entry.value?.steps.find((candidate) => candidate.id === step.blockedBy![0]);
-  return blocker ? `Skipped: ${stepTitle(blocker)} ${blocker.status === "skipped" ? "was skipped" : "failed"}` : "Skipped";
+  return blocker
+    ? `Skipped: ${stepTitle(blocker)} ${blocker.status === "skipped" ? "was skipped" : "failed"}`
+    : "Skipped";
 };
 const expandedSteps = reactive(new Set<string>());
 const phasesOpen = (step: { id: string; status: string }) =>

@@ -1,10 +1,5 @@
 <template>
-  <WorkflowShell
-    :flow-id="flowId"
-    :project-id="projectId"
-    :title="flow?.name || 'Workflow'"
-    active="plan"
-  >
+  <div class="workflow-page">
     <main class="plan-page" :aria-busy="planning">
       <header class="list-heading">
         <h2>Plan</h2>
@@ -94,11 +89,12 @@
         </li>
       </ul>
     </main>
-  </WorkflowShell>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, toRaw, watch } from "vue";
+import { useWorkflowTab } from "../composables/workflow-header-state";
+import { computed, nextTick, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import Button from "primevue/button";
 import Message from "primevue/message";
@@ -109,11 +105,9 @@ import { Controls } from "@vue-flow/controls";
 import "@vue-flow/core/dist/style.css";
 import "@vue-flow/core/dist/theme-default.css";
 import "@vue-flow/controls/dist/style.css";
-import type { ReleaseConfig, ReleasePlan } from "@pipelab/shared";
 import { useRouteReadiness } from "@renderer/composables/useRouteReadiness";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
-import WorkflowShell from "../components/WorkflowShell.vue";
-import { useAPI } from "../composables/api";
+import { useWorkflowDocument } from "../composables/useWorkflowDocument";
 import { useAppStore } from "../store/app";
 import { providerIconClass, providerIconImage } from "../utils/provider-icons";
 import {
@@ -132,18 +126,21 @@ const FALLBACK_ICON = {
 } as const;
 
 const route = useRoute();
-const api = useAPI();
+useWorkflowTab(() => void workflowDoc.sync());
 const agent = useAgentAvailability();
 const appStore = useAppStore();
 const { fitView } = useVueFlow("plan-graph");
 const flowId = computed(() => String(route.params.flowId));
 const projectId = computed(() => String(route.params.projectId));
 
-const flow = ref<ReleaseConfig>();
-const plan = ref<ReleasePlan>();
+// The plan belongs to the shared workflow document; this page only draws it.
+const workflowDoc = useWorkflowDocument({ flowId, projectId });
+const { flow, plan, planning } = workflowDoc;
 const layout = ref<PlanGraphLayout>();
-const error = ref("");
-const planning = ref(false);
+const layoutError = ref("");
+const error = computed(
+  () => workflowDoc.plannerError.value || workflowDoc.loadError.value || layoutError.value,
+);
 useRouteReadiness(computed(() => !agent.isReady.value || !!plan.value || !!error.value));
 
 const flowNodes = computed<Node[]>(() =>
@@ -180,52 +177,44 @@ const frame = () => {
   void fitView({ padding: 0.12, maxZoom: 1 });
 };
 
-let generation = 0;
-const load = async () => {
-  if (!agent.isReady.value) return;
-  const current = ++generation;
-  planning.value = true;
-  error.value = "";
-  try {
-    const loaded = await api.execute("workflow:load", {
-      workflowId: flowId.value,
-      projectId: projectId.value,
-    });
-    if (current !== generation) return;
-    if (loaded.type === "error") throw new Error(loaded.ipcError);
-    flow.value = loaded.result;
-    const planned = await api.execute("release:plan", {
-      config: structuredClone(toRaw(loaded.result)),
-    });
-    if (current !== generation) return;
-    if (planned.type === "error") throw new Error(planned.ipcError);
-    const laidOut = await layoutPlanGraph(
-      planned.result.graph,
-      loaded.result,
-      appStore.releaseCatalog,
-      appStore.providerDefinitions,
-    );
-    if (current !== generation) return;
-    plan.value = planned.result;
-    layout.value = laidOut;
-    // On a refresh the graph is already mounted, so frame the new layout here; the first
-    // render is framed by the `init` event once Vue Flow has measured its viewport.
-    if (viewportReady) {
-      await nextTick();
-      frame();
-    }
-  } catch (cause) {
-    if (current === generation) {
-      plan.value = undefined;
+let layoutGeneration = 0;
+// Lay the plan out whenever it changes (an edit on any tab, or a refresh).
+watch(
+  plan,
+  async (value) => {
+    const current = ++layoutGeneration;
+    const config = flow.value;
+    if (!value || !config) {
       layout.value = undefined;
-      error.value = cause instanceof Error ? cause.message : String(cause);
+      return;
     }
-  } finally {
-    if (current === generation) planning.value = false;
-  }
-};
+    try {
+      const laidOut = await layoutPlanGraph(
+        value.graph,
+        config,
+        appStore.releaseCatalog,
+        appStore.providerDefinitions,
+      );
+      if (current !== layoutGeneration) return;
+      layoutError.value = "";
+      layout.value = laidOut;
+      // On a refresh the graph is already mounted, so frame the new layout here; the first
+      // render is framed by the `init` event once Vue Flow has measured its viewport.
+      if (viewportReady) {
+        await nextTick();
+        frame();
+      }
+    } catch (cause) {
+      if (current === layoutGeneration) {
+        layout.value = undefined;
+        layoutError.value = cause instanceof Error ? cause.message : String(cause);
+      }
+    }
+  },
+  { immediate: true },
+);
 
-watch([() => agent.isReady.value, flowId, projectId], load, { immediate: true });
+const load = () => void workflowDoc.refreshPlan();
 </script>
 
 <style scoped>
