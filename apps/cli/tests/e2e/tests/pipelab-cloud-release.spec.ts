@@ -241,13 +241,13 @@ describe("Pipelab Cloud Release destination in the CLI workflow host", () => {
             id: "local-copy",
             provider: "@pipelab/core/destination/folder",
             enabled: true,
-            config: { outputDir: localDestination },
+            config: {},
             slots: [
               {
                 id: "local-only",
                 enabled: true,
                 input: { buildId: "cloud-profile", targetId: "local-only" },
-                config: {},
+                config: { outputDir: localDestination },
               },
             ],
           },

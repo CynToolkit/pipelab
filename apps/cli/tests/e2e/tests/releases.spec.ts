@@ -92,8 +92,8 @@ const zipFrom = (
   id: "zip",
   provider: "@pipelab/core/destination/zip",
   enabled: true,
-  config: { outputPath },
-  slots: [{ id: "archive", enabled: true, input, config: {} }],
+  config: {},
+  slots: [{ id: "archive", enabled: true, input, config: { outputPath } }],
 });
 
 describe("CLI release dry-run", () => {
@@ -321,13 +321,13 @@ describe("CLI release dry-run", () => {
               id: "copy-output",
               provider: "@pipelab/core/destination/zip",
               enabled: true,
-              config: { outputPath: destinationPath },
+              config: {},
               slots: [
                 {
                   id: "source",
                   enabled: true,
                   input: { source: true },
-                  config: {},
+                  config: { outputPath: destinationPath },
                 },
               ],
             },
@@ -400,13 +400,13 @@ describe("CLI release dry-run", () => {
               id: "folder",
               provider: "@pipelab/core/destination/folder",
               enabled: true,
-              config: { outputDir: folderOutput },
+              config: {},
               slots: [
                 {
                   id: "source",
                   enabled: true,
                   input: { buildId: "bundle", targetId: "zip" },
-                  config: {},
+                  config: { outputDir: folderOutput },
                 },
               ],
             },
@@ -436,13 +436,13 @@ describe("CLI release dry-run", () => {
               id: "zip",
               provider: "@pipelab/core/destination/zip",
               enabled: true,
-              config: { outputPath: zipOutput },
+              config: {},
               slots: [
                 {
                   id: "source",
                   enabled: true,
                   input: { source: true },
-                  config: {},
+                  config: { outputPath: zipOutput },
                 },
               ],
             },
@@ -500,13 +500,13 @@ describe("CLI release dry-run", () => {
             id: "folder",
             provider: "@pipelab/core/destination/folder",
             enabled: true,
-            config: { outputDir: outputPath },
+            config: {},
             slots: [
               {
                 id: "windows",
                 enabled: true,
                 input: { buildId: "electron", targetId: "windows-x64" },
-                config: {},
+                config: { outputDir: outputPath },
               },
             ],
           },

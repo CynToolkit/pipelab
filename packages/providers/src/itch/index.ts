@@ -51,13 +51,17 @@ export const itchDestination: ReleaseDestinationDefinition = {
         path: `slots.${slot.id}.config.channel`,
       })),
   ],
-  compile: (artifact, destination, slot) => [
+  compile: (artifact, destination, slot, context) => [
     {
       id: `itch-${destination.id}-${slot.id}`,
       uses: WORKFLOW_TASK_ID,
       needs: [artifact.reference.stepId],
       artifactInputs: { "input-folder": artifact.reference },
-      with: { ...destination.config, ...slot.config },
+      with: {
+        ...destination.config,
+        ...slot.config,
+        version: String(context.variables?.version ?? ""),
+      },
       delivery: { destinationId: destination.id, slotId: slot.id, artifact: artifact.reference },
     },
   ],

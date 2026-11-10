@@ -502,7 +502,7 @@ describe("ReleasePersistence", () => {
       {
         alias: "itch-production",
         required: true,
-        fields: [{ key: "apiKey", required: true }],
+        fields: [{ key: "apiKey", required: true, secret: true }],
         providerId: "@pipelab/plugin-itch",
         integrationName: "Itch Butler Account",
       },
@@ -546,12 +546,12 @@ describe("ReleasePersistence", () => {
           id: "folder",
           provider: "@pipelab/core/destination/folder",
           enabled: true,
-          config: { outputDir: join(context.userDataPath, "output") },
+          config: {},
           slots: [
             {
               id: "web",
               enabled: true,
-              config: {},
+              config: { outputDir: join(context.userDataPath, "output") },
               input: { buildId: "construct", targetId: "web" },
             },
           ],

@@ -185,7 +185,12 @@ is provided. It does not execute deployment tasks. See the
 
 Choose **Ship** in the editor, or use **Ship** beside a saved workflow on the
 project dashboard, to save the workflow, validate its configuration, and open
-the release details confirmation. Dashboard shipping opens the same
+the release details confirmation. Enter the release **Version** and
+**Description** (release notes) there; destinations that need them use these
+values, so there is nothing to retype per destination: Poki uploads them as its
+version name and notes, Steam uses the description as the build description,
+and Itch.io passes the version to Butler as `--userversion`. When the
+description is empty, Poki and Steam use the version instead. Dashboard shipping opens the same
 preflight as editor shipping while keeping the dashboard in view. Pipelab only
 starts the run after you confirm the release details and the planner reports a
 valid plan. If a workflow needs attention, the dashboard offers its blockers
@@ -196,6 +201,8 @@ resume automatically. After shipping, Pipelab opens the live run detail; use
 **Artifacts** to discover outputs across runs. The
 [Runs and history guide](/guide/runs-and-history) covers the run list,
 artifacts, and detail view.
+
+By default a failed step does not stop the others: a destination that already shipped cannot be rolled back, so the remaining independent steps still run, the run finishes with errors, and each step that could not run names the step it was waiting on. Turn on **Stop on first failure** in the Destinations section to stop starting new steps after the first failure. In the run view, destination steps use the same name and icon as their destination in the editor.
 
 Release workflows are not scheduled by Pipelab's current workflow format. The
 workflow runs when you choose **Ship** in the editor or on the dashboard, or

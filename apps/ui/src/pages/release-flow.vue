@@ -8,14 +8,14 @@
   >
     <template #actions>
       <span
-        v-if="flow"
+        v-if="flow && workflowReadinessState !== 'ready'"
         class="workflow-readiness"
         :class="`state-${workflowReadinessState}`"
         role="status"
       >
         <i :class="workflowReadinessIcon" aria-hidden="true" />{{ workflowReadinessLabel }}
       </span>
-      <span v-if="flow" class="autosave-state" :class="`state-${saveState}`"
+      <span v-if="flow && saveState !== 'saved'" class="autosave-state" :class="`state-${saveState}`"
         ><i
           :class="
             saveState === 'saving'
@@ -28,16 +28,6 @@
         {{ saveStateLabel }}</span
       >
       <Button
-        v-if="flow && plan?.graph.nodes.length"
-        v-tooltip.top="'View resolved plan'"
-        icon="pi pi-sitemap"
-        text
-        rounded
-        severity="secondary"
-        aria-label="View resolved plan"
-        @click="planExpanded = true"
-      />
-      <Button
         class="ship-button"
         label="Ship"
         icon="mdi mdi-rocket-launch-outline"
@@ -47,7 +37,7 @@
       />
     </template>
     <div
-      v-if="workflowLoading || sourceInspectionPending || planning"
+      v-if="workflowLoading || sourceInspectionPending"
       class="readiness-progress"
       role="status"
       aria-live="polite"
@@ -57,7 +47,6 @@
       <span v-if="sourceInspectionPending"
         ><i class="pi pi-spin pi-spinner" /> Inspecting source…</span
       >
-      <span v-if="planning"><i class="pi pi-spin pi-spinner" /> Planning release…</span>
     </div>
     <main v-if="flow" class="release-page pl-workflow">
       <Message v-if="loadError" severity="error" role="alert">
@@ -89,51 +78,6 @@
           <Button label="Retry save" text size="small" @click="save().catch(() => {})" />
         </div>
       </Message>
-      <section v-if="selectedBlocker" class="action-required-card" aria-live="polite">
-        <div class="blocker-icon" aria-hidden="true">
-          <i class="pi pi-exclamation-circle" />
-        </div>
-        <div class="blocker-copy">
-          <span class="eyebrow"
-            >Action required
-            <span class="blocker-count" aria-live="polite"
-              >{{ activeBlockerIndex + 1 }} of {{ blockingIssues.length }}</span
-            ></span
-          >
-          <strong>{{ blockerPresentation.title }}</strong>
-          <span>{{ blockerPresentation.description }}</span>
-        </div>
-        <div class="blocker-actions">
-          <div v-if="blockingIssues.length > 1" class="blocker-navigation">
-            <Button
-              icon="pi pi-chevron-left"
-              text
-              rounded
-              size="small"
-              severity="secondary"
-              aria-label="Previous blocker"
-              :disabled="activeBlockerIndex === 0"
-              @click="moveBlocker(-1)"
-            />
-            <Button
-              icon="pi pi-chevron-right"
-              text
-              rounded
-              size="small"
-              severity="secondary"
-              aria-label="Next blocker"
-              :disabled="activeBlockerIndex >= blockingIssues.length - 1"
-              @click="moveBlocker(1)"
-            />
-          </div>
-          <Button
-            class="blocker-repair-button"
-            size="small"
-            :label="blockerPresentation.actionLabel"
-            @click="repairSelectedBlocker"
-          />
-        </div>
-      </section>
       <section class="release-section">
         <div class="section-heading">
           <div>
@@ -187,14 +131,24 @@
               }}</span>
             </h2>
           </div>
-          <Button
-            label="Add destination"
-            icon="pi pi-plus"
-            outlined
-            size="small"
-            severity="secondary"
-            @click="addDestinationVisible = true"
-          />
+          <div class="section-actions">
+            <label class="fail-fast">
+              <ToggleSwitch
+                :model-value="flow.continueOnError === false"
+                aria-label="Stop the workflow at the first failure"
+                @update:model-value="flow.continueOnError = !$event"
+              />
+              <span>Stop on first failure</span>
+            </label>
+            <Button
+              label="Add destination"
+              icon="pi pi-plus"
+              outlined
+              size="small"
+              severity="secondary"
+              @click="addDestinationVisible = true"
+            />
+          </div>
         </div>
         <div v-if="!flow.destinations.length" class="empty-card">
           <i class="mdi mdi-cloud-upload-outline" /><strong>No destinations yet</strong>
@@ -205,11 +159,26 @@
           :key="destination.id"
           class="job-card"
           :class="{
-            disabled: !destination.enabled,
-            invalid: cardIssues(`destinations.${index}`).length,
+            disabled: !destination.enabled && !isDestinationUnavailable(destination),
+            unavailable: isDestinationUnavailable(destination),
+            invalid: !isDestinationUnavailable(destination) && cardIssues(`destinations.${index}`).length,
           }"
         >
           <div class="job-header">
+            <ToggleSwitch
+              class="row-switch"
+              :model-value="destination.enabled && !isDestinationUnavailable(destination)"
+              :disabled="isDestinationUnavailable(destination)"
+              v-tooltip.top="
+                isDestinationUnavailable(destination)
+                  ? 'Pipelab Cloud is not available in this installation'
+                  : destination.enabled
+                    ? 'Skip this destination'
+                    : 'Include this destination'
+              "
+              @update:model-value="destination.enabled = $event"
+              :aria-label="`Include ${destinationDisplayLabel(destination)} in release`"
+            />
             <div class="provider-icon">
               <img
                 v-if="
@@ -247,8 +216,15 @@
               <strong>{{ destinationDisplayLabel(destination) }}</strong
               ><span>{{ destinationSummary(destination) }}</span>
             </div>
-            <ReleaseStatus :label="destinationReadiness(destination, index)" />
+            <ReleaseStatus
+              :label="
+                isDestinationUnavailable(destination)
+                  ? 'Unavailable'
+                  : destinationReadiness(destination, index)
+              "
+            />
             <Button
+              :disabled="!destination.enabled || isDestinationUnavailable(destination)"
               text
               rounded
               size="small"
@@ -259,7 +235,7 @@
               @click="openDestinationSettings(destination)"
             />
             <Button
-              v-if="destination.enabled"
+              :disabled="!destination.enabled || isDestinationUnavailable(destination)"
               class="destination-toggle"
               v-tooltip.top="
                 isDestinationExpanded(destination.id) ? 'Hide deployments' : 'Show deployments'
@@ -278,15 +254,33 @@
             />
           </div>
           <div
-            v-if="destination.enabled && isDestinationExpanded(destination.id)"
+            v-if="
+              destination.enabled &&
+              !isDestinationUnavailable(destination) &&
+              isDestinationExpanded(destination.id)
+            "
             :id="`destination-slots-${destination.id}`"
             class="slot-list"
           >
             <div v-for="(slot, slotIndex) in destination.slots" :key="slot.id" class="slot-row">
+              <ToggleSwitch
+                class="row-switch"
+                v-model="slot.enabled"
+                v-tooltip.top="slot.enabled ? 'Skip this deployment' : 'Include this deployment'"
+                :aria-label="`Include ${deploymentSlotLabel(slot, slotIndex)} in release`"
+              />
               <div class="deployment-main">
                 <i class="mdi mdi-package-variant-closed" /><span
                   ><strong>{{ deploymentSlotLabel(slot, slotIndex) }}</strong
-                  ><small>{{ artifactLabel(slot.input) }}</small></span
+                  ><small
+                    >{{ artifactLabel(slot.input)
+                    }}<template v-if="slotDetail(destination, slot)">
+                      · {{ slotDetail(destination, slot) }}</template
+                    ><template v-if="folderDeployment(destination, slot, slotIndex)">
+                      · {{ folderDeployment(destination, slot, slotIndex)?.base
+                      }}<strong>{{ folderDeployment(destination, slot, slotIndex)?.name }}</strong>
+                    </template></small
+                  ></span
                 >
               </div>
               <ReleaseStatus
@@ -312,6 +306,7 @@
                 @update:model-value="chooseSlotOutput(destination, slot, $event)"
               />
               <Button
+                :disabled="!slot.enabled"
                 text
                 rounded
                 severity="secondary"
@@ -333,20 +328,6 @@
             />
           </div>
         </article>
-      </section>
-      <section v-if="planExpanded && plan" class="plan-panel" aria-label="Advanced workflow plan">
-        <div class="section-heading">
-          <div>
-            <span class="eyebrow">Advanced</span>
-            <h2>Resolved plan</h2>
-          </div>
-          <Button label="Close" text size="small" @click="planExpanded = false" />
-        </div>
-        <ol class="plan-list">
-          <li v-for="node in plan.graph.nodes" :key="node.id">
-            <i :class="nodeIcon(node.kind)" /><span>{{ planNodeLabel(node.id, node.kind) }}</span>
-          </li>
-        </ol>
       </section>
     </main>
     <main v-else class="release-page">
@@ -549,17 +530,6 @@
     header="Edit source"
     :style="dialogStyle"
     ><div v-if="flow && sourceDefinition" class="settings-grid">
-      <div class="release-field wide">
-        <label for="source-provider">Source</label>
-        <Select
-          id="source-provider"
-          :model-value="flow.source.provider"
-          :options="catalog.sources"
-          optionLabel="label"
-          optionValue="id"
-          @update:model-value="selectSource"
-        />
-      </div>
       <template v-for="field in sourceDefinition.fields || []" :key="field.key">
         <ReleaseFieldControl
           :field="field"
@@ -591,8 +561,7 @@
     :style="dialogStyle"
     ><div v-if="settingsDestination" class="settings-grid">
       <div class="release-field wide destination-toggle">
-        <label :for="`destination-enabled-${settingsDestination.id}`">Destination</label>
-        <span>{{ settingsDestination.enabled ? "Included in this release" : "Disabled" }}</span>
+        <label :for="`destination-enabled-${settingsDestination.id}`">Include in release</label>
         <ToggleSwitch
           v-model="settingsDestination.enabled"
           :inputId="`destination-enabled-${settingsDestination.id}`"
@@ -669,13 +638,13 @@
         <label :for="`slot-${settingsSlot.id}-name`">Deployment name</label>
         <InputText
           :id="`slot-${settingsSlot.id}-name`"
-          v-model="settingsSlot.name"
+          :model-value="settingsSlot.name ?? ''"
           placeholder="Deployment name"
+          @update:model-value="settingsSlot.name = $event?.trim() ? $event : undefined"
         />
       </div>
       <div class="release-field wide destination-toggle">
-        <label :for="`slot-enabled-${settingsSlot.id}`">Deployment</label>
-        <span>{{ settingsSlot.enabled ? "Included in this release" : "Disabled" }}</span>
+        <label :for="`slot-enabled-${settingsSlot.id}`">Include in release</label>
         <ToggleSwitch
           v-model="settingsSlot.enabled"
           :inputId="`slot-enabled-${settingsSlot.id}`"
@@ -834,6 +803,7 @@ import type {
   ReleasePlan,
   ValidationIssue,
 } from "@pipelab/shared";
+import { deploymentFolderName, deploymentFolderPath } from "@pipelab/shared";
 import WorkflowShell from "../components/WorkflowShell.vue";
 import ReleaseFieldControl from "../components/ReleaseFieldControl.vue";
 import ReleaseDestinationAccountPreview from "../components/ReleaseDestinationAccountPreview.vue";
@@ -853,13 +823,11 @@ import {
   blockerAtIndex,
   clampBlockerIndex,
   createSerializedTaskQueue,
-  createReleaseSourceConfig,
   deploymentSlotLabel,
   issuesForPath,
   deduplicateValidationIssues,
   invalidEnvironmentBindingPaths,
   missingRequiredFieldIssues,
-  outputReferenceConsumers,
   planOutputOptions,
   selectSlotOutput,
   slotOutputOptionsFor,
@@ -941,10 +909,53 @@ const knownFieldIssues = computed(() =>
       }))
     : [],
 );
+// Connections are resolved at run time; surface an unbound or missing one before Ship instead of after it.
+const connectionBindingIssues = computed<ValidationIssue[]>(() => {
+  if (
+    !flow.value ||
+    connectionsStore.status !== "ready" ||
+    appStore.providerStatus !== "ready" ||
+    !plan.value
+  )
+    return [];
+  try {
+    resolveDesktopWorkflowConnectionValues(
+      flow.value,
+      catalog.value,
+      localConnectionsConfig.value,
+      appStore.providerDefinitions,
+    );
+    return [];
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : "A Connection cannot be resolved.";
+    const alias = /alias '([^']+)'|Connection '([^']+)'/.exec(message);
+    const reference = alias?.[1] ?? alias?.[2];
+    const index = reference
+      ? flow.value.destinations.findIndex((destination) =>
+          Object.values(destination.config).includes(reference),
+        )
+      : -1;
+    const key =
+      index >= 0
+        ? Object.keys(flow.value.destinations[index].config).find(
+            (name) => flow.value?.destinations[index].config[name] === reference,
+          )
+        : undefined;
+    return [
+      {
+        code: "connection.unresolved",
+        message,
+        severity: "error",
+        ...(key ? { path: `destinations.${index}.config.${key}` } : {}),
+      },
+    ];
+  }
+});
 const issues = computed(() => [
   ...plannerIssues.value,
   ...inspectionIssues.value,
   ...knownFieldIssues.value,
+  ...connectionBindingIssues.value,
 ]);
 const summaryIssues = computed(() => deduplicateValidationIssues(issues.value));
 const blockingIssues = computed(() =>
@@ -966,7 +977,6 @@ watch(
 );
 const attentionVisible = ref(false);
 const attentionIssues = ref<ValidationIssue[]>([]);
-const planExpanded = ref(false);
 const error = ref("");
 const loadError = ref("");
 const plannerError = ref("");
@@ -1547,6 +1557,11 @@ const blockerPresentation = computed(() => {
     ? releaseBlockerPresentation(issue, blockerFieldContext(issue))
     : { title: "", description: "", actionLabel: "Review issues" };
 });
+// Pipelab Cloud exists only where the deployment configures a Cloud Worker;
+// the agent skips it at run time in the same situation.
+const PIPELAB_CLOUD_DESTINATION = "@pipelab/pipelab-cloud/destination";
+const isDestinationUnavailable = (destination: ReleaseDestinationConfig) =>
+  destination.provider === PIPELAB_CLOUD_DESTINATION && !process.env.PIPELAB_CLOUD_WORKER_URL;
 const destinationReadiness = (destination: ReleaseDestinationConfig, index: number) => {
   const enabledSlots = destination.slots.filter((slot) => slot.enabled);
   const childrenReady =
@@ -1622,11 +1637,18 @@ const toggleDestinationExpanded = (id: string) => {
   if (!next.delete(id)) next.add(id);
   expandedDestinations.value = next;
 };
+const destinationTarget = (destination: ReleaseDestinationConfig) => {
+  const field = destinationDefinition(destination.provider)?.fields?.[0];
+  if (!field || field.type === "connection") return "";
+  return String(destination.config[field.key] ?? "").trim();
+};
 const destinationSummary = (destination: ReleaseDestinationConfig) => {
-  if (!destination.enabled) return "Disabled";
   const slots = destination.slots.filter((slot) => slot.enabled);
   if (!slots.length) return "No deployments";
-  return slots.length === 1 ? artifactLabel(slots[0].input) : `${slots.length} deployments`;
+  const summary =
+    slots.length === 1 ? artifactLabel(slots[0].input) : `${slots.length} deployments`;
+  const target = destinationTarget(destination);
+  return target ? `${summary} · ${target}` : summary;
 };
 const addSlot = (destination: ReleaseDestinationConfig) => {
   expandedDestinations.value = new Set(expandedDestinations.value).add(destination.id);
@@ -1709,6 +1731,28 @@ const openBuildsForSlot = (destination: ReleaseDestinationConfig, slot: ReleaseD
     params: { flowId: flowId.value, projectId: projectId.value },
     query: { destinationId: destination.id, slotId: slot.id },
   });
+const FOLDER_DESTINATION = "@pipelab/core/destination/folder";
+/** A Folder deployment writes into a subfolder named after it; `base` ends with the separator. */
+const folderDeployment = (
+  destination: ReleaseDestinationConfig,
+  slot: ReleaseDestinationSlot,
+  index: number,
+) => {
+  if (destination.provider !== FOLDER_DESTINATION) return undefined;
+  const outputDir = String(slot.config.outputDir ?? "").trim();
+  if (!outputDir) return undefined;
+  const name = deploymentFolderName(slot, index);
+  const path = deploymentFolderPath(outputDir, name);
+  return { base: path.slice(0, path.length - name.length), name };
+};
+const slotDetail = (destination: ReleaseDestinationConfig, slot: ReleaseDestinationSlot) => {
+  if (destination.provider === FOLDER_DESTINATION) return "";
+  const field = destinationDefinition(destination.provider)?.slotFields?.[0];
+  if (!field) return "";
+  const value = String(slot.config[field.key] ?? "").trim();
+  if (value) return `${field.label}: ${value}`;
+  return field.required ? `${field.label} missing` : "";
+};
 const artifactLabel = (ref?: ReleaseOutputRef) =>
   ref
     ? outputOptions.value.find((output) => output.value === releaseOutputRefValue(ref))?.label ||
@@ -1722,45 +1766,6 @@ const openSlotSettings = (destination: ReleaseDestinationConfig, slot: ReleaseDe
   settingsDestination.value = destination;
   settingsSlot.value = slot;
   slotSettingsVisible.value = true;
-};
-const selectSource = (provider: string) => {
-  if (!flow.value) return;
-  const definition = catalog.value.sources.find((source) => source.id === provider);
-  if (!definition || flow.value.source.provider === provider) return;
-  const currentConfig = flow.value.source.config;
-  const nextConfig = createReleaseSourceConfig(flow.value, definition, catalog.value);
-  const discardedFields = Object.keys(currentConfig).filter(
-    (key) =>
-      hasConfiguredValue(currentConfig[key]) &&
-      JSON.stringify(currentConfig[key]) !== JSON.stringify(nextConfig[key]),
-  );
-  const consumers = outputReferenceConsumers(flow.value, { source: true }, catalog.value).map(
-    (consumer) => consumer.label,
-  );
-  const apply = () => {
-    if (!flow.value) return;
-    flow.value.source = { provider, config: nextConfig };
-    inspectionOptions.value = {};
-    void inspectSource();
-  };
-  if (discardedFields.length || consumers.length) {
-    const details = [
-      discardedFields.length
-        ? `Provider-specific settings will be replaced: ${discardedFields.join(", ")}.`
-        : "",
-      consumers.length
-        ? `Source output is selected by ${consumers.slice(0, 4).join(", ")}${consumers.length > 4 ? ` and ${consumers.length - 4} more` : ""}. Those routes will remain unchanged and may need a different output.`
-        : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
-    confirmDestructiveChange(
-      `Change source to ${definition.label}?`,
-      details,
-      "Change source",
-      apply,
-    );
-  } else apply();
 };
 const setSourceField = (key: string, value: unknown) => {
   if (flow.value) {
@@ -2005,7 +2010,7 @@ const refreshPlan = async (): Promise<ReleasePlan | undefined> => {
   if (!flow.value || !agent.isReady.value) return undefined;
   const requestId = ++latestPlanRequest;
   const revision = changeRevision.value;
-  const config = structuredClone(toRaw(flow.value));
+  const config = cloneFlow(flow.value);
   const fingerprint = JSON.stringify(config);
   planning.value = true;
   plannerError.value = "";
@@ -2038,6 +2043,8 @@ const refreshPlan = async (): Promise<ReleasePlan | undefined> => {
     if (requestId === latestPlanRequest) planning.value = false;
   }
 };
+// toRaw() is shallow: arrays rebuilt from reactive items (delete) keep nested proxies, which structuredClone rejects.
+const cloneFlow = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
 const save = createSerializedTaskQueue(async () => {
   if (!flow.value) return;
   if (invalidEnvironmentPaths.value.length > 0) {
@@ -2057,7 +2064,7 @@ const save = createSerializedTaskQueue(async () => {
   }
   const requestGeneration = ++saveGeneration;
   const revision = changeRevision.value;
-  const snapshot = structuredClone(toRaw(flow.value));
+  const snapshot = cloneFlow(flow.value);
   saveState.value = "saving";
   const result = await api.execute("workflow:save", {
     workflowId: flowId.value,
@@ -2196,9 +2203,6 @@ watch(
     if (!workflowHydrated || !flow.value) return;
     changeRevision.value += 1;
     latestPlanRequest += 1;
-    plan.value = undefined;
-    plannerIssues.value = [];
-    plannerError.value = "";
     planning.value = true;
     clearTimeout(saveTimer);
     clearTimeout(planTimer);
@@ -2539,6 +2543,28 @@ watch([flowId, projectId], () => {
 .job-card.disabled .job-header {
   opacity: 0.6;
 }
+/* Not available here (unlike a destination the user switched off): flat grey and dashed. */
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.fail-fast {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  cursor: pointer;
+}
+.job-card.unavailable {
+  border-style: dashed;
+  background: var(--p-surface-100, var(--surface-ground));
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+}
+.job-card.unavailable .provider-icon {
+  filter: grayscale(1);
+}
 .job-header {
   padding: 12px 14px 12px 16px;
 }
@@ -2593,12 +2619,17 @@ watch([flowId, projectId], () => {
 .destination-toggle {
   flex: 0 0 auto;
 }
+.row-switch {
+  flex: 0 0 auto;
+  transform: scale(0.72);
+  transform-origin: center;
+}
 
 /* Deployments */
 .slot-list {
   display: grid;
   gap: 2px;
-  padding: 6px 14px 12px 16px;
+  padding: 6px 14px 12px 8px;
   border-top: 1px solid var(--pl-border);
   background: var(--pl-sunken);
   animation: pl-reveal 0.18s var(--pl-ease);
@@ -2612,8 +2643,9 @@ watch([flowId, projectId], () => {
 .slot-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 7px 4px 7px 8px;
+  gap: 14px;
+  /* right padding reserves the header's chevron column so edit buttons line up */
+  padding: 7px 46px 7px 8px;
   border: 0;
   border-radius: 10px;
   background: transparent;
@@ -2624,7 +2656,7 @@ watch([flowId, projectId], () => {
 .slot-row:hover {
   background: var(--pl-hover);
 }
-.slot-row > :first-child {
+.slot-row > .deployment-main {
   flex: 1;
 }
 .deployment-main {

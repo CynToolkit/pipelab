@@ -39,6 +39,7 @@ import { WorkflowRunCancellationRegistry } from "./workflow-run-cancellation";
 import { getPipelabCloudDownloadUrl } from "../pipelab-cloud";
 import { buildCoreReleaseRegistry } from "../release/registry";
 import { getReleaseWorkflowValueRequirements } from "../release/workflow-value-requirements";
+import { withoutUnavailableDestinations } from "../release/unavailable-destinations";
 import { builtInProviders } from "../providers-registry";
 
 const host = () => ({ platform: process.platform, architecture: process.arch });
@@ -51,17 +52,20 @@ export const prepareReleaseWorkflow = (
   config: ReleaseConfig,
   version = "0.0.0",
   env: WorkflowEnvironment = process.env,
+  releaseNotes = "",
 ) => {
   const releaseRegistry = registry();
   const context = {
     host: host(),
-    variables: { version },
+    variables: { version, releaseNotes },
     getEnvironmentVariableStatus: (name: string) => ({
       configured: Object.hasOwn(env, name),
       nonEmpty: Boolean(env[name]?.trim()),
     }),
   };
-  const resolvedConfig = resolveReleaseDefaults(config, releaseRegistry, context);
+  const resolvedConfig = withoutUnavailableDestinations(
+    resolveReleaseDefaults(config, releaseRegistry, context),
+  );
   const plan = planRelease(resolvedConfig, releaseRegistry, context);
   const errors = plan.issues.filter((issue) => issue.severity === "error");
   if (errors.length) throw new Error(errors.map((issue) => issue.message).join("\n"));
@@ -200,13 +204,16 @@ export const applyWorkflowEventToHistory = (
       return;
     case "step.skipped":
       step.status = "skipped";
+      step.blockedBy = [...event.blockedBy];
       step.endTime = event.timestamp;
       step.duration = 0;
       return;
   }
 };
 
-const historyArtifacts = (result: WorkflowResult): NonNullable<BuildHistoryEntry["artifacts"]> =>
+const historyArtifacts = (
+  result: Pick<WorkflowResult, "artifacts">,
+): NonNullable<BuildHistoryEntry["artifacts"]> =>
   result.artifacts.map((artifact, index) => {
     if (!("descriptor" in artifact))
       return {
@@ -261,7 +268,8 @@ export const executeWorkflow = async (
     );
   const version = options.release?.version?.trim() || "0.0.0";
   const runEnvironment = Object.freeze({ ...(options.env ?? process.env) });
-  const prepared = prepareReleaseWorkflow(stored, version, runEnvironment);
+  const releaseNotes = options.release?.description?.trim() || "";
+  const prepared = prepareReleaseWorkflow(stored, version, runEnvironment, releaseNotes);
   const { config, workflow, connectionRequirements, requiredEnvironmentVariables } = prepared;
   const connectionValues: Record<string, Record<string, string>> = {};
   for (const [alias, values] of Object.entries(options.connectionValues ?? {}))
@@ -288,6 +296,8 @@ export const executeWorkflow = async (
   const projectId = config.project;
   const liveSteps: ExecutionStep[] = executionPlan(workflow);
   const liveLogs: LogEntry[] = [];
+  // Kept so a failed run still lists what its completed steps produced.
+  const liveArtifacts: WorkflowResult["artifacts"] = [];
   if (persistHistory) {
     await history.save({
       id: buildId,
@@ -357,7 +367,10 @@ export const executeWorkflow = async (
   >(workflow.steps.map((step) => [step.id, "pending"]));
   const onEvent = (event: WorkflowEvent) => {
     if (event.type === "step.started") observedSteps.set(event.stepId, "running" as const);
-    if (event.type === "step.completed") observedSteps.set(event.stepId, "completed" as const);
+    if (event.type === "step.completed") {
+      observedSteps.set(event.stepId, "completed" as const);
+      liveArtifacts.push(...event.artifacts);
+    }
     if (event.type === "step.failed")
       observedSteps.set(
         event.stepId,
@@ -471,6 +484,7 @@ export const executeWorkflow = async (
           endTime: Date.now(),
           duration: Date.now() - startTime,
           steps,
+          artifacts: valueResolver.redactObject(historyArtifacts({ artifacts: liveArtifacts })),
           logs: [...liveLogs],
           completedSteps: steps.filter((step) => step.status === "completed").length,
           failedSteps: steps.filter((step) => step.status === "failed" || step.status === "skipped")
@@ -517,6 +531,7 @@ export const executeWorkflow = async (
       error: step.error
         ? { message: step.error.message, code: step.error.name, timestamp: step.completedAt }
         : undefined,
+      ...(step.blockedBy?.length ? { blockedBy: step.blockedBy } : {}),
     })),
     completedSteps: Object.values(result.steps).filter((step) => step.status === "completed")
       .length,
@@ -587,7 +602,12 @@ export const registerWorkflowHandlers = (context: PipelabContext) => {
     async (_, { send, value }) =>
       await send({
         type: "end",
-        data: { type: "success", result: planRelease(value.config, registry(), { host: host() }) },
+        data: {
+          type: "success",
+          result: planRelease(withoutUnavailableDestinations(value.config), registry(), {
+            host: host(),
+          }),
+        },
       }),
   );
   handle(

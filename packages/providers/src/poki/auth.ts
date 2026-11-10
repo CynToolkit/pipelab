@@ -2,8 +2,60 @@ import { randomUUID } from "node:crypto";
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { chmod, mkdir, rename, rm, writeFile } from "node:fs/promises";
+import { access } from "node:fs/promises";
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
+
+/** Where the Poki CLI itself keeps its login: `$XDG_CONFIG_HOME/poki` (or `%LOCALAPPDATA%\\Poki`). */
+export const pokiUserConfigRoot = (env: NodeJS.ProcessEnv = process.env): string =>
+  process.platform === "win32"
+    ? env.LOCALAPPDATA || join(homedir(), "AppData", "Local")
+    : env.XDG_CONFIG_HOME || join(homedir(), ".config");
+
+/** Account names become directory names, so keep them to a safe, readable alphabet. */
+export const normalizePokiAccountName = (account: string): string => {
+  const name = account.trim();
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(name)) {
+    throw new Error(
+      "A Poki account name must be 1-64 letters, numbers, dots, dashes or underscores.",
+    );
+  }
+  return name.toLowerCase();
+};
+
+/** Config root Pipelab manages for one named Poki account. */
+export const pokiAccountConfigRoot = (thirdPartyPath: string, account: string): string =>
+  join(thirdPartyPath, "poki-accounts", normalizePokiAccountName(account));
+
+const pokiAuthDirectoryName = () => (process.platform === "win32" ? "Poki" : "poki");
+
+const exists = (path: string) =>
+  access(path).then(
+    () => true,
+    () => false,
+  );
+
+/**
+ * Finds the config root holding a Poki CLI login. A standard Poki CLI login is
+ * used in place; a login saved earlier under Pipelab's third-party directory is
+ * still honoured.
+ */
+export const findPokiConfigRoot = async (
+  thirdPartyPath: string,
+  account?: string,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<string | undefined> => {
+  const roots = account
+    ? [pokiAccountConfigRoot(thirdPartyPath, account)]
+    : [pokiUserConfigRoot(env), thirdPartyPath];
+  for (const root of roots) {
+    for (const directory of ["poki", "Poki"]) {
+      if (await exists(join(root, directory, "auth.json"))) return root;
+    }
+  }
+  return undefined;
+};
 
 const loginTimeoutMs = 5 * 60 * 1000;
 
@@ -45,8 +97,8 @@ const openBrowser = (url: string) => {
   child.unref();
 };
 
-const writeAuthFile = async (thirdPartyPath: string, auth: PokiAuthConfig) => {
-  const authDirectory = join(thirdPartyPath, process.platform === "win32" ? "Poki" : "poki");
+const writeAuthFile = async (configRoot: string, auth: PokiAuthConfig) => {
+  const authDirectory = join(configRoot, pokiAuthDirectoryName());
   const authPath = join(authDirectory, "auth.json");
   const tempPath = join(authDirectory, `.auth-${randomUUID()}.tmp`);
 
@@ -63,8 +115,16 @@ const writeAuthFile = async (thirdPartyPath: string, auth: PokiAuthConfig) => {
   }
 };
 
-/** Sign in through Poki's official browser flow and save its CLI auth cache without uploading. */
-export const loginToPoki = async (thirdPartyPath: string): Promise<void> => {
+/** Sign in through Poki's official browser flow and save a Poki CLI login without uploading: for a named account in Pipelab's managed directory, otherwise the standard one. */
+export const loginToPoki = async (
+  options: { thirdPartyPath?: string; account?: string } = {},
+): Promise<void> => {
+  if (options.account && !options.thirdPartyPath) {
+    throw new Error("A Pipelab data directory is required to save a named Poki account.");
+  }
+  const configRoot = options.account
+    ? pokiAccountConfigRoot(options.thirdPartyPath!, options.account)
+    : pokiUserConfigRoot();
   let resolveAuth!: (value: PokiAuthConfig) => void;
   let rejectAuth!: (reason: Error) => void;
   let callbackHandled = false;
@@ -165,7 +225,7 @@ export const loginToPoki = async (thirdPartyPath: string): Promise<void> => {
 
     timeout = setTimeout(() => rejectAuth(new Error("Poki sign-in timed out.")), loginTimeoutMs);
     const auth = await authResult;
-    await writeAuthFile(thirdPartyPath, auth);
+    await writeAuthFile(configRoot, auth);
   } finally {
     if (timeout) clearTimeout(timeout);
     manualPrompt?.close();

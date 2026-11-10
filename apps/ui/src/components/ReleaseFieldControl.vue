@@ -1,6 +1,9 @@
 <template>
   <div class="release-field" :data-control-id="inputId">
-    <label :for="inputId">{{ field.label }}</label>
+    <label :for="inputId"
+      >{{ field.label }}<span v-if="field.required" class="required-mark" aria-hidden="true"> *</span
+      ><span v-if="field.required" class="p-hidden-accessible"> (required)</span></label
+    >
     <small v-if="field.description" class="field-help">
       <template v-for="(part, index) in descriptionParts" :key="index">
         <strong v-if="part.kind === 'bold'">{{ part.text }}</strong>
@@ -394,6 +397,9 @@ const toggleEnvironmentBinding = () => {
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--p-text-muted-color, var(--text-color-secondary));
+}
+.required-mark {
+  color: var(--p-red-500, #ef4444);
 }
 .field-help {
   color: var(--p-text-muted-color, var(--text-color-secondary));

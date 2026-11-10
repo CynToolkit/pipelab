@@ -1,10 +1,12 @@
-import { expect, test, describe, afterEach, vi } from "vitest";
+import { expect, test, describe, afterEach, beforeEach, vi } from "vitest";
 import { createPokiUploadTask, POKI_CLI_VERSION } from "./export.js";
 import { mkdir, writeFile, readFile, access, readdir, mkdtemp } from "node:fs/promises";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { createSandbox, runWorkflowTask } from "@pipelab/test-utils";
 import { SandboxFolder } from "@pipelab/constants";
 import pokiPlugin from "./index.js";
+import { normalizePokiAccountName, pokiAccountConfigRoot } from "./auth.js";
 import { fetchPackage, type PipelabContext } from "@pipelab/plugin-core";
 import type { PokiTaskServices } from "./export.js";
 
@@ -13,12 +15,28 @@ vi.mock("@pipelab/plugin-core", async (importOriginal) => {
   return { ...actual, fetchPackage: vi.fn() };
 });
 
-test("does not expose an unsupported Poki API token connection", () => {
-  expect("integrations" in pokiPlugin).toBe(false);
+test("exposes a Poki account connection that stores a name, never a token", () => {
+  const integration = pokiPlugin.integrations?.find((item) => item.name === "Poki Account");
+  expect(integration?.fields.map((field) => [field.key, field.type])).toEqual([
+    ["account", "text"],
+  ]);
+});
+
+test("normalizes Poki account names and rejects unsafe ones", () => {
+  expect(normalizePokiAccountName(" Studio-1 ")).toBe("studio-1");
+  expect(() => normalizePokiAccountName("../evil")).toThrow("Poki account name");
+  expect(() => normalizePokiAccountName("")).toThrow("Poki account name");
 });
 
 describe("End-to-End: Poki Upload Workflow task", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>>;
+
+  // Keep the developer's real Poki CLI login out of these tests.
+  beforeEach(async () => {
+    const emptyConfigRoot = await mkdtemp(join(tmpdir(), "poki-empty-config-"));
+    vi.stubEnv("XDG_CONFIG_HOME", emptyConfigRoot);
+    vi.stubEnv("LOCALAPPDATA", emptyConfigRoot);
+  });
 
   afterEach(async () => {
     vi.unstubAllEnvs();
@@ -139,6 +157,87 @@ describe("End-to-End: Poki Upload Workflow task", () => {
     },
     30 * 60 * 1000,
   );
+
+  test("uses a standard Poki CLI login in place without copying it", async () => {
+    sandbox = await createSandbox("poki-standard-login");
+    await writeFile(join(sandbox.paths.input, "index.html"), "<html></html>");
+    const userConfigRoot = await mkdtemp(join(tmpdir(), "poki-user-config-"));
+    vi.stubEnv("XDG_CONFIG_HOME", userConfigRoot);
+    vi.stubEnv("LOCALAPPDATA", userConfigRoot);
+    const authDirectory = join(userConfigRoot, process.platform === "win32" ? "Poki" : "poki");
+    await mkdir(authDirectory, { recursive: true });
+    await writeFile(join(authDirectory, "auth.json"), JSON.stringify({ access_type: "Bearer" }));
+    const pokiDir = join(sandbox.path, "mock-poki-cli");
+    await sandbox.mockBinary(
+      join("mock-poki-cli", "bin", "index.js"),
+      `require("node:fs").writeFileSync(require("node:path").join(process.cwd(), "mock-env.json"), JSON.stringify({ XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME }));
+console.log("Version uploaded successfully");`,
+    );
+    vi.mocked(fetchPackage).mockResolvedValue({ packageDir: pokiDir } as Awaited<
+      ReturnType<typeof fetchPackage>
+    >);
+
+    await runWorkflowTask(createPokiUploadTask(servicesFor(sandbox.path)), {
+      inputs: {
+        "input-folder": sandbox.paths.input,
+        project: "poki-game-123",
+        name: "release-v1",
+        notes: "test notes",
+      },
+      workspacePath: sandbox.path,
+      services: servicesFor(sandbox.path),
+    });
+
+    const tempPath = join(sandbox.path, "user-data", "temp");
+    const uploadFolder = (await readdir(tempPath)).find((f) => f.startsWith("poki-upload-"))!;
+    const seen = JSON.parse(await readFile(join(tempPath, uploadFolder, "mock-env.json"), "utf-8"));
+    expect(seen.XDG_CONFIG_HOME).toBe(userConfigRoot);
+    await expect(
+      access(join(sandbox.path, "user-data", "thirdparty", "poki", "auth.json")),
+    ).rejects.toThrow();
+  });
+
+  test("runs a named account against its Pipelab-managed login", async () => {
+    sandbox = await createSandbox("poki-named-account");
+    await writeFile(join(sandbox.paths.input, "index.html"), "<html></html>");
+    const thirdparty = join(sandbox.path, "user-data", "thirdparty");
+    const accountRoot = pokiAccountConfigRoot(thirdparty, "Studio");
+    const authDirectory = join(accountRoot, process.platform === "win32" ? "Poki" : "poki");
+    await mkdir(authDirectory, { recursive: true });
+    await writeFile(join(authDirectory, "auth.json"), JSON.stringify({ access_type: "Bearer" }));
+    const pokiDir = join(sandbox.path, "mock-poki-cli");
+    await sandbox.mockBinary(
+      join("mock-poki-cli", "bin", "index.js"),
+      `require("node:fs").writeFileSync(require("node:path").join(process.cwd(), "mock-env.json"), JSON.stringify({ XDG_CONFIG_HOME: process.env.XDG_CONFIG_HOME }));
+console.log("Version uploaded successfully");`,
+    );
+    vi.mocked(fetchPackage).mockResolvedValue({ packageDir: pokiDir } as Awaited<
+      ReturnType<typeof fetchPackage>
+    >);
+    const run = (alias: string) =>
+      runWorkflowTask(createPokiUploadTask(servicesFor(sandbox.path)), {
+        inputs: {
+          "input-folder": sandbox.paths.input,
+          accountConnectionId: alias,
+          project: "poki-game-123",
+          name: "release-v1",
+          notes: "test notes",
+        },
+        connectionValues: { studio: { account: "Studio" }, other: { account: "Other" } },
+        workspacePath: sandbox.path,
+        services: servicesFor(sandbox.path),
+      });
+
+    await run("studio");
+    const tempPath = join(sandbox.path, "user-data", "temp");
+    const uploadFolder = (await readdir(tempPath)).find((f) => f.startsWith("poki-upload-"))!;
+    const seen = JSON.parse(await readFile(join(tempPath, uploadFolder, "mock-env.json"), "utf-8"));
+    expect(seen.XDG_CONFIG_HOME).toBe(accountRoot);
+
+    // The account name is a plain-text field, so real runs keep it readable;
+    // this harness passes no field metadata and redacts it.
+    await expect(run("other")).rejects.toThrow(/pipelab settings integrations poki login /);
+  });
 
   test("fails before invoking the CLI upload when Poki authentication is missing", async () => {
     sandbox = await createSandbox("poki-no-auth");

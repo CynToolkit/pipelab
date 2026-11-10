@@ -117,10 +117,15 @@ const pokiDestination = (...slots: ReleaseDestinationSlot[]) =>
   destination("poki", POKI, { project: "space-game", name: "1.0.0", notes: "Weekly build" }, slots);
 
 const folderDestination = (...slots: ReleaseDestinationSlot[]) =>
-  destination("folder", FOLDER, { outputDir: "/output/space" }, slots);
+  destination(
+    "folder",
+    FOLDER,
+    {},
+    slots.map((item) => ({ ...item, config: { outputDir: "/output/space", ...item.config } })),
+  );
 
 const zipDestination = (input?: ReleaseOutputRef) =>
-  destination("zip", ZIP, { outputPath: "/output/space-release.zip" }, [slot("bundle", {}, input)]);
+  destination("zip", ZIP, {}, [slot("bundle", { outputPath: "/output/space-release.zip" }, input)]);
 
 /** Target configs for a build: every id in `ids`, enabled only when listed in `enabledIds`. */
 const targetsOf = (

@@ -43,6 +43,7 @@ export {
 export * from "./apis";
 export * from "./build-history";
 export * from "./release/descriptor";
+export * from "./release/deployment-folder";
 export * from "./config.schema";
 export * from "./database.types";
 export * from "./fmt";

@@ -27,20 +27,23 @@ packaging producer. It is not a selectable build option in the editor.
 
 ## Destinations
 
-- **Folder** requires an **Output folder** path. It copies the selected
-  artifact's files recursively to that directory, clearing that target first.
-  Choose the output directory carefully because its existing contents are
-  removed before the copy. A Folder destination reads a build output, never
-  the source directly.
-- **ZIP** requires a **ZIP output path** and accepts directory artifacts. Use
+Each deployment of a Folder or ZIP destination has its own output path, so
+several deployments can write to different locations.
+
+- **Folder** requires an **Output folder** path on each deployment. Pipelab
+  copies the selected artifact's files recursively into a subfolder of it named
+  after the deployment (for example `/output/Deployment 1`), clearing that
+  subfolder first. The deployment list shows the full path with the subfolder in
+  bold. A Folder destination reads a build output, never the source directly.
+- **ZIP** requires a **ZIP output path** on each deployment and accepts directory artifacts. Use
   the browse button to choose where to save the archive and type a new file name
   (the file does not need to exist yet). It writes the directory contents as an
   archive at that path and creates its parent directory if needed.
 
 ::: warning
-The Folder destination clears its configured output directory before copying
-the artifact. Do not point it at a directory containing files you need to
-keep.
+A Folder deployment clears its own subfolder before copying the artifact.
+Renaming a deployment changes the subfolder it writes to, and the old one is
+left in place.
 :::
 
 For an already exported build, select **Folder** with `./dist` as the source,

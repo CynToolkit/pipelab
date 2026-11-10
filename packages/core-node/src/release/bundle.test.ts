@@ -107,7 +107,7 @@ const bundleDestination = (
 });
 
 const bundleDestinations: Array<[string, ReleaseDestinationConfig]> = [
-  [ZIP, bundleDestination(ZIP, { outputPath: "/out/bundle.zip" }, {})],
+  [ZIP, bundleDestination(ZIP, {}, { outputPath: "/out/bundle.zip" })],
   [
     "@pipelab/plugin-itch/destination",
     bundleDestination(
@@ -316,12 +316,12 @@ describe("core Bundle planning", () => {
           id: "dest",
           provider: ZIP,
           enabled: true,
-          config: { outputPath: "/out/outer.zip" },
+          config: {},
           slots: [
             {
               id: "bundle",
               enabled: true,
-              config: {},
+              config: { outputPath: "/out/outer.zip" },
               input: { buildId: "outer", targetId: "zip" },
             },
           ],

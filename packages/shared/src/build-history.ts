@@ -25,6 +25,8 @@ export interface ExecutionStep {
   artifact?: string;
   phases?: WorkflowPhaseResult[];
   diagnostics?: string[];
+  /** Steps whose failure or skip stopped this step from running. */
+  blockedBy?: string[];
 }
 
 export interface ExecutionError {

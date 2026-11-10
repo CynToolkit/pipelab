@@ -17,10 +17,9 @@ export const steamDestination: ReleaseDestinationDefinition = {
       required: true,
     },
     { key: "appId", type: "text", label: "Steam App ID", required: true },
-    { key: "description", type: "text", label: "Build description" },
   ],
   slotFields: [{ key: "depotId", type: "text", label: "Depot ID", required: true }],
-  createDefaultConfig: () => ({ accountConnectionId: "", appId: "", description: "" }),
+  createDefaultConfig: () => ({ accountConnectionId: "", appId: "" }),
   validate: (config) => [
     ...(!String(config.config.accountConnectionId || "").trim()
       ? [
@@ -52,13 +51,19 @@ export const steamDestination: ReleaseDestinationDefinition = {
         path: `slots.${slot.id}.config.depotId`,
       })),
   ],
-  compile: (artifact, destination, slot) => [
+  compile: (artifact, destination, slot, context) => [
     {
       id: `steam-${destination.id}-${slot.id}`,
       uses: WORKFLOW_TASK_ID,
       needs: [artifact.reference.stepId],
       artifactInputs: { folder: artifact.reference },
-      with: { ...destination.config, ...slot.config },
+      with: {
+        ...destination.config,
+        ...slot.config,
+        description:
+          String(context.variables?.releaseNotes ?? "").trim() ||
+          String(context.variables?.version ?? ""),
+      },
       delivery: { destinationId: destination.id, slotId: slot.id, artifact: artifact.reference },
     },
   ],

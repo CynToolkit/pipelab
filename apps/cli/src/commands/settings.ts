@@ -102,13 +102,15 @@ export const registerSettingsCommands = (program: Command) => {
   integrations
     .command("poki")
     .description("Manage Poki authentication")
-    .command("login")
-    .description("Sign in to Poki and save the token without uploading a build")
+    .command("login [account]")
+    .description(
+      "Sign in to Poki without uploading a build. Name an account to keep it in Pipelab's managed directory.",
+    )
     .addOption(userDataOption())
-    .action(async (options: { userData?: string }) => {
+    .action(async (account: string | undefined, options: { userData?: string }) => {
       try {
         const context = contextFor(options.userData);
-        await loginToPoki(context.getThirdPartyPath());
+        await loginToPoki({ thirdPartyPath: context.getThirdPartyPath(), account });
         console.log("Poki login saved. No build was uploaded.");
       } catch (error) {
         console.error(errorMessage(error));

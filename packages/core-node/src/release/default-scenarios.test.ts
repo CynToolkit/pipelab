@@ -611,8 +611,8 @@ const zipDestination = (input?: ReleaseOutputRef): Destination => ({
   id: "zip",
   provider: "@pipelab/core/destination/zip",
   enabled: true,
-  config: { outputPath: "/output/space-release.zip" },
-  slots: [slot("bundle", {}, input)],
+  config: {},
+  slots: [slot("bundle", { outputPath: "/output/space-release.zip" }, input)],
 });
 
 const BUNDLE_PROVIDER = "@pipelab/core/bundle";

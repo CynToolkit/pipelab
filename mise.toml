@@ -170,3 +170,26 @@ env = {
   VITE_PIPELAB_MODE = "",
 }
 run = "pnpm exec turbo run dev:remote --filter=@pipelab/cli --filter=@pipelab/ui"
+
+[tasks."setup:construct"]
+description = "Seed the signed-in Chromium profile used by Construct exports (credentials from Doppler)"
+run = '''
+set -eu
+pnpm --filter @pipelab/providers exec playwright install chromium
+# Uses CONSTRUCT_USERNAME/CONSTRUCT_PASSWORD from the environment when set,
+# otherwise reads them from Doppler (override with DOPPLER_PROJECT/DOPPLER_CONFIG).
+if [ -n "${CONSTRUCT_USERNAME:-}" ] && [ -n "${CONSTRUCT_PASSWORD:-}" ]; then
+  node scripts/setup/construct-profile.mjs
+else
+  doppler run --project "${DOPPLER_PROJECT:-pipelab}" --config "${DOPPLER_CONFIG:-dev_personal}" -- node scripts/setup/construct-profile.mjs
+fi
+'''
+
+[tasks."setup:poki"]
+description = "Save a Poki login without a local browser (POKI_LOGIN_URL, or paste the URL when prompted)"
+run = "node scripts/setup/poki-login.mjs"
+raw = true
+
+[tasks.setup-providers]
+description = "Run every provider setup task (Construct profile, Poki login, more to come)"
+run = [{ task = "setup:construct" }, { task = "setup:poki" }]

@@ -137,7 +137,7 @@ export const resolveWorkflowConnectionRequirements = (
       providerId: string;
       integrationName: string;
       required: boolean;
-      fields: Map<string, { key: string; required: boolean }>;
+      fields: Map<string, { key: string; required: boolean; secret: boolean }>;
     }
   >();
 
@@ -155,13 +155,17 @@ export const resolveWorkflowConnectionRequirements = (
       providerId,
       integrationName: definition.name,
       required: false,
-      fields: new Map<string, { key: string; required: boolean }>(),
+      fields: new Map<string, { key: string; required: boolean; secret: boolean }>(),
     };
     requirement.required ||= reference.required;
     requirement.providerId = providerId;
     requirement.integrationName = definition.name;
     for (const field of definition.fields) {
-      requirement.fields.set(field.key, { key: field.key, required: true });
+      requirement.fields.set(field.key, {
+        key: field.key,
+        required: true,
+        secret: field.type === "password",
+      });
     }
     requirements.set(reference.alias, requirement);
   }

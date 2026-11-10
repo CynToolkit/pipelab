@@ -4,6 +4,8 @@ Pipelab Cloud stores selected Release workflow build outputs in private object
 storage. Desktop and an interactive local CLI can upload artifacts from a
 signed-in Pipelab account. CI uploads and CI tokens are deferred.
 
+Pipelab Cloud is available only in installations that configure a Cloud Worker. Where it is not configured, the **Pipelab Cloud** destination appears as unavailable in the editor and is skipped when the workflow runs, so a workflow saved with it enabled still ships to its other destinations.
+
 Cloud currently supports web HTML5 and Electron or Tauri builds for Windows,
 Linux, and macOS arm64.
 

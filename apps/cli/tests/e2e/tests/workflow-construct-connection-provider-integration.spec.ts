@@ -24,13 +24,13 @@ const zipOf = (outputPath: string) => ({
   id: "zip",
   provider: "@pipelab/core/destination/zip",
   enabled: true,
-  config: { outputPath },
+  config: {},
   slots: [
     {
       id: "archive",
       enabled: true,
       input: { buildId: "construct", targetId: "web" },
-      config: {},
+      config: { outputPath },
     },
   ],
 });

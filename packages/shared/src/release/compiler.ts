@@ -269,7 +269,9 @@ export const compileReleasePlan = (
       );
     }
   }
-  return { version: 1, steps, continueOnError: configuration.continueOnError ?? false };
+  // A destination that already shipped cannot be rolled back, so by default one failure does not
+  // stop the independent steps that remain.
+  return { version: 1, steps, continueOnError: configuration.continueOnError ?? true };
 };
 
 export const compileWorkflow = (

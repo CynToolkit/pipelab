@@ -50,7 +50,10 @@ export const resetRunStepSelectionState = (state: RunStepSelectionState) => {
 
 export const autoSelectInitialRunStep = (state: RunStepSelectionState, steps: ExecutionStep[]) => {
   if (state.userSelectedStep || state.initialSelectionMade || !steps.length) return;
-  state.selectedStepId = steps.find((step) => step.status === "running")?.id || steps[0].id;
+  state.selectedStepId =
+    steps.find((step) => step.status === "running")?.id ||
+    steps.find((step) => step.status === "failed")?.id ||
+    steps[0].id;
   state.initialSelectionMade = true;
 };
 
@@ -201,8 +204,9 @@ const failureGuidance = (message: string) => {
   if (/auth|credential|unauthori[sz]ed|\b401\b|login|sign.?in/i.test(message)) {
     return {
       category: "Authentication",
-      summary: "The destination rejected the configured account or session.",
-      nextAction: "Sign in to the destination again, then rerun this workflow.",
+      summary: "The account or session was not accepted.",
+      nextAction:
+        "Sign in again or select a different account connection, then rerun this workflow.",
     };
   }
   if (/\bENOSPC\b|no space left|disk full|not enough disk space/i.test(message)) {
@@ -263,14 +267,18 @@ export const buildRunFailureDiagnostics = (entry: BuildHistoryEntry): RunFailure
     if (!rawMessage) continue;
     const guidance = failureGuidance(rawMessage);
     const loginCommand = rawMessage.match(/pipelab login\s+\S+/i)?.[0];
+    // A message that already tells the user what to run is clearer than generic advice.
+    const selfExplanatory = !loginCommand && /`[^`]+`/.test(rawMessage);
     diagnostics.push({
       id: step.id,
       title: step.name || step.id,
       category: guidance.category,
-      summary: guidance.summary,
+      summary: selfExplanatory ? rawMessage : guidance.summary,
       nextAction: loginCommand
         ? `Run ${loginCommand} and try this step again.`
-        : guidance.nextAction,
+        : selfExplanatory
+          ? ""
+          : guidance.nextAction,
       stepId: step.id,
       ...(delivery?.destinationName ||
       delivery?.destinationId ||
@@ -293,12 +301,14 @@ export const buildRunFailureDiagnostics = (entry: BuildHistoryEntry): RunFailure
 
   if (entry.error && !failedSteps.some((step) => step.error?.message === entry.error?.message)) {
     const guidance = failureGuidance(entry.error.message);
+    // A message that already tells the user what to run is clearer than generic advice.
+    const selfExplanatory = /`[^`]+`/.test(entry.error.message);
     diagnostics.unshift({
       id: "run-setup",
       title: "Run setup",
       category: guidance.category,
-      summary: guidance.summary,
-      nextAction: guidance.nextAction,
+      summary: selfExplanatory ? entry.error.message : guidance.summary,
+      nextAction: selfExplanatory ? "" : guidance.nextAction,
       rawMessage: entry.error.message,
       ...(entry.error.stack ? { rawStack: entry.error.stack } : {}),
       ...(entry.error.code ? { errorCode: entry.error.code } : {}),
@@ -323,6 +333,7 @@ export const applyWorkflowEventToRunEntry = (entry: BuildHistoryEntry, event: Wo
         duration: resultStep.duration,
         phases: resultStep.phases,
         diagnostics: resultStep.diagnostics,
+        ...(resultStep.blockedBy?.length ? { blockedBy: resultStep.blockedBy } : {}),
         logs: previous?.logs || [],
         output: resultStep.outputs,
         ...(resultStep.error

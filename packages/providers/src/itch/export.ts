@@ -64,7 +64,8 @@ export const createItchUploadTask =
       throw new Error(
         `Itch account Connection '${accountConnectionId}' was not resolved for this run.`,
       );
-    runtimeInputs.user = connectionValues.username || connectionValues.user || runtimeInputs.user || "";
+    runtimeInputs.user =
+      connectionValues.username || connectionValues.user || runtimeInputs.user || "";
     runtimeInputs["api-key"] = connectionValues.apiKey ?? "";
     const apiKey = typeof runtimeInputs["api-key"] === "string" ? runtimeInputs["api-key"] : "";
     if (!apiKey) throw new Error("Itch account connection has no API key");
@@ -91,6 +92,9 @@ export const createItchUploadTask =
         runtimeInputs["input-folder"] as string,
         `${runtimeInputs.user as string}/${runtimeInputs.project as string}:${runtimeInputs.channel as string}`,
         "--json",
+        ...(String(runtimeInputs.version || "").trim()
+          ? ["--userversion", String(runtimeInputs.version).trim()]
+          : []),
       ],
       {
         env: {
