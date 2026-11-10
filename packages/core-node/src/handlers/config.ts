@@ -13,6 +13,8 @@ import { PipelabContext } from "../context";
 import { discoverBrowserProfiles, inspectChromiumProfile } from "@pipelab/providers";
 import { ConstructProfileDiscoveryCache } from "./construct-profile-cache";
 import { ReleasePersistence } from "../release-persistence";
+import { applyRetention } from "../release/apply-retention";
+import { BuildHistoryStorage } from "./build-history";
 import {
   loadStrictConnections,
   loadStrictProjects,
@@ -295,6 +297,26 @@ export const registerConfigHandlers = (context: PipelabContext) => {
         data: {
           type: "error",
           ipcError: e instanceof Error ? e.message : "Unable to save workflow",
+        },
+      });
+    }
+  });
+
+  handle("workflow:retention:apply", async (_, { send, value }) => {
+    try {
+      const config = await new ReleasePersistence(context).load(value.workflowId, value.projectId);
+      const result = await applyRetention(new BuildHistoryStorage(context), {
+        projectId: config.project,
+        workflowId: config.id,
+        policy: config.settings?.retention,
+      });
+      send({ type: "end", data: { type: "success", result } });
+    } catch (e) {
+      send({
+        type: "end",
+        data: {
+          type: "error",
+          ipcError: e instanceof Error ? e.message : "Unable to apply retention",
         },
       });
     }

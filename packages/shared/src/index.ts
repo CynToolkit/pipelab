@@ -68,6 +68,8 @@ export * from "./release/validate";
 export * from "./release/planner";
 export * from "./release/preferences";
 export * from "./release/defaults";
+export * from "./release/host-availability";
+export * from "./release/retention";
 
 // 4. Configuration Sub-packages
 export * from "./config/projects-definition"; // <-- RE-ADDED

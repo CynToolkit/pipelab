@@ -42,6 +42,12 @@ const setup = async () => {
   return { context, persistence: new ReleasePersistence(context) };
 };
 
+// These tests use placeholder credentials; the destination gate must not call real services.
+vi.mock("./release/preflight", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./release/preflight")>()),
+  runPreflights: async () => [],
+}));
+
 describe("ReleasePersistence", () => {
   it.each(["Node.js", "pnpm"])("persists a terminal run when %s setup fails", async (runtime) => {
     const { context } = await setup();

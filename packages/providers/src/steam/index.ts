@@ -1,4 +1,5 @@
 import { createSteamUploadTask, WORKFLOW_TASK_ID, type SteamTaskServices } from "./upload-to-steam";
+import { checkSteamPreflight } from "./preflight";
 import { createProviderDefinition } from "@pipelab/shared";
 import type { ReleaseDestinationDefinition } from "@pipelab/shared";
 
@@ -90,6 +91,7 @@ export const provider = createProviderDefinition({
     },
   ],
   release: { destinations: [steamDestination] },
+  preflights: { [WORKFLOW_TASK_ID]: checkSteamPreflight },
   workflowTasks: {
     [WORKFLOW_TASK_ID]: (services: SteamTaskServices) => createSteamUploadTask(services),
   },

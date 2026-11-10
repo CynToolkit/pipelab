@@ -183,6 +183,11 @@ export type IpcDefinition = {
     EndEvent<"ok">,
   ];
   "workflow:delete": [{ workflowId: string; projectId?: string }, EndEvent<"ok">];
+  /** Applies the workflow's saved retention policy now; returns what was removed. */
+  "workflow:retention:apply": [
+    { workflowId: string; projectId?: string },
+    EndEvent<{ runs: number; files: number }>,
+  ];
   "workflow:execute": [
     {
       name: string;

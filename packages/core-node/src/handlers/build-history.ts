@@ -267,6 +267,26 @@ export class BuildHistoryStorage implements IBuildHistoryStorage {
     }
   }
 
+  /** Deletes a run's history entry together with the artifacts, staging and cache it left. */
+  async deleteWithArtifacts(id: string, projectId: string): Promise<void> {
+    const entry = (await this.loadProjectHistory(projectId)).find(
+      (candidate) => candidate.id === id,
+    );
+    if (!entry) return;
+    await this.removeRunArtifacts(projectId, entry);
+    await this.delete(id, projectId);
+  }
+
+  /** Removes a run's files but keeps its history entry, which then lists no artifacts. */
+  async deleteArtifacts(id: string, projectId: string): Promise<void> {
+    const entry = (await this.loadProjectHistory(projectId)).find(
+      (candidate) => candidate.id === id,
+    );
+    if (!entry) return;
+    await this.removeRunArtifacts(projectId, entry);
+    await this.update(id, { artifacts: [] }, projectId);
+  }
+
   private async deleteFromProject(id: string, projectId: string): Promise<boolean> {
     return serializeFileMutation(this.getProjectPath(projectId), async () => {
       const entries = await this.loadProjectHistory(projectId);

@@ -15,7 +15,10 @@
       >
         <i :class="workflowReadinessIcon" aria-hidden="true" />{{ workflowReadinessLabel }}
       </span>
-      <span v-if="flow && saveState !== 'saved'" class="autosave-state" :class="`state-${saveState}`"
+      <span
+        v-if="flow && saveState !== 'saved'"
+        class="autosave-state"
+        :class="`state-${saveState}`"
         ><i
           :class="
             saveState === 'saving'
@@ -132,14 +135,6 @@
             </h2>
           </div>
           <div class="section-actions">
-            <label class="fail-fast">
-              <ToggleSwitch
-                :model-value="flow.continueOnError === false"
-                aria-label="Stop the workflow at the first failure"
-                @update:model-value="flow.continueOnError = !$event"
-              />
-              <span>Stop on first failure</span>
-            </label>
             <Button
               label="Add destination"
               icon="pi pi-plus"
@@ -161,7 +156,8 @@
           :class="{
             disabled: !destination.enabled && !isDestinationUnavailable(destination),
             unavailable: isDestinationUnavailable(destination),
-            invalid: !isDestinationUnavailable(destination) && cardIssues(`destinations.${index}`).length,
+            invalid:
+              !isDestinationUnavailable(destination) && cardIssues(`destinations.${index}`).length,
           }"
         >
           <div class="job-header">
@@ -262,11 +258,21 @@
             :id="`destination-slots-${destination.id}`"
             class="slot-list"
           >
-            <div v-for="(slot, slotIndex) in destination.slots" :key="slot.id" class="slot-row">
+            <div
+              v-for="(slot, slotIndex) in destination.slots"
+              :key="slot.id"
+              class="slot-row"
+              :class="{ unavailable: slotUnavailableReason(slot) }"
+            >
               <ToggleSwitch
                 class="row-switch"
-                v-model="slot.enabled"
-                v-tooltip.top="slot.enabled ? 'Skip this deployment' : 'Include this deployment'"
+                :model-value="slot.enabled && !slotUnavailableReason(slot)"
+                :disabled="Boolean(slotUnavailableReason(slot))"
+                v-tooltip.top="
+                  slotUnavailableReason(slot) ||
+                  (slot.enabled ? 'Skip this deployment' : 'Include this deployment')
+                "
+                @update:model-value="slot.enabled = $event"
                 :aria-label="`Include ${deploymentSlotLabel(slot, slotIndex)} in release`"
               />
               <div class="deployment-main">
@@ -285,11 +291,13 @@
               </div>
               <ReleaseStatus
                 :label="
-                  slotCardIssues(slot).length
-                    ? 'Needs attention'
-                    : slot.input
-                      ? 'Ready'
-                      : 'Output required'
+                  slotUnavailableReason(slot)
+                    ? 'Unavailable'
+                    : slotCardIssues(slot).length
+                      ? 'Needs attention'
+                      : slot.input
+                        ? 'Ready'
+                        : 'Output required'
                 "
               />
               <Select
@@ -809,6 +817,12 @@ import ReleaseFieldControl from "../components/ReleaseFieldControl.vue";
 import ReleaseDestinationAccountPreview from "../components/ReleaseDestinationAccountPreview.vue";
 import { useAPI } from "../composables/api";
 import { publishRunEvent } from "./run-events";
+import {
+  notifyRunFinished,
+  requestNotificationPermission,
+  runOutcome,
+  shouldNotify,
+} from "../utils/run-notifications";
 import { useAppStore } from "../store/app";
 import NewBuildDialog from "../components/NewBuildDialog.vue";
 import ReleaseStatus from "../components/ReleaseStatus.vue";
@@ -1562,8 +1576,23 @@ const blockerPresentation = computed(() => {
 const PIPELAB_CLOUD_DESTINATION = "@pipelab/pipelab-cloud/destination";
 const isDestinationUnavailable = (destination: ReleaseDestinationConfig) =>
   destination.provider === PIPELAB_CLOUD_DESTINATION && !process.env.PIPELAB_CLOUD_WORKER_URL;
+// A deployment whose build output this host cannot produce (macOS on Linux) is skipped by the
+// agent at plan time, so it is shown disabled here, with the reason.
+const slotUnavailableReason = (slot: ReleaseDestinationSlot): string | undefined => {
+  const input = slot.input;
+  if (!input || !("buildId" in input) || !flow.value) return undefined;
+  const build = flow.value.builds.find((candidate) => candidate.id === input.buildId);
+  const availability = producerDefinition(build?.engine ?? "")?.targets.find(
+    (target) => target.id === input.targetId,
+  )?.availability;
+  return availability?.available === false
+    ? availability.reason || "This host cannot build this output."
+    : undefined;
+};
 const destinationReadiness = (destination: ReleaseDestinationConfig, index: number) => {
-  const enabledSlots = destination.slots.filter((slot) => slot.enabled);
+  const enabledSlots = destination.slots.filter(
+    (slot) => slot.enabled && !slotUnavailableReason(slot),
+  );
   const childrenReady =
     enabledSlots.length > 0 &&
     enabledSlots.every((slot) => Boolean(slot.input) && !slotCardIssues(slot).length);
@@ -2044,7 +2073,7 @@ const refreshPlan = async (): Promise<ReleasePlan | undefined> => {
   }
 };
 // toRaw() is shallow: arrays rebuilt from reactive items (delete) keep nested proxies, which structuredClone rejects.
-const cloneFlow = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
+const cloneFlow = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 const save = createSerializedTaskQueue(async () => {
   if (!flow.value) return;
   if (invalidEnvironmentPaths.value.length > 0) {
@@ -2144,6 +2173,12 @@ const runShip = async () => {
       }
       if (!flow.value) throw new Error("The workflow is no longer available.");
       let runId = "";
+      // Captured now: the editor is left for the run page, and the settings may change later.
+      const workflowName = flow.value.name;
+      const notifications = structuredClone(toRaw(flow.value.settings?.notifications));
+      // Notifications default to on, so the permission is asked here, in answer to the user's click.
+      if (shouldNotify(notifications, "success") || shouldNotify(notifications, "failure"))
+        void requestNotificationPermission();
       const connectionValues = resolveDesktopWorkflowConnectionValues(
         flow.value,
         catalog.value,
@@ -2179,6 +2214,14 @@ const runShip = async () => {
               await router.push(`/workflows/${flowId.value}/${projectId.value}/runs/${runId}`);
             } else if (event.type === "workflow-event" && runId) {
               publishRunEvent(runId, event.data);
+              if (event.data.type === "workflow.completed")
+                notifyRunFinished(
+                  workflowName,
+                  runOutcome(event.data.result.status),
+                  notifications,
+                );
+              else if (event.data.type === "workflow.failed")
+                notifyRunFinished(workflowName, "failure", notifications);
             }
           }),
       });
@@ -2549,14 +2592,6 @@ watch([flowId, projectId], () => {
   align-items: center;
   gap: 16px;
 }
-.fail-fast {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
-  color: var(--p-text-muted-color, var(--text-color-secondary));
-  cursor: pointer;
-}
 .job-card.unavailable {
   border-style: dashed;
   background: var(--p-surface-100, var(--surface-ground));
@@ -2655,6 +2690,15 @@ watch([flowId, projectId], () => {
 }
 .slot-row:hover {
   background: var(--pl-hover);
+}
+.slot-row.unavailable {
+  background: transparent;
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  outline: 1px dashed var(--pl-border);
+  outline-offset: -1px;
+}
+.slot-row.unavailable .deployment-main {
+  opacity: 0.6;
 }
 .slot-row > .deployment-main {
   flex: 1;

@@ -19,6 +19,7 @@ import {
   compileReleasePlan,
   planRelease,
   resolveReleaseDefaults,
+  withoutHostUnavailableBuilds,
   validateRelease,
   type BuildHistoryEntry,
   type ExecutionStep,
@@ -41,6 +42,8 @@ import { buildCoreReleaseRegistry } from "../release/registry";
 import { getReleaseWorkflowValueRequirements } from "../release/workflow-value-requirements";
 import { withoutUnavailableDestinations } from "../release/unavailable-destinations";
 import { builtInProviders } from "../providers-registry";
+import { applyRetention } from "../release/apply-retention";
+import { PreflightFailedError, runPreflights, type PreflightOutcome } from "../release/preflight";
 
 const host = () => ({ platform: process.platform, architecture: process.arch });
 const registry = () => buildCoreReleaseRegistry();
@@ -63,8 +66,10 @@ export const prepareReleaseWorkflow = (
       nonEmpty: Boolean(env[name]?.trim()),
     }),
   };
-  const resolvedConfig = withoutUnavailableDestinations(
-    resolveReleaseDefaults(config, releaseRegistry, context),
+  const resolvedConfig = withoutHostUnavailableBuilds(
+    withoutUnavailableDestinations(resolveReleaseDefaults(config, releaseRegistry, context)),
+    releaseRegistry,
+    host(),
   );
   const plan = planRelease(resolvedConfig, releaseRegistry, context);
   const errors = plan.issues.filter((issue) => issue.severity === "error");
@@ -251,6 +256,8 @@ export const executeWorkflow = async (
     onEvent?: (event: WorkflowEvent) => void;
     onRunCreated?: (id: string) => void | Promise<void>;
     logger?: WorkflowLogger;
+    /** Skip the destination preflight gate (offline use). The skip is recorded in the run. */
+    skipPreflight?: boolean;
   } = {},
 ) => {
   const workflowId = configName.replace(/^workflows\//, "").replace(/\.json$/, "");
@@ -388,7 +395,24 @@ export const executeWorkflow = async (
           temporaryDirectory: tmpdir(),
         }).createTempFolder("pipelab-workflow-")
       : undefined;
+  const skipPreflight =
+    options.skipPreflight === true || config.settings?.checkDestinations === false;
+  const pruneOldRuns = async () => {
+    if (!persistHistory) return;
+    try {
+      await applyRetention(history, {
+        projectId,
+        workflowId: config.id,
+        policy: config.settings?.retention,
+        keepId: buildId,
+      });
+    } catch (error) {
+      logger().warn(`Failed to apply retention for workflow ${config.id}:`, error);
+    }
+  };
   let result: WorkflowResult;
+  let preflightOutcomes: PreflightOutcome[] | undefined;
+  let preflightFailure: PreflightFailedError | undefined;
   try {
     await options.onRunCreated?.(buildId);
     const workspaceRoot = temporaryRunRoot
@@ -427,6 +451,43 @@ export const executeWorkflow = async (
       services,
       createWorkflowTaskRegistry(workflowTaskFactories, services),
     );
+    const logPreflight = (level: LogEntry["level"], message: string) => {
+      liveLogs.push({
+        id: nanoid(),
+        timestamp: Date.now(),
+        level,
+        message: valueResolver.redactString(message),
+        source: "preflight",
+      });
+    };
+    if (skipPreflight) {
+      logPreflight("warn", "Preflight skipped: destinations were not checked before the run.");
+    } else {
+      preflightOutcomes = await runPreflights({
+        workflow,
+        config,
+        providers: builtInProviders,
+        registry: prepared.registry,
+        valueResolver,
+        services,
+        signal: options.signal,
+      });
+      for (const outcome of preflightOutcomes) {
+        const { result } = outcome;
+        logPreflight(
+          result.status === "failed" ? "error" : "info",
+          result.status === "failed"
+            ? `${outcome.destination}: ${result.message}`
+            : result.status === "unverifiable"
+              ? `${outcome.destination}: not verified (${result.reason})`
+              : `${outcome.destination}: verified`,
+        );
+      }
+      if (preflightOutcomes.some((outcome) => outcome.result.status === "failed")) {
+        preflightFailure = new PreflightFailedError(preflightOutcomes);
+        throw preflightFailure;
+      }
+    }
     const workflowLogger = options.logger ?? {
       info: (...args: unknown[]) => logger().info(...args),
       warn: (...args: unknown[]) => logger().warn(...args),
@@ -462,17 +523,34 @@ export const executeWorkflow = async (
           ? ("completed" as const)
           : observedSteps.get(step.id) === "skipped"
             ? ("skipped" as const)
-            : finalStatus === "cancelled"
-              ? ("cancelled" as const)
-              : observedSteps.get(step.id) === "running" || observedSteps.get(step.id) === "failed"
-                ? ("failed" as const)
-                : step.status,
+            : preflightFailure
+              ? ("skipped" as const)
+              : finalStatus === "cancelled"
+                ? ("cancelled" as const)
+                : observedSteps.get(step.id) === "running" ||
+                    observedSteps.get(step.id) === "failed"
+                  ? ("failed" as const)
+                  : step.status,
       ...(observedSteps.get(step.id) === "running" ||
       observedSteps.get(step.id) === "failed" ||
       finalStatus === "cancelled"
         ? { endTime: Date.now() }
         : {}),
     }));
+    const preflightMetadata = () =>
+      skipPreflight
+        ? { preflight: "skipped" }
+        : preflightOutcomes
+          ? {
+              preflight: valueResolver.redactObject(
+                preflightOutcomes.map(({ destinationId, destination, result }) => ({
+                  destinationId,
+                  destination,
+                  ...result,
+                })),
+              ),
+            }
+          : {};
     const errorMessage = valueResolver.redactString(
       error instanceof Error ? error.message : String(error),
     );
@@ -484,21 +562,31 @@ export const executeWorkflow = async (
           endTime: Date.now(),
           duration: Date.now() - startTime,
           steps,
-          artifacts: valueResolver.redactObject(historyArtifacts({ artifacts: liveArtifacts })),
+          artifacts: valueResolver.redactObject(
+            historyArtifacts({
+              artifacts: config.settings?.keepFailedArtifacts === false ? [] : liveArtifacts,
+            }),
+          ),
           logs: [...liveLogs],
           completedSteps: steps.filter((step) => step.status === "completed").length,
           failedSteps: steps.filter((step) => step.status === "failed" || step.status === "skipped")
             .length,
           cancelledSteps: steps.filter((step) => step.status === "cancelled").length,
+          metadata: preflightMetadata(),
           error: {
             message: errorMessage,
-            code: finalStatus === "cancelled" ? "CANCELLED" : "FAILED",
+            code: preflightFailure
+              ? "PREFLIGHT_FAILED"
+              : finalStatus === "cancelled"
+                ? "CANCELLED"
+                : "FAILED",
             timestamp: Date.now(),
           },
         },
         projectId,
       );
     }
+    await pruneOldRuns();
     const safeError = new Error(errorMessage);
     if (error instanceof Error) safeError.name = valueResolver.redactString(error.name);
     throw safeError;
@@ -539,10 +627,12 @@ export const executeWorkflow = async (
       (step) => step.status === "failed" || step.status === "skipped",
     ).length,
     cancelledSteps: 0,
+    ...(skipPreflight ? { metadata: { preflight: "skipped" } } : {}),
   });
   if (persistHistory) {
     await history.update(buildId, historyUpdate, projectId);
   }
+  await pruneOldRuns();
   return {
     result,
     safeResult: valueResolver.redactObject(result),
@@ -604,9 +694,15 @@ export const registerWorkflowHandlers = (context: PipelabContext) => {
         type: "end",
         data: {
           type: "success",
-          result: planRelease(withoutUnavailableDestinations(value.config), registry(), {
-            host: host(),
-          }),
+          result: planRelease(
+            withoutHostUnavailableBuilds(
+              withoutUnavailableDestinations(value.config),
+              registry(),
+              host(),
+            ),
+            registry(),
+            { host: host() },
+          ),
         },
       }),
   );

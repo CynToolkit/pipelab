@@ -30,8 +30,17 @@
         >
           <i class="mdi mdi-package-variant-closed" aria-hidden="true" />Artifacts
         </RouterLink>
+        <RouterLink :to="`${basePath}/plan`" :aria-current="active === 'plan' ? 'page' : undefined">
+          <i class="mdi mdi-graph-outline" aria-hidden="true" />Plan
+        </RouterLink>
         <RouterLink :to="`${basePath}/runs`" :aria-current="active === 'runs' ? 'page' : undefined">
           <i class="mdi mdi-history" aria-hidden="true" />Runs
+        </RouterLink>
+        <RouterLink
+          :to="`${basePath}/settings`"
+          :aria-current="active === 'settings' ? 'page' : undefined"
+        >
+          <i class="mdi mdi-cog-outline" aria-hidden="true" />Settings
         </RouterLink>
       </nav>
     </header>
@@ -48,7 +57,7 @@ const props = defineProps<{
   projectId: string;
   title?: string;
   subtitle?: string;
-  active: "configuration" | "builds" | "artifacts" | "runs";
+  active: "configuration" | "builds" | "artifacts" | "plan" | "runs" | "settings";
 }>();
 const basePath = computed(() => `/workflows/${props.flowId}/${props.projectId}`);
 </script>

@@ -144,15 +144,23 @@
               }"
               role="listitem"
             >
-              <div class="build-main">
+              <div class="build-header">
+                <ToggleSwitch
+                  class="row-switch"
+                  :model-value="build.enabled"
+                  :inputId="`build-enabled-${build.id}`"
+                  v-tooltip.top="build.enabled ? 'Skip this build' : 'Include this build'"
+                  :aria-label="`${buildLabel(build)} enabled`"
+                  @update:model-value="setBuildEnabled(build, $event)"
+                />
                 <div class="build-icon">
                   <i :class="producerIcon(build.engine)" aria-hidden="true" />
                 </div>
                 <div class="build-copy">
-                  <strong>{{ build.name || buildTypeLabel(build.type) }}</strong>
-                  <span>{{ buildTypeLabel(build.type) }} · {{ engineLabel(build.engine) }}</span>
-                  <small
-                    >Targets: {{ enabledTargetLabels(build).join(", ") || "None selected" }}</small
+                  <strong>{{ buildLabel(build) }}</strong>
+                  <span
+                    >{{ buildTypeLabel(build.type) }} · {{ engineLabel(build.engine) }} ·
+                    {{ enabledTargetLabels(build).join(", ") || "No target" }}</span
                   >
                   <small>
                     {{ isManyInputEngine(catalog, build.engine) ? "Inputs:" : "Input:" }}
@@ -170,26 +178,25 @@
                     }}
                   </small>
                 </div>
-              </div>
-              <div class="build-status">
-                <Tag
-                  :value="buildReadiness(build, index)"
-                  :severity="
-                    buildReadiness(build, index) === 'Needs attention' ? 'warn' : 'secondary'
-                  "
-                />
-                <ToggleSwitch
-                  :model-value="build.enabled"
-                  :inputId="`build-enabled-${build.id}`"
-                  :aria-label="`${build.name || buildTypeLabel(build.type)} enabled`"
-                  @update:model-value="setBuildEnabled(build, $event)"
+                <ReleaseStatus :label="buildReadiness(build, index)" />
+                <Button
+                  text
+                  rounded
+                  severity="secondary"
+                  size="small"
+                  icon="pi pi-copy"
+                  v-tooltip.top="'Duplicate build'"
+                  :aria-label="`Duplicate ${buildLabel(build)}`"
+                  @click="duplicateBuild(build)"
                 />
                 <Button
-                  label="Configure"
-                  icon="pi pi-cog"
                   text
+                  rounded
+                  severity="secondary"
                   size="small"
-                  :aria-label="`Configure ${build.name || engineLabel(build.engine)}`"
+                  icon="pi pi-pencil"
+                  v-tooltip.top="'Edit build settings'"
+                  :aria-label="`Configure ${buildLabel(build)}`"
                   @click="openBuildSettings(build)"
                 />
               </div>
@@ -555,7 +562,7 @@ import Dialog from "primevue/dialog";
 import InputText from "primevue/inputtext";
 import Message from "primevue/message";
 import Select from "primevue/select";
-import Tag from "primevue/tag";
+import ReleaseStatus from "../components/ReleaseStatus.vue";
 import ToggleSwitch from "primevue/toggleswitch";
 import { useConfirm } from "primevue/useconfirm";
 import type {
@@ -593,6 +600,7 @@ import {
   buildTargetIsAvailable,
   buildTargetsFor,
   createBuildProfile,
+  duplicateBuildProfile,
   createSerializedTaskQueue,
   deploymentSlotLabel,
   deduplicateValidationIssues,
@@ -1689,6 +1697,10 @@ const buildLabel = (build: ReleaseBuildProfileConfig) =>
   build.name?.trim() || buildTypeLabel(build.type);
 const buildConsumerList = (build: ReleaseBuildProfileConfig) =>
   flow.value ? outputReferenceConsumers(flow.value, { buildId: build.id }, catalog.value) : [];
+const duplicateBuild = (build: ReleaseBuildProfileConfig) => {
+  if (!flow.value) return;
+  duplicateBuildProfile(flow.value, build.id, nanoid(), buildLabel(build), nanoid);
+};
 const setBuildEnabled = (build: ReleaseBuildProfileConfig, enabled: boolean) => {
   if (!flow.value || build.enabled === enabled) return;
   if (enabled) {
@@ -1947,10 +1959,8 @@ onUnmounted(() => {
 }
 .build-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 12px 20px;
-  padding: 14px 16px;
+  gap: 0;
+  padding: 12px 14px 12px 16px;
   border: 1px solid var(--pl-border);
   border-radius: var(--pl-radius);
   background: var(--pl-card);
@@ -1973,11 +1983,16 @@ onUnmounted(() => {
 .build-row.build-disabled {
   opacity: 0.72;
 }
-.build-main {
+.build-header {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  align-items: center;
+  gap: 14px;
   min-width: 0;
+}
+.row-switch {
+  flex: 0 0 auto;
+  transform: scale(0.72);
+  transform-origin: center;
 }
 .build-icon {
   display: grid;
@@ -1998,7 +2013,8 @@ onUnmounted(() => {
 }
 .build-copy {
   display: grid;
-  gap: 3px;
+  flex: 1;
+  gap: 2px;
   min-width: 0;
 }
 .build-copy strong {
@@ -2016,16 +2032,11 @@ onUnmounted(() => {
   font-size: 0.72rem;
   overflow-wrap: anywhere;
 }
-.build-status {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-}
 .build-issues {
   grid-column: 1 / -1;
   margin: 0;
-  padding: 9px 0 0 46px;
+  margin-top: 10px;
+  padding: 9px 0 0 74px;
   border-top: 1px solid var(--p-surface-100, var(--surface-border));
   color: var(--p-orange-700, #c2410c);
   font-size: 0.75rem;
@@ -2203,12 +2214,6 @@ onUnmounted(() => {
   background: var(--p-surface-900, #18181b);
 }
 @media (max-width: 720px) {
-  .build-row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .build-status {
-    justify-content: flex-start;
-  }
   .build-issues {
     padding-left: 0;
   }

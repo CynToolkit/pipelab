@@ -263,6 +263,68 @@ export const validateReleaseConfigShape = (config: unknown): ValidationIssue[] =
       severity: "error",
       path: "continueOnError",
     });
+  issues.push(...validateWorkflowSettings(value.settings));
+  return issues;
+};
+
+const positiveInteger = (value: unknown) =>
+  typeof value === "number" && Number.isInteger(value) && value >= 1;
+
+const validateWorkflowSettings = (settings: unknown): ValidationIssue[] => {
+  if (settings === undefined) return [];
+  const issue = (path: string, message: string): ValidationIssue => ({
+    code: "release.config.settings",
+    message,
+    severity: "error",
+    path: `settings${path}`,
+  });
+  if (!isRecord(settings)) return [issue("", "settings must be an object.")];
+  const issues: ValidationIssue[] = [];
+  for (const key of ["checkDestinations", "keepFailedArtifacts"])
+    if (settings[key] !== undefined && typeof settings[key] !== "boolean")
+      issues.push(issue(`.${key}`, `${key} must be a boolean.`));
+  const retention = settings.retention;
+  if (retention !== undefined) {
+    if (!isRecord(retention)) issues.push(issue(".retention", "retention must be an object."));
+    else {
+      for (const group of ["history", "artifacts"]) {
+        const rules = retention[group];
+        if (rules === undefined) continue;
+        if (!isRecord(rules)) {
+          issues.push(issue(`.retention.${group}`, `${group} must be an object.`));
+          continue;
+        }
+        for (const key of ["maxRuns", "maxAgeDays"])
+          if (rules[key] !== undefined && !positiveInteger(rules[key]))
+            issues.push(
+              issue(`.retention.${group}.${key}`, `${key} must be a whole number of at least 1.`),
+            );
+      }
+      if (retention.failedMaxAgeDays !== undefined && !positiveInteger(retention.failedMaxAgeDays))
+        issues.push(
+          issue(
+            ".retention.failedMaxAgeDays",
+            "failedMaxAgeDays must be a whole number of at least 1.",
+          ),
+        );
+      if (
+        retention.keepLatestSuccessful !== undefined &&
+        typeof retention.keepLatestSuccessful !== "boolean"
+      )
+        issues.push(
+          issue(".retention.keepLatestSuccessful", "keepLatestSuccessful must be a boolean."),
+        );
+    }
+  }
+  const notifications = settings.notifications;
+  if (notifications !== undefined) {
+    if (!isRecord(notifications))
+      issues.push(issue(".notifications", "notifications must be an object."));
+    else
+      for (const key of ["onSuccess", "onFailure"])
+        if (notifications[key] !== undefined && typeof notifications[key] !== "boolean")
+          issues.push(issue(`.notifications.${key}`, `${key} must be a boolean.`));
+  }
   return issues;
 };
 

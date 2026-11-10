@@ -16,11 +16,11 @@ import {
 import { CORE_WORKFLOW_TASKS, createLocalHost, runWorkflow } from "@pipelab/workflow-runtime";
 import { createCoreFilesystemWorkflowTasks } from "../workflow-tasks/filesystem";
 import { extractZip } from "../utils/fs-extras";
-import { buildCoreReleaseRegistry } from "./registry";
+import { buildHostNeutralRegistry } from "./test-registry";
 
 const host = { platform: "linux", architecture: "x64" };
 const context = { host };
-const registry = buildCoreReleaseRegistry();
+const registry = buildHostNeutralRegistry();
 const BUNDLE = "@pipelab/core/bundle";
 const ZIP = "@pipelab/core/destination/zip";
 

@@ -1,4 +1,9 @@
-import { createPokiUploadTask, WORKFLOW_TASK_ID, type PokiTaskServices } from "./export";
+import {
+  checkPokiPreflight,
+  createPokiUploadTask,
+  WORKFLOW_TASK_ID,
+  type PokiTaskServices,
+} from "./export";
 
 import { createProviderDefinition } from "@pipelab/shared";
 import type { ReleaseDestinationDefinition } from "@pipelab/shared";
@@ -69,6 +74,7 @@ export const provider = createProviderDefinition({
     },
   ],
   release: { destinations: [pokiDestination] },
+  preflights: { [WORKFLOW_TASK_ID]: checkPokiPreflight },
   workflowTasks: {
     [WORKFLOW_TASK_ID]: (services: PokiTaskServices) => createPokiUploadTask(services),
   },

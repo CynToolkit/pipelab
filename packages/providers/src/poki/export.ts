@@ -4,6 +4,8 @@ import type { WorkflowTask, WorkflowTaskContext } from "@pipelab/workflow-runtim
 import { dirname, join, delimiter, resolve } from "node:path";
 import { writeFile, cp } from "node:fs/promises";
 import { findPokiConfigRoot } from "./auth";
+import type { PreflightContext, PreflightResult } from "@pipelab/shared";
+import { failed, verified } from "../preflight";
 
 const loginCommand = (account?: string) =>
   `pipelab settings integrations poki login${account ? ` ${account}` : ""}`;
@@ -147,3 +149,20 @@ export const createPokiUploadTask =
 
     log("Uploaded to poki");
   };
+
+/** The Poki CLI offers no cheap whoami, so the check is that a login exists for the account. */
+export const checkPokiPreflight = async ({
+  inputs,
+  connectionValues,
+  services,
+}: PreflightContext<PokiPreflightServices>): Promise<PreflightResult> => {
+  const alias = String(inputs.accountConnectionId || "").trim();
+  const account = alias ? String(connectionValues[alias]?.account || "").trim() : undefined;
+  if (alias && !account) return failed("The Poki account Connection has no account name.");
+  const root = await findPokiConfigRoot(services.context.getThirdPartyPath(), account);
+  return root ? verified() : failed(loginRequiredMessage(account));
+};
+
+export interface PokiPreflightServices {
+  context: PipelabContext;
+}

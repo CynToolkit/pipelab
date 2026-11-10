@@ -428,6 +428,36 @@ describe("release descriptors", () => {
     expect(parseReleaseConfig(JSON.parse(JSON.stringify(config)))).toEqual(config);
   });
 
+  it("validates workflow settings", () => {
+    const base = createReleaseConfig({
+      id: "wf",
+      project: "proj",
+      name: "Workflow",
+      source: { provider: "src", config: {} },
+    });
+    const settings = {
+      checkDestinations: false,
+      keepFailedArtifacts: true,
+      retention: {
+        history: { maxRuns: 20, maxAgeDays: 90 },
+        artifacts: { maxRuns: 3 },
+        failedMaxAgeDays: 7,
+        keepLatestSuccessful: true,
+      },
+      notifications: { onFailure: true },
+    };
+    expect(parseReleaseConfig({ ...base, settings }).settings).toEqual(settings);
+    expect(() =>
+      parseReleaseConfig({ ...base, settings: { retention: { artifacts: { maxRuns: 0 } } } }),
+    ).toThrow("maxRuns must be a whole number");
+    expect(() =>
+      parseReleaseConfig({ ...base, settings: { notifications: { onSuccess: "yes" } } }),
+    ).toThrow("onSuccess must be a boolean");
+    expect(() => parseReleaseConfig({ ...base, settings: [] })).toThrow(
+      "settings must be an object",
+    );
+  });
+
   it("rejects IDs that could escape persisted workflow paths", () => {
     const config = createReleaseConfig({
       id: "../connections",

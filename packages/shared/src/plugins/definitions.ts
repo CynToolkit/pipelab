@@ -144,9 +144,36 @@ export type WorkflowTaskFactory<TServices> = (services: TServices) => WorkflowTa
 
 export type WorkflowTaskFactoryRegistry<TServices> = Record<string, WorkflowTaskFactory<TServices>>;
 
+/**
+ * Outcome of a read-only check a destination runs before any step starts.
+ * Only `failed` blocks a run; `unverifiable` (offline, no cheap check) passes.
+ */
+export type PreflightResult =
+  | { status: "verified" }
+  | { status: "unverifiable"; reason: string }
+  | { status: "failed"; message: string };
+
+export interface PreflightContext<TServices> {
+  /** The destination step's resolved `with` inputs. */
+  inputs: Record<string, unknown>;
+  /** Connection fields resolved for this run, keyed by workflow alias. */
+  connectionValues: Record<string, Record<string, string>>;
+  services: TServices;
+  signal?: AbortSignal;
+}
+
+/** Must not upload, write provider state, or prompt. Throwing counts as unverifiable. */
+export type PreflightCheck<TServices> = (
+  context: PreflightContext<TServices>,
+) => Promise<PreflightResult>;
+
+export type PreflightCheckRegistry<TServices> = Record<string, PreflightCheck<TServices>>;
+
 /** Complete built-in provider contribution consumed by Pipelab hosts. */
 export interface ProviderDefinition<TServices = unknown> extends RendererProviderMetadata {
   workflowTasks?: WorkflowTaskFactoryRegistry<TServices>;
+  /** Preflight checks keyed by the workflow task ID of the destination step they guard. */
+  preflights?: PreflightCheckRegistry<TServices>;
 }
 
 /** Validates provider contributions while preserving the supplied definition's concrete type. */

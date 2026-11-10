@@ -107,6 +107,29 @@ export interface ReleaseDestinationConfig {
   slots: ReleaseDestinationSlot[];
 }
 
+/** How long a workflow keeps its runs. A rule that is absent is not applied. */
+export interface ReleaseRetentionPolicy {
+  /** Run history. Pruning a run also removes its artifacts. */
+  history?: { maxRuns?: number; maxAgeDays?: number };
+  /** Artifacts only: the run stays in history, its files are removed. Usually stricter than history. */
+  artifacts?: { maxRuns?: number; maxAgeDays?: number };
+  /** Failed and completed-with-errors runs are noise sooner than good ones. */
+  failedMaxAgeDays?: number;
+  /** Never prune the newest successful run, whatever the other rules say. Default: true. */
+  keepLatestSuccessful?: boolean;
+}
+
+/** Workflow-wide options. Every field is optional; an absent field takes its documented default. */
+export interface ReleaseWorkflowSettings {
+  /** Check destination accounts before the first step starts. Default: true. */
+  checkDestinations?: boolean;
+  /** Keep what a failed run's completed steps produced. Default: true. */
+  keepFailedArtifacts?: boolean;
+  retention?: ReleaseRetentionPolicy;
+  /** Desktop notification when a run started from the app finishes. Both default: true. */
+  notifications?: { onSuccess?: boolean; onFailure?: boolean };
+}
+
 export interface ReleaseConfig {
   version: ReleaseConfigVersion;
   id: string;
@@ -117,6 +140,7 @@ export interface ReleaseConfig {
   builds: ReleaseBuildProfileConfig[];
   destinations: ReleaseDestinationConfig[];
   continueOnError?: boolean;
+  settings?: ReleaseWorkflowSettings;
 }
 
 export interface CompiledArtifactReference {

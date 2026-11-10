@@ -73,6 +73,18 @@ const routes: RouterOptions["routes"] = [
     meta: { title: "Artifacts" },
   },
   {
+    path: "/workflows/:flowId/:projectId/plan",
+    name: "WorkflowPlan",
+    component: () => import("../pages/workflow-plan.vue"),
+    meta: { title: "Plan" },
+  },
+  {
+    path: "/workflows/:flowId/:projectId/settings",
+    name: "WorkflowSettings",
+    component: () => import("../pages/workflow-settings.vue"),
+    meta: { title: "Settings" },
+  },
+  {
     path: "/workflows/:flowId/:projectId/runs",
     name: "WorkflowRuns",
     component: () => import("../pages/workflow-runs.vue"),

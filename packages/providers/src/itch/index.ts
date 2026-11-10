@@ -1,4 +1,9 @@
-import { createItchUploadTask, WORKFLOW_TASK_ID, type ItchTaskServices } from "./export";
+import {
+  checkItchPreflight,
+  createItchUploadTask,
+  WORKFLOW_TASK_ID,
+  type ItchTaskServices,
+} from "./export";
 
 import { createProviderDefinition } from "@pipelab/shared";
 import type { ReleaseDestinationDefinition } from "@pipelab/shared";
@@ -88,6 +93,7 @@ export const provider = createProviderDefinition({
     },
   ],
   release: { destinations: [itchDestination] },
+  preflights: { [WORKFLOW_TASK_ID]: checkItchPreflight },
   workflowTasks: {
     [WORKFLOW_TASK_ID]: (services: ItchTaskServices) => createItchUploadTask(services),
   },

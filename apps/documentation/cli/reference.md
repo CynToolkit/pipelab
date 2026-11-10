@@ -67,8 +67,9 @@ with named or multiple slots group uploads under the destination and slot names.
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `--user-data <path>`               | Use a custom user-data directory.                                                                                                                            |
 | `-o, --output <path>`              | Write the run result JSON; with `--dry-run`, write the prepared config and plan instead.                                                                     |
-| `--dry-run`                        | Validate and prepare the workflow without executing deployment tasks.                                                                                        |
-| `--skip-persistence`               | Keep run history, run outputs, and package/cache data out of the Pipelab user-data store. They use temporary paths.                                           |
+| `--dry-run`                        | Validate and prepare the workflow without executing deployment tasks or destination account checks.                                                          |
+| `--skip-persistence`               | Keep run history, run outputs, and package/cache data out of the Pipelab user-data store. They use temporary paths.                                          |
+| `--skip-preflight`                 | Run without first checking destination accounts (offline use). The run records that the checks were skipped.                                                 |
 | `--fail-on-error`                  | Exit nonzero if the workflow completes with errors.                                                                                                          |
 | `-v, --verbose`                    | Print all captured workflow task logs after the run completes. The interactive view still shows one live output line under the running task or active phase. |
 | `--connection <alias.field=VALUE>` | Override one provider Connection field for this run. Repeat the option for additional fields.                                                                |

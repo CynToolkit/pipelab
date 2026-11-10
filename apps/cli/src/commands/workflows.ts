@@ -5,6 +5,8 @@ import {
   buildCoreReleaseRegistry,
   loadStrictProjects,
   prepareReleaseWorkflow,
+  listPreflightDestinations,
+  builtInProviders,
 } from "@pipelab/core-node";
 import {
   parseReleaseConfig,
@@ -116,6 +118,10 @@ export const workflowRunOptions = [
   new Option(
     "--skip-persistence",
     "Use temporary files instead of saving run history, outputs, or package/cache data",
+  ),
+  new Option(
+    "--skip-preflight",
+    "Run without first checking destination accounts (for offline use); the skip is recorded in the run",
   ),
   new Option("--fail-on-error", "Exit nonzero when a deployment fails"),
   new Option("-v, --verbose", "Show workflow logs after completion"),
@@ -296,6 +302,7 @@ export async function runWorkflowCommand(
     output?: string;
     failOnError?: boolean;
     dryRun?: boolean;
+    skipPreflight?: boolean;
     skipPersistence?: boolean;
     verbose?: boolean;
     connection?: readonly string[];
@@ -322,6 +329,17 @@ export async function runWorkflowCommand(
     console.log(
       `Dry run for ${id}: ${flow.builds.length} build profile(s), ${flow.destinations.length} destination(s)`,
     );
+    const preflightDestinations = listPreflightDestinations({
+      workflow: prepared.workflow,
+      config: prepared.config,
+      providers: builtInProviders,
+      registry: prepared.registry,
+    });
+    if (preflightDestinations.length) {
+      console.log(
+        `A real run checks these destinations first (not checked in a dry run): ${preflightDestinations.join(", ")}`,
+      );
+    }
     if (options.output) {
       const { writeFile } = await import("node:fs/promises");
       await writeFile(
@@ -595,6 +613,7 @@ export async function runWorkflowCommand(
     ...(workflowInput.kind === "file" ? { workflowConfig: workflowInput.config } : {}),
     connectionOverrides,
     persist: !options.skipPersistence,
+    skipPreflight: options.skipPreflight,
     logger: {
       info: () => undefined,
       warn: (...args) => console.warn(...args),

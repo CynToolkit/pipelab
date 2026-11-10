@@ -21,7 +21,7 @@ import {
   type ReleaseProducerDefinition,
   type ReleaseRegistry,
 } from "@pipelab/shared";
-import { buildCoreReleaseRegistry } from "./registry";
+import { buildHostNeutralRegistry } from "./test-registry";
 
 /**
  * Use-case tests for the release model: destination slots are not OS-bound, a build profile exposes
@@ -53,7 +53,7 @@ const FAKE_CAPACITOR = "@pipelab/fake-capacitor/producer";
 const FAKE_PLAY_STORE = "@pipelab/fake-play-store/destination";
 const FAKE_PAGES = "@pipelab/fake-cloudflare-pages/destination";
 
-const realRegistry = buildCoreReleaseRegistry();
+const realRegistry = buildHostNeutralRegistry();
 
 const linux: ReleaseHostContext = { platform: "linux", architecture: "x64" };
 const planning = (host: ReleaseHostContext): ReleasePlanningContext => ({ host });

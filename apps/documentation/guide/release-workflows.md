@@ -98,8 +98,8 @@ require the agent.
 
 ## Workflow sections
 
-The workflow editor has four sections: **Configuration**, **Builds**,
-**Artifacts**, and **Runs**. Configuration is the main view for the source and
+The workflow editor has these sections: **Configuration**, **Builds**,
+**Artifacts**, **Plan**, **Runs**, and **Settings**. Configuration is the main view for the source and
 destinations. Its settings save automatically as you edit; there is no Save
 button. Opening a workflow does not change its saved build or routing choices.
 Choose **Add destination** to open the provider picker. Provider-specific
@@ -109,12 +109,14 @@ than once. Use separate destinations when publishing to different provider
 accounts or projects; use deployment slots under one destination for variants
 of the same account or project, such as Windows and Linux channels.
 
+**Plan** draws what a run would do as a graph, from the source through builds to each destination slot. It shows the steps Pipelab adds automatically, and lists any planner errors or warnings. Builds and slots that cannot run on this host are left out. Drag to pan and scroll to zoom; the fit button reframes the whole graph. It never runs anything.
+
 Use **Builds** when you want to customize producers or targets. Adding a build
 is an explicit choice: select its type, engine, and target. Changing an engine
 clears incompatible targets until you select a replacement. The catalog shows
 when a target is unavailable on the current host and why. Configure a build to
 edit its settings or remove it; references to its outputs are never rerouted
-automatically. Build settings take effect when you apply them. If you leave
+automatically. Use **Duplicate** on a build to copy it, with its settings, targets and hooks, right below the original under the name "… copy"; deployments that read the original keep reading it. Build settings take effect when you apply them. If you leave
 Builds with unapplied edits, Pipelab asks whether to keep editing or discard
 those edits. Pending workflow changes save automatically before navigation;
 the browser also warns if you reload or close while a save is pending or has
@@ -202,7 +204,27 @@ resume automatically. After shipping, Pipelab opens the live run detail; use
 [Runs and history guide](/guide/runs-and-history) covers the run list,
 artifacts, and detail view.
 
-By default a failed step does not stop the others: a destination that already shipped cannot be rolled back, so the remaining independent steps still run, the run finishes with errors, and each step that could not run names the step it was waiting on. Turn on **Stop on first failure** in the Destinations section to stop starting new steps after the first failure. In the run view, destination steps use the same name and icon as their destination in the editor.
+Build targets are limited by the machine that runs the workflow: Electron macOS builds need a macOS host, and Tauri builds need a host of the same platform as the target. A target the host cannot build, and every deployment that takes its output, is shown as unavailable in the editor and skipped when the workflow runs, so a workflow saved on another machine still runs here with what this host can build.
+
+Before the first step starts, Pipelab checks each destination's account without uploading anything. If a check is definitive — a Poki login is missing, the Itch API key is rejected, or SteamCMD is not logged in as the configured account — the run fails at once, nothing is built or uploaded, and the run view names the destination and the cause. A check that cannot get a clear answer (for example you are offline) does not block the run. Steam is checked only against SteamCMD's saved login; Pipelab never logs in or prompts during the check. Run the CLI with `--skip-preflight` to bypass the checks; the run records that they were skipped. `--dry-run` stays offline and does not run them.
+
+By default a failed step does not stop the others: a destination that already shipped cannot be rolled back, so the remaining independent steps still run, the run finishes with errors, and each step that could not run names the step it was waiting on. Turn on **Stop on first failure** in the workflow's **Settings** tab to stop starting new steps after the first failure. In the run view, destination steps use the same name and icon as their destination in the editor.
+
+## Workflow settings
+
+The **Settings** tab of a workflow holds options that apply to every run of that workflow. They save automatically.
+
+- **General:**
+  - **Stop on first failure** is off by default.
+  - **Check destinations before running** is on by default. Turn it off to run without the account checks; the run records that they were skipped.
+  - **Keep artifacts of failed runs** is on by default. Turn it off to discard what a failed run's completed steps produced.
+- **Retention:** rules for this workflow's finished runs. A rule you leave unticked is not applied, and with no rule ticked nothing is deleted. The policy is applied when a run of the workflow finishes, once in the background each time Pipelab starts (so age rules also move for workflows you do not run), and when you press **Apply now** in the preview. Editing the rules deletes nothing by itself.
+  - **Run history:** keep only the last N runs, and/or delete runs older than N days. A pruned run is removed together with its artifacts.
+  - **Artifact files:** keep the files of only the last N runs, and/or delete files older than N days. The run stays in history without its files, so you can keep a long history and a short artifact window.
+  - **Failed runs:** delete failed runs (and runs completed with errors) older than N days, independently of the history rules.
+  - **Always keep the latest successful run** (on by default) protects the newest successful run from every rule above. The run that just finished and runs in progress are never pruned. Run counts include the run that just finished.
+  - A **Preview** below the rules updates as you edit them, and its **Apply now** button (with a confirmation) applies the saved policy immediately. It lists the runs that would be deleted, the runs that would only lose their files, any run kept by the latest-successful protection, and the space that would be freed, measured against the workflow's current history.
+- **Notifications:** a desktop notification when a run succeeds and when it fails, both on by default. A run that completes with errors counts as a failure. Notifications only fire for runs started from the app while it is open; the CLI does not send them. Pipelab asks for notification permission the first time you ship.
 
 Release workflows are not scheduled by Pipelab's current workflow format. The
 workflow runs when you choose **Ship** in the editor or on the dashboard, or
