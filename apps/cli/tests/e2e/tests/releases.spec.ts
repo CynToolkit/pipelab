@@ -415,7 +415,7 @@ describe("CLI release dry-run", () => {
         workspace,
       );
       expect(folderResult.status).toBe("completed");
-      await extractZip(folderOutput, join(sandbox.path, "folder-extracted"));
+      await extractZip(join(folderOutput, "Deployment 1"), join(sandbox.path, "folder-extracted"));
       expect(
         await readFile(join(sandbox.path, "folder-extracted", "source", "index.html"), "utf8"),
       ).toBe("core release");
@@ -542,7 +542,9 @@ describe("CLI release dry-run", () => {
       });
 
       expect(result.status).toBe("completed");
-      expect(await readFile(join(outputPath, "packaged.txt"), "utf8")).toBe("packaged");
+      expect(await readFile(join(outputPath, "Deployment 1", "packaged.txt"), "utf8")).toBe(
+        "packaged",
+      );
     },
     30 * 60 * 1000,
   );
@@ -742,6 +744,8 @@ describe("CLI release dry-run", () => {
           id: configId,
           project: "main",
           name: "Before build hook CLI trust",
+          // A failing hook must stop the run; the default is to keep going.
+          continueOnError: false,
           source: {
             provider: "@pipelab/core/source/web-folder",
             config: { path: testSandbox.paths.input },
@@ -1296,6 +1300,7 @@ describe("Release beforeBuild hooks", () => {
           id,
           project: "main",
           name: id,
+          continueOnError: false,
           source: {
             provider: "@pipelab/core/source/web-folder",
             config: { path: input },
