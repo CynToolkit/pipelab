@@ -92,8 +92,10 @@ describe("Desktop workflow submission to Itch provider integration", () => {
     const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValue(
-        new Response(JSON.stringify({ user: { username: "desktop-user" } }), { status: 200 }),
+      // A fresh Response per call, as a real fetch gives: the preflight reads one body, the task another.
+      .mockImplementation(
+        async () =>
+          new Response(JSON.stringify({ user: { username: "desktop-user" } }), { status: 200 }),
       );
     const events: unknown[] = [];
 
@@ -130,7 +132,14 @@ describe("Desktop workflow submission to Itch provider integration", () => {
         "LATEST",
         process.platform === "win32" ? "butler.exe" : "butler",
       ),
-      ["push", expect.any(String), "desktop-user/owner/game:linux", "--json"],
+      [
+        "push",
+        expect.any(String),
+        "desktop-user/owner/game:linux",
+        "--json",
+        "--userversion",
+        expect.any(String),
+      ],
       expect.objectContaining({ env: expect.objectContaining({ BUTLER_API_KEY: apiKey }) }),
       expect.any(Function),
       expect.objectContaining({ onStdout: expect.any(Function) }),

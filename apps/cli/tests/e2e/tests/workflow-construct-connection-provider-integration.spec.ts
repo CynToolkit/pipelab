@@ -82,8 +82,8 @@ describe("CLI connection override through the Construct task boundary", () => {
         alias,
         required: true,
         fields: [
-          { key: "username", required: true },
-          { key: "password", required: true },
+          { key: "username", required: true, secret: false },
+          { key: "password", required: true, secret: true },
         ],
         providerId: "@pipelab/plugin-construct",
         integrationName: "Construct Account",

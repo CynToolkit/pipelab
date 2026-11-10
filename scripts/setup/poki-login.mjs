@@ -59,7 +59,7 @@ const existing = (account ? [authPath] : [authPath, legacyAuthPath]).find((path)
   existsSync(path),
 );
 if (existing) {
-  console.log(`Poki login already saved (${existing}). Delete it to sign in again.`);
+  console.log("Poki login already saved. Delete the saved login to sign in again.");
   process.exit(0);
 }
 
@@ -113,4 +113,4 @@ try {
   await rm(tempPath, { force: true }).catch(() => {});
   throw error;
 }
-console.log(`Saved the Poki login to ${authPath}.`);
+console.log("Saved the Poki login.");
