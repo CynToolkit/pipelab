@@ -1,5 +1,6 @@
 /// <reference path="./declarations.d.ts" />
 import { createProviderDefinition } from "@pipelab/shared";
+import { requiresHostOfSamePlatform } from "../host-matrix";
 import type { ReleaseProducerDefinition } from "@pipelab/shared";
 import { tauriWorkflowTaskFactories } from "./package";
 
@@ -36,7 +37,7 @@ const tauriProducer: ReleaseProducerDefinition = {
     buildType: "desktop",
     output: tauriTargetDescriptor(id),
     createDefaultConfig: () => ({}),
-    isAvailable: () => ({ available: true }),
+    isAvailable: (host) => requiresHostOfSamePlatform(tauriTargetDescriptor(id).platform, host),
   })),
   createDefaultConfig: () => ({}),
   validate: () => [],

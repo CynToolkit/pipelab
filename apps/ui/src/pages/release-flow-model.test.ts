@@ -28,6 +28,7 @@ import {
   invalidEnvironmentBindingPaths,
   issuesForPath,
   missingRequiredFieldIssues,
+  duplicateBuildProfile,
   planOutputOptions,
   outputReferenceChangeImpact,
   outputReferenceConsumers,
@@ -413,6 +414,72 @@ describe("release flow model", () => {
     } as ReleasePlan;
     expect(planOutputOptions(config, plan, catalog)).toEqual([
       { value: "source", label: "Source — Project", ref: { source: true } },
+    ]);
+  });
+
+  it("duplicates a build after the original with fresh IDs and leaves the original alone", () => {
+    const flow = {
+      builds: [
+        {
+          id: "a",
+          type: "desktop",
+          engine: "engine-a",
+          enabled: true,
+          config: { icon: "x.png" },
+          targets: [{ id: "windows", enabled: true, config: {} }],
+          beforeBuild: [{ id: "hook-1", enabled: true, command: "pnpm lint" }],
+        },
+        { id: "z", type: "web", engine: "engine-b", enabled: true, config: {}, targets: [] },
+      ],
+    } as unknown as ReleaseConfig;
+    let hooks = 0;
+    const copy = duplicateBuildProfile(flow, "a", "a2", "Desktop", () => `hook-new-${++hooks}`);
+    expect(flow.builds.map((build) => build.id)).toEqual(["a", "a2", "z"]);
+    expect(copy).toMatchObject({
+      name: "Desktop copy",
+      config: { icon: "x.png" },
+      targets: [{ id: "windows", enabled: true }],
+      beforeBuild: [{ id: "hook-new-1", command: "pnpm lint" }],
+    });
+    expect(flow.builds[0]!.beforeBuild![0]!.id).toBe("hook-1");
+    copy!.config.icon = "changed";
+    expect(flow.builds[0]!.config.icon).toBe("x.png");
+    expect(duplicateBuildProfile(flow, "missing", "m", "x", () => "h")).toBeUndefined();
+  });
+
+  it("keeps an output this host cannot build selectable", () => {
+    const plan = {
+      outputs: [],
+      issues: [],
+      producers: [],
+      destinations: [],
+      graph: { nodes: [], edges: [] },
+    } as unknown as ReleasePlan;
+    const hostCatalog = {
+      ...catalog,
+      producers: catalog.producers.map((producer) => ({
+        ...producer,
+        targets: producer.targets.map((target) => ({
+          ...target,
+          availability: { available: false, reason: "no" },
+        })),
+      })),
+    };
+    const withBuild = {
+      ...config,
+      builds: [
+        {
+          id: "build-a",
+          type: "desktop",
+          engine: "engine-a",
+          enabled: true,
+          config: {},
+          targets: [{ id: "macos", enabled: true, config: {} }],
+        },
+      ],
+    } as ReleaseConfig;
+    expect(planOutputOptions(withBuild, plan, hostCatalog).map((option) => option.value)).toEqual([
+      "build-a:macos",
     ]);
   });
 

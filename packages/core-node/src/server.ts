@@ -29,7 +29,12 @@ export interface ServeOptions {
   desktopBootstrap?: Omit<DesktopBootstrapOptions, "version">;
 }
 
+let startupDone = false;
+
 export const sendStartupProgress = (message: string) => {
+  // Late progress (e.g. a run installing PNPM) must not replace the sticky "done" event
+  // that new clients replay, or they would sit on the splash screen forever.
+  if (startupDone) return;
   webSocketServer.broadcast("startup:progress", {
     type: "progress",
     data: { message },
@@ -37,6 +42,7 @@ export const sendStartupProgress = (message: string) => {
 };
 
 export const sendStartupReady = () => {
+  startupDone = true;
   console.log(`[Startup Progress] Ready!`);
   webSocketServer.broadcast("startup:progress", {
     type: "done",

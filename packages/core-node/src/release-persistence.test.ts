@@ -42,6 +42,12 @@ const setup = async () => {
   return { context, persistence: new ReleasePersistence(context) };
 };
 
+// These tests use placeholder credentials; the destination gate must not call real services.
+vi.mock("./release/preflight", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./release/preflight")>()),
+  runPreflights: async () => [],
+}));
+
 describe("ReleasePersistence", () => {
   it.each(["Node.js", "pnpm"])("persists a terminal run when %s setup fails", async (runtime) => {
     const { context } = await setup();
@@ -502,7 +508,7 @@ describe("ReleasePersistence", () => {
       {
         alias: "itch-production",
         required: true,
-        fields: [{ key: "apiKey", required: true }],
+        fields: [{ key: "apiKey", required: true, secret: true }],
         providerId: "@pipelab/plugin-itch",
         integrationName: "Itch Butler Account",
       },
@@ -546,12 +552,12 @@ describe("ReleasePersistence", () => {
           id: "folder",
           provider: "@pipelab/core/destination/folder",
           enabled: true,
-          config: { outputDir: join(context.userDataPath, "output") },
+          config: {},
           slots: [
             {
               id: "web",
               enabled: true,
-              config: {},
+              config: { outputDir: join(context.userDataPath, "output") },
               input: { buildId: "construct", targetId: "web" },
             },
           ],

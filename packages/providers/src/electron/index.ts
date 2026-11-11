@@ -3,6 +3,7 @@ import { createProviderDefinition } from "@pipelab/shared";
 import type { ReleaseProducerDefinition } from "@pipelab/shared";
 import { electronWorkflowTaskFactories } from "./package-v2";
 import { electronPhases } from "./phases";
+import { requiresMacHostForMacTargets } from "../host-matrix";
 
 export const electronTargetInputs = (
   targetId: string,
@@ -39,7 +40,8 @@ const electronProducer: ReleaseProducerDefinition = {
       buildType: "desktop",
       output: electronTargetDescriptor(id),
       createDefaultConfig: () => ({}),
-      isAvailable: () => ({ available: true }),
+      isAvailable: (host) =>
+        requiresMacHostForMacTargets(electronTargetDescriptor(id).platform, host),
     }),
   ),
   createDefaultConfig: () => ({}),

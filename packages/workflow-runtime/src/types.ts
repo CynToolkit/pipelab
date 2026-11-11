@@ -188,7 +188,8 @@ export interface WorkflowConnectionOverride {
 export interface WorkflowConnectionRequirement {
   alias: string;
   required: boolean;
-  fields: readonly { key: string; required: boolean }[];
+  /** `secret: false` marks a field as non-sensitive; it is then kept readable in logs. */
+  fields: readonly { key: string; required: boolean; secret?: boolean }[];
   providerId?: string;
   integrationName?: string;
 }

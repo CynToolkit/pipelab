@@ -58,8 +58,15 @@ describe("End-to-End: Multi-Plugin Integration Test", () => {
               id: "copy-output",
               provider: "@pipelab/core/destination/zip",
               enabled: true,
-              config: { outputPath: destinationPath },
-              slots: [{ id: "source", enabled: true, input: { source: true }, config: {} }],
+              config: {},
+              slots: [
+                {
+                  id: "source",
+                  enabled: true,
+                  input: { source: true },
+                  config: { outputPath: destinationPath },
+                },
+              ],
             },
           ],
         }),

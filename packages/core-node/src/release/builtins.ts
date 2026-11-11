@@ -1,4 +1,6 @@
 import {
+  deploymentFolderName,
+  deploymentFolderPath,
   transformArtifactDescriptor,
   type CompiledArtifact,
   type ProviderReleaseDefinition,
@@ -15,6 +17,16 @@ const webFolderOutput = {
   platform: "web",
   container: "directory",
 } as const;
+
+/** Renames the slot's destination field to the task input it feeds; other slot config passes through. */
+const slotTaskConfig = (
+  slot: { config: Record<string, unknown> },
+  field: string,
+  input: string,
+): Record<string, unknown> => {
+  const { [field]: value, ...rest } = slot.config;
+  return { ...rest, [input]: value };
+};
 
 const folderSource: ReleaseSourceDefinition = {
   id: "@pipelab/core/source/folder",
@@ -140,19 +152,19 @@ const folderDestination: ReleaseDestinationDefinition = {
   icon: { type: "icon", icon: "mdi-folder-outline" },
   accepts: {},
   requiresBuild: true,
-  fields: [{ key: "outputDir", type: "directory", label: "Output folder", required: true }],
-  createDefaultConfig: () => ({ outputDir: "" }),
+  fields: [],
+  slotFields: [{ key: "outputDir", type: "directory", label: "Output folder", required: true }],
+  createDefaultConfig: () => ({}),
   validate: (destination) =>
-    typeof destination.config.outputDir === "string" && destination.config.outputDir.trim()
-      ? []
-      : [
-          {
-            code: "folder.output-dir.required",
-            message: "A folder destination requires an output directory.",
-            severity: "error",
-            path: "config.outputDir",
-          },
-        ],
+    destination.slots
+      .map((slot, index) => ({ slot, index }))
+      .filter(({ slot }) => slot.enabled && !String(slot.config.outputDir ?? "").trim())
+      .map(({ slot, index }) => ({
+        code: "folder.output-dir.required",
+        message: `An output folder is required for ${slot.name?.trim() || `Deployment ${index + 1}`}.`,
+        severity: "error" as const,
+        path: `slots.${slot.id}.config.outputDir`,
+      })),
   compile: (artifact, destination, slot) => [
     {
       id: `release-folder-${destination.id}-${slot.id}`,
@@ -160,11 +172,14 @@ const folderDestination: ReleaseDestinationDefinition = {
       needs: [artifact.reference.stepId],
       artifactInputs: { from: artifact.reference },
       with: {
-        to: destination.config.outputDir,
         recursive: true,
         overwrite: true,
         cleanup: true,
-        ...slot.config,
+        ...slotTaskConfig(slot, "outputDir", "to"),
+        to: deploymentFolderPath(
+          String(slot.config.outputDir),
+          deploymentFolderName(slot, destination.slots.indexOf(slot)),
+        ),
       },
       delivery: { destinationId: destination.id, slotId: slot.id, artifact: artifact.reference },
     },
@@ -180,7 +195,8 @@ const zipDestination: ReleaseDestinationDefinition = {
     artifact.container === "directory" || artifact.format === "zip"
       ? { accepted: true }
       : { accepted: false, reason: "A ZIP destination accepts folders and ZIP archives." },
-  fields: [
+  fields: [],
+  slotFields: [
     {
       key: "outputPath",
       type: "file",
@@ -190,18 +206,17 @@ const zipDestination: ReleaseDestinationDefinition = {
       pathMode: "save",
     },
   ],
-  createDefaultConfig: () => ({ outputPath: "" }),
+  createDefaultConfig: () => ({}),
   validate: (destination) =>
-    typeof destination.config.outputPath === "string" && destination.config.outputPath.trim()
-      ? []
-      : [
-          {
-            code: "zip.output-path.required",
-            message: "A ZIP destination requires an output path.",
-            severity: "error",
-            path: "config.outputPath",
-          },
-        ],
+    destination.slots
+      .map((slot, index) => ({ slot, index }))
+      .filter(({ slot }) => slot.enabled && !String(slot.config.outputPath ?? "").trim())
+      .map(({ slot, index }) => ({
+        code: "zip.output-path.required",
+        message: `A ZIP output path is required for ${slot.name?.trim() || `Deployment ${index + 1}`}.`,
+        severity: "error" as const,
+        path: `slots.${slot.id}.config.outputPath`,
+      })),
   compile: (artifact, destination, slot) =>
     artifact.descriptor.container === "archive"
       ? [
@@ -211,7 +226,7 @@ const zipDestination: ReleaseDestinationDefinition = {
             uses: CORE_WORKFLOW_TASKS.copy,
             needs: [artifact.reference.stepId],
             artifactInputs: { from: artifact.reference },
-            with: { to: destination.config.outputPath, overwrite: true, ...slot.config },
+            with: { overwrite: true, ...slotTaskConfig(slot, "outputPath", "to") },
             delivery: {
               destinationId: destination.id,
               slotId: slot.id,
@@ -225,7 +240,7 @@ const zipDestination: ReleaseDestinationDefinition = {
             uses: CORE_WORKFLOW_TASKS.zip,
             needs: [artifact.reference.stepId],
             artifactInputs: { from: artifact.reference },
-            with: { to: destination.config.outputPath, ...slot.config },
+            with: slotTaskConfig(slot, "outputPath", "to"),
             delivery: {
               destinationId: destination.id,
               slotId: slot.id,

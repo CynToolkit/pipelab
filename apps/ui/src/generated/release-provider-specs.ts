@@ -603,7 +603,8 @@ const browserProviderSpecs = {
           type: "icon",
           icon: "mdi-folder-outline",
         },
-        fields: [
+        fields: [],
+        slotFields: [
           {
             key: "outputDir",
             type: "directory",
@@ -613,9 +614,7 @@ const browserProviderSpecs = {
         ],
         accepts: {},
         requiresBuild: true,
-        defaultConfig: {
-          outputDir: "",
-        },
+        defaultConfig: {},
       },
       {
         id: "@pipelab/core/destination/zip",
@@ -624,7 +623,8 @@ const browserProviderSpecs = {
           type: "icon",
           icon: "mdi-folder-zip-outline",
         },
-        fields: [
+        fields: [],
+        slotFields: [
           {
             key: "outputPath",
             type: "file",
@@ -637,9 +637,7 @@ const browserProviderSpecs = {
         accepts: {
           container: ["directory", "archive"],
         },
-        defaultConfig: {
-          outputPath: "",
-        },
+        defaultConfig: {},
       },
       {
         id: "@pipelab/plugin-steam/destination",
@@ -658,11 +656,6 @@ const browserProviderSpecs = {
             label: "Steam App ID",
             required: true,
           },
-          {
-            key: "description",
-            type: "text",
-            label: "Build description",
-          },
         ],
         slotFields: [
           {
@@ -680,7 +673,6 @@ const browserProviderSpecs = {
         defaultConfig: {
           accountConnectionId: "",
           appId: "",
-          description: "",
         },
       },
       {
@@ -723,21 +715,15 @@ const browserProviderSpecs = {
         label: "Poki",
         fields: [
           {
+            key: "accountConnectionId",
+            type: "connection",
+            integration: "@pipelab/plugin-poki",
+            label: "Poki account",
+          },
+          {
             key: "project",
             type: "text",
             label: "Poki project",
-            required: true,
-          },
-          {
-            key: "name",
-            type: "text",
-            label: "Version name",
-            required: true,
-          },
-          {
-            key: "notes",
-            type: "text",
-            label: "Release notes",
             required: true,
           },
         ],
@@ -747,9 +733,8 @@ const browserProviderSpecs = {
           container: "directory",
         },
         defaultConfig: {
+          accountConnectionId: "",
           project: "",
-          name: "",
-          notes: "",
         },
       },
       {
@@ -889,6 +874,19 @@ const browserProviderSpecs = {
       description: "Pipelab provider for publishing HTML5 games to Poki",
       isOfficial: true,
       packageName: "@pipelab/plugin-poki",
+      integrations: [
+        {
+          name: "Poki Account",
+          fields: [
+            {
+              key: "account",
+              label: "Account name",
+              type: "text",
+              placeholder: "e.g., studio",
+            },
+          ],
+        },
+      ],
     },
     {
       id: "@pipelab/plugin-tauri",

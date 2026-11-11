@@ -131,13 +131,13 @@ describe("core Release filesystem providers", () => {
             id: "folder",
             provider: "@pipelab/core/destination/folder",
             enabled: true,
-            config: { outputDir: "/output" },
+            config: {},
             slots: [
               {
                 id: "bundle",
                 enabled: true,
                 input: { buildId: "bundle", targetId: "zip" },
-                config: {},
+                config: { outputDir: "/output" },
               },
             ],
           },
@@ -151,6 +151,7 @@ describe("core Release filesystem providers", () => {
       CORE_WORKFLOW_TASKS.zip,
       CORE_WORKFLOW_TASKS.copy,
     ]);
+    expect(workflow.steps.at(-1)?.with).toMatchObject({ to: "/output/Deployment 1" });
   });
 
   it("requires a build for Folder destinations and no other built-in destination", () => {
@@ -170,8 +171,15 @@ describe("core Release filesystem providers", () => {
           id: "folder",
           provider: "@pipelab/core/destination/folder",
           enabled: true,
-          config: { outputDir: "/output" },
-          slots: [{ id: "source", enabled: true, input: { source: true }, config: {} }],
+          config: {},
+          slots: [
+            {
+              id: "source",
+              enabled: true,
+              input: { source: true },
+              config: { outputDir: "/output" },
+            },
+          ],
         },
       ],
     );
@@ -196,8 +204,15 @@ describe("core Release filesystem providers", () => {
             id: "zip",
             provider: "@pipelab/core/destination/zip",
             enabled: true,
-            config: { outputPath: "/output/game.zip" },
-            slots: [{ id: "source", enabled: true, input: { source: true }, config: {} }],
+            config: {},
+            slots: [
+              {
+                id: "source",
+                enabled: true,
+                input: { source: true },
+                config: { outputPath: "/output/game.zip" },
+              },
+            ],
           },
         ],
       ),
@@ -301,13 +316,13 @@ describe("Construct builds in the core Release compiler", () => {
             id: "folder",
             provider: "@pipelab/core/destination/folder",
             enabled: true,
-            config: { outputDir: "/output" },
+            config: {},
             slots: [
               {
                 id: "windows",
                 enabled: true,
                 input: { buildId: "electron", targetId: "windows-x64" },
-                config: {},
+                config: { outputDir: "/output" },
               },
             ],
           },

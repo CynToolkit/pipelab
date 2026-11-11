@@ -436,6 +436,32 @@ export const addCompatibleBuild = (
   return true;
 };
 
+/**
+ * Inserts a copy of a build right after it, with fresh IDs for the build and its hooks, and
+ * returns the copy. Deployments that read the original are not moved to the copy.
+ */
+export const duplicateBuildProfile = (
+  config: ReleaseConfig,
+  id: string,
+  copyId: string,
+  label: string,
+  hookId: () => string,
+): ReleaseBuildProfileConfig | undefined => {
+  const index = config.builds.findIndex((build) => build.id === id);
+  if (index < 0) return undefined;
+  const source = config.builds[index]!;
+  // JSON round trip: the build may be a reactive proxy, which structuredClone rejects.
+  const copy: ReleaseBuildProfileConfig = {
+    ...(JSON.parse(JSON.stringify(source)) as ReleaseBuildProfileConfig),
+    id: copyId,
+    name: `${source.name?.trim() || label} copy`,
+  };
+  if (copy.beforeBuild)
+    copy.beforeBuild = copy.beforeBuild.map((hook) => ({ ...hook, id: hookId() }));
+  config.builds.splice(index + 1, 0, copy);
+  return copy;
+};
+
 export const removeBuildProfile = (config: ReleaseConfig, id: string): boolean => {
   const nextBuilds = config.builds.filter((build) => build.id !== id);
   if (nextBuilds.length === config.builds.length) return false;
@@ -1044,12 +1070,29 @@ export const planOutputOptions = (
   config: ReleaseConfig,
   plan: ReleasePlan,
   catalog: ReleaseCatalog,
-): ReleaseOutputOption[] =>
-  plan.outputs.map((output) => ({
+): ReleaseOutputOption[] => {
+  const options = plan.outputs.map((output) => ({
     value: outputKey(output.ref),
     label: outputLabel(config, catalog, output.ref),
     ref: output.ref,
   }));
+  // Outputs this host cannot build are left out of the plan but stay selectable, so a
+  // deployment that takes one can still be edited and shows what it reads.
+  for (const build of config.builds) {
+    const producer = catalog.producers.find((candidate) => candidate.id === build.engine);
+    for (const target of build.targets) {
+      const ref = { buildId: build.id, targetId: target.id };
+      if (
+        options.some((option) => option.value === outputKey(ref)) ||
+        producer?.targets.find((candidate) => candidate.id === target.id)?.availability
+          ?.available !== false
+      )
+        continue;
+      options.push({ value: outputKey(ref), label: outputLabel(config, catalog, ref), ref });
+    }
+  }
+  return options;
+};
 
 export const plannerAcceptsBuildInput = (plan: ReleasePlan, buildId: string, buildIndex: number) =>
   plan.producers.some((producer) => producer.id === buildId) &&

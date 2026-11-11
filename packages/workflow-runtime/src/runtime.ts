@@ -329,6 +329,22 @@ interface InternalRunScopedWorkflowValueResolver extends WorkflowValueResolver {
   redactResultPreservingArtifactPaths<T>(value: T): T;
 }
 
+/**
+ * Connection values are redacted by default. Only a field the provider
+ * explicitly declares non-secret (for example a plain-text account name) stays
+ * readable, so that redaction does not mangle unrelated text containing it.
+ */
+const isPublicConnectionField = (
+  requirements: readonly WorkflowConnectionRequirement[] | undefined,
+  alias: string,
+  field: string,
+): boolean =>
+  requirements?.some(
+    (requirement) =>
+      requirement.alias === alias &&
+      requirement.fields.some((candidate) => candidate.key === field && candidate.secret === false),
+  ) ?? false;
+
 const createInternalRunScopedWorkflowValueResolver = (
   workflow: Workflow,
   variables: Record<string, unknown>,
@@ -346,7 +362,13 @@ const createInternalRunScopedWorkflowValueResolver = (
     ...new Set(
       [
         ...collectEnvironmentValues(workflow, runEnvironment),
-        ...Object.values(runConnectionValues).flatMap((fields) => Object.values(fields)),
+        ...Object.entries(runConnectionValues).flatMap(([alias, fields]) =>
+          Object.entries(fields)
+            .filter(
+              ([field]) => !isPublicConnectionField(options.connectionRequirements, alias, field),
+            )
+            .map(([, value]) => value),
+        ),
       ].filter((value) => value.length > 0),
     ),
   ].sort((left, right) => right.length - left.length);

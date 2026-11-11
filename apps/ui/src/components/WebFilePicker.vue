@@ -52,7 +52,7 @@
             rounded
             severity="secondary"
             aria-label="Create folder"
-            @click="createDirectory"
+            @click="startCreateDirectory"
           />
           <Button
             v-tooltip.bottom="'Refresh'"
@@ -64,6 +64,20 @@
             @click="loadDirectory"
           />
         </div>
+      </div>
+      <div v-if="creatingDirectory" class="new-folder-row">
+        <InputText
+          v-model="newDirectoryName"
+          class="path-input"
+          aria-label="New folder name"
+          placeholder="New folder name"
+          spellcheck="false"
+          autofocus
+          @keydown.enter="createDirectory"
+          @keydown.esc="creatingDirectory = false"
+        />
+        <Button label="Create" size="small" :disabled="!newDirectoryName.trim()" @click="createDirectory" />
+        <Button label="Cancel" size="small" text severity="secondary" @click="creatingDirectory = false" />
       </div>
       <div class="picker-body">
         <nav class="roots-sidebar" aria-label="Locations">
@@ -273,13 +287,26 @@ const onRowDblClick = async ({ data }: { data: FileItem }) => {
     await loadDirectory();
   } else if (!isSave.value && !allowDirectories.value) onConfirm();
 };
+const creatingDirectory = ref(false);
+const newDirectoryName = ref("");
+const startCreateDirectory = () => {
+  newDirectoryName.value = "";
+  creatingDirectory.value = true;
+};
 const createDirectory = async () => {
-  const name = window.prompt("New folder name");
-  if (!name?.trim() || /[\\/]/.test(name)) return;
+  const name = newDirectoryName.value.trim();
+  if (!name) return;
+  if (/[\\/]/.test(name)) {
+    errorMessage.value = "Folder names cannot contain slashes.";
+    return;
+  }
   const r = await api.execute("fs:createDirectory", {
-    path: joinPath(currentPath.value, name.trim()),
+    path: joinPath(currentPath.value, name),
   });
-  if (r.type === "success") await loadDirectory();
+  if (r.type === "success") {
+    creatingDirectory.value = false;
+    await loadDirectory();
+  }
   else errorMessage.value = r.ipcError || "Unable to create directory";
 };
 const ensureExtension = (name: string) => {
@@ -355,6 +382,14 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.new-folder-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.new-folder-row .path-input {
+  flex: 1;
 }
 .toolbar-group {
   display: flex;

@@ -11,29 +11,6 @@ afterEach(() => {
 });
 
 describe("ReleaseDestinationAccountPreview", () => {
-  it("shows the destination and selected account identity before publishing", () => {
-    const root = document.createElement("div");
-    const preview: ReleaseDestinationAccountPreviewData = {
-      destinationId: "store-one",
-      destinationLabel: "Store — Studio",
-      locationLabel: "Destination",
-      fieldLabel: "Account",
-      connectionId: "store-prod",
-      connectionName: "Production",
-      integrationName: "Store account",
-    };
-    const app = createApp({
-      render: () => h(ReleaseDestinationAccountPreview, { previews: [preview] }),
-    });
-    app.mount(root);
-    mountedApps.push(app);
-
-    const content = root.querySelector('[aria-label="Selected publishing accounts"]');
-    expect(content?.textContent).toContain(
-      "Store — Studio · Destination · Account: Production (Store account)",
-    );
-  });
-
   it("warns when two destinations will publish through the same saved account", () => {
     const root = document.createElement("div");
     const preview: ReleaseDestinationAccountPreviewData = {

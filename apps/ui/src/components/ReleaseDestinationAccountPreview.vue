@@ -25,17 +25,7 @@ const reusedAccounts = computed(() => {
 </script>
 
 <template>
-  <section v-if="previews.length" aria-label="Selected publishing accounts" class="wide">
-    <strong>Publishing accounts</strong>
-    <ul>
-      <li
-        v-for="preview in previews"
-        :key="`${preview.destinationId}:${preview.locationLabel}:${preview.fieldLabel}`"
-      >
-        {{ preview.destinationLabel }} · {{ preview.locationLabel }} · {{ preview.fieldLabel }}:
-        {{ preview.connectionName }} ({{ preview.integrationName }})
-      </li>
-    </ul>
+  <section v-if="reusedAccounts.length" aria-label="Connection reuse" class="wide">
     <p
       v-for="warning in reusedAccounts"
       :key="warning.connectionId"

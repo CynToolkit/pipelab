@@ -416,7 +416,10 @@ describe("Construct Desktop Ship to running Electron binary", () => {
           project: string;
           source: { provider: string; config: { path: string; profilePath: string } };
           builds: Array<{ engine: string; targets: Array<{ id: string }> }>;
-          destinations: Array<{ provider: string; config: { outputDir?: string } }>;
+          destinations: Array<{
+            provider: string;
+            slots: Array<{ config: { outputDir?: string } }>;
+          }>;
         };
         expect(workflow.source).toMatchObject({
           provider: "@pipelab/plugin-construct/source",
@@ -430,7 +433,7 @@ describe("Construct Desktop Ship to running Electron binary", () => {
         });
         expect(workflow.destinations[0]).toMatchObject({
           provider: "@pipelab/core/destination/folder",
-          config: { outputDir: outputPath },
+          slots: [expect.objectContaining({ config: { outputDir: outputPath } })],
         });
 
         const historyStorage = new BuildHistoryStorage(new PipelabContext({ userDataPath }));

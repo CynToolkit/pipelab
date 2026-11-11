@@ -21,7 +21,7 @@ import {
   type ReleaseProducerDefinition,
   type ReleaseRegistry,
 } from "@pipelab/shared";
-import { buildCoreReleaseRegistry } from "./registry";
+import { buildHostNeutralRegistry } from "./test-registry";
 
 /**
  * Use-case tests for the release model: destination slots are not OS-bound, a build profile exposes
@@ -53,7 +53,7 @@ const FAKE_CAPACITOR = "@pipelab/fake-capacitor/producer";
 const FAKE_PLAY_STORE = "@pipelab/fake-play-store/destination";
 const FAKE_PAGES = "@pipelab/fake-cloudflare-pages/destination";
 
-const realRegistry = buildCoreReleaseRegistry();
+const realRegistry = buildHostNeutralRegistry();
 
 const linux: ReleaseHostContext = { platform: "linux", architecture: "x64" };
 const planning = (host: ReleaseHostContext): ReleasePlanningContext => ({ host });
@@ -117,10 +117,15 @@ const pokiDestination = (...slots: ReleaseDestinationSlot[]) =>
   destination("poki", POKI, { project: "space-game", name: "1.0.0", notes: "Weekly build" }, slots);
 
 const folderDestination = (...slots: ReleaseDestinationSlot[]) =>
-  destination("folder", FOLDER, { outputDir: "/output/space" }, slots);
+  destination(
+    "folder",
+    FOLDER,
+    {},
+    slots.map((item) => ({ ...item, config: { outputDir: "/output/space", ...item.config } })),
+  );
 
 const zipDestination = (input?: ReleaseOutputRef) =>
-  destination("zip", ZIP, { outputPath: "/output/space-release.zip" }, [slot("bundle", {}, input)]);
+  destination("zip", ZIP, {}, [slot("bundle", { outputPath: "/output/space-release.zip" }, input)]);
 
 /** Target configs for a build: every id in `ids`, enabled only when listed in `enabledIds`. */
 const targetsOf = (

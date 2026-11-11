@@ -24,13 +24,13 @@ const zipOf = (outputPath: string) => ({
   id: "zip",
   provider: "@pipelab/core/destination/zip",
   enabled: true,
-  config: { outputPath },
+  config: {},
   slots: [
     {
       id: "archive",
       enabled: true,
       input: { buildId: "construct", targetId: "web" },
-      config: {},
+      config: { outputPath },
     },
   ],
 });
@@ -82,8 +82,8 @@ describe("CLI connection override through the Construct task boundary", () => {
         alias,
         required: true,
         fields: [
-          { key: "username", required: true },
-          { key: "password", required: true },
+          { key: "username", required: true, secret: false },
+          { key: "password", required: true, secret: true },
         ],
         providerId: "@pipelab/plugin-construct",
         integrationName: "Construct Account",

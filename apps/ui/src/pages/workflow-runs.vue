@@ -1,10 +1,8 @@
 <template>
-  <WorkflowShell :flow-id="flowId" :project-id="projectId" :title="workflowName" active="runs">
+  <div class="workflow-page">
     <main class="runs-page" :aria-busy="loading">
       <div class="list-heading">
-        <div>
-          <h2>Runs</h2>
-        </div>
+        <WorkflowRunsSwitch :flow-id="flowId" :project-id="projectId" active="runs" />
         <span v-if="!loading && !historyError && !workflowError" class="run-count"
           >{{ entries.length }} {{ entries.length === 1 ? "run" : "runs" }}</span
         >
@@ -95,14 +93,15 @@
         </button>
       </div>
     </main>
-  </WorkflowShell>
+  </div>
 </template>
 
 <script setup lang="ts">
+import { useWorkflowTab } from "../composables/workflow-header-state";
+import WorkflowRunsSwitch from "@renderer/components/WorkflowRunsSwitch.vue";
 import { useRouteReadiness } from "@renderer/composables/useRouteReadiness";
 import { computed, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import WorkflowShell from "@renderer/components/WorkflowShell.vue";
 import Button from "primevue/button";
 import Message from "primevue/message";
 import { useAPI } from "@renderer/composables/api";
@@ -111,6 +110,7 @@ import { resolveWorkflowRunsState, scheduleWorkflowRunsRefresh } from "./workflo
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 
 const route = useRoute();
+useWorkflowTab(() => void loadRuns());
 const router = useRouter();
 const api = useAPI();
 const agent = useAgentAvailability();

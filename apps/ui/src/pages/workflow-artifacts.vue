@@ -1,15 +1,8 @@
 <template>
-  <WorkflowShell
-    :flow-id="flowId"
-    :project-id="projectId"
-    :title="workflowTitle"
-    active="artifacts"
-  >
+  <div class="workflow-page">
     <main class="artifacts-page" :aria-busy="loading">
       <header class="list-heading">
-        <div>
-          <h2>Artifacts</h2>
-        </div>
+        <WorkflowRunsSwitch :flow-id="flowId" :project-id="projectId" active="artifacts" />
         <span v-if="!loading && !loadError" class="artifact-count">
           {{ artifacts.length }}
           {{ artifacts.length === 1 ? "artifact" : "artifacts" }}
@@ -105,14 +98,15 @@
         </li>
       </ul>
     </main>
-  </WorkflowShell>
+  </div>
 </template>
 
 <script setup lang="ts">
+import { useWorkflowTab } from "../composables/workflow-header-state";
+import WorkflowRunsSwitch from "@renderer/components/WorkflowRunsSwitch.vue";
 import { useRouteReadiness } from "@renderer/composables/useRouteReadiness";
 import { computed, onUnmounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import WorkflowShell from "@renderer/components/WorkflowShell.vue";
 import Button from "primevue/button";
 import Message from "primevue/message";
 import Tag from "primevue/tag";
@@ -121,6 +115,7 @@ import { aggregateWorkflowArtifacts } from "./workflow-artifacts-state";
 import { useAgentAvailability } from "@renderer/composables/useAgentAvailability";
 
 const route = useRoute();
+useWorkflowTab(() => void loadArtifacts());
 const router = useRouter();
 const api = useAPI();
 const agent = useAgentAvailability();

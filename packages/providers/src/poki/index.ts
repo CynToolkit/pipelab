@@ -1,4 +1,9 @@
-import { createPokiUploadTask, WORKFLOW_TASK_ID, type PokiTaskServices } from "./export";
+import {
+  checkPokiPreflight,
+  createPokiUploadTask,
+  WORKFLOW_TASK_ID,
+  type PokiTaskServices,
+} from "./export";
 
 import { createProviderDefinition } from "@pipelab/shared";
 import type { ReleaseDestinationDefinition } from "@pipelab/shared";
@@ -10,13 +15,17 @@ const pokiDestination: ReleaseDestinationDefinition = {
   label: "Poki",
   accepts: { kind: "application", platform: "web", container: "directory" },
   fields: [
+    {
+      key: "accountConnectionId",
+      type: "connection",
+      integration: "@pipelab/plugin-poki",
+      label: "Poki account",
+    },
     { key: "project", type: "text", label: "Poki project", required: true },
-    { key: "name", type: "text", label: "Version name", required: true },
-    { key: "notes", type: "text", label: "Release notes", required: true },
   ],
-  createDefaultConfig: () => ({ project: "", name: "", notes: "" }),
+  createDefaultConfig: () => ({ accountConnectionId: "", project: "" }),
   validate: (config) =>
-    ["project", "name", "notes"]
+    ["project"]
       .filter((key) => !String(config.config[key] || "").trim())
       .map((key) => ({
         code: `poki.${key}.required`,
@@ -24,16 +33,24 @@ const pokiDestination: ReleaseDestinationDefinition = {
         severity: "error" as const,
         path: `config.${key}`,
       })),
-  compile: (artifact, destination, slot) => [
-    {
-      id: `poki-${destination.id}-${slot.id}`,
-      uses: WORKFLOW_TASK_ID,
-      needs: [artifact.reference.stepId],
-      artifactInputs: { "input-folder": artifact.reference },
-      with: { ...destination.config, ...slot.config },
-      delivery: { destinationId: destination.id, slotId: slot.id, artifact: artifact.reference },
-    },
-  ],
+  compile: (artifact, destination, slot, context) => {
+    const version = String(context.variables?.version ?? "");
+    const notes = String(context.variables?.releaseNotes ?? "").trim() || version;
+    return [
+      {
+        id: `poki-${destination.id}-${slot.id}`,
+        uses: WORKFLOW_TASK_ID,
+        needs: [artifact.reference.stepId],
+        artifactInputs: { "input-folder": artifact.reference },
+        with: { ...destination.config, ...slot.config, name: version, notes },
+        delivery: {
+          destinationId: destination.id,
+          slotId: slot.id,
+          artifact: artifact.reference,
+        },
+      },
+    ];
+  },
 };
 
 export const provider = createProviderDefinition({
@@ -43,7 +60,21 @@ export const provider = createProviderDefinition({
   description: "Pipelab provider for publishing HTML5 games to Poki",
   icon: { type: "icon", icon: "pi-globe" },
   isOfficial: true,
+  integrations: [
+    {
+      name: "Poki Account",
+      fields: [
+        {
+          key: "account",
+          label: "Account name",
+          type: "text",
+          placeholder: "e.g., studio",
+        },
+      ],
+    },
+  ],
   release: { destinations: [pokiDestination] },
+  preflights: { [WORKFLOW_TASK_ID]: checkPokiPreflight },
   workflowTasks: {
     [WORKFLOW_TASK_ID]: (services: PokiTaskServices) => createPokiUploadTask(services),
   },

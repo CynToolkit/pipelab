@@ -20,6 +20,8 @@ export * from "./workflow-tasks/filesystem";
 export * from "./release/builtins";
 export { buildCoreReleaseRegistry } from "./release/registry";
 export * from "./release/workflow-value-requirements";
+export { listPreflightDestinations, PreflightFailedError } from "./release/preflight";
+export { builtInProviders } from "./providers-registry";
 export * from "./server";
 export * from "./desktop-bootstrap";
 export * from "./pipelab-cloud-auth";

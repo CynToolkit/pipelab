@@ -173,6 +173,38 @@ describe("artifact-aware workflow runtime", () => {
     expect(received).toBe("initial-token");
   });
 
+  it("keeps Connection fields declared non-secret readable while redacting the rest", async () => {
+    let logged = "";
+    await runWorkflow(
+      { version: 1, steps: [{ id: "publish", uses: "test:publish" }] },
+      {
+        host,
+        connectionValues: { steam: { username: "pipelab", password: "hunter2-secret" } },
+        connectionRequirements: [
+          {
+            alias: "steam",
+            required: true,
+            fields: [
+              { key: "username", required: true, secret: false },
+              { key: "password", required: true, secret: true },
+            ],
+          },
+        ],
+        tasks: {
+          "test:publish": async ({ log }) => {
+            log("pipelab uses hunter2-secret");
+          },
+        },
+        onEvent: (event) => {
+          logged += JSON.stringify(event);
+        },
+      },
+    );
+
+    expect(logged).toContain("pipelab uses [REDACTED]");
+    expect(logged).not.toContain("hunter2-secret");
+  });
+
   it("merges disjoint run-scoped Connection values and overrides, then redacts them", async () => {
     const environmentPassword = "connection-env-secret";
     const literalToken = "literal=connection-secret";

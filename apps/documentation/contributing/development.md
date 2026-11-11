@@ -93,6 +93,20 @@ Never copy a developer's browser profile into CI. The dispatch fails clearly
 if either secret is missing, so the live acceptance cannot silently pass
 without running. Regular push and pull request tests remain credential-free.
 
+To seed the dedicated Construct profile locally, run `mise run setup-providers`
+(or `mise run setup:construct` alone). It installs Playwright's Chromium if needed, signs in with `CONSTRUCT_USERNAME` and `CONSTRUCT_PASSWORD`
+(from the environment, otherwise from Doppler project `pipelab`, config
+`dev_personal`; override with `DOPPLER_PROJECT` and `DOPPLER_CONFIG`), and
+prints `CONSTRUCT_PROFILE_PATH`, the `.../PipelabConstruct/Default` profile to
+select on the workflow's Construct source. It signs in again on every run. `mise run setup:poki`
+saves a Poki login without a browser on the machine: it prints Poki's sign-in
+link, you open it on any device, then give it the final `http://localhost:8745/…`
+URL from the address bar (set `POKI_LOGIN_URL`, pass it as an argument, or paste
+it at the prompt). An existing Poki CLI login is kept; delete `poki/auth.json` in your config
+directory (`$XDG_CONFIG_HOME` or `~/.config`) to sign in again. Set `POKI_ACCOUNT=studio` to save the login for a
+named Poki Account Connection in Pipelab's managed directory instead. Further provider setup tasks
+are added under `setup-providers`.
+
 For a local authenticated run, use a dedicated Playwright Chromium user-data
 directory with the fixed basename `PipelabConstruct`; keep it separate from
 your everyday browser profile. Load `CONSTRUCT_CI_USERNAME` and

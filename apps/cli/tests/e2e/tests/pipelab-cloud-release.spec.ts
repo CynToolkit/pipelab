@@ -241,13 +241,13 @@ describe("Pipelab Cloud Release destination in the CLI workflow host", () => {
             id: "local-copy",
             provider: "@pipelab/core/destination/folder",
             enabled: true,
-            config: { outputDir: localDestination },
+            config: {},
             slots: [
               {
                 id: "local-only",
                 enabled: true,
                 input: { buildId: "cloud-profile", targetId: "local-only" },
-                config: {},
+                config: { outputDir: localDestination },
               },
             ],
           },
@@ -326,9 +326,9 @@ describe("Pipelab Cloud Release destination in the CLI workflow host", () => {
         );
         expect(uploadHeaders.get(targetId)?.get("if-none-match")).toBe("*");
       }
-      await expect(readFile(join(localDestination, "local-only.txt"), "utf8")).resolves.toBe(
-        "local-only output",
-      );
+      await expect(
+        readFile(join(localDestination, "Deployment 1", "local-only.txt"), "utf8"),
+      ).resolves.toBe("local-only output");
       expect(result.status).toBe("completed-with-errors");
       expect(result.steps["pipelab-cloud-cloud-quota-quota"]?.error?.message).toBe(
         "Pipelab Cloud storage quota exceeded",

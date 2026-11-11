@@ -1,21 +1,6 @@
 <template>
-  <WorkflowShell
-    :flow-id="flowId"
-    :project-id="projectId"
-    :title="entry?.workflowName || entry?.projectName || 'Workflow'"
-    :subtitle="entry?.version ? `Release ${entry.version}` : `Run #${shortId}`"
-    active="runs"
-  >
+  <div class="workflow-page">
     <main v-if="entry" class="run-page">
-      <div class="run-navigation">
-        <Button
-          label="Back to runs"
-          icon="mdi mdi-arrow-left"
-          text
-          size="small"
-          @click="backToRuns"
-        />
-      </div>
       <Message v-if="error" severity="error" :closable="false" role="alert" class="run-error">{{
         error
       }}</Message>
@@ -24,17 +9,10 @@
       }}</Message>
       <header class="run-header">
         <div class="run-title-row">
-          <span
-            class="status-mark"
-            :class="`status-${entry.status}`"
-            :aria-label="statusLabel(entry.status)"
-          >
-            <i :class="statusIcon(entry.status)" aria-hidden="true" />
-          </span>
           <div class="run-title">
             <div class="title-line">
-              <h2>{{ entry.version ? `Release ${entry.version}` : "Workflow run" }}</h2>
               <Tag :value="statusLabel(entry.status)" :severity="statusSeverity(entry.status)" />
+              <span v-if="entry.status === 'running'" class="live-indicator"><i />Live</span>
             </div>
             <div class="run-meta">
               <span>{{ formatDate(entry.startTime) }}</span
@@ -43,6 +21,40 @@
             </div>
           </div>
         </div>
+        <nav class="detail-tabs" aria-label="Run detail sections">
+          <button
+            :class="{ active: activePanel === 'logs' }"
+            :aria-current="activePanel === 'logs' ? 'page' : undefined"
+            @click="activePanel = 'logs'"
+          >
+            <i class="mdi mdi-console-line" />Logs
+          </button>
+          <button
+            :class="{ active: activePanel === 'artifacts' }"
+            :aria-current="activePanel === 'artifacts' ? 'page' : undefined"
+            @click="activePanel = 'artifacts'"
+          >
+            <i class="mdi mdi-package-variant-closed" />Artifacts
+            <span>{{ entry.artifacts?.length || 0 }}</span>
+          </button>
+          <button
+            :class="{ active: activePanel === 'deliveries' }"
+            :aria-current="activePanel === 'deliveries' ? 'page' : undefined"
+            @click="activePanel = 'deliveries'"
+          >
+            <i class="mdi mdi-cloud-upload-outline" />Deliveries
+            <span>{{ entry.deliveries?.length || 0 }}</span>
+          </button>
+        </nav>
+        <Button
+          v-if="playwrightVideoPath"
+          :label="videoCopied ? 'Copied' : 'Copy video path'"
+          :icon="videoCopied ? 'pi pi-check' : 'mdi mdi-video-outline'"
+          text
+          size="small"
+          :title="playwrightVideoPath"
+          @click="copyVideoPath"
+        />
         <Button
           v-if="entry.status === 'running'"
           label="Cancel run"
@@ -59,33 +71,16 @@
         class="failure-diagnostic"
         aria-label="Failure diagnosis"
       >
-        <div class="failure-diagnostic-heading">
-          <i class="mdi mdi-alert-circle-outline" aria-hidden="true" />
-          <div>
-            <span>{{ diagnostic.category }}</span>
-            <h3>{{ diagnostic.title }}</h3>
-          </div>
-        </div>
-        <p>{{ diagnostic.summary }}</p>
-        <p class="failure-context">
-          {{ entry.completedSteps }} of {{ entry.totalSteps }} steps succeeded;
-          {{ runFailureArtifactSummary(entry) }}
-        </p>
-        <p v-if="diagnostic.destination" class="failure-context">
-          Affected destination: <strong>{{ diagnostic.destination }}</strong>
-          <template v-if="diagnostic.slotId">
-            · Slot: <strong>{{ diagnostic.slotId }}</strong></template
-          >
-        </p>
-        <p class="failure-next"><strong>Next:</strong> {{ diagnostic.nextAction }}</p>
-        <div class="failure-actions">
-          <Button
-            :label="diagnostic.stepId ? 'View step logs' : 'View run logs'"
-            icon="mdi mdi-console-line"
-            text
-            size="small"
-            @click="viewFailureLogs(diagnostic)"
-          />
+        <i class="mdi mdi-alert-circle-outline failure-icon" aria-hidden="true" />
+        <div class="failure-body">
+          <p>
+            <strong>{{ diagnosticTitle(diagnostic) }}</strong> · {{ diagnostic.summary }}
+            {{ diagnostic.nextAction }}
+          </p>
+          <p v-if="diagnostic.destination" class="failure-context">
+            {{ diagnostic.destination
+            }}<template v-if="diagnostic.slotId"> · {{ diagnostic.slotId }}</template>
+          </p>
           <details v-if="diagnostic.rawMessage" class="failure-raw">
             <summary>Technical details</summary>
             <code v-if="diagnostic.errorCode">{{ diagnostic.errorCode }}</code>
@@ -93,84 +88,25 @@
             <pre v-if="diagnostic.rawStack">{{ diagnostic.rawStack }}</pre>
           </details>
         </div>
-      </section>
-      <section v-if="playwrightVideoPath" class="video-output" aria-label="Playwright video output">
-        <i class="mdi mdi-video-outline" aria-hidden="true" />
-        <div class="video-path">
-          <strong>Playwright video output</strong>
-          <code>{{ playwrightVideoPath }}</code>
-          <small v-if="copyVideoFeedback" aria-live="polite">{{ copyVideoFeedback }}</small>
-        </div>
         <Button
-          :label="videoCopied ? 'Copied' : 'Copy path'"
-          :icon="videoCopied ? 'pi pi-check' : 'pi pi-copy'"
+          :label="diagnostic.stepId ? 'View logs' : 'View run logs'"
+          icon="mdi mdi-console-line"
           text
           size="small"
-          @click="copyVideoPath"
+          @click="viewFailureLogs(diagnostic)"
         />
       </section>
-      <div class="run-summary" aria-label="Run summary">
-        <span
-          ><i class="mdi mdi-check-circle-outline" />{{ entry.completedSteps }}/{{
-            entry.totalSteps
-          }}
-          steps</span
-        >
-        <span
-          ><i class="mdi mdi-package-variant-closed" />{{
-            entry.artifacts?.length || 0
-          }}
-          artifacts</span
-        >
-        <span
-          ><i class="mdi mdi-cloud-upload-outline" />{{
-            entry.deliveries?.length || 0
-          }}
-          deliveries</span
-        >
-        <span v-if="entry.version"><i class="mdi mdi-tag-outline" />{{ entry.version }}</span>
-        <span v-if="entry.status === 'running'" class="live-indicator"><i />Live updates</span>
-      </div>
-
-      <nav class="detail-tabs" aria-label="Run detail sections">
-        <button
-          :class="{ active: activePanel === 'logs' }"
-          :aria-current="activePanel === 'logs' ? 'page' : undefined"
-          @click="activePanel = 'logs'"
-        >
-          <i class="mdi mdi-console-line" />Logs
-        </button>
-        <button
-          :class="{ active: activePanel === 'artifacts' }"
-          :aria-current="activePanel === 'artifacts' ? 'page' : undefined"
-          @click="activePanel = 'artifacts'"
-        >
-          <i class="mdi mdi-package-variant-closed" />Artifacts
-          <span>{{ entry.artifacts?.length || 0 }}</span>
-        </button>
-        <button
-          :class="{ active: activePanel === 'deliveries' }"
-          :aria-current="activePanel === 'deliveries' ? 'page' : undefined"
-          @click="activePanel = 'deliveries'"
-        >
-          <i class="mdi mdi-cloud-upload-outline" />Deliveries
-          <span>{{ entry.deliveries?.length || 0 }}</span>
-        </button>
-      </nav>
 
       <section v-if="activePanel === 'logs'" class="execution-layout" aria-label="Execution logs">
         <aside class="step-sidebar" aria-label="Execution steps">
-          <div class="sidebar-heading">
-            Execution <span>{{ entry.steps.length }}</span>
-          </div>
+          <div class="sidebar-heading">Steps</div>
           <button
             class="step-item all-logs"
             :class="{ selected: selectedStep === null }"
             :aria-pressed="selectedStep === null"
             @click="selectStep(null)"
           >
-            <i class="mdi mdi-text-box-multiple-outline" aria-hidden="true" /><span>All logs</span
-            ><small>{{ allLogs.length }}</small>
+            <i class="mdi mdi-text-box-multiple-outline" aria-hidden="true" /><span>All logs</span>
           </button>
           <div v-if="!entry.steps.length" class="step-empty">Waiting for steps…</div>
           <div v-for="(step, index) in entry.steps" :key="step.id" class="step-group">
@@ -178,22 +114,39 @@
               class="step-item"
               :class="[{ selected: selectedStep === step.id }, `step-${step.status}`]"
               :aria-pressed="selectedStep === step.id"
-              @click="selectStep(step.id)"
+              @click="onStepClick(step.id)"
             >
               <span class="step-icon" :class="`status-${step.status}`"
                 ><i :class="statusIcon(step.status)" aria-hidden="true"
               /></span>
               <span class="step-label"
-                ><strong>{{ step.name }}</strong
-                ><small>{{ stepDuration(step) }}</small></span
+                ><strong :title="step.id"
+                  ><img
+                    v-if="providerIconImage(stepIcon(step))"
+                    class="step-provider-icon"
+                    :src="providerIconImage(stepIcon(step))"
+                    alt=""
+                  /><i
+                    v-else-if="stepIcon(step)"
+                    class="step-provider-icon"
+                    :class="providerIconClass(stepIcon(step))"
+                    aria-hidden="true"
+                  />{{ stepTitle(step) }}</strong
+                ><small v-if="skipReason(step)">{{ skipReason(step) }}</small
+                ><small v-else-if="stepDuration(step)">{{ stepDuration(step) }}</small></span
               >
-              <small class="log-count">{{ step.logs.length }}</small>
+              <i
+                v-if="step.phases?.length"
+                class="mdi step-chevron"
+                :class="phasesOpen(step) ? 'mdi-chevron-up' : 'mdi-chevron-down'"
+                aria-hidden="true"
+              />
               <span class="sr-only">Step {{ index + 1 }}, {{ statusLabel(step.status) }}</span>
             </button>
             <ol
-              v-if="step.phases?.length"
+              v-if="step.phases?.length && phasesOpen(step)"
               class="phase-checklist"
-              :aria-label="`${step.name} phases`"
+              :aria-label="`${stepTitle(step)} phases`"
             >
               <li v-for="phase in step.phases" :key="phase.id" :class="`phase-${phase.status}`">
                 <span class="phase-status" :aria-label="phaseStatusLabel(phase.status)">
@@ -201,12 +154,9 @@
                 </span>
                 <span class="phase-detail">
                   <strong>{{ phase.title }}</strong>
-                  <small>
-                    {{ phaseStatusLabel(phase.status) }}
-                    <template v-if="phase.duration !== undefined">
-                      · {{ formatDurationMs(phase.duration) }}
-                    </template>
-                  </small>
+                  <small v-if="phase.duration !== undefined">{{
+                    formatDurationMs(phase.duration)
+                  }}</small>
                   <small v-if="phase.message" class="phase-message">{{ phase.message }}</small>
                   <small v-if="phase.error" class="phase-message phase-error">
                     {{ phase.error.message }}
@@ -233,44 +183,56 @@
         <div class="log-panel">
           <header class="log-heading">
             <div>
-              <span class="log-eyebrow">Logs</span>
-              <h3>{{ selectedStepEntry?.name || "All logs" }}</h3>
+              <h3>{{ selectedStepEntry ? stepTitle(selectedStepEntry) : "All logs" }}</h3>
             </div>
             <span v-if="entry.status === 'running'" class="streaming"><i />Streaming</span>
           </header>
-          <div v-if="selectedStepEntry?.error" class="step-error">
+          <div v-if="selectedStepEntry?.error && !failureDiagnostics.length" class="step-error">
             <i class="mdi mdi-alert-circle-outline" />{{ selectedStepEntry.error.message }}
           </div>
           <div
             ref="logViewport"
             class="terminal"
+            @scroll.passive="onTerminalScroll"
             role="log"
             aria-live="polite"
             aria-relevant="additions text"
-            :aria-label="`${selectedStepEntry?.name || 'All'} execution logs`"
+            :aria-label="`${selectedStepEntry ? stepTitle(selectedStepEntry) : 'All'} execution logs`"
           >
             <div v-if="!visibleLogs.length" class="terminal-empty">
               {{
                 entry.status === "running"
                   ? "Waiting for log output…"
-                  : "No logs recorded for this selection."
+                  : (selectedStepEntry && skipReason(selectedStepEntry)) ||
+                    "No logs recorded for this selection."
               }}
             </div>
             <div
               v-for="(log, index) in visibleLogs"
               :key="log.id || `${log.timestamp}-${index}`"
               class="log-line"
-              :class="`log-${log.level}`"
+              :class="[`log-${log.level}`, { 'no-source': selectedStep !== null }]"
             >
               <time :datetime="new Date(log.timestamp).toISOString()">{{
                 formatLogTime(log.timestamp)
               }}</time>
               <span class="log-level">{{ log.level.toUpperCase() }}</span>
-              <span v-if="log.source" class="log-source">{{ log.source }}</span>
+              <span v-if="log.source && selectedStep === null" class="log-source">{{
+                log.source
+              }}</span>
               <pre>{{ log.message }}</pre>
             </div>
             <span v-if="entry.status === 'running'" class="cursor" aria-hidden="true" />
           </div>
+          <Button
+            v-if="!followTail && visibleLogs.length"
+            class="jump-latest"
+            label="Latest"
+            icon="mdi mdi-arrow-down"
+            size="small"
+            rounded
+            @click="jumpToLatest"
+          />
         </div>
       </section>
 
@@ -369,14 +331,13 @@
         >
       </div>
     </main>
-  </WorkflowShell>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { useRouteReadiness } from "@renderer/composables/useRouteReadiness";
 import { computed, nextTick, onUnmounted, reactive, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import WorkflowShell from "@renderer/components/WorkflowShell.vue";
 import Button from "primevue/button";
 import Tag from "primevue/tag";
 import Message from "primevue/message";
@@ -401,12 +362,44 @@ import {
   type RunFailureDiagnostic,
 } from "./run-detail-state";
 import { subscribeToRunEvents } from "./run-events";
+import { runStepLabel } from "../utils/run-step-label";
+import { useAppStore } from "../store/app";
+import {
+  destinationIcon as providerDestinationIcon,
+  providerIconClass,
+  providerIconImage,
+  providerMetadataIcon,
+} from "../utils/provider-icons";
 
 type Panel = "logs" | "artifacts" | "deliveries";
 const route = useRoute();
 const router = useRouter();
 const api = useAPI();
 const agent = useAgentAvailability();
+const appStore = useAppStore();
+// Destination steps are named and iconed like the destination cards in the editor.
+const stepDestination = (step: ExecutionStep) =>
+  step.destinationId
+    ? appStore.releaseCatalog.destinations.find((item) => item.id === step.destinationId)
+    : undefined;
+const stepTitle = (step: ExecutionStep): string => {
+  const definition = stepDestination(step);
+  if (!definition) return runStepLabel(step);
+  const base = step.destinationName
+    ? `${definition.label} — ${step.destinationName}`
+    : definition.label;
+  const siblings =
+    entry.value?.steps.filter((item) => item.destinationId === step.destinationId) ?? [];
+  return siblings.length > 1
+    ? `${base} · ${siblings.findIndex((item) => item.id === step.id) + 1}`
+    : base;
+};
+const stepIcon = (step: ExecutionStep) => {
+  const definition = stepDestination(step);
+  if (definition)
+    return providerDestinationIcon(appStore.providerDefinitions, definition.id, definition.icon);
+  return step.uses ? providerMetadataIcon(appStore.providerDefinitions, step.uses) : undefined;
+};
 const entry = ref<BuildHistoryEntry>();
 const error = ref("");
 useRouteReadiness(computed(() => !agent.isReady.value || !!entry.value || !!error.value));
@@ -420,6 +413,26 @@ const activePanel = ref<Panel>("logs");
 const failureDiagnostics = computed(() =>
   entry.value ? buildRunFailureDiagnostics(entry.value) : [],
 );
+const diagnosticTitle = (diagnostic: { stepId?: string; title: string }) => {
+  const step = entry.value?.steps.find((candidate) => candidate.id === diagnostic.stepId);
+  return step ? `${stepTitle(step)} failed` : diagnostic.title;
+};
+// Why a step did not run: the step whose failure (or skip) it was waiting on.
+const skipReason = (step: { status: string; blockedBy?: string[] }) => {
+  if (step.status !== "skipped" || !step.blockedBy?.length) return "";
+  const blocker = entry.value?.steps.find((candidate) => candidate.id === step.blockedBy![0]);
+  return blocker
+    ? `Skipped: ${stepTitle(blocker)} ${blocker.status === "skipped" ? "was skipped" : "failed"}`
+    : "Skipped";
+};
+const expandedSteps = reactive(new Set<string>());
+const phasesOpen = (step: { id: string; status: string }) =>
+  expandedSteps.has(step.id) || step.status === "running" || step.status === "failed";
+const onStepClick = (stepId: string) => {
+  selectStep(stepId);
+  if (expandedSteps.has(stepId)) expandedSteps.delete(stepId);
+  else expandedSteps.add(stepId);
+};
 const cancelling = ref(false);
 const logViewport = ref<HTMLElement>();
 let loadGeneration = 0;
@@ -464,6 +477,36 @@ const allLogs = computed(() => {
 });
 const visibleLogs = computed(() =>
   selectedStep.value === null ? allLogs.value : selectedStepEntry.value?.logs || [],
+);
+// Follow new output while the reader is at the bottom; stop as soon as they
+// scroll up, and resume when they return to the bottom or press "Latest".
+const followTail = ref(true);
+const scrollToLatest = () => {
+  if (logViewport.value) logViewport.value.scrollTop = logViewport.value.scrollHeight;
+};
+const onTerminalScroll = () => {
+  const el = logViewport.value;
+  if (!el) return;
+  followTail.value = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+};
+const jumpToLatest = () => {
+  followTail.value = true;
+  scrollToLatest();
+};
+watch(
+  () => visibleLogs.value.length,
+  () => {
+    if (followTail.value) scrollToLatest();
+  },
+  { flush: "post" },
+);
+watch(
+  [selectedStep, activePanel],
+  () => {
+    followTail.value = true;
+    scrollToLatest();
+  },
+  { flush: "post" },
 );
 const deliveryGroups = computed(() => {
   const groups = new Map<
@@ -542,12 +585,12 @@ const downloadArtifact = async (hostedArtifactId: string) => {
 };
 const stepDuration = (step: ExecutionStep) =>
   step.duration != null
-    ? formatDurationMs(step.duration)
+    ? step.duration >= 1000
+      ? formatDurationMs(step.duration)
+      : ""
     : step.status === "running"
       ? "Running"
-      : step.status === "pending"
-        ? "Pending"
-        : "—";
+      : "";
 const phaseStatusLabel = (status: string) =>
   ({
     pending: "Pending",
@@ -692,12 +735,6 @@ const load = async () => {
         await router.replace(`/workflows/${workflowId}/${projectId}/runs`);
         return;
       }
-      const wasNearBottom =
-        !logViewport.value ||
-        logViewport.value.scrollHeight -
-          logViewport.value.scrollTop -
-          logViewport.value.clientHeight <
-          80;
       entry.value = loadedEntry;
       error.value = "";
       stopRunEvents?.();
@@ -709,8 +746,7 @@ const load = async () => {
       }
       if (activePanel.value === "logs") autoSelectInitialRunStep(stepSelection, entry.value.steps);
       await nextTick();
-      if (wasNearBottom && logViewport.value)
-        logViewport.value.scrollTop = logViewport.value.scrollHeight;
+      if (followTail.value) scrollToLatest();
     } else error.value = "This run could not be found.";
   } catch (cause) {
     if (!isCurrentRun()) return;
@@ -986,6 +1022,18 @@ onUnmounted(() => {
     var(--p-surface-200, var(--surface-border))
   );
   background: color-mix(in srgb, var(--primary-color) 9%, var(--p-surface-0, var(--surface-card)));
+}
+.step-provider-icon {
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  font-size: 14px;
+  vertical-align: -2px;
+  object-fit: contain;
+}
+.step-chevron {
+  grid-column: 3;
+  color: var(--p-text-muted-color, var(--text-color-secondary));
 }
 .step-item.all-logs {
   margin-bottom: 5px;
@@ -1488,5 +1536,224 @@ onUnmounted(() => {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ── Refined run view ───────────────────────────────────────────── */
+.run-header {
+  padding-bottom: 12px;
+  border-bottom: 0;
+}
+.run-meta {
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  font-size: 0.8rem;
+}
+.detail-tabs {
+  display: inline-flex;
+  gap: 2px;
+  margin: 4px 0 14px;
+  padding: 3px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--p-surface-100, var(--surface-ground));
+}
+.detail-tabs button {
+  margin: 0;
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 8px;
+}
+.detail-tabs button:hover {
+  background: transparent;
+  color: var(--text-color);
+}
+.detail-tabs button.active {
+  background: var(--p-surface-0, var(--surface-card));
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.08);
+}
+.detail-tabs button span {
+  background: transparent;
+  padding: 0;
+  min-width: 0;
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+}
+.execution-layout {
+  grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+  border-radius: 14px;
+  border-color: var(--p-surface-200, var(--surface-border));
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.05);
+}
+.step-sidebar {
+  padding: 10px;
+  background: var(--p-surface-0, var(--surface-card));
+  overflow-y: auto;
+  max-height: min(70vh, 720px);
+}
+.sidebar-heading {
+  padding: 4px 8px 8px;
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.66rem;
+}
+.step-item {
+  min-height: 38px;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 8px;
+}
+.step-item.selected {
+  background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+  box-shadow: inset 2px 0 0 var(--primary-color);
+}
+.step-item.all-logs {
+  margin-bottom: 6px;
+  border-bottom: 0;
+  border-radius: 8px;
+  grid-template-columns: 20px minmax(0, 1fr);
+  font-size: 0.78rem;
+}
+.step-item {
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+}
+.step-label strong {
+  white-space: normal;
+  line-height: 1.25;
+}
+.phase-checklist {
+  margin: 2px 0 8px 18px;
+}
+.log-heading {
+  min-height: 48px;
+  background: var(--p-surface-0, var(--surface-card));
+}
+.terminal {
+  background: #0b1220;
+  max-height: min(70vh, 720px);
+}
+
+.run-header {
+  padding: 0;
+}
+.run-title,
+.title-line {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.run-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.failure-diagnostic {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+}
+.failure-icon {
+  margin-top: 1px;
+  color: var(--red-500, #ef4444);
+  font-size: 1.1rem;
+}
+.failure-body {
+  flex: 1;
+  min-width: 0;
+}
+.failure-diagnostic p {
+  margin: 0;
+}
+.failure-context {
+  margin-top: 2px;
+}
+.failure-raw {
+  margin-top: 4px;
+}
+.video-output {
+  margin-top: 8px;
+  padding: 6px 12px;
+  gap: 10px;
+}
+.video-path {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.video-path strong {
+  white-space: nowrap;
+}
+.video-path code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.run-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.run-title-row {
+  flex: 1;
+  min-width: 0;
+}
+.detail-tabs {
+  margin: 0;
+}
+.run-page {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: calc(100vh - 225px);
+  min-height: 480px;
+}
+.run-page > .execution-layout,
+.run-page > .output-panel {
+  flex: 1;
+  min-height: 0;
+}
+.execution-layout {
+  overflow: hidden;
+}
+.step-sidebar,
+.terminal {
+  max-height: none;
+}
+.log-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  position: relative;
+}
+.jump-latest {
+  position: absolute;
+  right: 22px;
+  bottom: 16px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.3);
+}
+.terminal {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.output-panel {
+  overflow: auto;
+}
+.failure-diagnostic {
+  margin-top: 0;
+}
+.log-line {
+  grid-template-columns: 92px 48px minmax(0, 220px) minmax(0, 1fr);
+}
+.log-line.no-source {
+  grid-template-columns: 92px 48px minmax(0, 1fr);
+}
+.log-source {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

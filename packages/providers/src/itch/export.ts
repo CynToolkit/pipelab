@@ -3,6 +3,8 @@ import { ensureButler } from "./ensure.js";
 import { runWithLiveLogs } from "@pipelab/plugin-core";
 import type { PipelabContext } from "@pipelab/plugin-core";
 import type { WorkflowTask, WorkflowTaskContext } from "@pipelab/workflow-runtime";
+import type { PreflightContext, PreflightResult } from "@pipelab/shared";
+import { failed, preflightSignal, unverifiable, verified } from "../preflight";
 
 export const WORKFLOW_TASK_ID = "@pipelab/plugin-itch/itch-upload";
 
@@ -64,7 +66,8 @@ export const createItchUploadTask =
       throw new Error(
         `Itch account Connection '${accountConnectionId}' was not resolved for this run.`,
       );
-    runtimeInputs.user = connectionValues.username || connectionValues.user || runtimeInputs.user || "";
+    runtimeInputs.user =
+      connectionValues.username || connectionValues.user || runtimeInputs.user || "";
     runtimeInputs["api-key"] = connectionValues.apiKey ?? "";
     const apiKey = typeof runtimeInputs["api-key"] === "string" ? runtimeInputs["api-key"] : "";
     if (!apiKey) throw new Error("Itch account connection has no API key");
@@ -91,6 +94,9 @@ export const createItchUploadTask =
         runtimeInputs["input-folder"] as string,
         `${runtimeInputs.user as string}/${runtimeInputs.project as string}:${runtimeInputs.channel as string}`,
         "--json",
+        ...(String(runtimeInputs.version || "").trim()
+          ? ["--userversion", String(runtimeInputs.version).trim()]
+          : []),
       ],
       {
         env: {
@@ -124,3 +130,34 @@ export const createItchUploadTask =
 
     safeLog("Uploaded to itch");
   };
+
+/** Only a rejected key fails; network trouble or a server error stays unverifiable. */
+export const checkItchPreflight = async ({
+  inputs,
+  connectionValues,
+  signal,
+}: PreflightContext<unknown>): Promise<PreflightResult> => {
+  const alias = String(inputs.accountConnectionId || "").trim();
+  const apiKey = String(connectionValues[alias]?.apiKey ?? "").trim();
+  if (!apiKey) return failed("The Itch account connection has no API key.");
+  let response: Response;
+  try {
+    response = await fetch(`https://itch.io/api/1/${encodeURIComponent(apiKey)}/me`, {
+      signal: preflightSignal(signal),
+    });
+  } catch {
+    return unverifiable("itch.io could not be reached.");
+  }
+  if (response.status >= 500) return unverifiable(`itch.io answered HTTP ${response.status}.`);
+  if (response.status === 401 || response.status === 403)
+    return failed("The Itch API key was rejected.");
+  try {
+    const data = (await response.json()) as { user?: { username?: string }; errors?: unknown };
+    if (data.user?.username) return verified();
+    if (Array.isArray(data.errors) && data.errors.length)
+      return failed("The Itch API key was rejected.");
+  } catch {
+    // Fall through: an unreadable body is not a definitive answer.
+  }
+  return unverifiable("itch.io gave no definitive answer.");
+};

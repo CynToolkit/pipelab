@@ -16,11 +16,11 @@ import {
 import { CORE_WORKFLOW_TASKS, createLocalHost, runWorkflow } from "@pipelab/workflow-runtime";
 import { createCoreFilesystemWorkflowTasks } from "../workflow-tasks/filesystem";
 import { extractZip } from "../utils/fs-extras";
-import { buildCoreReleaseRegistry } from "./registry";
+import { buildHostNeutralRegistry } from "./test-registry";
 
 const host = { platform: "linux", architecture: "x64" };
 const context = { host };
-const registry = buildCoreReleaseRegistry();
+const registry = buildHostNeutralRegistry();
 const BUNDLE = "@pipelab/core/bundle";
 const ZIP = "@pipelab/core/destination/zip";
 
@@ -107,7 +107,7 @@ const bundleDestination = (
 });
 
 const bundleDestinations: Array<[string, ReleaseDestinationConfig]> = [
-  [ZIP, bundleDestination(ZIP, { outputPath: "/out/bundle.zip" }, {})],
+  [ZIP, bundleDestination(ZIP, {}, { outputPath: "/out/bundle.zip" })],
   [
     "@pipelab/plugin-itch/destination",
     bundleDestination(
@@ -316,12 +316,12 @@ describe("core Bundle planning", () => {
           id: "dest",
           provider: ZIP,
           enabled: true,
-          config: { outputPath: "/out/outer.zip" },
+          config: {},
           slots: [
             {
               id: "bundle",
               enabled: true,
-              config: {},
+              config: { outputPath: "/out/outer.zip" },
               input: { buildId: "outer", targetId: "zip" },
             },
           ],

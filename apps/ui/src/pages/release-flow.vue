@@ -1,819 +1,818 @@
 <template>
-  <WorkflowShell
-    v-if="!dashboardMode"
-    :flow-id="flowId"
-    :project-id="projectId"
-    :title="flow?.name || 'Release'"
-    active="configuration"
-  >
-    <template #actions>
-      <span
-        v-if="flow"
-        class="workflow-readiness"
-        :class="`state-${workflowReadinessState}`"
-        role="status"
-      >
-        <i :class="workflowReadinessIcon" aria-hidden="true" />{{ workflowReadinessLabel }}
-      </span>
-      <span v-if="flow" class="autosave-state" :class="`state-${saveState}`"
-        ><i
-          :class="
-            saveState === 'saving'
-              ? 'pi pi-spin pi-spinner'
-              : saveState === 'error'
-                ? 'pi pi-exclamation-circle'
-                : 'pi pi-check-circle'
-          "
-        />
-        {{ saveStateLabel }}</span
-      >
-      <Button
-        v-if="flow && plan?.graph.nodes.length"
-        v-tooltip.top="'View resolved plan'"
-        icon="pi pi-sitemap"
-        text
-        rounded
-        severity="secondary"
-        aria-label="View resolved plan"
-        @click="planExpanded = true"
-      />
-      <Button
-        class="ship-button"
-        label="Ship"
-        icon="mdi mdi-rocket-launch-outline"
-        :loading="running"
-        :disabled="!canShip"
-        @click="ship"
-      />
-    </template>
-    <div
-      v-if="workflowLoading || sourceInspectionPending || planning"
-      class="readiness-progress"
-      role="status"
-      aria-live="polite"
-      aria-busy="true"
-    >
-      <span v-if="workflowLoading"><i class="pi pi-spin pi-spinner" /> Loading workflow…</span>
-      <span v-if="sourceInspectionPending"
-        ><i class="pi pi-spin pi-spinner" /> Inspecting source…</span
-      >
-      <span v-if="planning"><i class="pi pi-spin pi-spinner" /> Planning release…</span>
-    </div>
-    <main v-if="flow" class="release-page pl-workflow">
-      <Message v-if="loadError" severity="error" role="alert">
-        <div class="planner-error">
-          <span>{{ loadError }}</span>
-          <Button
-            label="Retry loading workflow"
-            text
-            size="small"
-            :disabled="!agent.isReady.value"
-            @click="loadWorkflow"
-          />
-        </div>
-      </Message>
-      <Message v-if="error" severity="error" role="alert">{{ error }}</Message>
-      <Message v-if="plannerError" severity="error" role="alert">
-        <div class="planner-error">
-          <span>Workflow readiness is unavailable: {{ plannerError }}</span>
-          <Button label="Retry planning" text size="small" @click="refreshPlan" />
-        </div>
-      </Message>
-      <Message v-if="knownFieldIssues.length" severity="warn" role="status">
-        Required-field checks are static hints. Agent inspection, default resolution, and planning
-        determine workflow readiness.
-      </Message>
-      <Message v-if="saveError" severity="error" role="alert">
-        <div class="planner-error">
-          <span>{{ saveError }}</span>
-          <Button label="Retry save" text size="small" @click="save().catch(() => {})" />
-        </div>
-      </Message>
-      <section v-if="selectedBlocker" class="action-required-card" aria-live="polite">
-        <div class="blocker-icon" aria-hidden="true">
-          <i class="pi pi-exclamation-circle" />
-        </div>
-        <div class="blocker-copy">
-          <span class="eyebrow"
-            >Action required
-            <span class="blocker-count" aria-live="polite"
-              >{{ activeBlockerIndex + 1 }} of {{ blockingIssues.length }}</span
-            ></span
-          >
-          <strong>{{ blockerPresentation.title }}</strong>
-          <span>{{ blockerPresentation.description }}</span>
-        </div>
-        <div class="blocker-actions">
-          <div v-if="blockingIssues.length > 1" class="blocker-navigation">
-            <Button
-              icon="pi pi-chevron-left"
-              text
-              rounded
-              size="small"
-              severity="secondary"
-              aria-label="Previous blocker"
-              :disabled="activeBlockerIndex === 0"
-              @click="moveBlocker(-1)"
-            />
-            <Button
-              icon="pi pi-chevron-right"
-              text
-              rounded
-              size="small"
-              severity="secondary"
-              aria-label="Next blocker"
-              :disabled="activeBlockerIndex >= blockingIssues.length - 1"
-              @click="moveBlocker(1)"
-            />
-          </div>
-          <Button
-            class="blocker-repair-button"
-            size="small"
-            :label="blockerPresentation.actionLabel"
-            @click="repairSelectedBlocker"
-          />
-        </div>
-      </section>
-      <section class="release-section">
-        <div class="section-heading">
-          <div>
-            <h2>Source</h2>
-          </div>
-        </div>
-        <article class="source-card" :class="{ invalid: cardIssues('source').length }">
-          <div class="provider-icon">
-            <img
-              v-if="providerIconImage(sourceIconFor(sourceDefinition))"
-              :src="providerIconImage(sourceIconFor(sourceDefinition))"
-              alt=""
-            />
-            <i
-              v-else
-              :class="providerIconClass(sourceIconFor(sourceDefinition))"
-              aria-hidden="true"
-            />
-          </div>
-          <div class="source-copy">
-            <strong>{{ sourceDefinition?.label || flow.source.provider }}</strong>
-            <span>{{ sourcePath || "No source selected" }}</span>
-          </div>
-          <ReleaseStatus
-            :label="
-              cardIssues('source').length
-                ? 'Needs attention'
-                : sourcePath
-                  ? 'Ready'
-                  : 'Not configured'
+  <!-- One root element: the layout fades tabs with <Transition>, which cannot animate a fragment. -->
+  <div class="release-flow-root">
+    <div v-if="!dashboardMode" class="workflow-page">
+      <Teleport v-if="actionsTarget" :to="actionsTarget">
+        <span
+          v-if="flow && workflowReadinessState !== 'ready'"
+          class="workflow-readiness"
+          :class="`state-${workflowReadinessState}`"
+          role="status"
+        >
+          <i :class="workflowReadinessIcon" aria-hidden="true" />{{ workflowReadinessLabel }}
+        </span>
+        <span
+          v-if="flow && saveState !== 'saved'"
+          class="autosave-state"
+          :class="`state-${saveState}`"
+          ><i
+            :class="
+              saveState === 'saving'
+                ? 'pi pi-spin pi-spinner'
+                : saveState === 'error'
+                  ? 'pi pi-exclamation-circle'
+                  : 'pi pi-check-circle'
             "
           />
-          <Button
-            text
-            rounded
-            size="small"
-            severity="secondary"
-            icon="pi pi-pencil"
-            v-tooltip.top="'Edit source'"
-            aria-label="Edit source"
-            @click="sourceSettingsVisible = true"
-          />
-        </article>
-      </section>
-      <section class="release-section">
-        <div class="section-heading">
-          <div>
-            <h2>
-              Destinations<span v-if="flow.destinations.length" class="section-count">{{
-                flow.destinations.length
-              }}</span>
-            </h2>
-          </div>
-          <Button
-            label="Add destination"
-            icon="pi pi-plus"
-            outlined
-            size="small"
-            severity="secondary"
-            @click="addDestinationVisible = true"
-          />
-        </div>
-        <div v-if="!flow.destinations.length" class="empty-card">
-          <i class="mdi mdi-cloud-upload-outline" /><strong>No destinations yet</strong>
-          <span>Add a destination when you are ready to ship this release.</span>
-        </div>
-        <article
-          v-for="(destination, index) in flow.destinations"
-          :key="destination.id"
-          class="job-card"
-          :class="{
-            disabled: !destination.enabled,
-            invalid: cardIssues(`destinations.${index}`).length,
-          }"
+          {{ saveStateLabel }}</span
         >
-          <div class="job-header">
+        <SplitButton
+          class="ship-button"
+          label="Ship"
+          icon="mdi mdi-rocket-launch-outline"
+          :loading="running"
+          :disabled="!canShip"
+          :model="shipMenu"
+          @click="ship()"
+        />
+      </Teleport>
+      <div
+        v-if="flow && (workflowLoading || sourceInspectionPending)"
+        class="readiness-progress"
+        role="status"
+        aria-live="polite"
+        aria-busy="true"
+      >
+        <span v-if="workflowLoading"><i class="pi pi-spin pi-spinner" /> Loading workflow…</span>
+        <span v-if="sourceInspectionPending"
+          ><i class="pi pi-spin pi-spinner" /> Inspecting source…</span
+        >
+      </div>
+      <main v-if="flow" class="release-page pl-workflow">
+        <Message v-if="loadError" severity="error" role="alert">
+          <div class="planner-error">
+            <span>{{ loadError }}</span>
+            <Button
+              label="Retry loading workflow"
+              text
+              size="small"
+              :disabled="!agent.isReady.value"
+              @click="loadWorkflow"
+            />
+          </div>
+        </Message>
+        <Message v-if="error" severity="error" role="alert">{{ error }}</Message>
+        <Message v-if="plannerError" severity="error" role="alert">
+          <div class="planner-error">
+            <span>Workflow readiness is unavailable: {{ plannerError }}</span>
+            <Button label="Retry planning" text size="small" @click="refreshPlan" />
+          </div>
+        </Message>
+        <Message v-if="knownFieldIssues.length" severity="warn" role="status">
+          Required-field checks are static hints. Agent inspection, default resolution, and planning
+          determine workflow readiness.
+        </Message>
+        <Message v-if="saveError" severity="error" role="alert">
+          <div class="planner-error">
+            <span>{{ saveError }}</span>
+            <Button label="Retry save" text size="small" @click="save().catch(() => {})" />
+          </div>
+        </Message>
+        <section class="release-section">
+          <div class="section-heading">
+            <div>
+              <h2>Source</h2>
+            </div>
+          </div>
+          <article class="source-card" :class="{ invalid: cardIssues('source').length }">
             <div class="provider-icon">
               <img
-                v-if="
-                  providerIconImage(
-                    destinationIconFor(
-                      destination.provider,
-                      destinationDefinition(destination.provider)?.icon,
-                    ),
-                  )
-                "
-                :src="
-                  providerIconImage(
-                    destinationIconFor(
-                      destination.provider,
-                      destinationDefinition(destination.provider)?.icon,
-                    ),
-                  )
-                "
+                v-if="providerIconImage(sourceIconFor(sourceDefinition))"
+                :src="providerIconImage(sourceIconFor(sourceDefinition))"
                 alt=""
               />
               <i
                 v-else
-                :class="
-                  providerIconClass(
-                    destinationIconFor(
-                      destination.provider,
-                      destinationDefinition(destination.provider)?.icon,
-                    ),
-                  )
-                "
+                :class="providerIconClass(sourceIconFor(sourceDefinition))"
                 aria-hidden="true"
               />
             </div>
-            <div class="job-title">
-              <strong>{{ destinationDisplayLabel(destination) }}</strong
-              ><span>{{ destinationSummary(destination) }}</span>
+            <div class="source-copy">
+              <strong>{{ sourceDefinition?.label || flow.source.provider }}</strong>
+              <span>{{ sourcePath || "No source selected" }}</span>
             </div>
-            <ReleaseStatus :label="destinationReadiness(destination, index)" />
+            <ReleaseStatus
+              :label="
+                cardIssues('source').length
+                  ? 'Needs attention'
+                  : sourcePath
+                    ? 'Ready'
+                    : 'Not configured'
+              "
+            />
             <Button
               text
               rounded
               size="small"
               severity="secondary"
               icon="pi pi-pencil"
-              v-tooltip.top="'Edit destination settings'"
-              :aria-label="`Edit ${destinationDisplayLabel(destination)}`"
-              @click="openDestinationSettings(destination)"
+              v-tooltip.top="'Edit source'"
+              aria-label="Edit source"
+              @click="sourceSettingsVisible = true"
             />
-            <Button
-              v-if="destination.enabled"
-              class="destination-toggle"
-              v-tooltip.top="
-                isDestinationExpanded(destination.id) ? 'Hide deployments' : 'Show deployments'
-              "
-              text
-              rounded
-              severity="secondary"
-              size="small"
-              :icon="
-                isDestinationExpanded(destination.id) ? 'pi pi-chevron-up' : 'pi pi-chevron-down'
-              "
-              :aria-expanded="isDestinationExpanded(destination.id)"
-              :aria-controls="`destination-slots-${destination.id}`"
-              :aria-label="`${isDestinationExpanded(destination.id) ? 'Hide' : 'Show'} deployments for ${destinationDisplayLabel(destination)}`"
-              @click="toggleDestinationExpanded(destination.id)"
-            />
+          </article>
+        </section>
+        <section class="release-section">
+          <div class="section-heading">
+            <div>
+              <h2>
+                Destinations<span v-if="flow.destinations.length" class="section-count">{{
+                  flow.destinations.length
+                }}</span>
+              </h2>
+            </div>
+            <div class="section-actions">
+              <Button
+                label="Add destination"
+                icon="pi pi-plus"
+                outlined
+                size="small"
+                severity="secondary"
+                @click="addDestinationVisible = true"
+              />
+            </div>
           </div>
-          <div
-            v-if="destination.enabled && isDestinationExpanded(destination.id)"
-            :id="`destination-slots-${destination.id}`"
-            class="slot-list"
+          <div v-if="!flow.destinations.length" class="empty-card">
+            <i class="mdi mdi-cloud-upload-outline" /><strong>No destinations yet</strong>
+            <span>Add a destination when you are ready to ship this release.</span>
+          </div>
+          <article
+            v-for="(destination, index) in flow.destinations"
+            :key="destination.id"
+            class="job-card"
+            :class="{
+              disabled: !destination.enabled && !isDestinationUnavailable(destination),
+              unavailable: isDestinationUnavailable(destination),
+              invalid:
+                !isDestinationUnavailable(destination) &&
+                cardIssues(`destinations.${index}`).length,
+            }"
           >
-            <div v-for="(slot, slotIndex) in destination.slots" :key="slot.id" class="slot-row">
-              <div class="deployment-main">
-                <i class="mdi mdi-package-variant-closed" /><span
-                  ><strong>{{ deploymentSlotLabel(slot, slotIndex) }}</strong
-                  ><small>{{ artifactLabel(slot.input) }}</small></span
-                >
+            <div class="job-header">
+              <ToggleSwitch
+                class="row-switch"
+                :model-value="destination.enabled && !isDestinationUnavailable(destination)"
+                :disabled="isDestinationUnavailable(destination)"
+                v-tooltip.top="
+                  isDestinationUnavailable(destination)
+                    ? 'Pipelab Cloud is not available in this installation'
+                    : destination.enabled
+                      ? 'Skip this destination'
+                      : 'Include this destination'
+                "
+                @update:model-value="destination.enabled = $event"
+                :aria-label="`Include ${destinationDisplayLabel(destination)} in release`"
+              />
+              <div class="provider-icon">
+                <img
+                  v-if="
+                    providerIconImage(
+                      destinationIconFor(
+                        destination.provider,
+                        destinationDefinition(destination.provider)?.icon,
+                      ),
+                    )
+                  "
+                  :src="
+                    providerIconImage(
+                      destinationIconFor(
+                        destination.provider,
+                        destinationDefinition(destination.provider)?.icon,
+                      ),
+                    )
+                  "
+                  alt=""
+                />
+                <i
+                  v-else
+                  :class="
+                    providerIconClass(
+                      destinationIconFor(
+                        destination.provider,
+                        destinationDefinition(destination.provider)?.icon,
+                      ),
+                    )
+                  "
+                  aria-hidden="true"
+                />
+              </div>
+              <div class="job-title">
+                <strong>{{ destinationDisplayLabel(destination) }}</strong
+                ><span>{{ destinationSummary(destination) }}</span>
               </div>
               <ReleaseStatus
                 :label="
-                  slotCardIssues(slot).length
-                    ? 'Needs attention'
-                    : slot.input
-                      ? 'Ready'
-                      : 'Output required'
+                  isDestinationUnavailable(destination)
+                    ? 'Unavailable'
+                    : destinationReadiness(destination, index)
                 "
               />
-              <Select
-                v-if="!slot.input || slotIssues(slot).length"
-                :key="`${slot.id}:${outputPickerResets}`"
-                class="slot-output-select"
+              <Button
+                :disabled="!destination.enabled || isDestinationUnavailable(destination)"
+                text
+                rounded
                 size="small"
-                :model-value="releaseOutputRefValue(slot.input)"
-                :options="slotOutputChoices(destination)"
-                optionLabel="label"
-                optionValue="value"
-                placeholder="Choose output"
-                :aria-label="`Output for ${deploymentSlotLabel(slot, slotIndex)}`"
-                @update:model-value="chooseSlotOutput(destination, slot, $event)"
+                severity="secondary"
+                icon="pi pi-pencil"
+                v-tooltip.top="'Edit destination settings'"
+                :aria-label="`Edit ${destinationDisplayLabel(destination)}`"
+                @click="openDestinationSettings(destination)"
               />
               <Button
+                :disabled="!destination.enabled || isDestinationUnavailable(destination)"
+                class="destination-toggle"
+                v-tooltip.top="
+                  isDestinationExpanded(destination.id) ? 'Hide deployments' : 'Show deployments'
+                "
                 text
                 rounded
                 severity="secondary"
                 size="small"
-                icon="pi pi-pencil"
-                v-tooltip.top="'Edit deployment settings'"
-                :aria-label="`Edit ${deploymentSlotLabel(slot, slotIndex)}`"
-                @click="openSlotSettings(destination, slot)"
+                :icon="
+                  isDestinationExpanded(destination.id) ? 'pi pi-chevron-up' : 'pi pi-chevron-down'
+                "
+                :aria-expanded="isDestinationExpanded(destination.id)"
+                :aria-controls="`destination-slots-${destination.id}`"
+                :aria-label="`${isDestinationExpanded(destination.id) ? 'Hide' : 'Show'} deployments for ${destinationDisplayLabel(destination)}`"
+                @click="toggleDestinationExpanded(destination.id)"
               />
             </div>
-            <Button
-              label="Add deployment"
-              icon="pi pi-plus"
-              text
-              severity="secondary"
-              size="small"
-              class="add-slot"
-              @click="addSlot(destination)"
-            />
-          </div>
-        </article>
-      </section>
-      <section v-if="planExpanded && plan" class="plan-panel" aria-label="Advanced workflow plan">
-        <div class="section-heading">
-          <div>
-            <span class="eyebrow">Advanced</span>
-            <h2>Resolved plan</h2>
-          </div>
-          <Button label="Close" text size="small" @click="planExpanded = false" />
+            <div
+              v-if="
+                destination.enabled &&
+                !isDestinationUnavailable(destination) &&
+                isDestinationExpanded(destination.id)
+              "
+              :id="`destination-slots-${destination.id}`"
+              class="slot-list"
+            >
+              <div
+                v-for="(slot, slotIndex) in destination.slots"
+                :key="slot.id"
+                class="slot-row"
+                :class="{ unavailable: slotUnavailableReason(slot) }"
+              >
+                <ToggleSwitch
+                  class="row-switch"
+                  :model-value="slot.enabled && !slotUnavailableReason(slot)"
+                  :disabled="Boolean(slotUnavailableReason(slot))"
+                  v-tooltip.top="
+                    slotUnavailableReason(slot) ||
+                    (slot.enabled ? 'Skip this deployment' : 'Include this deployment')
+                  "
+                  @update:model-value="slot.enabled = $event"
+                  :aria-label="`Include ${deploymentSlotLabel(slot, slotIndex)} in release`"
+                />
+                <div class="deployment-main">
+                  <i class="mdi mdi-package-variant-closed" /><span
+                    ><strong>{{ deploymentSlotLabel(slot, slotIndex) }}</strong
+                    ><small
+                      >{{ artifactLabel(slot.input)
+                      }}<template v-if="slotDetail(destination, slot)">
+                        · {{ slotDetail(destination, slot) }}</template
+                      ><template v-if="folderDeployment(destination, slot, slotIndex)">
+                        · {{ folderDeployment(destination, slot, slotIndex)?.base
+                        }}<strong>{{
+                          folderDeployment(destination, slot, slotIndex)?.name
+                        }}</strong>
+                      </template></small
+                    ></span
+                  >
+                </div>
+                <ReleaseStatus
+                  :label="
+                    slotUnavailableReason(slot)
+                      ? 'Unavailable'
+                      : slotCardIssues(slot).length
+                        ? 'Needs attention'
+                        : slot.input
+                          ? 'Ready'
+                          : 'Output required'
+                  "
+                />
+                <Select
+                  v-if="!slot.input || slotIssues(slot).length"
+                  :key="`${slot.id}:${outputPickerResets}`"
+                  class="slot-output-select"
+                  size="small"
+                  :model-value="releaseOutputRefValue(slot.input)"
+                  :options="slotOutputChoices(destination)"
+                  optionLabel="label"
+                  optionValue="value"
+                  placeholder="Choose output"
+                  :aria-label="`Output for ${deploymentSlotLabel(slot, slotIndex)}`"
+                  @update:model-value="chooseSlotOutput(destination, slot, $event)"
+                />
+                <Button
+                  :disabled="!slot.enabled"
+                  text
+                  rounded
+                  severity="secondary"
+                  size="small"
+                  icon="pi pi-pencil"
+                  v-tooltip.top="'Edit deployment settings'"
+                  :aria-label="`Edit ${deploymentSlotLabel(slot, slotIndex)}`"
+                  @click="openSlotSettings(destination, slot)"
+                />
+              </div>
+              <Button
+                label="Add deployment"
+                icon="pi pi-plus"
+                text
+                severity="secondary"
+                size="small"
+                class="add-slot"
+                @click="addSlot(destination)"
+              />
+            </div>
+          </article>
+        </section>
+      </main>
+      <main v-else class="release-page">
+        <Message v-if="loadError" severity="error" role="alert">
+          {{ loadError }}
+          <Button label="Retry" text @click="loadWorkflow" :disabled="!agent.isReady.value" />
+          <Button :label="t('home.back-to-workflows')" text @click="router.push('/workflows')" />
+        </Message>
+        <div
+          v-else-if="agent.isReady.value"
+          class="config-skeleton"
+          role="status"
+          aria-busy="true"
+          aria-label="Loading workflow"
+        >
+          <span class="sk sk-heading" />
+          <span class="sk sk-card" />
+          <span class="sk sk-heading" />
+          <span v-for="n in 3" :key="n" class="sk sk-card" />
         </div>
-        <ol class="plan-list">
-          <li v-for="node in plan.graph.nodes" :key="node.id">
-            <i :class="nodeIcon(node.kind)" /><span>{{ planNodeLabel(node.id, node.kind) }}</span>
-          </li>
-        </ol>
-      </section>
-    </main>
-    <main v-else class="release-page">
-      <Message v-if="loadError" severity="error" role="alert">
-        {{ loadError }}
-        <Button label="Retry" text @click="loadWorkflow" :disabled="!agent.isReady.value" />
-        <Button :label="t('home.back-to-workflows')" text @click="router.push('/workflows')" />
-      </Message>
-      <p v-else role="status" aria-busy="true">
-        {{
-          agent.isReady.value
-            ? "Loading workflow configuration…"
-            : "Workflow configuration is unavailable while the engine is disconnected."
-        }}
-      </p>
-    </main>
-  </WorkflowShell>
-  <Dialog
-    class="pl-dialog"
-    v-if="dashboardMode && dashboardRecoveryVisible"
-    :visible="true"
-    :modal="!(workflowLoading || sourceInspectionPending || planning || saveState === 'saving')"
-    :header="
-      loadError
-        ? t('home.dashboard-ship-load-failed-title')
-        : flow
-          ? t('home.dashboard-ship-blocked')
-          : t('home.dashboard-ship-loading-title')
-    "
-    :style="dialogStyle"
-    @update:visible="(visible) => !visible && emit('closeDashboard')"
-  >
-    <p
-      v-if="workflowLoading || sourceInspectionPending || planning || saveState === 'saving'"
-      role="status"
-      aria-busy="true"
+        <p v-else role="status">
+          Workflow configuration is unavailable while the engine is disconnected.
+        </p>
+      </main>
+    </div>
+    <Dialog
+      class="pl-dialog"
+      v-if="dashboardMode && dashboardRecoveryVisible"
+      :visible="true"
+      :modal="!(workflowLoading || sourceInspectionPending || planning || saveState === 'saving')"
+      :header="
+        loadError
+          ? t('home.dashboard-ship-load-failed-title')
+          : flow
+            ? t('home.dashboard-ship-blocked')
+            : t('home.dashboard-ship-loading-title')
+      "
+      :style="dialogStyle"
+      @update:visible="(visible) => !visible && emit('closeDashboard')"
     >
-      {{ workflowLoading ? t("home.dashboard-ship-loading") : t("home.dashboard-ship-checking") }}
-    </p>
-    <Message v-else-if="loadError" severity="error" role="alert">
-      <div class="planner-error">
-        <span>{{ loadError }}</span>
+      <p
+        v-if="workflowLoading || sourceInspectionPending || planning || saveState === 'saving'"
+        role="status"
+        aria-busy="true"
+      >
+        {{ workflowLoading ? t("home.dashboard-ship-loading") : t("home.dashboard-ship-checking") }}
+      </p>
+      <Message v-else-if="loadError" severity="error" role="alert">
+        <div class="planner-error">
+          <span>{{ loadError }}</span>
+          <Button
+            :label="t('home.dashboard-ship-retry')"
+            text
+            size="small"
+            :disabled="!agent.isReady.value"
+            @click="loadWorkflow"
+          />
+          <Button
+            v-if="!agent.isReady.value"
+            :label="t('home.reconnect-engine')"
+            text
+            size="small"
+            @click="
+              agent.reconnect().catch((cause) => {
+                error = String(cause);
+              })
+            "
+          />
+        </div>
+      </Message>
+      <template v-else>
+        <p v-if="selectedBlocker">{{ t("home.dashboard-ship-resolve-blockers") }}</p>
+        <ul v-if="blockingIssues.length" class="issue-summary">
+          <li v-for="issue in blockingIssues" :key="`${issue.code}:${issue.path}:${issue.message}`">
+            {{ issue.message }}
+          </li>
+        </ul>
+        <p v-else>{{ dashboardRecoveryMessage }}</p>
         <Button
-          :label="t('home.dashboard-ship-retry')"
+          v-if="saveError"
+          :label="t('home.dashboard-ship-retry-save')"
           text
-          size="small"
-          :disabled="!agent.isReady.value"
-          @click="loadWorkflow"
+          @click="save().catch(() => {})"
+        />
+        <Button
+          v-if="plannerError"
+          :label="t('home.dashboard-ship-retry-planning')"
+          text
+          @click="refreshPlan"
+        />
+        <Button
+          v-if="dashboardMode && error && canShip"
+          :label="t('home.dashboard-ship-review-release')"
+          text
+          @click="reviewDashboardRelease"
         />
         <Button
           v-if="!agent.isReady.value"
           :label="t('home.reconnect-engine')"
           text
-          size="small"
           @click="
             agent.reconnect().catch((cause) => {
               error = String(cause);
             })
           "
         />
-      </div>
-    </Message>
-    <template v-else>
-      <p v-if="selectedBlocker">{{ t("home.dashboard-ship-resolve-blockers") }}</p>
-      <ul v-if="blockingIssues.length" class="issue-summary">
-        <li v-for="issue in blockingIssues" :key="`${issue.code}:${issue.path}:${issue.message}`">
-          {{ issue.message }}
-        </li>
-      </ul>
-      <p v-else>{{ dashboardRecoveryMessage }}</p>
-      <Button
-        v-if="saveError"
-        :label="t('home.dashboard-ship-retry-save')"
-        text
-        @click="save().catch(() => {})"
-      />
-      <Button
-        v-if="plannerError"
-        :label="t('home.dashboard-ship-retry-planning')"
-        text
-        @click="refreshPlan"
-      />
-      <Button
-        v-if="dashboardMode && error && canShip"
-        :label="t('home.dashboard-ship-review-release')"
-        text
-        @click="reviewDashboardRelease"
-      />
-      <Button
-        v-if="!agent.isReady.value"
-        :label="t('home.reconnect-engine')"
-        text
-        @click="
-          agent.reconnect().catch((cause) => {
-            error = String(cause);
-          })
-        "
-      />
-    </template>
-    <template #footer>
-      <Button :label="t('home.dashboard-ship-back')" text @click="emit('closeDashboard')" />
-      <Button
-        v-if="flow"
-        :label="t('home.dashboard-ship-configuration')"
-        icon="pi pi-arrow-right"
-        @click="openDashboardWorkflow"
-      />
-    </template>
-  </Dialog>
-  <ConfirmDialog group="workflow-destructive" />
-  <Dialog
-    class="pl-dialog"
-    v-model:visible="addDestinationVisible"
-    modal
-    header="Add destination"
-    :style="{ width: '500px', maxWidth: '94vw' }"
-  >
-    <div v-if="availableDestinations.length" class="destination-picker">
-      <button
-        v-for="destination in availableDestinations"
-        :key="destination.id"
-        type="button"
-        class="destination-choice"
-        @click="addDestination(destination.id)"
-      >
-        <span class="provider-icon">
-          <img
-            v-if="providerIconImage(destinationIconFor(destination.id, destination.icon))"
-            :src="providerIconImage(destinationIconFor(destination.id, destination.icon))"
-            alt=""
-          />
-          <i
-            v-else
-            :class="providerIconClass(destinationIconFor(destination.id, destination.icon))"
-            aria-hidden="true"
-          />
-        </span>
-        <span
-          ><strong>{{ destination.label }}</strong></span
-        >
-        <i class="pi pi-plus" aria-hidden="true" />
-      </button>
-    </div>
-    <p v-else class="empty-card">All available destinations are already in this workflow.</p>
-    <template #footer>
-      <Button label="Cancel" text @click="addDestinationVisible = false" />
-    </template>
-  </Dialog>
-  <Dialog
-    class="pl-dialog"
-    v-model:visible="attentionVisible"
-    modal
-    header="Needs attention"
-    :style="dialogStyle"
-  >
-    <p class="attention-copy">The planner is authoritative. Fix these issues before shipping.</p>
-    <ul class="issue-summary">
-      <li
-        v-for="issue in attentionIssues"
-        :key="`${issue.code}:${issue.path}:${issue.severity}:${issue.message}`"
-      >
-        <Tag :value="issue.severity" :severity="issue.severity === 'error' ? 'danger' : 'warn'" />
-        <span>{{ issue.message }}</span>
+      </template>
+      <template #footer>
+        <Button :label="t('home.dashboard-ship-back')" text @click="emit('closeDashboard')" />
         <Button
-          v-if="isBuildIssue(issue)"
-          label="Configure build"
-          text
-          size="small"
-          @click="openBuildIssue(issue)"
-        />
-        <Button
-          v-else-if="issue.path?.startsWith('source')"
-          label="Edit source"
-          text
-          size="small"
-          @click="openIssueEditor(issue)"
-        />
-        <Button
-          v-else-if="issue.path?.startsWith('destinations')"
-          label="Edit destination"
-          text
-          size="small"
-          @click="openIssueEditor(issue)"
-        />
-      </li>
-    </ul>
-  </Dialog>
-  <NewBuildDialog
-    v-model:visible="newBuildVisible"
-    :flow="flow"
-    :catalog="catalog"
-    :destination-id="newBuildTarget?.destinationId"
-    :slot-id="newBuildTarget?.slotId"
-    @create="createNewBuild"
-  />
-  <Dialog
-    class="pl-dialog"
-    v-model:visible="sourceSettingsVisible"
-    modal
-    header="Edit source"
-    :style="dialogStyle"
-    ><div v-if="flow && sourceDefinition" class="settings-grid">
-      <div class="release-field wide">
-        <label for="source-provider">Source</label>
-        <Select
-          id="source-provider"
-          :model-value="flow.source.provider"
-          :options="catalog.sources"
-          optionLabel="label"
-          optionValue="id"
-          @update:model-value="selectSource"
-        />
-      </div>
-      <template v-for="field in sourceDefinition.fields || []" :key="field.key">
-        <ReleaseFieldControl
-          :field="field"
-          :value="fieldValue(flow.source.config, field.key)"
-          :options="fieldOptions(field)"
-          :input-id="`source-${field.key}`"
-          :issues="fieldIssues(`source.${field.key}`)"
-          :connection-binding="connectionBindingFor(fieldValue(flow.source.config, field.key))"
-          :connection-binding-suggestion="
-            connectionBindingSuggestionFor(fieldValue(flow.source.config, field.key), field)
-          "
-          @update:value="
-            field.type === 'connection'
-              ? setConnectionFieldAlias(flow.source.config, field, $event)
-              : setSourceField(field.key, $event)
-          "
-          @update:connection-binding="bindConnectionField(flow.source.config, field, $event)"
-          @add-connection="openConnection($event, flow.source.config, field)"
+          v-if="flow"
+          :label="t('home.dashboard-ship-configuration')"
+          icon="pi pi-arrow-right"
+          @click="openDashboardWorkflow"
         />
       </template>
-    </div>
-    <template #footer><Button label="Done" @click="sourceSettingsVisible = false" /></template
-  ></Dialog>
-  <Dialog
-    class="pl-dialog"
-    v-model:visible="destinationSettingsVisible"
-    modal
-    header="Edit destination"
-    :style="dialogStyle"
-    ><div v-if="settingsDestination" class="settings-grid">
-      <div class="release-field wide destination-toggle">
-        <label :for="`destination-enabled-${settingsDestination.id}`">Destination</label>
-        <span>{{ settingsDestination.enabled ? "Included in this release" : "Disabled" }}</span>
-        <ToggleSwitch
-          v-model="settingsDestination.enabled"
-          :inputId="`destination-enabled-${settingsDestination.id}`"
-          aria-label="Destination enabled"
-        />
-      </div>
-      <div class="release-field wide">
-        <label :for="`destination-name-${settingsDestination.id}`">Destination name</label>
-        <InputText
-          :id="`destination-name-${settingsDestination.id}`"
-          v-model="settingsDestination.name"
-          :placeholder="'Optional, for example Studio'"
-          autocomplete="off"
-        />
-      </div>
-      <template
-        v-for="field in destinationDefinition(settingsDestination.provider)?.fields || []"
-        :key="field.key"
-        ><ReleaseFieldControl
-          :field="field"
-          :value="fieldValue(settingsDestination.config, field.key)"
-          :options="fieldOptions(field)"
-          :input-id="`destination-${settingsDestination.id}-${field.key}`"
-          :connection-binding="
-            connectionBindingFor(fieldValue(settingsDestination.config, field.key))
-          "
-          :connection-binding-suggestion="
-            connectionBindingSuggestionFor(fieldValue(settingsDestination.config, field.key), field)
-          "
-          :issues="
-            fieldIssues(
-              `destinations.${flow?.destinations.indexOf(settingsDestination)}.config.${field.key}`,
-            )
-          "
-          @update:value="
-            field.type === 'connection'
-              ? setConnectionFieldAlias(settingsDestination.config, field, $event)
-              : setField(settingsDestination.config, field.key, $event)
-          "
-          @update:connection-binding="
-            bindConnectionField(settingsDestination.config, field, $event)
-          "
-          @add-connection="openConnection($event, settingsDestination.config, field)"
-      /></template>
-    </div>
-    <template #footer>
-      <div class="settings-footer">
-        <Button
-          label="Remove destination"
-          icon="pi pi-trash"
-          text
-          severity="danger"
-          @click="settingsDestination && removeDestination(settingsDestination.id)"
-        />
-        <span class="settings-footer-spacer" />
-        <Button
-          label="Add deployment"
-          icon="pi pi-plus"
-          text
-          @click="settingsDestination && addSlot(settingsDestination)"
-        />
-        <Button label="Done" @click="destinationSettingsVisible = false" />
-      </div>
-    </template>
-  </Dialog>
-  <Dialog
-    class="pl-dialog"
-    v-model:visible="slotSettingsVisible"
-    modal
-    header="Deployment settings"
-    :style="dialogStyle"
-    ><div v-if="settingsDestination && settingsSlot" class="settings-grid">
-      <div class="release-field wide">
-        <label :for="`slot-${settingsSlot.id}-name`">Deployment name</label>
-        <InputText
-          :id="`slot-${settingsSlot.id}-name`"
-          v-model="settingsSlot.name"
-          placeholder="Deployment name"
-        />
-      </div>
-      <div class="release-field wide destination-toggle">
-        <label :for="`slot-enabled-${settingsSlot.id}`">Deployment</label>
-        <span>{{ settingsSlot.enabled ? "Included in this release" : "Disabled" }}</span>
-        <ToggleSwitch
-          v-model="settingsSlot.enabled"
-          :inputId="`slot-enabled-${settingsSlot.id}`"
-          aria-label="Deployment enabled"
-        />
-      </div>
-      <div class="release-field wide">
-        <label>Output</label
-        ><Select
-          :model-value="releaseOutputRefValue(settingsSlot.input)"
-          :options="
-            slotOutputOptionsFor(destinationDefinition(settingsDestination.provider), outputOptions)
-          "
-          optionLabel="label"
-          optionValue="value"
-          @update:model-value="setSlotInput(settingsDestination, settingsSlot, $event)"
-        />
-        <small
-          v-for="issue in slotIssues(settingsSlot)"
-          :key="`${issue.code}:${issue.path}:${issue.severity}:${issue.message}`"
-          class="field-issue"
-          :class="issue.severity === 'error' ? 'field-issue-error' : 'field-issue-warning'"
-          >{{ issue.message }}</small
+    </Dialog>
+    <ConfirmDialog group="workflow-destructive" />
+    <Dialog
+      class="pl-dialog"
+      v-model:visible="addDestinationVisible"
+      modal
+      header="Add destination"
+      :style="{ width: '500px', maxWidth: '94vw' }"
+    >
+      <div v-if="availableDestinations.length" class="destination-picker">
+        <button
+          v-for="destination in availableDestinations"
+          :key="destination.id"
+          type="button"
+          class="destination-choice"
+          @click="addDestination(destination.id)"
         >
+          <span class="provider-icon">
+            <img
+              v-if="providerIconImage(destinationIconFor(destination.id, destination.icon))"
+              :src="providerIconImage(destinationIconFor(destination.id, destination.icon))"
+              alt=""
+            />
+            <i
+              v-else
+              :class="providerIconClass(destinationIconFor(destination.id, destination.icon))"
+              aria-hidden="true"
+            />
+          </span>
+          <span
+            ><strong>{{ destination.label }}</strong></span
+          >
+          <i class="pi pi-plus" aria-hidden="true" />
+        </button>
       </div>
-      <template
-        v-for="field in destinationDefinition(settingsDestination.provider)?.slotFields || []"
-        :key="field.key"
-        ><ReleaseFieldControl
-          :field="field"
-          :value="fieldValue(settingsSlot.config, field.key)"
-          :options="fieldOptions(field)"
-          :input-id="`slot-${settingsSlot.id}-${field.key}`"
-          :connection-binding="connectionBindingFor(fieldValue(settingsSlot.config, field.key))"
-          :connection-binding-suggestion="
-            connectionBindingSuggestionFor(fieldValue(settingsSlot.config, field.key), field)
-          "
-          :issues="
-            fieldIssues(
-              `destinations.${flow?.destinations.indexOf(settingsDestination)}.slots.${settingsDestination?.slots.indexOf(settingsSlot)}.config.${field.key}`,
-            )
-          "
-          @update:value="
-            field.type === 'connection'
-              ? setConnectionFieldAlias(settingsSlot.config, field, $event)
-              : setField(settingsSlot.config, field.key, $event)
-          "
-          @update:connection-binding="bindConnectionField(settingsSlot.config, field, $event)"
-          @add-connection="openConnection($event, settingsSlot.config, field)"
-      /></template>
-    </div>
-    <template #footer>
-      <div class="settings-footer">
-        <Button
-          label="Remove deployment"
-          icon="pi pi-trash"
+      <p v-else class="empty-card">All available destinations are already in this workflow.</p>
+      <template #footer>
+        <Button label="Cancel" text @click="addDestinationVisible = false" />
+      </template>
+    </Dialog>
+    <Dialog
+      class="pl-dialog"
+      v-model:visible="attentionVisible"
+      modal
+      header="Needs attention"
+      :style="dialogStyle"
+    >
+      <p class="attention-copy">The planner is authoritative. Fix these issues before shipping.</p>
+      <ul class="issue-summary">
+        <li
+          v-for="issue in attentionIssues"
+          :key="`${issue.code}:${issue.path}:${issue.severity}:${issue.message}`"
+        >
+          <Tag :value="issue.severity" :severity="issue.severity === 'error' ? 'danger' : 'warn'" />
+          <span>{{ issue.message }}</span>
+          <Button
+            v-if="isBuildIssue(issue)"
+            label="Configure build"
+            text
+            size="small"
+            @click="openBuildIssue(issue)"
+          />
+          <Button
+            v-else-if="issue.path?.startsWith('source')"
+            label="Edit source"
+            text
+            size="small"
+            @click="openIssueEditor(issue)"
+          />
+          <Button
+            v-else-if="issue.path?.startsWith('destinations')"
+            label="Edit destination"
+            text
+            size="small"
+            @click="openIssueEditor(issue)"
+          />
+        </li>
+      </ul>
+    </Dialog>
+    <NewBuildDialog
+      v-model:visible="newBuildVisible"
+      :flow="flow"
+      :catalog="catalog"
+      :destination-id="newBuildTarget?.destinationId"
+      :slot-id="newBuildTarget?.slotId"
+      @create="createNewBuild"
+    />
+    <Dialog
+      class="pl-dialog"
+      v-model:visible="sourceSettingsVisible"
+      modal
+      header="Edit source"
+      :style="dialogStyle"
+      ><div v-if="flow && sourceDefinition" class="settings-grid">
+        <template v-for="field in sourceDefinition.fields || []" :key="field.key">
+          <ReleaseFieldControl
+            :field="field"
+            :value="fieldValue(flow.source.config, field.key)"
+            :options="fieldOptions(field)"
+            :input-id="`source-${field.key}`"
+            :issues="fieldIssues(`source.${field.key}`)"
+            :connection-binding="connectionBindingFor(fieldValue(flow.source.config, field.key))"
+            :connection-binding-suggestion="
+              connectionBindingSuggestionFor(fieldValue(flow.source.config, field.key), field)
+            "
+            @update:value="
+              field.type === 'connection'
+                ? setConnectionFieldAlias(flow.source.config, field, $event)
+                : setSourceField(field.key, $event)
+            "
+            @update:connection-binding="bindConnectionField(flow.source.config, field, $event)"
+            @add-connection="openConnection($event, flow.source.config, field)"
+          />
+        </template>
+      </div>
+      <template #footer><Button label="Done" @click="sourceSettingsVisible = false" /></template
+    ></Dialog>
+    <Dialog
+      class="pl-dialog"
+      v-model:visible="destinationSettingsVisible"
+      modal
+      header="Edit destination"
+      :style="dialogStyle"
+      ><div v-if="settingsDestination" class="settings-grid">
+        <div class="release-field wide destination-toggle">
+          <label :for="`destination-enabled-${settingsDestination.id}`">Include in release</label>
+          <ToggleSwitch
+            v-model="settingsDestination.enabled"
+            :inputId="`destination-enabled-${settingsDestination.id}`"
+            aria-label="Destination enabled"
+          />
+        </div>
+        <div class="release-field wide">
+          <label :for="`destination-name-${settingsDestination.id}`">Destination name</label>
+          <InputText
+            :id="`destination-name-${settingsDestination.id}`"
+            v-model="settingsDestination.name"
+            :placeholder="'Optional, for example Studio'"
+            autocomplete="off"
+          />
+        </div>
+        <template
+          v-for="field in destinationDefinition(settingsDestination.provider)?.fields || []"
+          :key="field.key"
+          ><ReleaseFieldControl
+            :field="field"
+            :value="fieldValue(settingsDestination.config, field.key)"
+            :options="fieldOptions(field)"
+            :input-id="`destination-${settingsDestination.id}-${field.key}`"
+            :connection-binding="
+              connectionBindingFor(fieldValue(settingsDestination.config, field.key))
+            "
+            :connection-binding-suggestion="
+              connectionBindingSuggestionFor(
+                fieldValue(settingsDestination.config, field.key),
+                field,
+              )
+            "
+            :issues="
+              fieldIssues(
+                `destinations.${flow?.destinations.indexOf(settingsDestination)}.config.${field.key}`,
+              )
+            "
+            @update:value="
+              field.type === 'connection'
+                ? setConnectionFieldAlias(settingsDestination.config, field, $event)
+                : setField(settingsDestination.config, field.key, $event)
+            "
+            @update:connection-binding="
+              bindConnectionField(settingsDestination.config, field, $event)
+            "
+            @add-connection="openConnection($event, settingsDestination.config, field)"
+        /></template>
+      </div>
+      <template #footer>
+        <div class="settings-footer">
+          <Button
+            label="Remove destination"
+            icon="pi pi-trash"
+            text
+            severity="danger"
+            @click="settingsDestination && removeDestination(settingsDestination.id)"
+          />
+          <span class="settings-footer-spacer" />
+          <Button
+            label="Add deployment"
+            icon="pi pi-plus"
+            text
+            @click="settingsDestination && addSlot(settingsDestination)"
+          />
+          <Button label="Done" @click="destinationSettingsVisible = false" />
+        </div>
+      </template>
+    </Dialog>
+    <Dialog
+      class="pl-dialog"
+      v-model:visible="slotSettingsVisible"
+      modal
+      header="Deployment settings"
+      :style="dialogStyle"
+      ><div v-if="settingsDestination && settingsSlot" class="settings-grid">
+        <div class="release-field wide">
+          <label :for="`slot-${settingsSlot.id}-name`">Deployment name</label>
+          <InputText
+            :id="`slot-${settingsSlot.id}-name`"
+            :model-value="settingsSlot.name ?? ''"
+            placeholder="Deployment name"
+            @update:model-value="settingsSlot.name = $event?.trim() ? $event : undefined"
+          />
+        </div>
+        <div class="release-field wide destination-toggle">
+          <label :for="`slot-enabled-${settingsSlot.id}`">Include in release</label>
+          <ToggleSwitch
+            v-model="settingsSlot.enabled"
+            :inputId="`slot-enabled-${settingsSlot.id}`"
+            aria-label="Deployment enabled"
+          />
+        </div>
+        <div class="release-field wide">
+          <label>Output</label
+          ><Select
+            :model-value="releaseOutputRefValue(settingsSlot.input)"
+            :options="
+              slotOutputOptionsFor(
+                destinationDefinition(settingsDestination.provider),
+                outputOptions,
+              )
+            "
+            optionLabel="label"
+            optionValue="value"
+            @update:model-value="setSlotInput(settingsDestination, settingsSlot, $event)"
+          />
+          <small
+            v-for="issue in slotIssues(settingsSlot)"
+            :key="`${issue.code}:${issue.path}:${issue.severity}:${issue.message}`"
+            class="field-issue"
+            :class="issue.severity === 'error' ? 'field-issue-error' : 'field-issue-warning'"
+            >{{ issue.message }}</small
+          >
+        </div>
+        <template
+          v-for="field in destinationDefinition(settingsDestination.provider)?.slotFields || []"
+          :key="field.key"
+          ><ReleaseFieldControl
+            :field="field"
+            :value="fieldValue(settingsSlot.config, field.key)"
+            :options="fieldOptions(field)"
+            :input-id="`slot-${settingsSlot.id}-${field.key}`"
+            :connection-binding="connectionBindingFor(fieldValue(settingsSlot.config, field.key))"
+            :connection-binding-suggestion="
+              connectionBindingSuggestionFor(fieldValue(settingsSlot.config, field.key), field)
+            "
+            :issues="
+              fieldIssues(
+                `destinations.${flow?.destinations.indexOf(settingsDestination)}.slots.${settingsDestination?.slots.indexOf(settingsSlot)}.config.${field.key}`,
+              )
+            "
+            @update:value="
+              field.type === 'connection'
+                ? setConnectionFieldAlias(settingsSlot.config, field, $event)
+                : setField(settingsSlot.config, field.key, $event)
+            "
+            @update:connection-binding="bindConnectionField(settingsSlot.config, field, $event)"
+            @add-connection="openConnection($event, settingsSlot.config, field)"
+        /></template>
+      </div>
+      <template #footer>
+        <div class="settings-footer">
+          <Button
+            label="Remove deployment"
+            icon="pi pi-trash"
+            text
+            severity="danger"
+            @click="
+              settingsDestination &&
+              settingsSlot &&
+              removeSlot(settingsDestination, settingsSlot.id)
+            "
+          />
+          <span class="settings-footer-spacer" />
+          <Button label="Done" @click="slotSettingsVisible = false" />
+        </div>
+      </template>
+    </Dialog>
+    <Dialog
+      class="pl-dialog"
+      v-model:visible="connectionVisible"
+      modal
+      header="Add connection"
+      :style="dialogStyle"
+      ><div class="settings-grid">
+        <div class="release-field">
+          <label for="connection-name">Name</label
+          ><InputText
+            id="connection-name"
+            v-model="connectionDraft.name"
+            placeholder="My account"
+          />
+        </div>
+        <div v-for="field in connectionFields" :key="field.key" class="release-field">
+          <label :for="`connection-${field.key}`">{{ field.label }}</label
+          ><InputText
+            :id="`connection-${field.key}`"
+            v-model="connectionDraft.values[field.key]"
+            :type="field.type === 'password' ? 'password' : 'text'"
+            :placeholder="field.placeholder || 'Stored securely'"
+          />
+        </div>
+      </div>
+      <template #footer
+        ><Button label="Cancel" text @click="cancelConnection" /><Button
+          label="Add connection"
+          :loading="connectionSaving"
+          :disabled="!connectionDraft.name.trim() || !connectionHasValue"
+          @click="createConnection" /></template
+    ></Dialog>
+    <Dialog
+      class="pl-dialog"
+      v-if="!dashboardMode || releaseDetailsVisible"
+      :visible="releaseDetailsVisible"
+      modal
+      :header="
+        dashboardMode
+          ? t('home.dashboard-ship-confirmation-title', { name: flow?.name || '' })
+          : 'Release details'
+      "
+      :style="dialogStyle"
+      @update:visible="(visible) => !visible && cancelReleaseDetails()"
+      ><div class="settings-grid">
+        <ReleaseDestinationAccountPreview :previews="shippingConnectionPreviews" />
+        <div class="release-field">
+          <label for="release-version">Version</label
+          ><InputText id="release-version" v-model="releaseVersion" placeholder="1.0.0" />
+        </div>
+        <div class="release-field wide">
+          <label for="release-description">Description</label
+          ><Textarea id="release-description" v-model="releaseDescription" rows="3" />
+        </div>
+      </div>
+      <template #footer
+        ><Button
+          :label="dashboardMode ? t('home.dashboard-ship-back') : 'Cancel'"
           text
-          severity="danger"
-          @click="
-            settingsDestination && settingsSlot && removeSlot(settingsDestination, settingsSlot.id)
-          "
-        />
-        <span class="settings-footer-spacer" />
-        <Button label="Done" @click="slotSettingsVisible = false" />
-      </div>
-    </template>
-  </Dialog>
-  <Dialog
-    class="pl-dialog"
-    v-model:visible="connectionVisible"
-    modal
-    header="Add connection"
-    :style="dialogStyle"
-    ><div class="settings-grid">
-      <div class="release-field">
-        <label for="connection-name">Name</label
-        ><InputText id="connection-name" v-model="connectionDraft.name" placeholder="My account" />
-      </div>
-      <div v-for="field in connectionFields" :key="field.key" class="release-field">
-        <label :for="`connection-${field.key}`">{{ field.label }}</label
-        ><InputText
-          :id="`connection-${field.key}`"
-          v-model="connectionDraft.values[field.key]"
-          :type="field.type === 'password' ? 'password' : 'text'"
-          :placeholder="field.placeholder || 'Stored securely'"
-        />
-      </div>
-    </div>
-    <template #footer
-      ><Button label="Cancel" text @click="cancelConnection" /><Button
-        label="Add connection"
-        :loading="connectionSaving"
-        :disabled="!connectionDraft.name.trim() || !connectionHasValue"
-        @click="createConnection" /></template
-  ></Dialog>
-  <Dialog
-    class="pl-dialog"
-    v-if="!dashboardMode || releaseDetailsVisible"
-    :visible="releaseDetailsVisible"
-    modal
-    :header="
-      dashboardMode
-        ? t('home.dashboard-ship-confirmation-title', { name: flow?.name || '' })
-        : 'Release details'
-    "
-    :style="dialogStyle"
-    @update:visible="(visible) => !visible && cancelReleaseDetails()"
-    ><div class="settings-grid">
-      <ReleaseDestinationAccountPreview :previews="shippingConnectionPreviews" />
-      <div class="release-field">
-        <label for="release-version">Version</label
-        ><InputText id="release-version" v-model="releaseVersion" placeholder="1.0.0" />
-      </div>
-      <div class="release-field wide">
-        <label for="release-description">Description</label
-        ><Textarea id="release-description" v-model="releaseDescription" rows="3" />
-      </div>
-    </div>
-    <template #footer
-      ><Button
-        :label="dashboardMode ? t('home.dashboard-ship-back') : 'Cancel'"
-        text
-        @click="cancelReleaseDetails" /><Button
-        label="Ship release"
-        icon="mdi mdi-rocket-launch-outline"
-        :loading="running"
-        :disabled="!releaseVersion.trim() || !canShip"
-        @click="runShip" /></template
-  ></Dialog>
+          @click="cancelReleaseDetails" /><Button
+          label="Ship release"
+          icon="mdi mdi-rocket-launch-outline"
+          :loading="running"
+          :disabled="!releaseVersion.trim() || !canShip"
+          @click="runShip" /></template
+    ></Dialog>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { useRouteReadiness } from "@renderer/composables/useRouteReadiness";
 import { computed, onUnmounted, ref, toRaw, watch } from "vue";
 import { nanoid } from "nanoid";
-import { onBeforeRouteLeave, useRoute, useRouter } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import { useI18n } from "vue-i18n";
 import Button from "primevue/button";
+import SplitButton from "primevue/splitbutton";
 import ConfirmDialog from "primevue/confirmdialog";
 import Dialog from "primevue/dialog";
 import InputText from "primevue/inputtext";
@@ -831,14 +830,21 @@ import type {
   ReleaseFieldDefinition,
   ReleaseFieldOption,
   ReleaseOutputRef,
-  ReleasePlan,
   ValidationIssue,
 } from "@pipelab/shared";
-import WorkflowShell from "../components/WorkflowShell.vue";
+import { deploymentFolderName, deploymentFolderPath } from "@pipelab/shared";
 import ReleaseFieldControl from "../components/ReleaseFieldControl.vue";
 import ReleaseDestinationAccountPreview from "../components/ReleaseDestinationAccountPreview.vue";
 import { useAPI } from "../composables/api";
+import { useWorkflowTab } from "../composables/workflow-header-state";
+import { useWorkflowDocument } from "../composables/useWorkflowDocument";
 import { publishRunEvent } from "./run-events";
+import {
+  notifyRunFinished,
+  requestNotificationPermission,
+  runOutcome,
+  shouldNotify,
+} from "../utils/run-notifications";
 import { useAppStore } from "../store/app";
 import NewBuildDialog from "../components/NewBuildDialog.vue";
 import ReleaseStatus from "../components/ReleaseStatus.vue";
@@ -852,14 +858,11 @@ import {
   dashboardShipIntentAction,
   blockerAtIndex,
   clampBlockerIndex,
-  createSerializedTaskQueue,
-  createReleaseSourceConfig,
   deploymentSlotLabel,
   issuesForPath,
   deduplicateValidationIssues,
   invalidEnvironmentBindingPaths,
   missingRequiredFieldIssues,
-  outputReferenceConsumers,
   planOutputOptions,
   selectSlotOutput,
   slotOutputOptionsFor,
@@ -903,6 +906,7 @@ import {
 } from "../utils/provider-icons";
 
 const route = useRoute();
+const actionsTarget = useWorkflowTab(() => void workflowDoc.sync());
 const router = useRouter();
 const props = withDefaults(
   defineProps<{
@@ -926,9 +930,22 @@ const projectId = computed(() =>
   props.dashboardMode ? props.dashboardProjectId || "" : String(route.params.projectId),
 );
 const catalog = computed(() => appStore.releaseCatalog);
-const flow = ref<ReleaseConfig>();
-const plan = ref<ReleasePlan>();
-const plannerIssues = ref<ValidationIssue[]>([]);
+// The workflow, its plan and the save queue are shared with every tab; this page edits them.
+// On its own (the dashboard's Ship dialog) the page gets a document of its own.
+const workflowDoc = useWorkflowDocument({ flowId, projectId });
+const {
+  flow,
+  plan,
+  planning,
+  plannerError,
+  saveError,
+  saveState,
+  changeRevision,
+  persistedRevision,
+  refreshPlan,
+  save,
+} = workflowDoc;
+const plannerIssues = computed<ValidationIssue[]>(() => plan.value?.issues ?? []);
 const inspectionIssues = ref<ValidationIssue[]>([]);
 const invalidEnvironmentPaths = computed(() =>
   flow.value ? invalidEnvironmentBindingPaths(flow.value) : [],
@@ -941,10 +958,53 @@ const knownFieldIssues = computed(() =>
       }))
     : [],
 );
+// Connections are resolved at run time; surface an unbound or missing one before Ship instead of after it.
+const connectionBindingIssues = computed<ValidationIssue[]>(() => {
+  if (
+    !flow.value ||
+    connectionsStore.status !== "ready" ||
+    appStore.providerStatus !== "ready" ||
+    !plan.value
+  )
+    return [];
+  try {
+    resolveDesktopWorkflowConnectionValues(
+      flow.value,
+      catalog.value,
+      localConnectionsConfig.value,
+      appStore.providerDefinitions,
+    );
+    return [];
+  } catch (cause) {
+    const message = cause instanceof Error ? cause.message : "A Connection cannot be resolved.";
+    const alias = /alias '([^']+)'|Connection '([^']+)'/.exec(message);
+    const reference = alias?.[1] ?? alias?.[2];
+    const index = reference
+      ? flow.value.destinations.findIndex((destination) =>
+          Object.values(destination.config).includes(reference),
+        )
+      : -1;
+    const key =
+      index >= 0
+        ? Object.keys(flow.value.destinations[index].config).find(
+            (name) => flow.value?.destinations[index].config[name] === reference,
+          )
+        : undefined;
+    return [
+      {
+        code: "connection.unresolved",
+        message,
+        severity: "error",
+        ...(key ? { path: `destinations.${index}.config.${key}` } : {}),
+      },
+    ];
+  }
+});
 const issues = computed(() => [
   ...plannerIssues.value,
   ...inspectionIssues.value,
   ...knownFieldIssues.value,
+  ...connectionBindingIssues.value,
 ]);
 const summaryIssues = computed(() => deduplicateValidationIssues(issues.value));
 const blockingIssues = computed(() =>
@@ -966,19 +1026,14 @@ watch(
 );
 const attentionVisible = ref(false);
 const attentionIssues = ref<ValidationIssue[]>([]);
-const planExpanded = ref(false);
 const error = ref("");
 const loadError = ref("");
-const plannerError = ref("");
-const saveError = ref("");
 const running = ref(false);
 const workflowLoading = ref(false);
 // First workflow load (catalog, workflow, connections, source inspection and plan) has settled.
 const initialLoadSettled = ref(false);
 useRouteReadiness(computed(() => !agent.isReady.value || initialLoadSettled.value));
 const sourceInspectionPending = ref(false);
-const planning = ref(false);
-const saveState = ref<"saving" | "saved" | "error">("saved");
 const inspectionOptions = ref<Record<string, ReleaseFieldOption[]>>({});
 const addDestinationVisible = ref(false);
 const sourceSettingsVisible = ref(false);
@@ -1172,13 +1227,8 @@ watch(
   { immediate: true },
 );
 let latestSourceInspection = 0;
-let latestPlanRequest = 0;
 let workflowLoadGeneration = 0;
-let saveGeneration = 0;
 let connectionDialogGeneration = 0;
-const changeRevision = ref(0);
-const persistedRevision = ref(0);
-let workflowHydrated = false;
 const hasUnsavedState = computed(() =>
   hasUnsavedReleaseWorkflowState({
     changeRevision: changeRevision.value,
@@ -1440,8 +1490,7 @@ const setConnectionFieldAlias = async (
           (destination) => destination.id === destinationId,
         );
         settingsSlot.value = settingsDestination.value?.slots.find((slot) => slot.id === slotId);
-        clearTimeout(saveTimer);
-        await save();
+        await workflowDoc.flush();
       },
     });
   } catch (cause) {
@@ -1547,8 +1596,28 @@ const blockerPresentation = computed(() => {
     ? releaseBlockerPresentation(issue, blockerFieldContext(issue))
     : { title: "", description: "", actionLabel: "Review issues" };
 });
+// Pipelab Cloud exists only where the deployment configures a Cloud Worker;
+// the agent skips it at run time in the same situation.
+const PIPELAB_CLOUD_DESTINATION = "@pipelab/pipelab-cloud/destination";
+const isDestinationUnavailable = (destination: ReleaseDestinationConfig) =>
+  destination.provider === PIPELAB_CLOUD_DESTINATION && !process.env.PIPELAB_CLOUD_WORKER_URL;
+// A deployment whose build output this host cannot produce (macOS on Linux) is skipped by the
+// agent at plan time, so it is shown disabled here, with the reason.
+const slotUnavailableReason = (slot: ReleaseDestinationSlot): string | undefined => {
+  const input = slot.input;
+  if (!input || !("buildId" in input) || !flow.value) return undefined;
+  const build = flow.value.builds.find((candidate) => candidate.id === input.buildId);
+  const availability = producerDefinition(build?.engine ?? "")?.targets.find(
+    (target) => target.id === input.targetId,
+  )?.availability;
+  return availability?.available === false
+    ? availability.reason || "This host cannot build this output."
+    : undefined;
+};
 const destinationReadiness = (destination: ReleaseDestinationConfig, index: number) => {
-  const enabledSlots = destination.slots.filter((slot) => slot.enabled);
+  const enabledSlots = destination.slots.filter(
+    (slot) => slot.enabled && !slotUnavailableReason(slot),
+  );
   const childrenReady =
     enabledSlots.length > 0 &&
     enabledSlots.every((slot) => Boolean(slot.input) && !slotCardIssues(slot).length);
@@ -1622,11 +1691,18 @@ const toggleDestinationExpanded = (id: string) => {
   if (!next.delete(id)) next.add(id);
   expandedDestinations.value = next;
 };
+const destinationTarget = (destination: ReleaseDestinationConfig) => {
+  const field = destinationDefinition(destination.provider)?.fields?.[0];
+  if (!field || field.type === "connection") return "";
+  return String(destination.config[field.key] ?? "").trim();
+};
 const destinationSummary = (destination: ReleaseDestinationConfig) => {
-  if (!destination.enabled) return "Disabled";
   const slots = destination.slots.filter((slot) => slot.enabled);
   if (!slots.length) return "No deployments";
-  return slots.length === 1 ? artifactLabel(slots[0].input) : `${slots.length} deployments`;
+  const summary =
+    slots.length === 1 ? artifactLabel(slots[0].input) : `${slots.length} deployments`;
+  const target = destinationTarget(destination);
+  return target ? `${summary} · ${target}` : summary;
 };
 const addSlot = (destination: ReleaseDestinationConfig) => {
   expandedDestinations.value = new Set(expandedDestinations.value).add(destination.id);
@@ -1709,6 +1785,28 @@ const openBuildsForSlot = (destination: ReleaseDestinationConfig, slot: ReleaseD
     params: { flowId: flowId.value, projectId: projectId.value },
     query: { destinationId: destination.id, slotId: slot.id },
   });
+const FOLDER_DESTINATION = "@pipelab/core/destination/folder";
+/** A Folder deployment writes into a subfolder named after it; `base` ends with the separator. */
+const folderDeployment = (
+  destination: ReleaseDestinationConfig,
+  slot: ReleaseDestinationSlot,
+  index: number,
+) => {
+  if (destination.provider !== FOLDER_DESTINATION) return undefined;
+  const outputDir = String(slot.config.outputDir ?? "").trim();
+  if (!outputDir) return undefined;
+  const name = deploymentFolderName(slot, index);
+  const path = deploymentFolderPath(outputDir, name);
+  return { base: path.slice(0, path.length - name.length), name };
+};
+const slotDetail = (destination: ReleaseDestinationConfig, slot: ReleaseDestinationSlot) => {
+  if (destination.provider === FOLDER_DESTINATION) return "";
+  const field = destinationDefinition(destination.provider)?.slotFields?.[0];
+  if (!field) return "";
+  const value = String(slot.config[field.key] ?? "").trim();
+  if (value) return `${field.label}: ${value}`;
+  return field.required ? `${field.label} missing` : "";
+};
 const artifactLabel = (ref?: ReleaseOutputRef) =>
   ref
     ? outputOptions.value.find((output) => output.value === releaseOutputRefValue(ref))?.label ||
@@ -1722,45 +1820,6 @@ const openSlotSettings = (destination: ReleaseDestinationConfig, slot: ReleaseDe
   settingsDestination.value = destination;
   settingsSlot.value = slot;
   slotSettingsVisible.value = true;
-};
-const selectSource = (provider: string) => {
-  if (!flow.value) return;
-  const definition = catalog.value.sources.find((source) => source.id === provider);
-  if (!definition || flow.value.source.provider === provider) return;
-  const currentConfig = flow.value.source.config;
-  const nextConfig = createReleaseSourceConfig(flow.value, definition, catalog.value);
-  const discardedFields = Object.keys(currentConfig).filter(
-    (key) =>
-      hasConfiguredValue(currentConfig[key]) &&
-      JSON.stringify(currentConfig[key]) !== JSON.stringify(nextConfig[key]),
-  );
-  const consumers = outputReferenceConsumers(flow.value, { source: true }, catalog.value).map(
-    (consumer) => consumer.label,
-  );
-  const apply = () => {
-    if (!flow.value) return;
-    flow.value.source = { provider, config: nextConfig };
-    inspectionOptions.value = {};
-    void inspectSource();
-  };
-  if (discardedFields.length || consumers.length) {
-    const details = [
-      discardedFields.length
-        ? `Provider-specific settings will be replaced: ${discardedFields.join(", ")}.`
-        : "",
-      consumers.length
-        ? `Source output is selected by ${consumers.slice(0, 4).join(", ")}${consumers.length > 4 ? ` and ${consumers.length - 4} more` : ""}. Those routes will remain unchanged and may need a different output.`
-        : "",
-    ]
-      .filter(Boolean)
-      .join(" ");
-    confirmDestructiveChange(
-      `Change source to ${definition.label}?`,
-      details,
-      "Change source",
-      apply,
-    );
-  } else apply();
 };
 const setSourceField = (key: string, value: unknown) => {
   if (flow.value) {
@@ -2001,86 +2060,22 @@ const nodeIcon = (kind: string) =>
       : kind === "automatic"
         ? "mdi mdi-cog-transfer-outline"
         : "mdi mdi-hammer-wrench";
-const refreshPlan = async (): Promise<ReleasePlan | undefined> => {
-  if (!flow.value || !agent.isReady.value) return undefined;
-  const requestId = ++latestPlanRequest;
-  const revision = changeRevision.value;
-  const config = structuredClone(toRaw(flow.value));
-  const fingerprint = JSON.stringify(config);
-  planning.value = true;
-  plannerError.value = "";
-  try {
-    const result = await api.execute("release:plan", { config });
-    if (
-      requestId !== latestPlanRequest ||
-      revision !== changeRevision.value ||
-      JSON.stringify(flow.value) !== fingerprint
-    )
-      return undefined;
-    if (result.type === "error") {
-      plan.value = undefined;
-      plannerIssues.value = [];
-      plannerError.value = result.ipcError;
-      return undefined;
-    }
-    plan.value = result.result;
-    plannerIssues.value = result.result.issues;
-    plannerError.value = "";
-    return result.result;
-  } catch (cause) {
-    if (requestId === latestPlanRequest && revision === changeRevision.value) {
-      plan.value = undefined;
-      plannerIssues.value = [];
-      plannerError.value = cause instanceof Error ? cause.message : String(cause);
-    }
-    return undefined;
-  } finally {
-    if (requestId === latestPlanRequest) planning.value = false;
-  }
-};
-const save = createSerializedTaskQueue(async () => {
-  if (!flow.value) return;
-  if (invalidEnvironmentPaths.value.length > 0) {
-    saveState.value = "error";
-    saveError.value = "Fix invalid environment variable names before saving workflow changes.";
-    throw new Error(saveError.value);
-  }
-  if (
-    !agent.isReady.value ||
-    connectionsStore.status !== "ready" ||
-    appStore.providerStatus !== "ready"
-  ) {
-    if (!hasUnsavedState.value) return;
-    saveState.value = "error";
-    saveError.value = "The engine or required workflow data is unavailable before save.";
-    throw new Error(saveError.value);
-  }
-  const requestGeneration = ++saveGeneration;
-  const revision = changeRevision.value;
-  const snapshot = structuredClone(toRaw(flow.value));
-  saveState.value = "saving";
-  const result = await api.execute("workflow:save", {
-    workflowId: flowId.value,
-    data: snapshot,
-    projectId: projectId.value,
-  });
-  if (requestGeneration !== saveGeneration || !agent.isReady.value)
-    throw new Error("The connection changed before the save could be confirmed.");
-  if (result.type === "error") {
-    saveState.value = "error";
-    saveError.value = result.ipcError;
-    throw new Error(result.ipcError);
-  }
-  persistedRevision.value = revision;
-  saveError.value = "";
-  if (
-    persistedRevision.value !== changeRevision.value ||
-    JSON.stringify(flow.value) !== JSON.stringify(snapshot)
-  )
-    void save().catch(() => {});
-  else saveState.value = "saved";
-});
-const ship = async () => {
+const shipMenu = [
+  {
+    label: "Ship without checking destinations",
+    icon: "pi pi-forward",
+    command: () => void ship({ skipPreflight: true }),
+  },
+  {
+    label: "View plan",
+    icon: "mdi mdi-graph-outline",
+    command: () => void router.push(`/workflows/${flowId.value}/${projectId.value}/plan`),
+  },
+];
+// Set by the Ship menu for one run; ship() only opens the release dialog, runShip() executes.
+const skipPreflightOnce = ref(false);
+const ship = async (options: { skipPreflight?: boolean } = {}) => {
+  skipPreflightOnce.value = options.skipPreflight === true;
   if (!flow.value || !canShip.value) return;
   try {
     await save();
@@ -2137,6 +2132,12 @@ const runShip = async () => {
       }
       if (!flow.value) throw new Error("The workflow is no longer available.");
       let runId = "";
+      // Captured now: the editor is left for the run page, and the settings may change later.
+      const workflowName = flow.value.name;
+      const notifications = structuredClone(toRaw(flow.value.settings?.notifications));
+      // Notifications default to on, so the permission is asked here, in answer to the user's click.
+      if (shouldNotify(notifications, "success") || shouldNotify(notifications, "failure"))
+        void requestNotificationPermission();
       const connectionValues = resolveDesktopWorkflowConnectionValues(
         flow.value,
         catalog.value,
@@ -2153,6 +2154,7 @@ const runShip = async () => {
             description: releaseDescription.value.trim(),
           },
           connectionValues,
+          ...(skipPreflightOnce.value ? { skipPreflight: true } : {}),
         },
         readEnvironment: async (names) => {
           if (uiEnvironment !== "desktop") return Promise.resolve({});
@@ -2172,6 +2174,14 @@ const runShip = async () => {
               await router.push(`/workflows/${flowId.value}/${projectId.value}/runs/${runId}`);
             } else if (event.type === "workflow-event" && runId) {
               publishRunEvent(runId, event.data);
+              if (event.data.type === "workflow.completed")
+                notifyRunFinished(
+                  workflowName,
+                  runOutcome(event.data.result.status),
+                  notifications,
+                );
+              else if (event.data.type === "workflow.failed")
+                notifyRunFinished(workflowName, "failure", notifications);
             }
           }),
       });
@@ -2188,89 +2198,38 @@ const runShip = async () => {
     running.value = false;
   }
 };
-let saveTimer: ReturnType<typeof setTimeout> | undefined;
-let planTimer: ReturnType<typeof setTimeout> | undefined;
-watch(
-  flow,
-  () => {
-    if (!workflowHydrated || !flow.value) return;
-    changeRevision.value += 1;
-    latestPlanRequest += 1;
-    plan.value = undefined;
-    plannerIssues.value = [];
-    plannerError.value = "";
-    planning.value = true;
-    clearTimeout(saveTimer);
-    clearTimeout(planTimer);
-    if (flow.value) {
-      saveTimer = setTimeout(() => void save().catch(() => {}), 700);
-      planTimer = setTimeout(() => void refreshPlan(), 300);
-    }
-  },
-  { deep: true, flush: "sync" },
-);
-onBeforeRouteLeave(async () => {
-  if (!flow.value || !hasUnsavedState.value) return true;
-  clearTimeout(saveTimer);
-  try {
-    await save();
-    return true;
-  } catch {
-    return false;
-  }
-});
 onUnmounted(() => {
   if (beforeUnloadRegistered && typeof window !== "undefined") {
     window.removeEventListener("beforeunload", beforeUnloadHandler);
     beforeUnloadRegistered = false;
   }
-  clearTimeout(saveTimer);
-  clearTimeout(planTimer);
 });
 const loadWorkflow = async () => {
   if (!agent.isReady.value) return;
   const generation = ++workflowLoadGeneration;
-  const requestedFlowId = flowId.value;
-  const requestedProjectId = projectId.value;
   workflowLoading.value = true;
   loadError.value = "";
   try {
-    const [, flowResult] = await Promise.all([
+    const [, , , loaded] = await Promise.all([
       appStore.loadReleaseCatalog(),
-      api.execute("workflow:load", { workflowId: requestedFlowId, projectId: requestedProjectId }),
       connectionsStore.init(),
       appStore.loadProviderDefinitions(),
-    ]).then(([catalog, workflow]) => [catalog, workflow] as const);
-    if (
-      generation !== workflowLoadGeneration ||
-      requestedFlowId !== flowId.value ||
-      requestedProjectId !== projectId.value
-    )
-      return;
-    if (flowResult.type === "error") throw new Error(flowResult.ipcError);
+      workflowDoc.ensure(),
+    ]);
+    if (generation !== workflowLoadGeneration) return;
+    if (!loaded) throw new Error(workflowDoc.loadError.value || "Unable to load this workflow.");
     if (connectionsStore.status === "error")
       throw new Error(connectionsStore.error || "Unable to load connections.");
     if (appStore.providerStatus === "error")
       throw new Error(appStore.providerError || "Unable to load provider definitions.");
-    const loaded = flowResult.result;
-    if (loaded.id !== requestedFlowId || loaded.project !== requestedProjectId)
-      throw new Error("Loaded workflow identity does not match the requested route.");
-    const preserveDraft =
-      flow.value?.id === requestedFlowId &&
-      flow.value?.project === requestedProjectId &&
-      hasUnsavedState.value;
-    if (!preserveDraft) {
-      workflowHydrated = false;
-      flow.value = loaded;
-      workflowHydrated = true;
-    }
     inspectionIssues.value = [];
     inspectionOptions.value = {};
-    plannerIssues.value = [];
-    plannerError.value = "";
-    plan.value = undefined;
     workflowLoading.value = false;
-    await Promise.all([inspectSource(), refreshPlan()]);
+    // The layout plans a freshly loaded workflow; on its own (the dashboard) this page does.
+    await Promise.all([
+      inspectSource(),
+      plan.value || planning.value ? workflowDoc.planned() : refreshPlan(),
+    ]);
   } catch (cause) {
     if (generation === workflowLoadGeneration)
       loadError.value = cause instanceof Error ? cause.message : String(cause);
@@ -2286,18 +2245,9 @@ watch(
   (ready) => {
     if (!ready) {
       workflowLoadGeneration++;
-      saveGeneration++;
       latestSourceInspection++;
-      latestPlanRequest++;
       workflowLoading.value = false;
       sourceInspectionPending.value = false;
-      planning.value = false;
-      clearTimeout(saveTimer);
-      clearTimeout(planTimer);
-      if (hasUnsavedState.value) {
-        saveState.value = "error";
-        saveError.value = "The engine disconnected before these workflow changes could be saved.";
-      }
       return;
     }
     void loadWorkflow();
@@ -2307,20 +2257,17 @@ watch(
 watch([flowId, projectId], () => {
   pendingBlockerConnection.value = undefined;
   workflowLoadGeneration++;
-  saveGeneration++;
   latestSourceInspection++;
-  latestPlanRequest++;
   workflowLoading.value = false;
   sourceInspectionPending.value = false;
-  planning.value = false;
-  workflowHydrated = false;
-  flow.value = undefined;
-  plan.value = undefined;
   if (agent.isReady.value) void loadWorkflow();
 });
 </script>
 
 <style scoped>
+.release-flow-root {
+  display: contents;
+}
 .release-page {
   display: grid;
   gap: 28px;
@@ -2371,6 +2318,36 @@ watch([flowId, projectId], () => {
 }
 .ship-button {
   min-width: 5.5rem;
+}
+.config-skeleton {
+  display: grid;
+  gap: 12px;
+}
+.sk {
+  display: block;
+  background: var(--pl-sunken);
+  border-radius: 12px;
+  animation: sk-pulse 1.2s ease-in-out infinite;
+}
+.sk-heading {
+  width: 110px;
+  height: 18px;
+  margin-top: 12px;
+  border-radius: 6px;
+}
+.sk-card {
+  height: 64px;
+  border: 1px solid var(--pl-border);
+}
+@keyframes sk-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sk {
+    animation: none;
+  }
 }
 .readiness-progress {
   display: flex;
@@ -2539,6 +2516,20 @@ watch([flowId, projectId], () => {
 .job-card.disabled .job-header {
   opacity: 0.6;
 }
+/* Not available here (unlike a destination the user switched off): flat grey and dashed. */
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.job-card.unavailable {
+  border-style: dashed;
+  background: var(--p-surface-100, var(--surface-ground));
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+}
+.job-card.unavailable .provider-icon {
+  filter: grayscale(1);
+}
 .job-header {
   padding: 12px 14px 12px 16px;
 }
@@ -2593,12 +2584,17 @@ watch([flowId, projectId], () => {
 .destination-toggle {
   flex: 0 0 auto;
 }
+.row-switch {
+  flex: 0 0 auto;
+  transform: scale(0.72);
+  transform-origin: center;
+}
 
 /* Deployments */
 .slot-list {
   display: grid;
   gap: 2px;
-  padding: 6px 14px 12px 16px;
+  padding: 6px 14px 12px 8px;
   border-top: 1px solid var(--pl-border);
   background: var(--pl-sunken);
   animation: pl-reveal 0.18s var(--pl-ease);
@@ -2612,8 +2608,9 @@ watch([flowId, projectId], () => {
 .slot-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 7px 4px 7px 8px;
+  gap: 14px;
+  /* right padding reserves the header's chevron column so edit buttons line up */
+  padding: 7px 46px 7px 8px;
   border: 0;
   border-radius: 10px;
   background: transparent;
@@ -2624,7 +2621,16 @@ watch([flowId, projectId], () => {
 .slot-row:hover {
   background: var(--pl-hover);
 }
-.slot-row > :first-child {
+.slot-row.unavailable {
+  background: transparent;
+  color: var(--p-text-muted-color, var(--text-color-secondary));
+  outline: 1px dashed var(--pl-border);
+  outline-offset: -1px;
+}
+.slot-row.unavailable .deployment-main {
+  opacity: 0.6;
+}
+.slot-row > .deployment-main {
   flex: 1;
 }
 .deployment-main {

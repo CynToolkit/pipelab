@@ -43,6 +43,7 @@ export {
 export * from "./apis";
 export * from "./build-history";
 export * from "./release/descriptor";
+export * from "./release/deployment-folder";
 export * from "./config.schema";
 export * from "./database.types";
 export * from "./fmt";
@@ -67,6 +68,8 @@ export * from "./release/validate";
 export * from "./release/planner";
 export * from "./release/preferences";
 export * from "./release/defaults";
+export * from "./release/host-availability";
+export * from "./release/retention";
 
 // 4. Configuration Sub-packages
 export * from "./config/projects-definition"; // <-- RE-ADDED

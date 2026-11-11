@@ -11,7 +11,7 @@ import {
   type ReleaseOutputRef,
   type ReleasePlan,
 } from "@pipelab/shared";
-import { buildCoreReleaseRegistry } from "./registry";
+import { buildHostNeutralRegistry } from "./test-registry";
 
 /**
  * Real-world release scenarios resolved against the built-in registry: Construct, Godot, Electron,
@@ -20,7 +20,7 @@ import { buildCoreReleaseRegistry } from "./registry";
 
 const host = { platform: "linux", architecture: "x64" };
 const context = { host };
-const registry = buildCoreReleaseRegistry();
+const registry = buildHostNeutralRegistry();
 
 type Destination = ReleaseDestinationConfig;
 
@@ -611,8 +611,8 @@ const zipDestination = (input?: ReleaseOutputRef): Destination => ({
   id: "zip",
   provider: "@pipelab/core/destination/zip",
   enabled: true,
-  config: { outputPath: "/output/space-release.zip" },
-  slots: [slot("bundle", {}, input)],
+  config: {},
+  slots: [slot("bundle", { outputPath: "/output/space-release.zip" }, input)],
 });
 
 const BUNDLE_PROVIDER = "@pipelab/core/bundle";
