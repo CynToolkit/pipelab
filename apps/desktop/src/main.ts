@@ -662,7 +662,11 @@ app.whenReady().then(async () => {
     readWorkflowEnvironmentForWorkflow(
       workflowId,
       (id) => workflowPersistence.load(id),
-      (config) => getReleaseWorkflowEnvironmentVariableNames(config, workflowRegistry),
+      (config) =>
+        getReleaseWorkflowEnvironmentVariableNames(config, workflowRegistry, {
+          platform: process.platform,
+          architecture: process.arch,
+        }),
     ),
   );
   createWindow();

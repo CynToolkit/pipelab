@@ -56,6 +56,15 @@ export const itchDestination: ReleaseDestinationDefinition = {
         severity: "error" as const,
         path: `slots.${slot.id}.config.channel`,
       })),
+    // Itch creates a channel on its first push, so only a name that corrupts the push target is wrong.
+    ...config.slots
+      .filter((slot) => slot.enabled && /[\s:/]/.test(String(slot.config.channel || "").trim()))
+      .map((slot) => ({
+        code: "itch.channel.invalid",
+        message: `The channel of slot ${slot.id} cannot contain spaces, ':' or '/'.`,
+        severity: "error" as const,
+        path: `slots.${slot.id}.config.channel`,
+      })),
   ],
   compile: (artifact, destination, slot, context) => [
     {

@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
-import type { ReleaseConfig } from "@pipelab/shared";
+import type { ReleaseConfig, ReleaseFieldDefinition, ReleaseRegistry } from "@pipelab/shared";
 import { builtInProviders } from "../providers-registry";
+import { buildHostNeutralRegistry } from "./test-registry";
+import { planReleaseForHost } from "./plan-for-host";
 import {
   getReleaseWorkflowEnvironmentVariableNames,
+  getReleaseWorkflowValueRequirements,
   resolveWorkflowConnectionRequirements,
 } from "./workflow-value-requirements";
 
@@ -21,109 +24,127 @@ describe("workflow Connection requirements", () => {
     );
   });
 
-  it("lists only active ordinary environment bindings from persisted workflow fields", () => {
+  describe("environment bindings and requirements share one plan", () => {
+    const host = { platform: "linux", architecture: "x64" };
+    const textField = (key: string, required = false): ReleaseFieldDefinition => ({
+      key,
+      type: "text",
+      label: key,
+      required,
+    });
+    // The built-in producers declare no text fields, so add some to see which values are read.
+    const registry: ReleaseRegistry = (() => {
+      const base = buildHostNeutralRegistry();
+      return {
+        ...base,
+        producers: base.producers.map((producer) =>
+          producer.id === "@pipelab/plugin-construct/producer"
+            ? {
+                ...producer,
+                targets: producer.targets.map((target) => ({
+                  ...target,
+                  fields: [textField("out", true)],
+                })),
+              }
+            : producer.id === "@pipelab/plugin-electron/producer"
+              ? {
+                  ...producer,
+                  targets: producer.targets.map((target) => ({
+                    ...target,
+                    fields: [textField("out")],
+                  })),
+                }
+              : producer,
+        ),
+      };
+    })();
+    const env = (name: string) => `\${{ env.${name} }}`;
     const config: ReleaseConfig = {
       version: "3.1.0",
       id: "release-a",
       project: "project-a",
       name: "Release A",
       source: {
-        provider: "source/folder",
-        config: {
-          path: "${{ env.PROJECT_PATH }}",
-          account: "${{ env.CONNECTION_ALIAS }}",
-          unknown: "${{ env.UNKNOWN_FIELD }}",
-        },
+        provider: "@pipelab/plugin-construct/source",
+        config: { path: env("PROJECT_PATH"), profilePath: "/profile" },
       },
       builds: [
         {
-          id: "unused-build",
-          type: "desktop",
-          engine: "producer",
-          config: { version: "${{ env.DISABLED_BUILD }}" },
-          targets: [{ id: "release", config: { output: "${{ env.DISABLED_BUILD_TARGET }}" } }],
+          id: "web",
+          type: "web",
+          engine: "@pipelab/plugin-construct/producer",
+          input: { source: true },
+          config: {},
+          targets: [{ id: "web", config: { out: env("WEB_OUT") } }],
         },
         {
-          id: "active-build",
+          // No explicit input: the planner wires it to the web build above.
+          id: "desktop",
           type: "desktop",
-          engine: "producer",
-          config: { version: "${{ env.BUILD_VERSION }}" },
+          engine: "@pipelab/plugin-electron/producer",
+          config: {},
           targets: [
-            { id: "release", config: { output: "${{ env.BUILD_OUTPUT }}" } },
-            { id: "debug", config: { output: "${{ env.DISABLED_TARGET }}" } },
+            { id: "windows-x64", config: { out: env("DESKTOP_OUT") } },
+            { id: "linux-x64", config: { out: env("UNUSED_TARGET") } },
           ],
+        },
+        {
+          id: "unused",
+          type: "desktop",
+          engine: "@pipelab/plugin-electron/producer",
+          input: { buildId: "web", targetId: "web" },
+          config: {},
+          targets: [{ id: "windows-x64", config: { out: env("UNUSED_BUILD") } }],
         },
       ],
       destinations: [
         {
-          id: "disabled-destination",
-          provider: "store",
+          id: "off",
+          provider: "@pipelab/plugin-itch/destination",
           enabled: false,
-          config: { project: "${{ env.DISABLED_DESTINATION }}" },
-          slots: [{ id: "slot", enabled: true, config: { channel: "${{ env.DISABLED_SLOT }}" } }],
+          config: { project: env("DISABLED_DESTINATION") },
+          slots: [{ id: "s", enabled: true, config: { channel: env("DISABLED_SLOT") } }],
         },
         {
-          id: "active-destination",
-          provider: "store",
+          id: "itch",
+          provider: "@pipelab/plugin-itch/destination",
           enabled: true,
-          config: {
-            project: "${{ env.STORE_PROJECT }}",
-            account: "${{ env.CONNECTION_ALIAS }}",
-          },
+          config: { accountConnectionId: "itch-account", project: env("ITCH_PROJECT") },
           slots: [
             {
-              id: "active-slot",
+              id: "win",
               enabled: true,
-              input: { buildId: "active-build", targetId: "release" },
-              config: { channel: "${{ env.STORE_CHANNEL }}" },
+              input: { buildId: "desktop", targetId: "windows-x64" },
+              config: { channel: env("ITCH_CHANNEL") },
             },
-            {
-              id: "inactive-slot",
-              enabled: false,
-              config: { channel: "${{ env.DISABLED_SLOT }}" },
-            },
+            { id: "off", enabled: false, config: { channel: env("DISABLED_SLOT") } },
           ],
         },
       ],
     };
-    const registry = {
-      sources: [
-        {
-          id: "source/folder",
-          fields: [
-            { key: "path", type: "directory" },
-            { key: "account", type: "connection", integration: "store" },
-          ],
-        },
-      ],
-      producers: [
-        {
-          id: "producer",
-          fields: [{ key: "version", type: "text" }],
-          targets: [
-            { id: "release", fields: [{ key: "output", type: "file" }] },
-            { id: "debug", fields: [{ key: "output", type: "file" }] },
-          ],
-        },
-      ],
-      destinations: [
-        {
-          id: "store",
-          fields: [
-            { key: "project", type: "text" },
-            { key: "account", type: "connection", integration: "store" },
-          ],
-          slotFields: [{ key: "channel", type: "text" }],
-        },
-      ],
-    } as const;
 
-    expect(getReleaseWorkflowEnvironmentVariableNames(config, registry)).toEqual([
-      "PROJECT_PATH",
-      "BUILD_VERSION",
-      "BUILD_OUTPUT",
-      "STORE_PROJECT",
-      "STORE_CHANNEL",
-    ]);
+    it("lists every binding the plan uses, including an implicitly wired upstream build", () => {
+      expect(getReleaseWorkflowEnvironmentVariableNames(config, registry, host)).toEqual([
+        "PROJECT_PATH",
+        "WEB_OUT",
+        "DESKTOP_OUT",
+        "ITCH_PROJECT",
+        "ITCH_CHANNEL",
+      ]);
+    });
+
+    it("requires, from the same plan, the bindings of required fields only", () => {
+      const { plan, config: resolved } = planReleaseForHost(config, registry, { host });
+      expect(
+        getReleaseWorkflowValueRequirements(resolved, plan, registry, builtInProviders)
+          .requiredEnvironmentVariables,
+      ).toEqual(
+        expect.arrayContaining(["PROJECT_PATH", "WEB_OUT", "ITCH_PROJECT", "ITCH_CHANNEL"]),
+      );
+      expect(
+        getReleaseWorkflowValueRequirements(resolved, plan, registry, builtInProviders)
+          .requiredEnvironmentVariables,
+      ).not.toContain("DESKTOP_OUT");
+    });
   });
 });
