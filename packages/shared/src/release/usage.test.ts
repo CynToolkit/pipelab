@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { usedTargetKeys } from "./usage";
+import { forEachUsedValue, usedSelectionFromConfig, usedTargetKeys } from "./usage";
 import type { ReleaseConfig } from "./types";
 
 const base = (): ReleaseConfig => ({
@@ -57,5 +57,106 @@ describe("usedTargetKeys", () => {
       targets: [],
     });
     expect([...usedTargetKeys(config)].sort()).toEqual(["a:linux", "a:win"]);
+  });
+});
+
+describe("forEachUsedValue", () => {
+  const field = (key: string) => ({ key });
+  const definitions = {
+    sources: [{ id: "source", fields: [field("path")] }],
+    producers: [
+      {
+        id: "engine",
+        fields: [field("note")],
+        targets: [
+          { id: "win", fields: [field("out")] },
+          { id: "linux", fields: [field("out")] },
+        ],
+      },
+    ],
+    destinations: [{ id: "store", fields: [field("project")], slotFields: [field("channel")] }],
+  };
+  const config = (): ReleaseConfig => ({
+    ...base(),
+    source: { provider: "source", config: { path: "src" } },
+    builds: [
+      {
+        id: "a",
+        type: "desktop",
+        engine: "engine",
+        config: { note: "a-note" },
+        targets: [
+          { id: "win", config: { out: "a-win" } },
+          { id: "linux", config: { out: "a-linux" } },
+        ],
+      },
+      {
+        id: "unused",
+        type: "desktop",
+        engine: "engine",
+        config: { note: "unused-note" },
+        targets: [{ id: "win", config: { out: "unused-win" } }],
+      },
+    ],
+    destinations: [
+      {
+        id: "d",
+        provider: "store",
+        enabled: true,
+        config: { project: "p" },
+        slots: [
+          {
+            id: "on",
+            enabled: true,
+            input: { buildId: "a", targetId: "win" },
+            config: { channel: "c" },
+          },
+          { id: "off", enabled: false, config: { channel: "off-channel" } },
+        ],
+      },
+      {
+        id: "disabled",
+        provider: "store",
+        enabled: false,
+        config: { project: "disabled-project" },
+        slots: [{ id: "s", enabled: true, config: { channel: "disabled-channel" } }],
+      },
+    ],
+  });
+  const visitedValues = (selection: Parameters<typeof forEachUsedValue>[1]) => {
+    const seen: unknown[] = [];
+    forEachUsedValue(config(), selection, definitions, (_field, value) => seen.push(value));
+    return seen;
+  };
+
+  it("reads only what the selection uses: used targets, builds something reads, enabled slots", () => {
+    expect(visitedValues(usedSelectionFromConfig(config()))).toEqual([
+      "src",
+      "a-note",
+      "a-win",
+      "p",
+      "c",
+    ]);
+  });
+
+  it("reads the same values from a plan-shaped selection", () => {
+    expect(
+      visitedValues({
+        producers: [
+          {
+            provider: "engine",
+            config: { note: "a-note" },
+            targets: [{ id: "win", enabled: true, config: { out: "a-win" } }],
+          },
+        ],
+        destinations: [
+          {
+            provider: "store",
+            config: { project: "p" },
+            slots: [{ enabled: true, config: { channel: "c" } }],
+          },
+        ],
+      }),
+    ).toEqual(["src", "a-note", "a-win", "p", "c"]);
   });
 });

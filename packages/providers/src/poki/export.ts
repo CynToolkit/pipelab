@@ -197,6 +197,8 @@ const readPokiAuth = async (root: string) => {
 /**
  * Asks Poki whether the login can open the game, which is what an upload needs. A refreshed token is
  * only kept in memory: the check never writes the login file. Only a definitive "no access" fails.
+ * The endpoint is the Poki CLI's own, not a documented API: an answer this check does not recognize
+ * is "cannot verify", never a pass or a failure.
  */
 export const verifyPokiGame = async (
   root: string,
@@ -228,7 +230,15 @@ export const verifyPokiGame = async (
       if (!token) return unverifiable("Poki gave no refreshed login.");
       response = await open(token);
     }
-    if (response.ok) return verified();
+    if (response.ok) {
+      // Poki does not publish this endpoint, so "verified" needs its JSON:API game shape.
+      const body = (await response.json().catch((): null => null)) as {
+        data?: { type?: unknown; id?: unknown };
+      } | null;
+      return body?.data?.type === "games" && typeof body.data.id === "string"
+        ? verified()
+        : unverifiable("Poki's answer was not recognized; its API may have changed.");
+    }
     if (response.status === 403 || response.status === 404) {
       return failed(
         `Poki denied access to game '${gameId}'. Use a game ID from your Poki for Developers account.`,

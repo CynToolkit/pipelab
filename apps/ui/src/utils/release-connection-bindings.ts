@@ -1,4 +1,4 @@
-import { plannedUsedTargetKeys, usedTargetKeys } from "@pipelab/shared";
+import { forEachUsedValue, usedSelectionFromConfig } from "@pipelab/shared";
 import type {
   ConnectionsConfig,
   IntegrationDefinition,
@@ -35,43 +35,62 @@ const collectConnectionReferences = (
   }
 };
 
+/**
+ * Every Connection reference the saved config holds, used or not, so renaming an alias finds each
+ * one. What a run needs is {@link usedConnectionReferences}.
+ */
 const releaseConnectionReferences = (
   config: ReleaseConfig,
   catalog: ReleaseCatalog,
-  activeOnly = false,
-  plan?: ReleasePlan,
 ): ConnectionReference[] => {
   const references = new Map<string, Set<string | undefined>>();
-  const usedTargets = plan ? plannedUsedTargetKeys(plan) : usedTargetKeys(config);
   const source = catalog.sources.find((candidate) => candidate.id === config.source.provider);
   collectConnectionReferences(source?.fields, config.source.config, references);
 
-  for (const build of config.builds.filter(
-    (candidate) =>
-      !activeOnly ||
-      candidate.targets.some((item) => usedTargets.has(`${candidate.id}:${item.id}`)),
-  )) {
+  for (const build of config.builds) {
     const producer = catalog.producers.find((candidate) => candidate.id === build.engine);
     collectConnectionReferences(producer?.fields, build.config, references);
-    for (const target of build.targets.filter(
-      (candidate) => !activeOnly || usedTargets.has(`${build.id}:${candidate.id}`),
-    )) {
+    for (const target of build.targets) {
       const targetDefinition = producer?.targets.find((candidate) => candidate.id === target.id);
       collectConnectionReferences(targetDefinition?.fields, target.config, references);
     }
   }
 
-  for (const destination of config.destinations.filter(
-    (candidate) => !activeOnly || candidate.enabled,
-  )) {
+  for (const destination of config.destinations) {
     const definition = catalog.destinations.find(
       (candidate) => candidate.id === destination.provider,
     );
     collectConnectionReferences(definition?.fields, destination.config, references);
-    for (const slot of destination.slots.filter((candidate) => !activeOnly || candidate.enabled))
+    for (const slot of destination.slots)
       collectConnectionReferences(definition?.slotFields, slot.config, references);
   }
 
+  return [...references].flatMap(([alias, integrations]) =>
+    [...integrations].map((integration) => ({ alias, integration })),
+  );
+};
+
+/**
+ * The Connection references a run reads, from the plan when there is one: the same shared walk core
+ * uses for a run's requirements. Without a plan it falls back to the saved config's own references.
+ */
+const usedConnectionReferences = (
+  config: ReleaseConfig,
+  catalog: ReleaseCatalog,
+  plan?: ReleasePlan,
+): ConnectionReference[] => {
+  const references = new Map<string, Set<string | undefined>>();
+  forEachUsedValue(
+    config,
+    plan ?? usedSelectionFromConfig(config),
+    catalog,
+    (field: ReleaseFieldDefinition, value) => {
+      if (field.type !== "connection" || typeof value !== "string" || value.length === 0) return;
+      const integrations = references.get(value) ?? new Set<string | undefined>();
+      integrations.add(field.integration);
+      references.set(value, integrations);
+    },
+  );
   return [...references].flatMap(([alias, integrations]) =>
     [...integrations].map((integration) => ({ alias, integration })),
   );
@@ -345,7 +364,7 @@ export const resolveDesktopWorkflowConnectionValues = (
   );
   const values: ConnectionValues = {};
 
-  for (const { alias, integration } of releaseConnectionReferences(config, catalog, true, plan)) {
+  for (const { alias, integration } of usedConnectionReferences(config, catalog, plan)) {
     const binding = connections.workflowBindings?.find(
       (candidate) => candidate.workflowId === config.id && candidate.alias === alias,
     );

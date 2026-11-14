@@ -21,16 +21,24 @@ afterEach(async () => {
 });
 
 describe("verifyPokiGame", () => {
+  // The shape Poki's game endpoint returns (JSON:API), trimmed.
+  const gameAnswer = Response.json({ data: { type: "games", id: "g", attributes: {} } });
+
   it("verifies a game the login can open", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}"));
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(gameAnswer.clone());
     expect(await verifyPokiGame(await loginRoot(), "g")).toEqual({ status: "verified" });
+  });
+  it("does not verify an answer in an unrecognized shape", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({ status: "ok" }));
+    const result = await verifyPokiGame(await loginRoot(), "g");
+    expect(result.status).toBe("unverifiable");
   });
   it("refreshes an expired token in memory and retries", async () => {
     const calls = vi
       .spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response("", { status: 401 }))
       .mockResolvedValueOnce(Response.json({ access_token: "new" }))
-      .mockResolvedValueOnce(new Response("{}"));
+      .mockResolvedValueOnce(gameAnswer.clone());
     expect(await verifyPokiGame(await loginRoot(), "g")).toEqual({ status: "verified" });
     expect(calls).toHaveBeenCalledTimes(3);
   });
