@@ -1,3 +1,4 @@
+import { plannedUsedTargetKeys, usedTargetKeys } from "@pipelab/shared";
 import type {
   ConnectionsConfig,
   IntegrationDefinition,
@@ -6,6 +7,7 @@ import type {
   ReleaseBuildProfileConfig,
   ReleaseConfig,
   ReleaseFieldDefinition,
+  ReleasePlan,
   WorkflowConnectionBinding,
 } from "@pipelab/shared";
 import { connectionIntegrationFieldValue } from "./connection-field-values";
@@ -37,15 +39,23 @@ const releaseConnectionReferences = (
   config: ReleaseConfig,
   catalog: ReleaseCatalog,
   activeOnly = false,
+  plan?: ReleasePlan,
 ): ConnectionReference[] => {
   const references = new Map<string, Set<string | undefined>>();
+  const usedTargets = plan ? plannedUsedTargetKeys(plan) : usedTargetKeys(config);
   const source = catalog.sources.find((candidate) => candidate.id === config.source.provider);
   collectConnectionReferences(source?.fields, config.source.config, references);
 
-  for (const build of config.builds.filter((candidate) => !activeOnly || candidate.enabled)) {
+  for (const build of config.builds.filter(
+    (candidate) =>
+      !activeOnly ||
+      candidate.targets.some((item) => usedTargets.has(`${candidate.id}:${item.id}`)),
+  )) {
     const producer = catalog.producers.find((candidate) => candidate.id === build.engine);
     collectConnectionReferences(producer?.fields, build.config, references);
-    for (const target of build.targets.filter((candidate) => !activeOnly || candidate.enabled)) {
+    for (const target of build.targets.filter(
+      (candidate) => !activeOnly || usedTargets.has(`${build.id}:${candidate.id}`),
+    )) {
       const targetDefinition = producer?.targets.find((candidate) => candidate.id === target.id);
       collectConnectionReferences(targetDefinition?.fields, target.config, references);
     }
@@ -328,13 +338,14 @@ export const resolveDesktopWorkflowConnectionValues = (
   catalog: ReleaseCatalog,
   connections: ConnectionsConfig,
   providers: readonly RendererProviderMetadata[],
+  plan?: ReleasePlan,
 ): ConnectionValues => {
   const connectionsById = new Map(
     connections.connections.map((connection) => [connection.id, connection]),
   );
   const values: ConnectionValues = {};
 
-  for (const { alias, integration } of releaseConnectionReferences(config, catalog, true)) {
+  for (const { alias, integration } of releaseConnectionReferences(config, catalog, true, plan)) {
     const binding = connections.workflowBindings?.find(
       (candidate) => candidate.workflowId === config.id && candidate.alias === alias,
     );

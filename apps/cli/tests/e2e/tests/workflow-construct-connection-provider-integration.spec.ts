@@ -14,10 +14,9 @@ const constructWebBuild = {
   id: "construct",
   type: "web",
   engine: "@pipelab/plugin-construct/producer",
-  enabled: true,
   input: { source: true },
   config: {},
-  targets: [{ id: "web", enabled: true, config: {} }],
+  targets: [{ id: "web", config: {} }],
 };
 
 const zipOf = (outputPath: string) => ({

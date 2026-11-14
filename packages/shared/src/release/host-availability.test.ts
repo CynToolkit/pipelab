@@ -24,8 +24,8 @@ const config = {
       id: "b",
       engine: "engine",
       targets: [
-        { id: "linux-x64", enabled: true, config: {} },
-        { id: "macos-arm64", enabled: true, config: {} },
+        { id: "linux-x64", config: {} },
+        { id: "macos-arm64", config: {} },
       ],
     },
   ],
@@ -41,12 +41,12 @@ const config = {
 } as unknown as ReleaseConfig;
 
 describe("withoutHostUnavailableBuilds", () => {
-  it("turns off unavailable targets and the deployments that take them", () => {
+  it("drops unavailable targets and the deployments that take them", () => {
     const result = withoutHostUnavailableBuilds(config, registry, {
       platform: "linux",
       architecture: "x64",
     });
-    expect(result.builds[0]?.targets.map((target) => target.enabled)).toEqual([true, false]);
+    expect(result.builds[0]?.targets.map((target) => target.id)).toEqual(["linux-x64"]);
     expect(result.destinations[0]?.slots.map((slot) => slot.enabled)).toEqual([true, false]);
   });
 

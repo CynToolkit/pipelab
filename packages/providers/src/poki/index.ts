@@ -1,5 +1,6 @@
 import {
   checkPokiPreflight,
+  testPokiConnection,
   createPokiUploadTask,
   WORKFLOW_TASK_ID,
   type PokiTaskServices,
@@ -63,6 +64,7 @@ export const provider = createProviderDefinition({
   integrations: [
     {
       name: "Poki Account",
+      testable: true,
       fields: [
         {
           key: "account",
@@ -74,6 +76,7 @@ export const provider = createProviderDefinition({
     },
   ],
   release: { destinations: [pokiDestination] },
+  connectionTests: { "@pipelab/plugin-poki": testPokiConnection },
   preflights: { [WORKFLOW_TASK_ID]: checkPokiPreflight },
   workflowTasks: {
     [WORKFLOW_TASK_ID]: (services: PokiTaskServices) => createPokiUploadTask(services),

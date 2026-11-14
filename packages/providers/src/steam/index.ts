@@ -1,5 +1,5 @@
 import { createSteamUploadTask, WORKFLOW_TASK_ID, type SteamTaskServices } from "./upload-to-steam";
-import { checkSteamPreflight } from "./preflight";
+import { checkSteamPreflight, testSteamConnection } from "./preflight";
 import { createProviderDefinition } from "@pipelab/shared";
 import type { ReleaseDestinationDefinition } from "@pipelab/shared";
 
@@ -42,6 +42,31 @@ export const steamDestination: ReleaseDestinationDefinition = {
           },
         ]
       : []),
+    ...(String(config.config.appId || "").trim() &&
+    !/^\d+$/.test(String(config.config.appId).trim())
+      ? [
+          {
+            code: "steam.app-id.digits",
+            message: "Steam App ID must contain only digits.",
+            severity: "error" as const,
+            path: "config.appId",
+          },
+        ]
+      : []),
+    ...config.slots
+      .map((slot, index) => ({ slot, index }))
+      .filter(
+        ({ slot }) =>
+          slot.enabled &&
+          String(slot.config.depotId || "").trim() &&
+          !/^\d+$/.test(String(slot.config.depotId).trim()),
+      )
+      .map(({ slot, index }) => ({
+        code: "steam.depot.digits",
+        message: `Depot ID must contain only digits for ${slot.name?.trim() || `Deployment ${index + 1}`}.`,
+        severity: "error" as const,
+        path: `slots.${slot.id}.config.depotId`,
+      })),
     ...config.slots
       .map((slot, index) => ({ slot, index }))
       .filter(({ slot }) => slot.enabled && !String(slot.config.depotId || "").trim())
@@ -80,6 +105,7 @@ export const provider = createProviderDefinition({
   integrations: [
     {
       name: "Steam Account",
+      testable: true,
       fields: [
         {
           key: "username",
@@ -91,6 +117,7 @@ export const provider = createProviderDefinition({
     },
   ],
   release: { destinations: [steamDestination] },
+  connectionTests: { "@pipelab/plugin-steam": testSteamConnection },
   preflights: { [WORKFLOW_TASK_ID]: checkSteamPreflight },
   workflowTasks: {
     [WORKFLOW_TASK_ID]: (services: SteamTaskServices) => createSteamUploadTask(services),

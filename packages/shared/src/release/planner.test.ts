@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { planRelease } from "./planner";
+import { plannedUsedTargetKeys, usedTargetKeys } from "./usage";
 import type {
   ReleaseBuildProfileConfig,
   ReleaseConfig,
@@ -96,17 +97,15 @@ describe("release planner", () => {
           id: "a",
           type: "web",
           engine: "engine-a",
-          enabled: true,
           config: {},
-          targets: [{ id: "web", enabled: true, config: {} }],
+          targets: [{ id: "web", config: {} }],
         },
         {
           id: "b",
           type: "web",
           engine: "engine-a",
-          enabled: true,
           config: {},
-          targets: [{ id: "web", enabled: true, config: {} }],
+          targets: [{ id: "web", config: {} }],
         },
       ]),
       registry,
@@ -123,9 +122,8 @@ describe("release planner", () => {
           id: "a",
           type: "web",
           engine: "engine-a",
-          enabled: true,
           config: {},
-          targets: [{ id: "web", enabled: true, config: {} }],
+          targets: [{ id: "web", config: {} }],
         },
       ]),
       registry,
@@ -153,17 +151,15 @@ describe("release planner", () => {
           id: "downstream",
           type: "web",
           engine: "downstream",
-          enabled: true,
           config: {},
-          targets: [{ id: "web", enabled: true, config: {} }],
+          targets: [{ id: "web", config: {} }],
         },
         {
           id: "upstream",
           type: "web",
           engine: "engine-a",
-          enabled: true,
           config: {},
-          targets: [{ id: "web", enabled: true, config: {} }],
+          targets: [{ id: "web", config: {} }],
         },
       ]),
       ordered,
@@ -181,9 +177,8 @@ describe("release planner", () => {
           id: "a",
           type: "desktop",
           engine: "engine-a",
-          enabled: true,
           config: {},
-          targets: [{ id: "web", enabled: true, config: {} }],
+          targets: [{ id: "web", config: {} }],
         },
       ]),
       registry,
@@ -220,9 +215,8 @@ describe("release planner", () => {
           id: "desktop",
           type: "web",
           engine: "engine-a",
-          enabled: true,
           config: {},
-          targets: [{ id: "web", enabled: true, config: {} }],
+          targets: [{ id: "web", config: {} }],
         },
       ]),
       zip,
@@ -247,9 +241,8 @@ describe("release planner", () => {
             id: "desktop",
             type: "web",
             engine: "engine-a",
-            enabled: true,
             config: {},
-            targets: [{ id: "web", enabled: true, config: {} }],
+            targets: [{ id: "web", config: {} }],
           },
         ]),
         genericZip,
@@ -301,9 +294,8 @@ describe("release planner", () => {
           id: "desktop",
           type: "web",
           engine: "engine-a",
-          enabled: true,
           config: {},
-          targets: [{ id: "web", enabled: true, config: {} }],
+          targets: [{ id: "web", config: {} }],
         },
       ]),
       passthrough,
@@ -364,9 +356,8 @@ describe("release planner", () => {
           id: "locked",
           type: "web",
           engine: "locked",
-          enabled: true,
           config: {},
-          targets: [{ id: "web", enabled: true, config: {} }],
+          targets: [{ id: "web", config: {} }],
         },
       ]),
       dynamic,
@@ -377,9 +368,7 @@ describe("release planner", () => {
 
   it("reports an unknown build engine", () => {
     const plan = planRelease(
-      config([
-        { id: "missing", type: "web", engine: "missing", enabled: true, config: {}, targets: [] },
-      ]),
+      config([{ id: "missing", type: "web", engine: "missing", config: {}, targets: [] }]),
       registry,
       { host: { platform: "linux", architecture: "x64" } },
     );
@@ -404,19 +393,17 @@ describe("release planner", () => {
           id: "a",
           type: "web",
           engine: "cycle",
-          enabled: true,
           input: { buildId: "b", targetId: "out" },
           config: {},
-          targets: [{ id: "out", enabled: true, config: {} }],
+          targets: [{ id: "out", config: {} }],
         },
         {
           id: "b",
           type: "web",
           engine: "cycle",
-          enabled: true,
           input: { buildId: "a", targetId: "out" },
           config: {},
-          targets: [{ id: "out", enabled: true, config: {} }],
+          targets: [{ id: "out", config: {} }],
         },
       ]),
       cycleRegistry,
@@ -442,25 +429,22 @@ describe("release planner", () => {
           id: "a",
           type: "web",
           engine: "engine-a",
-          enabled: true,
           config: {},
-          targets: [{ id: "web", enabled: true, config: {} }],
+          targets: [{ id: "web", config: {} }],
         },
         {
           id: "b",
           type: "web",
           engine: "engine-b",
-          enabled: true,
           config: {},
-          targets: [{ id: "web", enabled: true, config: {} }],
+          targets: [{ id: "web", config: {} }],
         },
         {
           id: "merge",
           type: "web",
           engine: "merge",
-          enabled: true,
           config: {},
-          targets: [{ id: "out", enabled: true, config: {} }],
+          targets: [{ id: "out", config: {} }],
         },
       ]),
       mergeRegistry,
@@ -475,9 +459,8 @@ describe("release planner", () => {
         id: "build",
         type: "web",
         engine: "engine-a",
-        enabled: true,
         config: {},
-        targets: [{ id: "web", enabled: true, config: {} }],
+        targets: [{ id: "web", config: {} }],
       },
     ]);
     const missingTarget = planRelease(
@@ -513,7 +496,7 @@ describe("release planner", () => {
     const disabledTarget = planRelease(
       {
         ...base,
-        builds: [{ ...base.builds[0], targets: [{ id: "web", enabled: false, config: {} }] }],
+        builds: [{ ...base.builds[0], targets: [] }],
         destinations: [
           {
             id: "deploy",
@@ -565,37 +548,6 @@ describe("release planner", () => {
       { host: { platform: "linux", architecture: "x64" } },
     );
     expect(missingBuild.issues).toContainEqual(
-      expect.objectContaining({
-        code: "release.build.reference.disabled",
-        path: "destinations.0.slots.0.input",
-      }),
-    );
-
-    const disabledBuild = planRelease(
-      {
-        ...base,
-        builds: [{ ...base.builds[0], enabled: false }],
-        destinations: [
-          {
-            id: "deploy",
-            provider: "deploy",
-            enabled: true,
-            config: {},
-            slots: [
-              {
-                id: "slot",
-                enabled: true,
-                input: { buildId: "build", targetId: "web" },
-                config: {},
-              },
-            ],
-          },
-        ],
-      },
-      registry,
-      { host: { platform: "linux", architecture: "x64" } },
-    );
-    expect(disabledBuild.issues).toContainEqual(
       expect.objectContaining({
         code: "release.build.reference.disabled",
         path: "destinations.0.slots.0.input",
@@ -659,9 +611,8 @@ describe("release planner", () => {
           id: "build",
           type: "web",
           engine: "engine-a",
-          enabled: true,
           config: {},
-          targets: [{ id: "web", enabled: true, config: {} }],
+          targets: [{ id: "web", config: {} }],
         },
       ]),
       destinations: [
@@ -730,9 +681,8 @@ describe("release planner", () => {
           id: "desktop",
           type: "web",
           engine: "engine-a",
-          enabled: true,
           config: {},
-          targets: [{ id: "web", enabled: true, config: {} }],
+          targets: [{ id: "web", config: {} }],
         },
       ]),
       zip,
@@ -766,9 +716,8 @@ describe("release planner", () => {
           id: "desktop",
           type: "desktop",
           engine: "engine-a",
-          enabled: true,
           config: {},
-          targets: [{ id: "web", enabled: true, config: {} }],
+          targets: [{ id: "web", config: {} }],
         },
       ]),
       registry,
@@ -817,9 +766,8 @@ describe("release planner", () => {
             id: "desktop",
             type: "web",
             engine: "engine-a",
-            enabled: true,
             config: {},
-            targets: [{ id: "web", enabled: true, config: {} }],
+            targets: [{ id: "web", config: {} }],
           },
         ]),
         destinations: [
@@ -880,9 +828,8 @@ describe("release planner", () => {
       id,
       type: "web",
       engine,
-      enabled: true,
       config: {},
-      targets: [{ id: "web", enabled: true, config: {} }],
+      targets: [{ id: "web", config: {} }],
     });
     const plans = [
       planRelease(
@@ -956,17 +903,15 @@ describe("release planner", () => {
       id: "a",
       type: "web",
       engine: "engine-a",
-      enabled: true,
       config: {},
-      targets: [{ id: "web", enabled: true, config: {} }],
+      targets: [{ id: "web", config: {} }],
     };
     const buildB: ReleaseBuildProfileConfig = {
       id: "b",
       type: "web",
       engine: "engine-b",
-      enabled: true,
       config: {},
-      targets: [{ id: "web", enabled: true, config: {} }],
+      targets: [{ id: "web", config: {} }],
     };
     const ordered = (builds: ReleaseBuildProfileConfig[]) =>
       planRelease(config(builds), webRegistry, {
@@ -1107,9 +1052,8 @@ describe("release planner with multi-input producers", () => {
     id,
     type: "desktop",
     engine: "engine",
-    enabled: true,
     config: {},
-    targets: [{ id: targetId, enabled, config: {} }],
+    targets: enabled ? [{ id: targetId, config: {} }] : [],
   });
   const threeEngines = [
     engineBuild("win", "windows"),
@@ -1123,9 +1067,8 @@ describe("release planner with multi-input producers", () => {
     id: "bundle",
     type: "desktop",
     engine: "bundle",
-    enabled: true,
     config: {},
-    targets: [{ id: "zip", enabled: true, config: {} }],
+    targets: [{ id: "zip", config: {} }],
     inputs,
     ...extra,
   });
@@ -1185,10 +1128,9 @@ describe("release planner with multi-input producers", () => {
         id: "single",
         type: "desktop",
         engine: "engine",
-        enabled: true,
         config: {},
         inputs: threeInputs,
-        targets: [{ id: "windows", enabled: true, config: {} }],
+        targets: [{ id: "windows", config: {} }],
       },
     ]);
     expect(result.issues).toContainEqual(
@@ -1241,10 +1183,9 @@ describe("release planner with multi-input producers", () => {
         id: "post",
         type: "web",
         engine: "post",
-        enabled: true,
         config: {},
         input: { buildId: "bundle", targetId: "zip" },
-        targets: [{ id: "out", enabled: true, config: {} }],
+        targets: [{ id: "out", config: {} }],
       },
     ]);
     expect(codes(result)).toContain("release.build.input.cycle");
@@ -1257,27 +1198,23 @@ describe("release planner with multi-input producers", () => {
     );
   });
 
-  it("rejects inputs that reference a disabled build or target", () => {
-    const disabledBuild = plan([
-      ...threeEngines.slice(0, 2),
-      { ...engineBuild("mac", "macos"), enabled: false },
-      bundleBuild(threeInputs),
-    ]);
+  it("rejects inputs that reference a missing build or an unused target", () => {
+    const disabledBuild = plan([...threeEngines.slice(0, 2), bundleBuild(threeInputs)]);
     expect(disabledBuild.issues).toContainEqual(
       expect.objectContaining({
         code: "release.build.reference.disabled",
-        path: "builds.3.inputs.2",
+        path: "builds.2.inputs.2",
       }),
     );
-    const disabledTarget = plan([
+    const unusedTarget = plan([
       ...threeEngines.slice(0, 2),
       engineBuild("mac", "macos", false),
       bundleBuild(threeInputs),
     ]);
-    expect(disabledTarget.issues.map((issue) => issue.code)).toContain(
+    expect(unusedTarget.issues.map((issue) => issue.code)).toContain(
       "release.destination.input.invalid",
     );
-    expect(disabledTarget.producers.find((producer) => producer.id === "bundle")).toBeUndefined();
+    expect(unusedTarget.producers.find((producer) => producer.id === "bundle")).toBeUndefined();
   });
 
   it("lets a destination slot consume a bundle output", () => {
@@ -1315,9 +1252,8 @@ describe("release planner with multi-input producers", () => {
         id: "post",
         type: "web",
         engine: "post",
-        enabled: true,
         config: {},
-        targets: [{ id: "out", enabled: true, config: {} }],
+        targets: [{ id: "out", config: {} }],
       },
     ]);
     expect(result.issues).toEqual([]);
@@ -1327,14 +1263,56 @@ describe("release planner with multi-input producers", () => {
     });
   });
 
+  it("derives used targets from the plan, including implicitly wired inputs", () => {
+    const extra: Partial<ReleaseConfig> = {
+      destinations: [
+        {
+          id: "deploy",
+          provider: "deploy",
+          name: "Deploy",
+          enabled: true,
+          config: {},
+          slots: [
+            {
+              id: "main",
+              enabled: true,
+              input: { buildId: "post", targetId: "out" },
+              config: {},
+            },
+          ],
+        },
+      ],
+    };
+    const builds = [
+      ...threeEngines,
+      bundleBuild(threeInputs),
+      {
+        id: "post",
+        type: "web",
+        engine: "post",
+        config: {},
+        targets: [{ id: "out", config: {} }],
+      },
+    ];
+    const result = plan(builds, extra);
+    expect(result.issues).toEqual([]);
+    expect([...plannedUsedTargetKeys(result)]).toContain("bundle:zip");
+    expect([...plannedUsedTargetKeys(result)]).toContain("post:out");
+    const bundle = result.producers.find((producer) => producer.id === "bundle");
+    expect(bundle?.targets.find((target) => target.id === "zip")?.enabled).toBe(true);
+    // Syntactically only the explicit slot input is named; the implicit one is not.
+    const syntactic = usedTargetKeys({ ...config(builds), ...extra });
+    expect(syntactic.has("post:out")).toBe(true);
+    expect(syntactic.has("bundle:zip")).toBe(false);
+  });
+
   it("plans a bundle of a bundle", () => {
     const outer = {
       id: "outer",
       type: "desktop",
       engine: "bundle",
-      enabled: true,
       config: {},
-      targets: [{ id: "zip", enabled: true, config: {} }],
+      targets: [{ id: "zip", config: {} }],
       inputs: [
         { buildId: "bundle", targetId: "zip" },
         { buildId: "mac", targetId: "macos" },
@@ -1353,9 +1331,8 @@ describe("release planner with multi-input producers", () => {
       id: "outer",
       type: "desktop",
       engine: "bundle",
-      enabled: true,
       config: {},
-      targets: [{ id: "zip", enabled: true, config: {} }],
+      targets: [{ id: "zip", config: {} }],
       inputs: [{ buildId: "bundle", targetId: "zip" }],
     };
     const result = plan([
@@ -1364,5 +1341,69 @@ describe("release planner with multi-input producers", () => {
       outer,
     ]);
     expect(codes(result)).toContain("release.build.input.cycle");
+  });
+
+  it("plans every listed target as an output and marks only the used ones enabled", () => {
+    const twoTargets: ReleaseRegistry = {
+      ...registry,
+      producers: [
+        {
+          ...registry.producers[0],
+          targets: [
+            ...registry.producers[0].targets,
+            {
+              id: "web-alt",
+              label: "Web alt",
+              buildType: "web",
+              output: web,
+              createDefaultConfig: () => ({}),
+            },
+          ],
+        },
+        ...registry.producers.slice(1),
+      ],
+    };
+    const plan = planRelease(
+      {
+        ...config([
+          {
+            id: "a",
+            type: "web",
+            engine: "engine-a",
+            config: {},
+            targets: [
+              { id: "web", config: {} },
+              { id: "web-alt", config: {} },
+            ],
+          },
+        ]),
+        destinations: [
+          {
+            id: "deploy",
+            provider: "deploy",
+            enabled: true,
+            config: {},
+            slots: [
+              {
+                id: "slot",
+                enabled: true,
+                input: { buildId: "a", targetId: "web" },
+                config: {},
+              },
+            ],
+          },
+        ],
+      },
+      twoTargets,
+      { host: { platform: "linux", architecture: "x64" } },
+    );
+    expect(plan.issues).toEqual([]);
+    expect(plan.producers[0].targets.map((target) => [target.id, target.enabled])).toEqual([
+      ["web", true],
+      ["web-alt", false],
+    ]);
+    const outputKeys = plan.outputs.map((output) => JSON.stringify(output.ref));
+    expect(outputKeys.some((key) => key.includes("web-alt"))).toBe(true);
+    expect(outputKeys.some((key) => key.includes('"web"'))).toBe(true);
   });
 });

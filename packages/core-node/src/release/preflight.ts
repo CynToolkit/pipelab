@@ -58,16 +58,25 @@ const preflightTargets = ({ workflow, config, providers, registry }: PreflightSc
   const targets: PreflightTarget[] = [];
   for (const step of workflow.steps) {
     const check = checks[step.uses];
-    if (!check || !step.delivery) continue;
-    // Checks depend on the account, so slots sharing one account share the call.
-    const key = `${step.uses}\0${String(step.with?.accountConnectionId ?? step.id)}`;
+    if (!check) continue;
+    // Checks depend on the account and the thing checked, so slots sharing both share the call.
+    const key = [
+      step.uses,
+      ...["accountConnectionId", "appId", "depotId", "project"].map((field) =>
+        String(step.with?.[field] ?? ""),
+      ),
+      ...(step.with?.accountConnectionId ? [] : [step.id]),
+    ].join("\0");
     if (seen.has(key)) continue;
     seen.add(key);
-    const destinationId = step.delivery.destinationId;
+    // A source step (no delivery) is checked under its own step id and label.
+    const destinationId = step.delivery?.destinationId ?? step.id;
     const configured = config.destinations.find((candidate) => candidate.id === destinationId);
     const label =
       registry.destinations.find((candidate) => candidate.id === configured?.provider)?.label ??
-      destinationId;
+      (step.delivery
+        ? destinationId
+        : (providers.find((provider) => provider.preflights?.[step.uses])?.name ?? step.uses));
     targets.push({
       step,
       check,

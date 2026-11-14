@@ -1,5 +1,7 @@
 import { toRaw } from "vue";
 import {
+  plannedUsedTargetKeys,
+  usedTargetKeys,
   applyArtifactDescriptorTransform,
   matchesArtifact,
   type ArtifactDescriptor,
@@ -41,15 +43,7 @@ export interface OutputReferenceConsumer {
 
 export type OutputReferenceChangeAction =
   | { kind: "source-provider"; oldProvider: string; newProvider: string }
-  | { kind: "build-disable"; buildName: string }
-  | { kind: "build-remove"; buildName: string }
-  | {
-      kind: "build-engine";
-      buildName: string;
-      newEngine: string;
-      discardedSettings?: string[];
-      disabledTargets?: string[];
-    };
+  | { kind: "build-remove"; buildName: string };
 
 export const suggestMissingConnectionAliases = (
   values: Record<string, unknown>,
@@ -141,7 +135,11 @@ export const compatibleBuildInputLabel = (
   return options.length === 1 ? options[0].label : undefined;
 };
 
-export const missingRequiredFieldIssues = (config: ReleaseConfig, catalog: ReleaseCatalog) => {
+export const missingRequiredFieldIssues = (
+  config: ReleaseConfig,
+  catalog: ReleaseCatalog,
+  plan?: ReleasePlan,
+) => {
   const issues: ValidationIssue[] = [];
   const hasConfiguredValue = (value: unknown): boolean => {
     if (value === null || value === undefined) return false;
@@ -171,13 +169,16 @@ export const missingRequiredFieldIssues = (config: ReleaseConfig, catalog: Relea
   const source = catalog.sources.find((candidate) => candidate.id === config.source.provider);
   if (source) addMissingFields(source.fields, config.source.config, "source.config");
 
+  // The plan knows implicitly wired inputs; without one, fall back to what the configuration names.
+  const usedTargets = plan ? plannedUsedTargetKeys(plan) : usedTargetKeys(config);
   config.builds.forEach((build, buildIndex) => {
-    if (!build.enabled) return;
+    // A build nothing reads does not run, so it cannot block.
+    if (!build.targets.some((target) => usedTargets.has(`${build.id}:${target.id}`))) return;
     const producer = catalog.producers.find((candidate) => candidate.id === build.engine);
     if (!producer) return;
     addMissingFields(producer.fields, build.config, `builds.${buildIndex}.config`);
     build.targets.forEach((target, targetIndex) => {
-      if (!target.enabled) return;
+      if (!usedTargets.has(`${build.id}:${target.id}`)) return;
       const definition = producer.targets.find((candidate) => candidate.id === target.id);
       if (definition)
         addMissingFields(
@@ -341,9 +342,7 @@ export const buildProfileSummary = (catalog: ReleaseCatalog, build: ReleaseBuild
   const producer = catalog.producers.find((candidate) => candidate.id === build.engine);
   const targets = producer?.targets
     .filter((target) => target.buildType === build.type)
-    .filter((target) =>
-      build.targets.some((selected) => selected.id === target.id && selected.enabled),
-    )
+    .filter((target) => build.targets.some((selected) => selected.id === target.id))
     .map((target) => target.label);
   return {
     engineLabel: producer?.label || build.engine,
@@ -369,14 +368,12 @@ export const createBuildProfile = (
     id,
     type,
     engine,
-    enabled: true,
     config,
     targets: targets.map((target) => {
-      const enabled =
-        Boolean(preferredTargets?.includes(target.id)) && buildTargetIsAvailable(target);
       const targetConfig = { ...target.defaultConfig };
-      if (enabled) suggestMissingConnectionAliases(targetConfig, target.fields, usedAliases);
-      return { id: target.id, enabled, config: targetConfig };
+      if (preferredTargets?.includes(target.id) && buildTargetIsAvailable(target))
+        suggestMissingConnectionAliases(targetConfig, target.fields, usedAliases);
+      return { id: target.id, config: targetConfig };
     }),
   };
 };
@@ -469,82 +466,6 @@ export const removeBuildProfile = (config: ReleaseConfig, id: string): boolean =
   return true;
 };
 
-export const setBuildTargetEnabled = (
-  build: ReleaseBuildProfileConfig,
-  id: string,
-  enabled: boolean,
-  availability?: Availability,
-  availabilityStatus?: "unknown",
-  fields?: ReleaseFieldDefinition[],
-  existingAliases: readonly string[] = [],
-): boolean => {
-  const target = build.targets.find((candidate) => candidate.id === id);
-  if (!target) return false;
-  if (enabled && (availability?.available === false || availabilityStatus === "unknown"))
-    return false;
-  if (enabled) suggestMissingConnectionAliases(target.config, fields, new Set(existingAliases));
-  target.enabled = enabled;
-  return true;
-};
-
-export const switchBuildProfileEngine = (
-  catalog: ReleaseCatalog,
-  build: ReleaseBuildProfileConfig,
-  engine: string,
-  existingAliases: readonly string[] = [],
-): ReleaseBuildProfileConfig | undefined => {
-  const producer = catalog.producers.find((candidate) => candidate.id === engine);
-  if (!producer || producer.planning.mode !== "build") return undefined;
-  const previousProducer = catalog.producers.find((candidate) => candidate.id === build.engine);
-  const previousTargets = new Map(build.targets.map((target) => [target.id, target]));
-  const config = { ...producer.defaultConfig, ...build.config };
-  const usedAliases = new Set(existingAliases);
-  for (const field of producer.fields || []) {
-    if (field.type !== "connection") continue;
-    const previousField = previousProducer?.fields?.find(
-      (candidate) => candidate.key === field.key,
-    );
-    if (previousField?.type !== "connection" || previousField.integration !== field.integration)
-      config[field.key] = "";
-  }
-  suggestMissingConnectionAliases(config, producer.fields, usedAliases);
-  const switched: ReleaseBuildProfileConfig = {
-    ...build,
-    engine,
-    config,
-    targets: producer.targets
-      .filter((target) => target.buildType === build.type)
-      .map((target) => {
-        const previousTarget = previousTargets.get(target.id);
-        const previousDefinition = previousProducer?.targets.find(
-          (candidate) => candidate.id === target.id,
-        );
-        const targetConfig = { ...target.defaultConfig, ...previousTarget?.config };
-        for (const field of target.fields || []) {
-          if (field.type !== "connection") continue;
-          const previousField = previousDefinition?.fields?.find(
-            (candidate) => candidate.key === field.key,
-          );
-          if (
-            previousField?.type !== "connection" ||
-            previousField.integration !== field.integration
-          )
-            targetConfig[field.key] = "";
-        }
-        suggestMissingConnectionAliases(targetConfig, target.fields, usedAliases);
-        return { id: target.id, enabled: false, config: targetConfig };
-      }),
-  };
-  // Single and multi-input engines never share an input shape; start the new shape empty.
-  if (producer.inputs === "many") {
-    delete switched.input;
-    switched.inputs = build.inputs ?? [];
-  } else {
-    delete switched.inputs;
-  }
-  return switched;
-};
-
 const buildInputRefs = (build: ReleaseBuildProfileConfig) => [
   ...(build.input ? [build.input] : []),
   ...(build.inputs ?? []),
@@ -590,7 +511,7 @@ const outputDescriptor = (
 };
 
 /**
- * Outputs of other enabled builds that the multi-input build's engine accepts. Builds that would
+ * Outputs of other builds that the multi-input build's engine accepts. Builds that would
  * create a cycle (they consume `buildId`, directly or not) are never offered.
  */
 export const bundleCandidateOutputs = (
@@ -603,19 +524,18 @@ export const bundleCandidateOutputs = (
   if (!accepts) return [];
   const options: ReleaseOutputOption[] = [];
   for (const build of config.builds) {
-    if (build.id === buildId || !build.enabled || consumesBuild(config, build.id, buildId))
-      continue;
+    if (build.id === buildId || consumesBuild(config, build.id, buildId)) continue;
     const producer = catalog.producers.find((candidate) => candidate.id === build.engine);
     if (!producer) continue;
-    for (const selected of build.targets) {
-      if (!selected.enabled) continue;
-      const ref = { buildId: build.id, targetId: selected.id };
+    for (const listed of build.targets) {
+      const target = producer.targets.find((candidate) => candidate.id === listed.id);
+      if (!target || !buildTargetIsAvailable(target)) continue;
+      const ref = { buildId: build.id, targetId: target.id };
       const descriptor = outputDescriptor(config, catalog, ref, new Set());
       if (!descriptor || !matchesArtifact(descriptor, accepts)) continue;
-      const target = producer.targets.find((candidate) => candidate.id === selected.id);
       options.push({
         value: releaseOutputRefValue(ref),
-        label: `${build.name?.trim() || producer.label} · ${target?.label ?? selected.id}`,
+        label: `${build.name?.trim() || producer.label} · ${target.label}`,
         ref,
       });
     }
@@ -712,37 +632,11 @@ export const outputReferenceChangeImpact = (
         ? `Removing “${action.buildName}” will leave these inputs pointing at a removed build: ${consumerLabels}. References will stay in place; update them manually.`
         : `Removing “${action.buildName}” will delete its build configuration.`,
     };
-  if (action.kind === "build-engine") {
-    const changes: string[] = [];
-    if (action.discardedSettings?.length)
-      changes.push(
-        `Settings no longer supported by ${action.newEngine} will be discarded: ${action.discardedSettings.join(", ")}.`,
-      );
-    if (action.disabledTargets?.length)
-      changes.push(
-        `Previously selected targets will be disabled: ${action.disabledTargets.join(", ")}.`,
-      );
-    if (consumerLabels)
-      changes.push(
-        `Outputs used by ${consumerLabels} may change. Their references will stay in place; review compatibility after the change.`,
-      );
-    return changes.length
-      ? {
-          confirmationRequired: true,
-          message: `Changing “${action.buildName}” to ${action.newEngine}. ${changes.join(" ")}`,
-        }
-      : { confirmationRequired: false };
-  }
   if (!consumers.length) return { confirmationRequired: false };
   if (action.kind === "source-provider")
     return {
       confirmationRequired: true,
       message: `Changing the source provider from “${action.oldProvider}” to “${action.newProvider}” affects source outputs used by: ${consumerLabels}. Their references will stay set to Source; review compatibility after the change.`,
-    };
-  if (action.kind === "build-disable")
-    return {
-      confirmationRequired: true,
-      message: `Disabling “${action.buildName}” will leave the selected output unavailable to ${consumerLabels}. Its output reference will stay in place; update it manually if needed.`,
     };
   return { confirmationRequired: false };
 };

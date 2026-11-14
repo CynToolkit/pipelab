@@ -14,6 +14,7 @@
     "make": "pnpm --filter @pipelab/app make",
     "changeset": "changeset",
     "supa:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > packages/shared/src/database.types.ts",
+    "pipelab": "node scripts/pipelab-dev.mjs",
     "docs": "pnpm --filter @pipelab/documentation dev",
     "docs:build": "pnpm --filter @pipelab/documentation build",
     "docs:preview": "pnpm --filter @pipelab/documentation preview",

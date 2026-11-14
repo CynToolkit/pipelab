@@ -17,7 +17,9 @@ import {
   compileReleasePlan,
   planRelease,
   RELEASE_BEFORE_BUILD_TASK_ID,
+  parseReleaseConfig,
   RELEASE_CONFIG_VERSION,
+  resolveReleaseDefaults,
   type ReleaseConfig,
 } from "@pipelab/shared";
 import { createLocalHost, runWorkflow, type WorkflowResult } from "@pipelab/workflow-runtime";
@@ -74,10 +76,9 @@ const constructWebBuild = (id = "construct") => ({
   id,
   type: "web",
   engine: "@pipelab/plugin-construct/producer",
-  enabled: true,
   input: { source: true },
   config: {},
-  targets: [{ id: "web", enabled: true, config: {} }],
+  targets: [{ id: "web", config: {} }],
 });
 
 /** The engine target the defaults enable for the planning host (linux x64 CI runs `linux-x64`). */
@@ -109,11 +110,18 @@ describe("CLI release dry-run", () => {
       | ((
           sandbox: Awaited<ReturnType<typeof createSandbox>>,
         ) => Record<string, unknown> | Promise<Record<string, unknown>>),
+    // Empty slots are auto-filled only at workflow creation, as the new-workflow wizard does.
+    { fillDefaults = true }: { fillDefaults?: boolean } = {},
   ) => {
     sandbox = await createSandbox(
       String(typeof configInput === "function" ? "release-workflow" : configInput.id),
     );
-    const config = typeof configInput === "function" ? await configInput(sandbox) : configInput;
+    const created = typeof configInput === "function" ? await configInput(sandbox) : configInput;
+    const config = fillDefaults
+      ? resolveReleaseDefaults(parseReleaseConfig(created), buildCoreReleaseRegistry(), {
+          host: { platform: process.platform, architecture: process.arch },
+        })
+      : created;
     const configPath = join(sandbox.paths.userData, "config");
     const resultPath = join(sandbox.path, "dry-run.json");
     await mkdir(join(configPath, "workflows"), { recursive: true });
@@ -389,10 +397,9 @@ describe("CLI release dry-run", () => {
               id: "bundle",
               type: "bundle",
               engine: "@pipelab/core/bundle",
-              enabled: true,
               inputs: [{ source: true }],
               config: {},
-              targets: [{ id: "zip", enabled: true, config: {} }],
+              targets: [{ id: "zip", config: {} }],
             },
           ],
           destinations: [
@@ -490,9 +497,8 @@ describe("CLI release dry-run", () => {
             id: "electron",
             type: "desktop",
             engine: "@pipelab/plugin-electron/producer",
-            enabled: true,
             config: {},
-            targets: [{ id: "windows-x64", enabled: true, config: {} }],
+            targets: [{ id: "windows-x64", config: {} }],
           },
         ],
         destinations: [
@@ -580,9 +586,8 @@ describe("CLI release dry-run", () => {
             id: "electron",
             type: "desktop",
             engine: "@pipelab/plugin-electron/producer",
-            enabled: true,
             config: {},
-            targets: [{ id: "windows-x64", enabled: true, config: {} }],
+            targets: [{ id: "windows-x64", config: {} }],
           },
         ],
         // The Electron build is compiled only when a destination consumes it.
@@ -657,6 +662,27 @@ describe("CLI release dry-run", () => {
   );
 
   test(
+    "does not fill an empty slot at run time",
+    async () => {
+      await expect(
+        runDryRun(
+          {
+            version: "3.0.0",
+            id: "construct-poki-empty",
+            project: "main",
+            name: "Construct Poki empty slot",
+            source: constructSource,
+            builds: [],
+            destinations: [poki()],
+          },
+          { fillDefaults: false },
+        ),
+      ).rejects.toThrow();
+    },
+    30 * 60 * 1000,
+  );
+
+  test(
     "passes a Construct version override to the export task",
     async () => {
       const result = await runDryRun({
@@ -702,9 +728,7 @@ describe("CLI release dry-run", () => {
       expect(web).toMatchObject({ engine: "@pipelab/plugin-construct/producer", type: "web" });
       expect(desktop.engine).toBe("@pipelab/plugin-electron/producer");
       expect(desktop.input).toEqual({ buildId: web.id, targetId: "web" });
-      expect(desktop.targets.filter((target: { enabled: boolean }) => target.enabled)).toEqual([
-        expect.objectContaining({ id: host, enabled: true }),
-      ]);
+      expect(desktop.targets).toContainEqual(expect.objectContaining({ id: host }));
       expect(result.plan.destinations[0].slots[0].input).toEqual({
         producerId: desktop.id,
         outputId: host,
@@ -755,9 +779,8 @@ describe("CLI release dry-run", () => {
               id: "electron-profile",
               type: "desktop",
               engine: "@pipelab/plugin-electron/producer",
-              enabled: true,
               config: {},
-              targets: [{ id: "windows-x64", enabled: true, config: {} }],
+              targets: [{ id: "windows-x64", config: {} }],
               beforeBuild: [
                 { id: "write-marker", enabled: true, command: "node ./write-marker.js" },
               ],
@@ -822,10 +845,9 @@ describe("CLI release dry-run", () => {
             id: "desktop",
             type: "desktop",
             engine: "@pipelab/plugin-electron/producer",
-            enabled: true,
             input: { buildId: "construct", targetId: "web" },
             config: {},
-            targets: [{ id: "windows-x64", enabled: true, config: {} }],
+            targets: [{ id: "windows-x64", config: {} }],
           },
         ],
         destinations: [steam()],
@@ -954,9 +976,8 @@ describe("CLI release dry-run", () => {
             id: "desktop",
             type: "desktop",
             engine: "@pipelab/plugin-electron/producer",
-            enabled: true,
             config: {},
-            targets: [{ id: "windows-x64", enabled: true, config: {} }],
+            targets: [{ id: "windows-x64", config: {} }],
           },
         ],
         destinations: [steam({ buildId: "desktop", targetId: "windows-x64" })],
@@ -1033,10 +1054,9 @@ describe("Release beforeBuild hooks", () => {
             name: "SDK disabled",
             type: "desktop",
             engine: "@pipelab/plugin-electron/producer",
-            enabled: true,
             input: { buildId: "construct-web", targetId: "web" },
             config: {},
-            targets: [{ id: "windows-x64", enabled: true, config: {} }],
+            targets: [{ id: "windows-x64", config: {} }],
             beforeBuild: [
               {
                 id: "set-sdk-off",
@@ -1050,10 +1070,9 @@ describe("Release beforeBuild hooks", () => {
             name: "SDK enabled",
             type: "desktop",
             engine: "@pipelab/plugin-electron/producer",
-            enabled: true,
             input: { buildId: "construct-web", targetId: "web" },
             config: {},
-            targets: [{ id: "windows-x64", enabled: true, config: {} }],
+            targets: [{ id: "windows-x64", config: {} }],
             beforeBuild: [
               {
                 id: "set-sdk-on",
@@ -1310,9 +1329,8 @@ describe("Release beforeBuild hooks", () => {
               id: "electron-profile",
               type: "desktop",
               engine: "@pipelab/plugin-electron/producer",
-              enabled: true,
               config: {},
-              targets: [{ id: "windows-x64", enabled: true, config: {} }],
+              targets: [{ id: "windows-x64", config: {} }],
               beforeBuild: [
                 {
                   id: "run-script",

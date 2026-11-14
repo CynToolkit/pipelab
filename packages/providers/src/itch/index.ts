@@ -1,5 +1,6 @@
 import {
   checkItchPreflight,
+  testItchConnection,
   createItchUploadTask,
   WORKFLOW_TASK_ID,
   type ItchTaskServices,
@@ -82,6 +83,7 @@ export const provider = createProviderDefinition({
   integrations: [
     {
       name: "Itch Butler Account",
+      testable: true,
       fields: [
         {
           key: "apiKey",
@@ -93,6 +95,7 @@ export const provider = createProviderDefinition({
     },
   ],
   release: { destinations: [itchDestination] },
+  connectionTests: { "@pipelab/plugin-itch": testItchConnection },
   preflights: { [WORKFLOW_TASK_ID]: checkItchPreflight },
   workflowTasks: {
     [WORKFLOW_TASK_ID]: (services: ItchTaskServices) => createItchUploadTask(services),

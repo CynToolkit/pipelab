@@ -169,7 +169,6 @@ describe("release descriptors", () => {
           id: "electron-a",
           type: "desktop",
           engine: "electron",
-          enabled: true,
           config: {},
           targets: [{ id: "windows", enabled: true, config: {} }],
           beforeBuild: [
@@ -203,7 +202,6 @@ describe("release descriptors", () => {
           id: "electron-a",
           type: "desktop",
           engine: "electron",
-          enabled: true,
           config: {},
           targets: [{ id: "windows", enabled: true, config: {} }],
           beforeBuild: [
@@ -260,7 +258,6 @@ describe("release descriptors", () => {
           id: "same",
           type: "desktop",
           engine: "electron",
-          enabled: true,
           config: {},
           targets: [{ id: "same", enabled: true, config: {} }],
         },
@@ -268,7 +265,6 @@ describe("release descriptors", () => {
           id: "same",
           type: "desktop",
           engine: "electron",
-          enabled: true,
           config: {},
           targets: [{ id: "other", enabled: true, config: {} }],
         },
@@ -307,7 +303,6 @@ describe("release descriptors", () => {
       id: "build",
       type: "desktop",
       engine: "engine",
-      enabled: true,
       config: {},
       targets: [{ id: "target", enabled: true, config: {} }],
     };
@@ -351,7 +346,6 @@ describe("release descriptors", () => {
           id: "build",
           type: "desktop",
           engine: "engine",
-          enabled: true,
           config: {},
           targets: [{ id: "target", enabled: true, config: {}, input: { source: true } }],
         },
@@ -405,9 +399,8 @@ describe("release descriptors", () => {
         id: "future-build",
         type: "future-type",
         engine: "@new/provider/producer",
-        enabled: true,
         config: { futureProducerSetting: [1, "two"] },
-        targets: [{ id: "future-target", enabled: true, config: { futureTargetSetting: true } }],
+        targets: [{ id: "future-target", config: { futureTargetSetting: true } }],
       },
     ];
     config.destinations = [
@@ -426,6 +419,40 @@ describe("release descriptors", () => {
       },
     ];
     expect(parseReleaseConfig(JSON.parse(JSON.stringify(config)))).toEqual(config);
+  });
+
+  it("keeps every build and target and strips legacy enabled flags when parsing", () => {
+    const config = createReleaseConfig({
+      id: "wf",
+      project: "proj",
+      name: "Workflow",
+      source: { provider: "src", config: {} },
+    });
+    const legacy = {
+      ...config,
+      builds: [
+        {
+          id: "build",
+          type: "desktop",
+          engine: "@new/provider/producer",
+          enabled: false,
+          config: {},
+          targets: [
+            { id: "windows", enabled: true, config: { a: 1 } },
+            { id: "linux", enabled: false, config: { b: 2 } },
+            { id: "macos", config: {} },
+          ],
+        },
+      ],
+    };
+    const parsed = parseReleaseConfig(JSON.parse(JSON.stringify(legacy)));
+    expect(parsed.builds).toHaveLength(1);
+    expect("enabled" in parsed.builds[0]).toBe(false);
+    expect(parsed.builds[0].targets).toEqual([
+      { id: "windows", config: { a: 1 } },
+      { id: "linux", config: { b: 2 } },
+      { id: "macos", config: {} },
+    ]);
   });
 
   it("validates workflow settings", () => {
@@ -793,9 +820,8 @@ describe("release descriptors", () => {
           id: "electron",
           type: "desktop",
           engine: "electron",
-          enabled: true,
           config: {},
-          targets: [{ id: "windows", enabled: true, config: {} }],
+          targets: [{ id: "windows", config: {} }],
         },
       ],
       destinations: [],

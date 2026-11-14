@@ -37,23 +37,20 @@ describe("workflow Connection requirements", () => {
       },
       builds: [
         {
-          id: "disabled-build",
+          id: "unused-build",
           type: "desktop",
           engine: "producer",
-          enabled: false,
           config: { version: "${{ env.DISABLED_BUILD }}" },
-          targets: [
-            { id: "release", enabled: true, config: { output: "${{ env.DISABLED_BUILD_TARGET }}" } },
-          ],
+          targets: [{ id: "release", config: { output: "${{ env.DISABLED_BUILD_TARGET }}" } }],
         },
         {
           id: "active-build",
           type: "desktop",
           engine: "producer",
-          enabled: true,
           config: { version: "${{ env.BUILD_VERSION }}" },
           targets: [
-            { id: "release", enabled: false, config: { output: "${{ env.DISABLED_TARGET }}" } },
+            { id: "release", config: { output: "${{ env.BUILD_OUTPUT }}" } },
+            { id: "debug", config: { output: "${{ env.DISABLED_TARGET }}" } },
           ],
         },
       ],
@@ -63,9 +60,7 @@ describe("workflow Connection requirements", () => {
           provider: "store",
           enabled: false,
           config: { project: "${{ env.DISABLED_DESTINATION }}" },
-          slots: [
-            { id: "slot", enabled: true, config: { channel: "${{ env.DISABLED_SLOT }}" } },
-          ],
+          slots: [{ id: "slot", enabled: true, config: { channel: "${{ env.DISABLED_SLOT }}" } }],
         },
         {
           id: "active-destination",
@@ -76,8 +71,17 @@ describe("workflow Connection requirements", () => {
             account: "${{ env.CONNECTION_ALIAS }}",
           },
           slots: [
-            { id: "active-slot", enabled: true, config: { channel: "${{ env.STORE_CHANNEL }}" } },
-            { id: "inactive-slot", enabled: false, config: { channel: "${{ env.DISABLED_SLOT }}" } },
+            {
+              id: "active-slot",
+              enabled: true,
+              input: { buildId: "active-build", targetId: "release" },
+              config: { channel: "${{ env.STORE_CHANNEL }}" },
+            },
+            {
+              id: "inactive-slot",
+              enabled: false,
+              config: { channel: "${{ env.DISABLED_SLOT }}" },
+            },
           ],
         },
       ],
@@ -96,7 +100,10 @@ describe("workflow Connection requirements", () => {
         {
           id: "producer",
           fields: [{ key: "version", type: "text" }],
-          targets: [{ id: "release", fields: [{ key: "output", type: "file" }] }],
+          targets: [
+            { id: "release", fields: [{ key: "output", type: "file" }] },
+            { id: "debug", fields: [{ key: "output", type: "file" }] },
+          ],
         },
       ],
       destinations: [
@@ -114,6 +121,7 @@ describe("workflow Connection requirements", () => {
     expect(getReleaseWorkflowEnvironmentVariableNames(config, registry)).toEqual([
       "PROJECT_PATH",
       "BUILD_VERSION",
+      "BUILD_OUTPUT",
       "STORE_PROJECT",
       "STORE_CHANNEL",
     ]);

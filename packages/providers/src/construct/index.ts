@@ -14,6 +14,7 @@ export type { BrowserProfileCandidate } from "./browser-profiles";
 import { constructWorkflowTaskFactories } from "./export-c3p";
 import { constructProviderLogo } from "../provider-icons";
 import { constructProducer } from "./producer";
+import { checkConstructPreflight, testConstructConnection } from "./preflight";
 
 // Whatever is entered as the version is appended to the editor URL as-is; these only save typing.
 const constructVersionKeywords: ReleaseFieldOption[] = [
@@ -195,10 +196,13 @@ export const provider = createProviderDefinition({
         { key: "username", label: "Username", type: "text" },
         { key: "password", label: "Password", type: "password" },
       ],
+      testable: true,
     },
   ],
   release: { sources: [constructSource], producers: [constructProducer] },
   workflowTasks: constructWorkflowTaskFactories,
+  connectionTests: { "@pipelab/plugin-construct": testConstructConnection },
+  preflights: { "@pipelab/plugin-construct/export-construct-project": checkConstructPreflight },
 });
 
 export { constructWorkflowTaskFactories };

@@ -239,9 +239,8 @@ describe("ReleaseFlowWizard state", () => {
         id: "build-1",
         type: "desktop",
         engine: "producer/electron",
-        enabled: true,
         config: { mode: "release" },
-        targets: [{ id: "linux", enabled: true, config: { format: "appimage" } }],
+        targets: [{ id: "linux", config: { format: "appimage" } }],
       },
     ];
 

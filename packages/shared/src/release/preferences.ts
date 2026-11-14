@@ -145,7 +145,6 @@ const newBuild = (candidate: Candidate, input: ReleaseOutputRef): ReleaseBuildPr
     id: nanoid(),
     type: entry.buildType,
     engine: producer.id,
-    enabled: true,
     input,
     config: producer.createDefaultConfig(),
     targets: producer.targets
@@ -154,14 +153,13 @@ const newBuild = (candidate: Candidate, input: ReleaseOutputRef): ReleaseBuildPr
         item.id === target.id
           ? {
               id: item.id,
-              enabled: true,
               config: {
                 ...item.createDefaultConfig(),
                 ...entry.targetConfig,
                 ...entry.targetConfigs?.[item.id],
               },
             }
-          : { id: item.id, enabled: false, config: item.createDefaultConfig() },
+          : { id: item.id, config: item.createDefaultConfig() },
       ),
   };
 };
@@ -189,9 +187,19 @@ const feedsFor = (
   used: ReadonlySet<string>,
   remaining: number,
 ): Feed[] => {
+  // Within a build type, the output of the host's own target is preferred.
+  const hostRank = (output: PlannedReleaseOutput) => {
+    const build = scope.config.builds.find((item) => item.id === output.buildId);
+    const producer = scope.registry.producers.find((item) => item.id === build?.engine);
+    const hostTarget = producer && build && hostTargetOf(producer, build.type, scope.context.host);
+    return hostTarget?.id === output.targetId ? 0 : 1;
+  };
   const reused = outputs
     .filter((output) => output.buildId !== undefined && accepts(output.descriptor))
-    .sort((left, right) => reuseRank(scope, left) - reuseRank(scope, right))
+    .sort(
+      (left, right) =>
+        reuseRank(scope, left) - reuseRank(scope, right) || hostRank(left) - hostRank(right),
+    )
     .map((output): Feed => ({ builds: [], ref: output.ref }));
   const built =
     remaining <= 0

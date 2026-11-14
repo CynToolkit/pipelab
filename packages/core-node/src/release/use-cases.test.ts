@@ -20,6 +20,7 @@ import {
   type ReleasePlanningContext,
   type ReleaseProducerDefinition,
   type ReleaseRegistry,
+  usedTargetKeys,
 } from "@pipelab/shared";
 import { buildHostNeutralRegistry } from "./test-registry";
 
@@ -139,7 +140,6 @@ const constructWebBuild = (id = "construct-web"): ReleaseBuildProfileConfig => (
   id,
   type: "web",
   engine: CONSTRUCT_PRODUCER,
-  enabled: true,
   input: SOURCE,
   config: {},
   targets: targetsOf(["web"]),
@@ -155,7 +155,6 @@ const electronBuild = (
   id,
   type: "desktop",
   engine: ELECTRON_PRODUCER,
-  enabled: true,
   input,
   config,
   targets: targetsOf(targetIds, enabledIds),
@@ -169,7 +168,6 @@ const tauriBuild = (
   id,
   type: "desktop",
   engine: TAURI_PRODUCER,
-  enabled: true,
   input,
   config: {},
   targets: targetsOf(targetIds),
@@ -179,7 +177,6 @@ const bundleBuild = (inputs: ReleaseOutputRef[]): ReleaseBuildProfileConfig => (
   id: "bundle",
   type: "bundle",
   engine: BUNDLE,
-  enabled: true,
   inputs,
   config: {},
   targets: targetsOf(["zip"]),
@@ -201,9 +198,12 @@ const refName = (ref: ReleaseOutputRef, names: Map<string, string>) =>
 /** Compact, id-free view of the builds: engine, enabled targets and the output each build reads. */
 const summarizeBuilds = (config: ReleaseConfig) => {
   const names = buildNames(config);
+  const used = usedTargetKeys(config);
   return config.builds.map((build) => ({
     engine: engineName(build.engine),
-    enabledTargets: build.targets.filter((target) => target.enabled).map((target) => target.id),
+    enabledTargets: build.targets
+      .filter((target) => used.has(`${build.id}:${target.id}`))
+      .map((target) => target.id),
     // An input-less build is fed by the source through the planner's automatic resolution.
     input: build.input ? refName(build.input, names) : "implicit",
   }));
@@ -442,7 +442,7 @@ describe("Godot to itch.io: one slot gets Godot's native desktop export, not Ele
       expect(
         resolved.builds.map((build) =>
           build.targets
-            .filter((target) => target.enabled)
+            .filter((target) => usedTargetKeys(resolved).has(`${build.id}:${target.id}`))
             .map((target) => ({ id: target.id, preset: target.config.preset })),
         ),
       ).toEqual([[{ id: targetId, preset }]]);
@@ -478,15 +478,21 @@ describe("Construct to Steam with two depot slots: one Electron build exposes th
       ],
     );
 
-  it("exposes all three enabled targets and compiles only the consumed Windows and Linux ones", () => {
+  it("lists all three targets, uses and compiles only the consumed Windows and Linux ones", () => {
     const { resolved, steps } = resolveAndCompile(config());
     expect(summarizeBuilds(resolved)).toEqual([
       { engine: "construct", enabledTargets: ["web"], input: "source" },
       {
         engine: "electron",
-        enabledTargets: ["windows-x64", "linux-x64", "macos-arm64"],
+        enabledTargets: ["windows-x64", "linux-x64"],
         input: "b0.web",
       },
+    ]);
+    // macOS stays listed with its settings, but no slot reads it.
+    expect(resolved.builds[1]!.targets.map((target) => target.id)).toEqual([
+      "windows-x64",
+      "linux-x64",
+      "macos-arm64",
     ]);
     expect(summarizeSlots(resolved)).toEqual([
       { destination: "steam", slot: "windows", input: "b1.windows-x64" },
@@ -585,7 +591,7 @@ describe("Construct to a ZIP bundle of Electron and Tauri builds with manually c
     expect(errorsOf(plan)).toEqual([]);
     expect(summarizeBuilds(resolved)).toEqual([
       { engine: "construct", enabledTargets: ["web"], input: "source" },
-      { engine: "electron", enabledTargets: ["windows-x64", "linux-x64"], input: "b0.web" },
+      { engine: "electron", enabledTargets: ["windows-x64"], input: "b0.web" },
       { engine: "tauri", enabledTargets: ["linux-x64"], input: "b0.web" },
       { engine: "tauri", enabledTargets: ["macos-arm64"], input: "b0.web" },
       { engine: "core/bundle", enabledTargets: ["zip"], input: "implicit" },
@@ -873,7 +879,6 @@ describe("FAKE Capacitor to Google Play: planning depends on the host having the
           id: "capacitor-build",
           type: "mobile",
           engine: FAKE_CAPACITOR,
-          enabled: true,
           input: out("construct-web", "web"),
           config: {},
           targets: targetsOf(["android-aab"]),

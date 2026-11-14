@@ -19,6 +19,15 @@ An **integration** configures credentials or an account used by a provider.
 Manage these profiles on the **Connections** screen. Saved connections keep
 their IDs and credentials during the settings upgrade.
 
+Construct, Itch, Poki and Steam connections have a **Test connection** button. It runs a
+read-only check (no upload, no login prompt) and shows the result next to the
+button. Saving runs the test automatically if the current values were not tested.
+A rejected credential, such as an Itch API key that itch.io refuses, blocks
+saving until you fix it. If the service cannot be reached, the check times out,
+or the connection type cannot be tested, the reason is shown and the connection
+still saves. Poki and Steam only check that the name is set and, when possible,
+that the CLI login exists; a missing login does not block saving.
+
 ## Account
 
 The account dialog supports signing in, creating an account, and requesting a

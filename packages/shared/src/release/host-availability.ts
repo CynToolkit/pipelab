@@ -15,12 +15,11 @@ export const withoutHostUnavailableBuilds = (
     const producer = registry.producers.find((candidate) => candidate.id === build.engine);
     return {
       ...build,
-      targets: build.targets.map((target) => {
+      targets: build.targets.filter((target) => {
         const definition = producer?.targets.find((candidate) => candidate.id === target.id);
-        if (!target.enabled || !definition?.isAvailable || definition.isAvailable(host).available)
-          return target;
+        if (!definition?.isAvailable || definition.isAvailable(host).available) return true;
         unavailable.add(`${build.id}\0${target.id}`);
-        return { ...target, enabled: false };
+        return false;
       }),
     };
   });

@@ -12,5 +12,6 @@ export const buildIntegrationTargets = (providers: readonly RendererProviderMeta
         integrations.length > 1 ? `${provider.name} - ${integration.name}` : provider.name,
       icon: provider.icon,
       fields: integration.fields,
+      testable: integration.testable === true,
     }));
   });

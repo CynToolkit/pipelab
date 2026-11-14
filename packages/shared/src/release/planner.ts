@@ -1,4 +1,5 @@
 import { validateReleaseConfigShape } from "./config";
+import { AUTOMATIC_PRODUCER_PREFIX, consumedOutputKeys } from "./usage";
 import { evaluateArtifactAcceptance, matchesArtifact } from "./matcher";
 import { resolveTargetDescriptor } from "./descriptor";
 import type {
@@ -9,6 +10,7 @@ import type {
   ReleaseConfig,
   ReleaseHostContext,
   ReleaseOutputRef,
+  ReleaseProducerTarget,
   ReleasePlan,
   ReleaseProducerConfig,
   ReleaseProducerDefinition,
@@ -185,6 +187,7 @@ export const planRelease = (
   }
   const resolving = new Set<string>();
   const automaticCounter = new Map<string, number>();
+  const deferredValidation: Array<() => void> = [];
   const configuredBuilds = config.builds ?? [];
 
   const potentialBuildOutputs = (
@@ -192,29 +195,25 @@ export const planRelease = (
     definition: ReleaseProducerDefinition,
   ): Candidate[] =>
     configuredBuilds
-      .filter((build) => build.enabled && build.id !== buildId)
+      .filter((build) => build.id !== buildId)
       .flatMap((build) => {
         const producer = registry.producers.find((candidate) => candidate.id === build.engine);
         if (!producer) return [];
-        return build.targets
-          .filter((target) => target.enabled)
-          .flatMap((target) => {
-            const targetDefinition = producer.targets.find(
-              (candidate) => candidate.id === target.id,
-            );
-            if (
-              !targetDefinition?.output ||
-              !accepted(targetDefinition.output, definition, context.host).accepted
-            )
-              return [];
-            return [
-              {
-                ref: { buildId: build.id, targetId: target.id },
-                artifactRef: { producerId: build.id, outputId: target.id },
-                descriptor: targetDefinition.output,
-              },
-            ];
-          });
+        return build.targets.flatMap((target) => {
+          const targetDefinition = producer.targets.find((candidate) => candidate.id === target.id);
+          if (
+            !targetDefinition?.output ||
+            !accepted(targetDefinition.output, definition, context.host).accepted
+          )
+            return [];
+          return [
+            {
+              ref: { buildId: build.id, targetId: target.id },
+              artifactRef: { producerId: build.id, outputId: target.id },
+              descriptor: targetDefinition.output,
+            },
+          ];
+        });
       });
 
   const addAutomatic = (steps: AutomaticStep[], destinationBuildId: string): Candidate => {
@@ -222,7 +221,7 @@ export const planRelease = (
     for (const step of steps) {
       const index = (automaticCounter.get(destinationBuildId) ?? 0) + 1;
       automaticCounter.set(destinationBuildId, index);
-      const id = `__auto__${destinationBuildId}__${index}`;
+      const id = `${AUTOMATIC_PRODUCER_PREFIX}${destinationBuildId}__${index}`;
       const target = step.definition.targets.find((item) => item.id === step.targetId)!;
       const producer: ReleaseProducerConfig = {
         id,
@@ -250,7 +249,7 @@ export const planRelease = (
 
   const resolveBuild = (buildId: string): BuildResolution | undefined => {
     const build = builds.get(buildId);
-    if (!build || !build.enabled) return undefined;
+    if (!build) return undefined;
     if (resolving.has(buildId)) {
       issues.push(
         error(
@@ -319,7 +318,6 @@ export const planRelease = (
             (candidate) => "buildId" in candidate.ref && candidate.ref.buildId === upstream.id,
           );
           if (
-            upstream.enabled &&
             upstream.id !== buildId &&
             (upstream.input || hasStaticCompatibleOutput) &&
             !directlyDependsOnCurrent &&
@@ -413,50 +411,50 @@ export const planRelease = (
           buildPath(buildId, ".beforeBuild"),
         ),
       );
-    const targetConfigs = build.targets
-      .filter((target) => target.enabled)
-      .map((target) => {
-        const targetDefinition = definition.targets.find((item) => item.id === target.id);
-        if (!targetDefinition) {
-          issues.push(
-            error(
-              "release.build.target.unknown",
-              `Unknown target ${target.id} for ${build.engine}.`,
-              buildPath(
-                buildId,
-                `.targets.${build.targets.findIndex((candidate) => candidate.id === target.id)}`,
-              ),
+    const targetConfigs: ReleaseProducerTarget[] = build.targets.map((buildTarget) => {
+      // Every listed target is planned as an output; `enabled` is settled once the plan is wired.
+      const target = { ...buildTarget, enabled: false };
+      const targetDefinition = definition.targets.find((item) => item.id === target.id);
+      if (!targetDefinition) {
+        issues.push(
+          error(
+            "release.build.target.unknown",
+            `Unknown target ${target.id} for ${build.engine}.`,
+            buildPath(
+              buildId,
+              `.targets.${build.targets.findIndex((candidate) => candidate.id === target.id)}`,
             ),
-          );
-          return target;
-        }
-        if (targetDefinition.buildType && targetDefinition.buildType !== build.type)
-          issues.push(
-            error(
-              "release.build.target.type",
-              `Target ${target.id} is not a ${build.type} target.`,
-              buildPath(
-                buildId,
-                `.targets.${build.targets.findIndex((candidate) => candidate.id === target.id)}`,
-              ),
-            ),
-          );
-        if (targetDefinition.isAvailable) {
-          const availability = targetDefinition.isAvailable(context.host);
-          if (!availability.available)
-            issues.push(
-              error(
-                "release.build.target.unavailable",
-                availability.reason ?? `Target ${target.id} is unavailable.`,
-                buildPath(
-                  buildId,
-                  `.targets.${build.targets.findIndex((candidate) => candidate.id === target.id)}`,
-                ),
-              ),
-            );
-        }
+          ),
+        );
         return target;
-      });
+      }
+      if (targetDefinition.buildType && targetDefinition.buildType !== build.type)
+        issues.push(
+          error(
+            "release.build.target.type",
+            `Target ${target.id} is not a ${build.type} target.`,
+            buildPath(
+              buildId,
+              `.targets.${build.targets.findIndex((candidate) => candidate.id === target.id)}`,
+            ),
+          ),
+        );
+      if (targetDefinition.isAvailable) {
+        const availability = targetDefinition.isAvailable(context.host);
+        if (!availability.available)
+          issues.push(
+            error(
+              "release.build.target.unavailable",
+              availability.reason ?? `Target ${target.id} is unavailable.`,
+              buildPath(
+                buildId,
+                `.targets.${build.targets.findIndex((candidate) => candidate.id === target.id)}`,
+              ),
+            ),
+          );
+      }
+      return target;
+    });
     const producer: ReleaseProducerConfig = {
       id: build.id,
       provider: build.engine,
@@ -467,17 +465,21 @@ export const planRelease = (
       config: build.config,
       targets: targetConfigs,
     };
-    issues.push(
-      ...definition
-        .validate(producer, {
-          host: context.host,
-          source: selectedInputs ? undefined : selected.descriptor,
-          sourceConfig: config.source.config,
-        })
-        .map((issue) => ({
-          ...issue,
-          path: buildProviderPath(build, issue.path),
-        })),
+    // Provider validation sees which targets are used, which is only known once the plan is wired.
+    const validationSource = selectedInputs ? undefined : selected.descriptor;
+    deferredValidation.push(() =>
+      issues.push(
+        ...definition
+          .validate(producer, {
+            host: context.host,
+            source: validationSource,
+            sourceConfig: config.source.config,
+          })
+          .map((issue) => ({
+            ...issue,
+            path: buildProviderPath(build, issue.path),
+          })),
+      ),
     );
     producers.push(producer);
     graph.nodes.push({ id: build.id, kind: "build" });
@@ -490,7 +492,7 @@ export const planRelease = (
     const resolution: BuildResolution = { candidateByTarget: new Map(), producer };
     for (const target of targetConfigs) {
       const targetDefinition = definition.targets.find((item) => item.id === target.id);
-      if (!targetDefinition || !target.enabled) continue;
+      if (!targetDefinition) continue;
       if (selectedInputs && !targetDefinition.output) {
         issues.push(
           error(
@@ -615,11 +617,11 @@ export const planRelease = (
   function resolveRef(ref: ReleaseOutputRef, issuePath?: string): Candidate | undefined {
     if (sourceRef(ref)) return resolved.get("source");
     const build = builds.get(ref.buildId);
-    if (!build || !build.enabled) {
+    if (!build) {
       issues.push(
         error(
           "release.build.reference.disabled",
-          `Referenced build is missing or disabled: ${ref.buildId}.`,
+          `Referenced build is missing: ${ref.buildId}.`,
           issuePath,
         ),
       );
@@ -637,16 +639,6 @@ export const planRelease = (
       );
       return undefined;
     }
-    if (!target.enabled) {
-      issues.push(
-        error(
-          "release.destination.input.invalid",
-          `Referenced target is disabled: ${ref.buildId}/${ref.targetId}.`,
-          issuePath,
-        ),
-      );
-      return undefined;
-    }
     return resolved.get(`${ref.buildId}:${ref.targetId}`);
   }
 
@@ -654,12 +646,11 @@ export const planRelease = (
   while (changed) {
     changed = false;
     const before = resolved.size;
-    for (const build of configuredBuilds) if (build.enabled) resolveBuild(build.id);
+    for (const build of configuredBuilds) resolveBuild(build.id);
     if (resolved.size > before) changed = true;
   }
   for (const build of config.builds ?? [])
     if (
-      build.enabled &&
       !resolved.has(`${build.id}:__profile__`) &&
       registry.producers.find((candidate) => candidate.id === build.engine)?.inputs !== "many"
     )
@@ -760,7 +751,16 @@ export const planRelease = (
     });
     destinations.push({ ...destination, slots });
   }
-  return { producers, outputs, destinations, issues, graph };
+  // A target is used when the finished plan consumes it, including implicitly wired inputs.
+  const plan: ReleasePlan = { producers, outputs, destinations, issues, graph };
+  const consumed = consumedOutputKeys(plan);
+  for (const producer of producers) {
+    if (producer.id.startsWith(AUTOMATIC_PRODUCER_PREFIX)) continue;
+    for (const target of producer.targets)
+      target.enabled = consumed.has(`${producer.id}:${target.id}`);
+  }
+  for (const validate of deferredValidation) validate();
+  return plan;
 };
 
 export const planArtifactAccepted = accepted;

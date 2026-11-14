@@ -15,9 +15,8 @@ const build: ReleaseBuildProfileConfig = {
   id: "desktop-build",
   type: "desktop",
   engine: "engine/electron",
-  enabled: true,
   config: {},
-  targets: [{ id: "windows-x64", enabled: true, config: {} }],
+  targets: [{ id: "windows-x64", config: {} }],
 };
 
 describe("workflow builds page state", () => {

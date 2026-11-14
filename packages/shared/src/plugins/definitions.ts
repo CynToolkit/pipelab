@@ -122,6 +122,8 @@ export interface IntegrationField {
 export interface IntegrationDefinition {
   name: string;
   fields: IntegrationField[];
+  /** True when the provider can check this connection's credentials (shows a Test button). */
+  testable?: boolean;
 }
 
 /** Stable identity shared by a provider's main-process and renderer metadata. */
@@ -169,11 +171,28 @@ export type PreflightCheck<TServices> = (
 
 export type PreflightCheckRegistry<TServices> = Record<string, PreflightCheck<TServices>>;
 
+export interface ConnectionTestContext<TServices> {
+  /** The connection's own field values, keyed by integration field key. */
+  values: Record<string, string>;
+  services: TServices;
+  signal?: AbortSignal;
+}
+
+/** Same contract as a preflight, but from a connection's values alone. Must not upload, write, or prompt. */
+export type ConnectionTest<TServices> = (
+  context: ConnectionTestContext<TServices>,
+) => Promise<PreflightResult>;
+
+/** Connection tests keyed by the connection's plugin name, e.g. "@pipelab/plugin-itch". */
+export type ConnectionTestRegistry<TServices> = Record<string, ConnectionTest<TServices>>;
+
 /** Complete built-in provider contribution consumed by Pipelab hosts. */
 export interface ProviderDefinition<TServices = unknown> extends RendererProviderMetadata {
   workflowTasks?: WorkflowTaskFactoryRegistry<TServices>;
   /** Preflight checks keyed by the workflow task ID of the destination step they guard. */
   preflights?: PreflightCheckRegistry<TServices>;
+  /** Read-only credential checks keyed by connection plugin name, run from the Connections page. */
+  connectionTests?: ConnectionTestRegistry<TServices>;
 }
 
 /** Validates provider contributions while preserving the supplied definition's concrete type. */
