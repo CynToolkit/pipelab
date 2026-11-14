@@ -5,6 +5,12 @@ import type { ReleaseDestinationDefinition } from "@pipelab/shared";
 
 export { createSteamUploadTask, WORKFLOW_TASK_ID };
 
+/** A literal value that is not all digits. A ${{ ... }} binding is resolved at run time, so it is not judged here. */
+const isNotDigits = (value: unknown) => {
+  const text = String(value || "").trim();
+  return text !== "" && !text.includes("${{") && !/^\d+$/.test(text);
+};
+
 export const steamDestination: ReleaseDestinationDefinition = {
   id: "@pipelab/plugin-steam/destination",
   label: "Steam",
@@ -42,8 +48,7 @@ export const steamDestination: ReleaseDestinationDefinition = {
           },
         ]
       : []),
-    ...(String(config.config.appId || "").trim() &&
-    !/^\d+$/.test(String(config.config.appId).trim())
+    ...(isNotDigits(config.config.appId)
       ? [
           {
             code: "steam.app-id.digits",
@@ -55,12 +60,7 @@ export const steamDestination: ReleaseDestinationDefinition = {
       : []),
     ...config.slots
       .map((slot, index) => ({ slot, index }))
-      .filter(
-        ({ slot }) =>
-          slot.enabled &&
-          String(slot.config.depotId || "").trim() &&
-          !/^\d+$/.test(String(slot.config.depotId).trim()),
-      )
+      .filter(({ slot }) => slot.enabled && isNotDigits(slot.config.depotId))
       .map(({ slot, index }) => ({
         code: "steam.depot.digits",
         message: `Depot ID must contain only digits for ${slot.name?.trim() || `Deployment ${index + 1}`}.`,

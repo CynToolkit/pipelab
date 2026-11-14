@@ -25,3 +25,9 @@ describe("itch channel validation", () => {
     },
   );
 });
+
+describe("itch channel validation with bindings", () => {
+  it("does not judge a ${{ env.X }} binding, which is resolved at run time", () => {
+    expect(issuesFor("${{ env.ITCH_CHANNEL }}")).toEqual([]);
+  });
+});

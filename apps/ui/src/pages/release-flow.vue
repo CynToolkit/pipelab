@@ -2167,9 +2167,6 @@ const runShip = async () => {
         plan.value,
       );
       const result = await submitDesktopWorkflowExecution({
-        workflow: flow.value,
-        catalog: catalog.value,
-        plan: plan.value,
         request: {
           name: `workflows/${flowId.value}`,
           release: {
@@ -2179,16 +2176,11 @@ const runShip = async () => {
           connectionValues,
           ...(skipPreflightOnce.value ? { skipPreflight: true } : {}),
         },
-        readEnvironment: async (names) => {
-          if (uiEnvironment !== "desktop") return Promise.resolve({});
+        readEnvironment: async () => {
+          if (uiEnvironment !== "desktop") return {};
           if (!window.pipelab?.readWorkflowEnvironment)
             throw new Error("Desktop cannot read workflow environment bindings. Restart Pipelab.");
-          const environment = await window.pipelab.readWorkflowEnvironment(flowId.value);
-          return Object.fromEntries(
-            names.flatMap((name) =>
-              Object.hasOwn(environment, name) ? [[name, environment[name]]] : [],
-            ),
-          );
+          return window.pipelab.readWorkflowEnvironment(flowId.value);
         },
         execute: (request) =>
           api.execute("workflow:execute", request, async (event) => {

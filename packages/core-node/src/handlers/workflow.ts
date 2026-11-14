@@ -17,9 +17,7 @@ import { join } from "node:path";
 import {
   buildReleaseCatalog,
   compileReleasePlan,
-  planRelease,
   resolveReleaseDefaults,
-  withoutHostUnavailableBuilds,
   validateRelease,
   type BuildHistoryEntry,
   type ExecutionStep,
@@ -40,8 +38,7 @@ import { WorkflowRunCancellationRegistry } from "./workflow-run-cancellation";
 import { getPipelabCloudDownloadUrl } from "../pipelab-cloud";
 import { buildCoreReleaseRegistry } from "../release/registry";
 import { getReleaseWorkflowValueRequirements } from "../release/workflow-value-requirements";
-import { withoutUnavailableDestinations } from "../release/unavailable-destinations";
-import { planReleaseForHost } from "../release/plan-for-host";
+import { planReleaseForHost, releaseConfigForHost } from "../release/plan-for-host";
 import { builtInProviders } from "../providers-registry";
 import { testConnection } from "./connection-test";
 import { applyRetention } from "../release/apply-retention";
@@ -51,7 +48,8 @@ const host = () => ({ platform: process.platform, architecture: process.arch });
 const registry = () => buildCoreReleaseRegistry();
 const catalog = () => buildReleaseCatalog(registry(), host());
 
-const issuesFor = (config: ReleaseConfig) => validateRelease(config, registry(), { host: host() });
+const issuesFor = (config: ReleaseConfig) =>
+  validateRelease(releaseConfigForHost(config, registry(), host()), registry(), { host: host() });
 
 export const prepareReleaseWorkflow = (
   config: ReleaseConfig,
@@ -710,15 +708,7 @@ export const registerWorkflowHandlers = (context: PipelabContext) => {
         type: "end",
         data: {
           type: "success",
-          result: planRelease(
-            withoutHostUnavailableBuilds(
-              withoutUnavailableDestinations(value.config),
-              registry(),
-              host(),
-            ),
-            registry(),
-            { host: host() },
-          ),
+          result: planReleaseForHost(value.config, registry(), { host: host() }).plan,
         },
       }),
   );

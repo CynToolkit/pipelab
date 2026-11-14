@@ -58,7 +58,11 @@ export const itchDestination: ReleaseDestinationDefinition = {
       })),
     // Itch creates a channel on its first push, so only a name that corrupts the push target is wrong.
     ...config.slots
-      .filter((slot) => slot.enabled && /[\s:/]/.test(String(slot.config.channel || "").trim()))
+      .filter((slot) => {
+        const channel = String(slot.config.channel || "").trim();
+        // A ${{ ... }} binding is resolved at run time, so only a literal name can be judged here.
+        return slot.enabled && !channel.includes("${{") && /[\s:/]/.test(channel);
+      })
       .map((slot) => ({
         code: "itch.channel.invalid",
         message: `The channel of slot ${slot.id} cannot contain spaces, ':' or '/'.`,
