@@ -10,6 +10,7 @@ describe("Construct release validation", () => {
         { key: "username", label: "Username", type: "text" },
         { key: "password", label: "Password", type: "password" },
       ],
+      testable: true,
     });
     expect(constructSource.fields).toContainEqual(
       expect.objectContaining({

@@ -1,3 +1,4 @@
+import { plannedUsedTargetKeys, usedTargetKeys } from "@pipelab/shared";
 import type { IconType, ReleaseCatalog, ReleaseConfig, ReleasePlan } from "@pipelab/shared";
 import type { ElkNode, ElkExtendedEdge } from "elkjs/lib/elk-api";
 import { destinationIcon, providerMetadataIcon, sourceIcon } from "../utils/provider-icons";
@@ -40,6 +41,7 @@ const nodeCopy = (
   config: ReleaseConfig,
   catalog: ReleaseCatalog | undefined,
   providers: IconProviders,
+  plan?: ReleasePlan,
 ): { label: string; detail?: string; icon?: IconType } => {
   if (node.kind === "source") {
     const source = catalog?.sources.find((item) => item.id === config.source.provider);
@@ -52,7 +54,10 @@ const nodeCopy = (
   if (node.kind === "build") {
     const build = config.builds.find((item) => item.id === node.id);
     const producer = catalog?.producers.find((item) => item.id === build?.engine);
-    const targets = build?.targets?.filter((target) => target.enabled).map((target) => target.id);
+    const used = plan ? plannedUsedTargetKeys(plan) : usedTargetKeys(config);
+    const targets = build?.targets
+      ?.filter((target) => used.has(`${build.id}:${target.id}`))
+      .map((target) => target.id);
     return {
       label: build?.name || producer?.label || node.id,
       detail: targets?.length ? targets.join(", ") : producer?.label,
@@ -98,6 +103,7 @@ export const layoutPlanGraph = async (
   config: ReleaseConfig,
   catalog?: ReleaseCatalog,
   providers: IconProviders = [],
+  plan?: ReleasePlan,
 ): Promise<PlanGraphLayout> => {
   const { default: ELK } = await import("elkjs/lib/elk.bundled.js");
   const known = new Set(graph.nodes.map((node) => node.id));
@@ -138,7 +144,7 @@ export const layoutPlanGraph = async (
   const nodes: PlanGraphNode[] = graph.nodes.map((node) => ({
     id: node.id,
     kind: node.kind,
-    ...nodeCopy(node, config, catalog, providers),
+    ...nodeCopy(node, config, catalog, providers, plan),
     x: positions.get(node.id)?.x ?? 0,
     y: positions.get(node.id)?.y ?? 0,
   }));

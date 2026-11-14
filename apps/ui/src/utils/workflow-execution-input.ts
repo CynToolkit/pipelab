@@ -1,8 +1,13 @@
-import type { Data, ReleaseCatalog, ReleaseConfig } from "@pipelab/shared";
+import { plannedUsedTargetKeys, usedTargetKeys } from "@pipelab/shared";
+import type { Data, ReleaseCatalog, ReleaseConfig, ReleasePlan } from "@pipelab/shared";
 
 const environmentReference = /\$\{\{\s*env\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}/g;
 
-const workflowEnvironmentNames = (config: ReleaseConfig, catalog: ReleaseCatalog) => {
+const workflowEnvironmentNames = (
+  config: ReleaseConfig,
+  catalog: ReleaseCatalog,
+  plan?: ReleasePlan,
+) => {
   const names = new Set<string>();
   const collect = (value: unknown) => {
     if (Array.isArray(value)) {
@@ -27,12 +32,16 @@ const workflowEnvironmentNames = (config: ReleaseConfig, catalog: ReleaseCatalog
       if (!connectionFields.has(key)) collect(value);
   };
 
+  const usedTargets = plan ? plannedUsedTargetKeys(plan) : usedTargetKeys(config);
   const source = catalog.sources.find((candidate) => candidate.id === config.source.provider);
   collectFields(config.source.config, source?.fields);
-  for (const build of config.builds.filter((candidate) => candidate.enabled)) {
+  for (const build of config.builds) {
+    if (!build.targets.some((item) => usedTargets.has(`${build.id}:${item.id}`))) continue;
     const producer = catalog.producers.find((candidate) => candidate.id === build.engine);
     collectFields(build.config, producer?.fields);
-    for (const target of build.targets.filter((candidate) => candidate.enabled)) {
+    for (const target of build.targets.filter((item) =>
+      usedTargets.has(`${build.id}:${item.id}`),
+    )) {
       const definition = producer?.targets.find((candidate) => candidate.id === target.id);
       collectFields(target.config, definition?.fields);
     }
@@ -51,13 +60,12 @@ const workflowEnvironmentNames = (config: ReleaseConfig, catalog: ReleaseCatalog
 export const submitDesktopWorkflowExecution = async <Result>(input: {
   workflow: ReleaseConfig;
   catalog: ReleaseCatalog;
+  plan?: ReleasePlan;
   request: Data<"workflow:execute">;
-  readEnvironment: (
-    names: string[],
-  ) => Promise<Readonly<Record<string, string | undefined>>>;
+  readEnvironment: (names: string[]) => Promise<Readonly<Record<string, string | undefined>>>;
   execute: (request: Data<"workflow:execute">) => Promise<Result>;
 }) => {
-  const names = workflowEnvironmentNames(input.workflow, input.catalog);
+  const names = workflowEnvironmentNames(input.workflow, input.catalog, input.plan);
   const clientEnvironment = names.length ? await input.readEnvironment(names) : {};
   const env = Object.fromEntries(
     names.flatMap((name) =>

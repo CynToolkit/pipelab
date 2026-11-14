@@ -23,6 +23,7 @@ describe("integration targets", () => {
         displayName: "Steam",
         icon: provider.icon,
         fields: provider.integrations![0]!.fields,
+        testable: false,
       },
     ]);
   });

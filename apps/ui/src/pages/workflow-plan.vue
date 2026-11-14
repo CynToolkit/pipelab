@@ -194,6 +194,7 @@ watch(
         config,
         appStore.releaseCatalog,
         appStore.providerDefinitions,
+        value,
       );
       if (current !== layoutGeneration) return;
       layoutError.value = "";

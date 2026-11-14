@@ -1,3 +1,4 @@
+import { usedTargetKeys } from "@pipelab/shared";
 import type {
   ProviderDefinition,
   ReleaseConfig,
@@ -62,10 +63,16 @@ export const getReleaseWorkflowEnvironmentVariableNames = (
 
   const source = registry.sources.find((candidate) => candidate.id === config.source.provider);
   collectFields(source?.fields, config.source.config);
-  for (const build of config.builds.filter((candidate) => candidate.enabled)) {
+  const usedTargets = usedTargetKeys(config);
+  for (const build of config.builds) {
+    const usedBuildTargets = build.targets.filter((item) =>
+      usedTargets.has(`${build.id}:${item.id}`),
+    );
+    // A build nothing reads contributes no values.
+    if (usedBuildTargets.length === 0) continue;
     const producer = registry.producers.find((candidate) => candidate.id === build.engine);
     collectFields(producer?.fields, build.config);
-    for (const target of build.targets.filter((candidate) => candidate.enabled)) {
+    for (const target of usedBuildTargets) {
       const definition = producer?.targets.find((candidate) => candidate.id === target.id);
       collectFields(definition?.fields, target.config);
     }
@@ -216,7 +223,9 @@ export const getReleaseWorkflowValueRequirements = (
   for (const producer of plan.producers) {
     const definition = registry.producers.find((candidate) => candidate.id === producer.provider);
     collect(definition?.fields, producer.config);
+    // The plan marks a target enabled when something consumes it, including implicit wiring.
     for (const target of producer.targets) {
+      if (!target.enabled) continue;
       const targetDefinition = definition?.targets.find((candidate) => candidate.id === target.id);
       collect(targetDefinition?.fields, target.config);
     }

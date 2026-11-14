@@ -2,10 +2,10 @@ import { fetchPackage, runWithLiveLogs } from "@pipelab/plugin-core";
 import type { PipelabContext } from "@pipelab/plugin-core";
 import type { WorkflowTask, WorkflowTaskContext } from "@pipelab/workflow-runtime";
 import { dirname, join, delimiter, resolve } from "node:path";
-import { writeFile, cp } from "node:fs/promises";
+import { writeFile, cp, readFile } from "node:fs/promises";
 import { findPokiConfigRoot } from "./auth";
-import type { PreflightContext, PreflightResult } from "@pipelab/shared";
-import { failed, verified } from "../preflight";
+import type { ConnectionTestContext, PreflightContext, PreflightResult } from "@pipelab/shared";
+import { failed, unverifiable, verified } from "../preflight";
 
 const loginCommand = (account?: string) =>
   `pipelab settings integrations poki login${account ? ` ${account}` : ""}`;
@@ -150,19 +150,113 @@ export const createPokiUploadTask =
     log("Uploaded to poki");
   };
 
-/** The Poki CLI offers no cheap whoami, so the check is that a login exists for the account. */
+export interface PokiPreflightServices {
+  context: PipelabContext;
+}
+
+/**
+ * The one Poki account check, used by the run preflight and by the Connections test. The Poki CLI
+ * offers no cheap whoami, so the check is that a login exists for the account. A missing login
+ * fails a run's preflight, but only "cannot verify" when testing a connection, since the login can
+ * follow saving it.
+ */
+export const verifyPokiAccount = async (
+  account: string | undefined,
+  services: PokiPreflightServices,
+  loginMissing: "failed" | "unverifiable",
+): Promise<PreflightResult> => {
+  if (account === "") return failed("The Poki account Connection has no account name.");
+  const root = await findPokiConfigRoot(services.context.getThirdPartyPath(), account);
+  if (root) return verified();
+  return loginMissing === "failed"
+    ? failed(loginRequiredMessage(account))
+    : unverifiable(loginRequiredMessage(account));
+};
+
+const POKI_API = "https://devs-api.poki.io";
+const pokiHeaders = (authorization: string) => ({
+  Authorization: authorization,
+  "User-Agent": "poki-cli",
+});
+
+const readPokiAuth = async (root: string) => {
+  for (const directory of ["poki", "Poki"]) {
+    try {
+      return JSON.parse(await readFile(join(root, directory, "auth.json"), "utf8")) as {
+        access_token?: string;
+        access_type?: string;
+        refresh_token?: string;
+      };
+    } catch {
+      // Try the other directory name.
+    }
+  }
+  return undefined;
+};
+
+/**
+ * Asks Poki whether the login can open the game, which is what an upload needs. A refreshed token is
+ * only kept in memory: the check never writes the login file. Only a definitive "no access" fails.
+ */
+export const verifyPokiGame = async (
+  root: string,
+  gameId: string,
+  signal?: AbortSignal,
+): Promise<PreflightResult> => {
+  if (!gameId) return failed("The Poki project is empty.");
+  const auth = await readPokiAuth(root);
+  if (!auth?.access_token) return unverifiable("The Poki login could not be read.");
+  const scheme = auth.access_type ?? "Bearer";
+  const timeout = AbortSignal.timeout(8_000);
+  const abort = signal ? AbortSignal.any([signal, timeout]) : timeout;
+  const open = (token: string) =>
+    fetch(`${POKI_API}/games/${encodeURIComponent(gameId)}`, {
+      headers: pokiHeaders(`${scheme} ${token}`),
+      signal: abort,
+    });
+  try {
+    let response = await open(auth.access_token);
+    if (response.status === 401 && scheme !== "Token" && auth.refresh_token) {
+      const refreshed = await fetch("https://auth.poki.io/auth/refresh", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "User-Agent": "poki-cli" },
+        body: JSON.stringify({ refresh_token: auth.refresh_token }),
+        signal: abort,
+      });
+      if (!refreshed.ok) return failed("Poki rejected the saved login. Sign in to Poki again.");
+      const token = ((await refreshed.json()) as { access_token?: string }).access_token;
+      if (!token) return unverifiable("Poki gave no refreshed login.");
+      response = await open(token);
+    }
+    if (response.ok) return verified();
+    if (response.status === 403 || response.status === 404) {
+      return failed(
+        `Poki denied access to game '${gameId}'. Use a game ID from your Poki for Developers account.`,
+      );
+    }
+    return unverifiable(`Poki answered HTTP ${response.status}.`);
+  } catch {
+    return unverifiable("Poki could not be reached.");
+  }
+};
+
 export const checkPokiPreflight = async ({
   inputs,
   connectionValues,
   services,
+  signal,
 }: PreflightContext<PokiPreflightServices>): Promise<PreflightResult> => {
   const alias = String(inputs.accountConnectionId || "").trim();
   const account = alias ? String(connectionValues[alias]?.account || "").trim() : undefined;
-  if (alias && !account) return failed("The Poki account Connection has no account name.");
+  const login = await verifyPokiAccount(account, services, "failed");
+  if (login.status !== "verified") return login;
   const root = await findPokiConfigRoot(services.context.getThirdPartyPath(), account);
-  return root ? verified() : failed(loginRequiredMessage(account));
+  if (!root) return login;
+  return verifyPokiGame(root, String(inputs.project ?? "").trim(), signal);
 };
 
-export interface PokiPreflightServices {
-  context: PipelabContext;
-}
+export const testPokiConnection = async ({
+  values,
+  services,
+}: ConnectionTestContext<PokiPreflightServices>): Promise<PreflightResult> =>
+  verifyPokiAccount(String(values.account ?? "").trim(), services, "unverifiable");

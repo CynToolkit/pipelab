@@ -140,8 +140,8 @@
           to="/connections"
           class="sidebar-nav-item"
           :aria-label="$t('home.connections')"
-          :class="{ active: route.path === '/connections' }"
-          :aria-current="route.path === '/connections' ? 'page' : undefined"
+          :class="{ active: route.name === 'Connections' }"
+          :aria-current="route.name === 'Connections' ? 'page' : undefined"
           v-tooltip.right="isSidebarCollapsed ? $t('home.connections') : undefined"
         >
           <i class="mdi mdi-link-variant nav-icon" aria-hidden="true" />

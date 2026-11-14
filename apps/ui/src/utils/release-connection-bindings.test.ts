@@ -553,12 +553,10 @@ describe("Desktop workflow connection bindings", () => {
         id: "disabled-build",
         type: "desktop",
         engine: "engine",
-        enabled: false,
         config: { account: "disabled-build" },
         targets: [
           {
             id: "inactive-target",
-            enabled: true,
             config: { targetAccount: "disabled-build-target" },
           },
         ],
@@ -567,14 +565,14 @@ describe("Desktop workflow connection bindings", () => {
         id: "active-build",
         type: "desktop",
         engine: "engine",
-        enabled: true,
         config: { account: "active-build" },
         targets: [
-          { id: "inactive-target", enabled: false, config: { targetAccount: "disabled-target" } },
-          { id: "active-target", enabled: true, config: { targetAccount: "active-target" } },
+          { id: "inactive-target", config: { targetAccount: "disabled-target" } },
+          { id: "active-target", config: { targetAccount: "active-target" } },
         ],
       },
     ];
+    config.destinations[0].slots[0].input = { buildId: "active-build", targetId: "active-target" };
 
     expect(releaseWorkflowConnectionAliases(config, catalogWithBuildConnections)).toEqual([
       "publish",
@@ -592,6 +590,7 @@ describe("Desktop workflow connection bindings", () => {
         ...connections.workflowBindings!,
         { workflowId: "release-a", alias: "active-build", connectionId: "store-prod" },
         { workflowId: "release-a", alias: "active-target", connectionId: "store-prod" },
+        { workflowId: "release-a", alias: "disabled-target", connectionId: "store-prod" },
       ],
     };
     expect(
@@ -826,7 +825,6 @@ describe("Desktop workflow connection bindings", () => {
       id: "build-one",
       type: "desktop",
       engine: "producer/test",
-      enabled: true,
       config: { account: "" },
       targets: [],
     });
@@ -876,7 +874,6 @@ describe("Desktop workflow connection bindings", () => {
       id: "build-one",
       type: "desktop",
       engine: "producer/test",
-      enabled: true,
       config: { account: "publish" },
       targets: [],
     });

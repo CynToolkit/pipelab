@@ -1,3 +1,4 @@
+import { usedTargetKeys } from "@pipelab/shared";
 import type { ReleaseConfig } from "@pipelab/shared";
 import type { CompatibleBuildCandidate } from "../pages/release-flow-model";
 
@@ -68,7 +69,7 @@ export const groupBuildChoices = (choices: CompatibleBuildCandidate[]): BuildCho
   return [...groups.values()];
 };
 
-/** True when the workflow already has an enabled build for this exact engine, type and target. */
+/** True when the workflow already has a build for this exact engine, type and target. */
 export const buildChoiceAlreadyAdded = (
   flow: ReleaseConfig | undefined,
   choice: CompatibleBuildCandidate,
@@ -76,9 +77,8 @@ export const buildChoiceAlreadyAdded = (
   Boolean(
     flow?.builds.some(
       (build) =>
-        build.enabled &&
         build.engine === choice.engine &&
         build.type === choice.type &&
-        build.targets.some((target) => target.enabled && target.id === choice.target),
+        usedTargetKeys(flow).has(`${build.id}:${choice.target}`),
     ),
   );

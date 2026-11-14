@@ -142,9 +142,8 @@ const existingWeb = (id: string): ReleaseBuildProfileConfig => ({
   id,
   type: "web",
   engine: constructWeb.id,
-  enabled: true,
   config: {},
-  targets: [{ id: "web", enabled: true, config: {} }],
+  targets: [{ id: "web", config: {} }],
 });
 
 describe("resolveReleaseDefaults", () => {
@@ -163,8 +162,8 @@ describe("resolveReleaseDefaults", () => {
       type: "desktop",
       input: { buildId: resolved.builds[0].id, targetId: "web" },
       targets: [
-        { id: "windows-x64", enabled: true, config: {} },
-        { id: "linux-x64", enabled: false, config: {} },
+        { id: "windows-x64", config: {} },
+        { id: "linux-x64", config: {} },
       ],
     });
     expect(slotInput(resolved)).toEqual({
@@ -234,6 +233,41 @@ describe("resolveReleaseDefaults", () => {
     expect(errorsOf(resolved, registryValue)).toEqual([]);
   });
 
+  it("reuses the host target of an existing build rather than another target of it", () => {
+    const existingElectron: ReleaseBuildProfileConfig = {
+      id: "manual-electron",
+      type: "desktop",
+      engine: electron.id,
+      input: { buildId: "manual-web", targetId: "web" },
+      config: {},
+      targets: [
+        { id: "windows-x64", config: {} },
+        { id: "linux-x64", config: {} },
+      ],
+    };
+    const archElectron = engine(electron.id, webApp, [
+      target("windows-x64", "desktop", { ...windowsApp, architecture: "x64" }),
+      target("linux-x64", "desktop", { ...linuxApp, architecture: "x64" }),
+    ]);
+    const registryValue = registry([constructWeb, archElectron]);
+    const resolve = (platform: string) =>
+      resolveReleaseDefaults(
+        config(constructSource.id, [existingWeb("manual-web"), existingElectron]),
+        registryValue,
+        { host: { platform, architecture: "x64" } },
+        DEFAULTS,
+      );
+
+    expect(slotInput(resolve("linux"))).toEqual({
+      buildId: "manual-electron",
+      targetId: "linux-x64",
+    });
+    expect(slotInput(resolve("win32"))).toEqual({
+      buildId: "manual-electron",
+      targetId: "windows-x64",
+    });
+  });
+
   it("reuses an existing web build for a web slot without adding a build", () => {
     const resolved = resolveReleaseDefaults(
       config(constructSource.id, [existingWeb("manual-web")]),
@@ -251,10 +285,9 @@ describe("resolveReleaseDefaults", () => {
       id: "manual-electron",
       type: "desktop",
       engine: electron.id,
-      enabled: true,
       input: { buildId: "manual-web", targetId: "web" },
       config: {},
-      targets: [{ id: "windows-x64", enabled: true, config: {} }],
+      targets: [{ id: "windows-x64", config: {} }],
     };
     const anyApplication = destination({ kind: "application" });
     const registryValue = registry([constructWeb, electron], [anyApplication]);
@@ -289,10 +322,9 @@ describe("resolveReleaseDefaults", () => {
       id: "manual-electron",
       type: "desktop",
       engine: electron.id,
-      enabled: true,
       input: { buildId: "manual-web", targetId: "web" },
       config: {},
-      targets: [{ id: "windows-x64", enabled: true, config: {} }],
+      targets: [{ id: "windows-x64", config: {} }],
     };
     const anything = destination({});
     const registryValue = registry([constructWeb, electron], [anything]);
@@ -417,9 +449,7 @@ describe("resolveReleaseDefaults", () => {
       [entry("web", presetWeb.id, "web", { source: "construct", targetConfig: { preset: "Web" } })],
     );
 
-    expect(resolved.builds[0].targets).toEqual([
-      { id: "web", enabled: true, config: { preset: "Web" } },
-    ]);
+    expect(resolved.builds[0].targets).toEqual([{ id: "web", config: { preset: "Web" } }]);
   });
 
   it("adds nothing when the table entry's target is unavailable", () => {
@@ -551,8 +581,8 @@ describe("resolveReleaseDefaults", () => {
     expect(resolved.builds.find((item) => item.type === "desktop")).toMatchObject({
       engine: linuxElectron.id,
       targets: [
-        { id: "windows-x64", enabled: false, config: {} },
-        { id: "linux-x64", enabled: true, config: {} },
+        { id: "windows-x64", config: {} },
+        { id: "linux-x64", config: {} },
       ],
     });
     expect(slotInput(resolved)).toMatchObject({ targetId: "linux-x64" });

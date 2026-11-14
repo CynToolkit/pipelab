@@ -9,7 +9,7 @@ const config = {
       id: "b1",
       name: "Desktop",
       engine: "electron",
-      targets: [{ id: "windows-x64", enabled: true }],
+      targets: [{ id: "windows-x64" }, { id: "linux-x64" }],
     },
     { id: "b2", engine: "electron", targets: [] },
   ],
@@ -18,7 +18,16 @@ const config = {
       id: "d1",
       provider: "steam",
       name: "Steam",
-      slots: [{ id: "s1", name: "Beta" }, { id: "s2" }],
+      enabled: true,
+      slots: [
+        {
+          id: "s1",
+          name: "Beta",
+          enabled: true,
+          input: { buildId: "b1", targetId: "windows-x64" },
+        },
+        { id: "s2" },
+      ],
     },
   ],
 } as unknown as ReleaseConfig;

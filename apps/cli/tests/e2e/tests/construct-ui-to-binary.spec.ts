@@ -427,9 +427,7 @@ describe("Construct Desktop Ship to running Electron binary", () => {
         });
         expect(workflow.builds[0]).toMatchObject({
           engine: "@pipelab/plugin-electron/producer",
-          targets: expect.arrayContaining([
-            expect.objectContaining({ id: targetId, enabled: true }),
-          ]),
+          targets: expect.arrayContaining([expect.objectContaining({ id: targetId })]),
         });
         expect(workflow.destinations[0]).toMatchObject({
           provider: "@pipelab/core/destination/folder",

@@ -110,7 +110,7 @@ const planIssueCount = computed(
   () => workflowDoc.plan.value?.issues.filter((issue) => issue.severity === "error").length ?? 0,
 );
 
-const buildCount = computed(() => current.value?.builds.filter((build) => build.enabled).length);
+const buildCount = computed(() => current.value?.builds.length);
 const tabs = computed(() => [
   {
     id: "configuration" as const,

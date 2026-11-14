@@ -3,10 +3,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
 import { describe, expect, it, vi } from "vitest";
-import { createReleaseConfig } from "@pipelab/shared";
+import { createReleaseConfig, resolveReleaseDefaults, type ReleaseConfig } from "@pipelab/shared";
 import type { Workflow, WorkflowResult } from "@pipelab/workflow-runtime";
 import * as workflowRuntime from "@pipelab/workflow-runtime";
 import { PipelabContext } from "./context";
+import { buildCoreReleaseRegistry } from "./release/registry";
 import { ReleasePersistence } from "./release-persistence";
 import { writeJsonFileAtomically } from "./utils/atomic-json";
 import {
@@ -47,6 +48,12 @@ vi.mock("./release/preflight", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./release/preflight")>()),
   runPreflights: async () => [],
 }));
+
+/** Fills empty slots the way the new-workflow wizard does; plan and run never do it. */
+const withDefaults = (config: ReleaseConfig) =>
+  resolveReleaseDefaults(config, buildCoreReleaseRegistry(), {
+    host: { platform: process.platform, architecture: process.arch },
+  });
 
 describe("ReleasePersistence", () => {
   it.each(["Node.js", "pnpm"])("persists a terminal run when %s setup fails", async (runtime) => {
@@ -241,7 +248,10 @@ describe("ReleasePersistence", () => {
       ],
     };
     await mkdir(context.getConfigPath("workflows"), { recursive: true });
-    await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));
+    await writeFile(
+      context.getConfigPath("workflows", "workflow-1.json"),
+      JSON.stringify(withDefaults(config)),
+    );
 
     const nodeSetup = vi.spyOn(remote, "ensureNodeJS").mockResolvedValue("node");
     const pnpmSetup = vi.spyOn(remote, "ensurePNPM").mockResolvedValue("pnpm");
@@ -405,7 +415,7 @@ describe("ReleasePersistence", () => {
           config: { path: context.getConfigPath() },
         },
       }),
-      version: "3.0.0",
+      version: "3.0.0" as const,
       destinations: [
         {
           id: "itch-production",
@@ -419,7 +429,7 @@ describe("ReleasePersistence", () => {
     await mkdir(context.getConfigPath("workflows"), { recursive: true });
     await writeFile(
       join(context.getConfigPath("workflows"), "workflow-1.json"),
-      JSON.stringify(config),
+      JSON.stringify(withDefaults(config)),
     );
     await saveStrictConnections(context, {
       version: "1.0.0",
@@ -500,7 +510,7 @@ describe("ReleasePersistence", () => {
       ],
     };
 
-    const prepared = prepareReleaseWorkflow(config, "1.0.0", {
+    const prepared = prepareReleaseWorkflow(withDefaults(config), "1.0.0", {
       [variableName]: "/games/current",
     });
 
@@ -603,6 +613,29 @@ describe("ReleasePersistence", () => {
     }
   });
 
+  it("never fills an empty slot when planning or running a saved workflow", () => {
+    const config = {
+      ...createReleaseConfig({
+        id: "workflow-1",
+        project: "project-1",
+        name: "Release",
+        source: { provider: "@pipelab/core/source/folder", config: { path: "/game" } },
+      }),
+      destinations: [
+        {
+          id: "itch-production",
+          provider: "@pipelab/plugin-itch/destination",
+          enabled: true,
+          config: { accountConnectionId: "itch-production", project: "pipelab/game" },
+          slots: [{ id: "windows", enabled: true, config: { channel: "windows" } }],
+        },
+      ],
+    };
+
+    expect(() => prepareReleaseWorkflow(config)).toThrow("Choose an output for this destination.");
+    expect(withDefaults(config).destinations[0].slots[0].input).toBeDefined();
+  });
+
   it("rejects a non-string Construct account alias during workflow preflight", () => {
     const config = createReleaseConfig({
       id: "workflow-1",
@@ -696,7 +729,10 @@ describe("ReleasePersistence", () => {
       ],
     };
     await mkdir(context.getConfigPath("workflows"), { recursive: true });
-    await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));
+    await writeFile(
+      context.getConfigPath("workflows", "workflow-1.json"),
+      JSON.stringify(withDefaults(config)),
+    );
 
     const connectionValues = { "itch-production": { apiKey: "saved-account" } };
     const received: { values?: unknown; overrides?: unknown } = {};
@@ -882,9 +918,14 @@ describe("ReleasePersistence", () => {
       ],
     };
     await mkdir(context.getConfigPath("workflows"), { recursive: true });
-    await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));
+    await writeFile(
+      context.getConfigPath("workflows", "workflow-1.json"),
+      JSON.stringify(withDefaults(config)),
+    );
 
-    const releaseTask = prepareReleaseWorkflow(config).workflow.steps.find((step) => step.delivery);
+    const releaseTask = prepareReleaseWorkflow(withDefaults(config)).workflow.steps.find(
+      (step) => step.delivery,
+    );
     if (!releaseTask) throw new Error("Expected the Itch release task to compile.");
     const originalRunWorkflow = workflowRuntime.runWorkflow;
     const workflowRun = vi
@@ -1111,7 +1152,10 @@ describe("ReleasePersistence", () => {
       ],
     };
     await mkdir(context.getConfigPath("workflows"), { recursive: true });
-    await writeFile(context.getConfigPath("workflows", "workflow-1.json"), JSON.stringify(config));
+    await writeFile(
+      context.getConfigPath("workflows", "workflow-1.json"),
+      JSON.stringify(withDefaults(config)),
+    );
     await writeFile(
       context.getConnectionsPath(),
       JSON.stringify({ version: "1.0.0", connections: [] }),

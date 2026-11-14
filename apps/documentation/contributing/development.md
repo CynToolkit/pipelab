@@ -62,6 +62,13 @@ local service credentials. Never use production values for this journey.
 
 ## Focus a package
 
+To run any CLI command from a source checkout in development mode (development user-data directory), use the root `pipelab` script. It bundles the workspace sources the first time and whenever a source file changes, then starts in about a second:
+
+```sh
+pnpm pipelab workflow list
+pnpm pipelab workflow run <id-or-name> --dry-run
+```
+
 Use the workspace name and package scripts to keep iteration focused:
 
 ```sh

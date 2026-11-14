@@ -27,7 +27,7 @@ const routes: RouterOptions["routes"] = [
   { path: "/plugins", redirect: "/connections" },
   { path: "/integrations", redirect: "/connections" },
   {
-    path: "/connections",
+    path: "/connections/:connectionId?",
     name: "Connections",
     component: () => import("../pages/connections.vue"),
     meta: {
@@ -62,6 +62,19 @@ const routes: RouterOptions["routes"] = [
       {
         path: "",
         name: "Workflow",
+        component: () => import("../pages/release-flow.vue"),
+        meta: { title: "Workflow" },
+      },
+      {
+        // Opens one deployment's settings on the configuration tab; used by a failed run's Fix.
+        path: "deployments/:destinationId",
+        name: "WorkflowDestination",
+        component: () => import("../pages/release-flow.vue"),
+        meta: { title: "Workflow" },
+      },
+      {
+        path: "deployments/:destinationId/:slotId",
+        name: "WorkflowDeployment",
         component: () => import("../pages/release-flow.vue"),
         meta: { title: "Workflow" },
       },

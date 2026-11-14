@@ -65,6 +65,7 @@ export * from "./release/config";
 export * from "./release/catalog";
 export * from "./release/compiler";
 export * from "./release/validate";
+export * from "./release/usage";
 export * from "./release/planner";
 export * from "./release/preferences";
 export * from "./release/defaults";

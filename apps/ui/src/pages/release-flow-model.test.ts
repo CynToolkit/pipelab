@@ -48,9 +48,7 @@ import {
   runAfterSuccessfulSave,
   selectBuildInput,
   selectSlotOutput,
-  setBuildTargetEnabled,
   slotOutputOptionsFor,
-  switchBuildProfileEngine,
 } from "./release-flow-model";
 import type {
   ReleaseBuildProfileConfig,
@@ -254,7 +252,6 @@ describe("release flow model", () => {
         id: "build-one",
         type: "desktop",
         engine: "engine-a",
-        enabled: true,
         config: { label: "${{ env.RELEASE-LABEL }}" },
         targets: [],
       },
@@ -337,11 +334,11 @@ describe("release flow model", () => {
     const build = createBuildProfile(catalog, "desktop", "engine-a", "desktop-one", ["windows"])!;
     expect(buildProfileSummary(catalog, build)).toEqual({
       engineLabel: "Engine A",
-      targetLabels: ["Windows x64"],
+      targetLabels: ["Windows x64", "macOS"],
     });
     expect(build.targets).toEqual([
-      { id: "windows", enabled: true, config: {} },
-      { id: "macos", enabled: false, config: {} },
+      { id: "windows", config: {} },
+      { id: "macos", config: {} },
     ]);
   });
 
@@ -386,16 +383,17 @@ describe("release flow model", () => {
     expect(first).not.toBe(second);
   });
 
-  it("allows an auto-created profile to toggle its targets", () => {
-    const build = createBuildProfile(catalog, "desktop", "engine-a", "generated-profile")!;
-    expect(build.targets.map((target) => target.enabled)).toEqual([false, false]);
-
-    expect(setBuildTargetEnabled(build, "macos", true)).toBe(true);
-    expect(build.targets.map((target) => target.enabled)).toEqual([false, true]);
-
-    expect(setBuildTargetEnabled(build, "windows", false)).toBe(true);
-    expect(build.targets.map((target) => target.enabled)).toEqual([false, true]);
-    expect(setBuildTargetEnabled(build, "missing", true)).toBe(false);
+  it("lists every target of the engine and build type, preferred or not", () => {
+    expect(
+      createBuildProfile(catalog, "desktop", "engine-a", "generated-profile")!.targets.map(
+        (target) => target.id,
+      ),
+    ).toEqual(["windows", "macos"]);
+    const build = createBuildProfile(catalog, "desktop", "engine-a", "generated-profile", [
+      "macos",
+    ])!;
+    expect(build.targets.map((target) => target.id)).toEqual(["windows", "macos"]);
+    expect(build.targets.every((target) => !("enabled" in target))).toBe(true);
   });
 
   it("renders explicit outputs from the planner without compatibility logic", () => {
@@ -424,12 +422,11 @@ describe("release flow model", () => {
           id: "a",
           type: "desktop",
           engine: "engine-a",
-          enabled: true,
           config: { icon: "x.png" },
-          targets: [{ id: "windows", enabled: true, config: {} }],
+          targets: [{ id: "windows", config: {} }],
           beforeBuild: [{ id: "hook-1", enabled: true, command: "pnpm lint" }],
         },
-        { id: "z", type: "web", engine: "engine-b", enabled: true, config: {}, targets: [] },
+        { id: "z", type: "web", engine: "engine-b", config: {}, targets: [] },
       ],
     } as unknown as ReleaseConfig;
     let hooks = 0;
@@ -438,7 +435,7 @@ describe("release flow model", () => {
     expect(copy).toMatchObject({
       name: "Desktop copy",
       config: { icon: "x.png" },
-      targets: [{ id: "windows", enabled: true }],
+      targets: [{ id: "windows" }],
       beforeBuild: [{ id: "hook-new-1", command: "pnpm lint" }],
     });
     expect(flow.builds[0]!.beforeBuild![0]!.id).toBe("hook-1");
@@ -472,9 +469,8 @@ describe("release flow model", () => {
           id: "build-a",
           type: "desktop",
           engine: "engine-a",
-          enabled: true,
           config: {},
-          targets: [{ id: "macos", enabled: true, config: {} }],
+          targets: [{ id: "macos", config: {} }],
         },
       ],
     } as ReleaseConfig;
@@ -488,18 +484,16 @@ describe("release flow model", () => {
       id: "build-a",
       type: "desktop",
       engine: "engine-a",
-      enabled: true,
       config: {},
-      targets: [{ id: "windows", enabled: true, config: {} }],
+      targets: [{ id: "windows", config: {} }],
     };
     const buildB = {
       id: "build-b",
       type: "desktop",
       engine: "engine-a",
-      enabled: true,
       input: { buildId: "build-a", targetId: "windows" },
       config: {},
-      targets: [{ id: "windows", enabled: true, config: {} }],
+      targets: [{ id: "windows", config: {} }],
     };
     const workflow = reactive<ReleaseConfig>({ ...config, builds: [buildA, buildB] });
     const before = structuredClone(toRaw(workflow));
@@ -564,9 +558,8 @@ describe("release flow model", () => {
           id: "build-b",
           type: "desktop",
           engine: "engine-a",
-          enabled: true,
           config: {},
-          targets: [{ id: "windows", enabled: true, config: {} }],
+          targets: [{ id: "windows", config: {} }],
         },
       ],
     };
@@ -594,9 +587,8 @@ describe("release flow model", () => {
       id: "build-b",
       type: "desktop",
       engine: "engine-a",
-      enabled: true,
       config: {},
-      targets: [{ id: "windows", enabled: true, config: {} }],
+      targets: [{ id: "windows", config: {} }],
     };
     const options = [
       { value: "source", label: "Source", ref: { source: true as const } },
@@ -619,10 +611,9 @@ describe("release flow model", () => {
       id: "build-b",
       type: "desktop",
       engine: "engine-a",
-      enabled: true,
       input: { buildId: "deleted-build", targetId: "output" },
       config: {},
-      targets: [{ id: "windows", enabled: true, config: {} }],
+      targets: [{ id: "windows", config: {} }],
     };
     const workflow: ReleaseConfig = { ...config, builds: [build] };
     const before = structuredClone(workflow);
@@ -659,10 +650,9 @@ describe("release flow model", () => {
       id: "build-b",
       type: "desktop",
       engine: "engine-a",
-      enabled: true,
       input: { buildId: "deleted-build", targetId: "output" },
       config: {},
-      targets: [{ id: "windows", enabled: true, config: {} }],
+      targets: [{ id: "windows", config: {} }],
     };
     const workflow: ReleaseConfig = { ...config, builds: [build] };
     const staleInput = structuredClone(build.input);
@@ -704,32 +694,6 @@ describe("release flow model", () => {
     expect(build.input).toEqual({ source: true });
   });
 
-  it("keeps the selector visible when a draft engine rejects the retained input", () => {
-    const savedBuild = {
-      id: "build-b",
-      type: "desktop",
-      engine: "engine-a",
-      enabled: true,
-      input: { buildId: "build-a", targetId: "windows" },
-      config: {},
-      targets: [{ id: "windows", enabled: true, config: {} }],
-    } satisfies ReleaseBuildProfileConfig;
-    const draftBuild = switchBuildProfileEngine(catalog, savedBuild, "engine-b");
-    if (!draftBuild) throw new Error("Expected engine switch to produce a draft build");
-    const options = [
-      { value: "source", label: "Source — Project", ref: { source: true as const } },
-    ];
-
-    expect(draftBuild.engine).toBe("engine-b");
-    expect(draftBuild.input).toEqual({ buildId: "build-a", targetId: "windows" });
-    expect(buildInputControlVisible(options, [], draftBuild.input)).toBe(true);
-    expect(compatibleBuildInputLabel(options, draftBuild.input)).toBeUndefined();
-
-    selectBuildInput(draftBuild, options, "source");
-    expect(buildInputControlVisible(options, [], draftBuild.input)).toBe(false);
-    expect(compatibleBuildInputLabel(options, draftBuild.input)).toBe("Source — Project");
-  });
-
   it("accepts planner-resolved build inputs and rejects missing or invalid inputs", () => {
     const plan = {
       outputs: [],
@@ -767,9 +731,8 @@ describe("release flow model", () => {
           id: "build-a",
           type: "desktop",
           engine: "engine-a",
-          enabled: true,
           config: {},
-          targets: [{ id: "windows", enabled: true, config: {} }],
+          targets: [{ id: "windows", config: {} }],
         },
       ],
     };
@@ -784,295 +747,7 @@ describe("release flow model", () => {
     expect(plannedBuildInputLabel(workflow, plan, catalog, "build-a")).toBe("Source — Project");
   });
 
-  it("preserves the profile id and compatible settings while dropping invalid targets", () => {
-    const build = {
-      ...createBuildProfile(catalog, "desktop", "engine-a", "desktop-one")!,
-      config: { preset: "custom" },
-    };
-    const switched = switchBuildProfileEngine(catalog, build, "engine-b");
-    expect(switched).toMatchObject({
-      id: "desktop-one",
-      engine: "engine-b",
-      config: { preset: "custom" },
-    });
-    expect(switched?.targets.map((target) => target.id)).toEqual(["linux"]);
-    expect(switched?.targets.every((target) => !target.enabled)).toBe(true);
-  });
-
-  it("round-trips unrecognized build settings when changing engines", () => {
-    const build = {
-      ...createBuildProfile(catalog, "desktop", "engine-a", "desktop-one")!,
-      config: { preset: "custom", futureProviderSetting: { retained: true } },
-    };
-
-    const switched = switchBuildProfileEngine(catalog, build, "engine-b");
-
-    expect(switched?.config).toEqual({
-      preset: "custom",
-      futureProviderSetting: { retained: true },
-    });
-  });
-
-  it("suggests a fresh alias when an engine switch changes the Connection integration", () => {
-    const connectionCatalog: ReleaseCatalog = {
-      ...catalog,
-      producers: [
-        {
-          id: "engine-old",
-          label: "Old engine",
-          accepts: {},
-          planning: { mode: "build" },
-          defaultConfig: { account: "" },
-          fields: [
-            {
-              key: "account",
-              type: "connection",
-              label: "Old account",
-              integration: "old-store",
-            },
-          ],
-          targets: [{ id: "web", label: "Web", buildType: "web", defaultConfig: {} }],
-        },
-        {
-          id: "engine-new",
-          label: "New engine",
-          accepts: {},
-          planning: { mode: "build" },
-          defaultConfig: { account: "" },
-          fields: [
-            {
-              key: "account",
-              type: "connection",
-              label: "New store account",
-              integration: "new-store",
-            },
-          ],
-          targets: [{ id: "web", label: "Web", buildType: "web", defaultConfig: {} }],
-        },
-      ],
-    };
-    const build = {
-      id: "build-1",
-      type: "web",
-      engine: "engine-old",
-      enabled: true,
-      config: { account: "old-store-production" },
-      targets: [{ id: "web", enabled: false, config: {} }],
-    } satisfies ReleaseBuildProfileConfig;
-
-    const switched = switchBuildProfileEngine(connectionCatalog, build, "engine-new", [
-      "old-store-production",
-    ]);
-
-    expect(switched?.config.account).toBe("new-store-account");
-  });
-
-  it("does not carry ordinary or unknown producer values into new Connection aliases", () => {
-    const producerCatalog: ReleaseCatalog = {
-      ...catalog,
-      producers: [
-        {
-          id: "engine-old",
-          label: "Old engine",
-          accepts: {},
-          planning: { mode: "build" },
-          defaultConfig: { account: "", extra: "" },
-          fields: [{ key: "account", type: "text", label: "Version" }],
-          targets: [],
-        },
-        {
-          id: "engine-new",
-          label: "New engine",
-          accepts: {},
-          planning: { mode: "build" },
-          defaultConfig: { account: "", extra: "" },
-          fields: [
-            {
-              key: "account",
-              type: "connection",
-              label: "New store account",
-              integration: "new-store",
-            },
-            {
-              key: "extra",
-              type: "connection",
-              label: "New API account",
-              integration: "new-api",
-            },
-          ],
-          targets: [],
-        },
-      ],
-    };
-    const build = {
-      id: "build-1",
-      type: "web",
-      engine: "engine-old",
-      enabled: true,
-      config: { account: "1.0.0", extra: "unrecognized-old-setting" },
-      targets: [],
-    } satisfies ReleaseBuildProfileConfig;
-
-    const switched = switchBuildProfileEngine(producerCatalog, build, "engine-new");
-
-    expect(switched?.config).toEqual({
-      account: "new-store-account",
-      extra: "new-api-account",
-    });
-  });
-
-  it("replaces a target alias when an engine switch reuses its ID for another Connection integration", () => {
-    const targetCatalog: ReleaseCatalog = {
-      ...catalog,
-      producers: [
-        {
-          id: "engine-old",
-          label: "Old engine",
-          accepts: {},
-          planning: { mode: "build" },
-          defaultConfig: {},
-          fields: [],
-          targets: [
-            {
-              id: "web",
-              label: "Web",
-              buildType: "web",
-              defaultConfig: { account: "" },
-              fields: [
-                {
-                  key: "account",
-                  type: "connection",
-                  label: "Old web account",
-                  integration: "old-store",
-                },
-              ],
-            },
-            {
-              id: "preview",
-              label: "Preview",
-              buildType: "web",
-              defaultConfig: { account: "" },
-              fields: [
-                {
-                  key: "account",
-                  type: "connection",
-                  label: "Shared preview account",
-                  integration: "shared-store",
-                },
-              ],
-            },
-            {
-              id: "release",
-              label: "Release",
-              buildType: "web",
-              defaultConfig: { account: "" },
-              fields: [{ key: "account", type: "text", label: "Version" }],
-            },
-            {
-              id: "missing-field",
-              label: "Unrecognized old target",
-              buildType: "web",
-              defaultConfig: {},
-              fields: [],
-            },
-          ],
-        },
-        {
-          id: "engine-new",
-          label: "New engine",
-          accepts: {},
-          planning: { mode: "build" },
-          defaultConfig: {},
-          fields: [],
-          targets: [
-            {
-              id: "web",
-              label: "Web",
-              buildType: "web",
-              defaultConfig: { account: "" },
-              fields: [
-                {
-                  key: "account",
-                  type: "connection",
-                  label: "New web account",
-                  integration: "new-store",
-                },
-              ],
-            },
-            {
-              id: "preview",
-              label: "Preview",
-              buildType: "web",
-              defaultConfig: { account: "" },
-              fields: [
-                {
-                  key: "account",
-                  type: "connection",
-                  label: "Shared preview account",
-                  integration: "shared-store",
-                },
-              ],
-            },
-            {
-              id: "release",
-              label: "Release",
-              buildType: "web",
-              defaultConfig: { account: "" },
-              fields: [
-                {
-                  key: "account",
-                  type: "connection",
-                  label: "New release account",
-                  integration: "release-store",
-                },
-              ],
-            },
-            {
-              id: "missing-field",
-              label: "New target field",
-              buildType: "web",
-              defaultConfig: { account: "" },
-              fields: [
-                {
-                  key: "account",
-                  type: "connection",
-                  label: "New target account",
-                  integration: "new-target-store",
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    };
-    const build = {
-      id: "build-1",
-      type: "web",
-      engine: "engine-old",
-      enabled: true,
-      config: {},
-      targets: [
-        { id: "web", enabled: true, config: { account: "old-web-account" } },
-        { id: "preview", enabled: true, config: { account: "shared-store-production" } },
-        { id: "release", enabled: true, config: { account: "1.0.0" } },
-        { id: "missing-field", enabled: true, config: { account: "old-unrecognized-value" } },
-      ],
-    } satisfies ReleaseBuildProfileConfig;
-
-    const switched = switchBuildProfileEngine(targetCatalog, build, "engine-new", [
-      "old-web-account",
-      "shared-store-production",
-    ]);
-
-    expect(switched?.targets).toEqual([
-      { id: "web", enabled: false, config: { account: "new-web-account" } },
-      { id: "preview", enabled: false, config: { account: "shared-store-production" } },
-      { id: "release", enabled: false, config: { account: "new-release-account" } },
-      { id: "missing-field", enabled: false, config: { account: "new-target-account" } },
-    ]);
-  });
-
-  it("suggests an alias when enabling an existing target with an empty Connection", () => {
+  it("suggests an alias when adding a target with an empty Connection", () => {
     const targetCatalog: ReleaseCatalog = {
       ...catalog,
       producers: [
@@ -1098,26 +773,11 @@ describe("release flow model", () => {
         },
       ],
     };
-    const build = {
-      ...createBuildProfile(targetCatalog, "desktop", "engine-a", "build-1")!,
-      targets: [{ id: "windows", enabled: false, config: { account: "" } }],
-    };
-
-    expect(
-      setBuildTargetEnabled(
-        build,
-        "windows",
-        true,
-        undefined,
-        undefined,
-        targetCatalog.producers[0].targets[0].fields,
-        ["other-account"],
-      ),
-    ).toBe(true);
-    expect(build.targets[0].config.account).toBe("windows-signing-account");
+    const build = createBuildProfile(targetCatalog, "desktop", "engine-a", "build-1", ["windows"])!;
+    expect(build.targets[0]!.config.account).toBe("windows-signing-account");
   });
 
-  it("keeps unavailable targets visible but never enables them by default", () => {
+  it("lists unavailable targets without suggesting aliases for them", () => {
     const catalogWithUnavailableTarget: ReleaseCatalog = {
       ...catalog,
       producers: catalog.producers.map((producer) =>
@@ -1141,7 +801,7 @@ describe("release flow model", () => {
       ["windows"],
     )!;
 
-    expect(build.targets.find((target) => target.id === "windows")?.enabled).toBe(false);
+    expect(build.targets.map((target) => target.id)).toContain("windows");
     const windows = buildTargetsFor(catalogWithUnavailableTarget, "engine-a", "desktop").find(
       (target) => target.id === "windows",
     )!;
@@ -1152,8 +812,6 @@ describe("release flow model", () => {
         buildTargetsFor(catalogWithUnavailableTarget, "engine-a", "desktop")[1],
       ),
     ).toBe(true);
-    expect(setBuildTargetEnabled(build, "windows", true, windows.availability)).toBe(false);
-    expect(build.targets.find((target) => target.id === "windows")?.enabled).toBe(false);
   });
 
   it("treats static target availability as unknown until the agent inspects the host", () => {
@@ -1165,23 +823,14 @@ describe("release flow model", () => {
     expect(buildTargetIsAvailable(target)).toBe(false);
     expect(buildTargetAvailabilityReason(target)).toBe("Requires agent to check availability.");
     expect(
-      setBuildTargetEnabled(
-        { ...createBuildProfile(catalog, "desktop", "engine-a", "unknown-target")! },
-        target.id,
-        true,
-        undefined,
-        target.availabilityStatus,
-      ),
-    ).toBe(false);
-    expect(
       createBuildProfile(
         { ...catalog, producers: [{ ...catalog.producers[0], targets: [target] }] },
         "desktop",
         "engine-a",
         "unknown-target",
         [target.id],
-      )?.targets[0].enabled,
-    ).toBe(false);
+      )?.targets,
+    ).toEqual([{ id: target.id, config: target.defaultConfig }]);
   });
 
   it("lists source and build output consumers with destination, slot, and downstream build labels", () => {
@@ -1271,61 +920,11 @@ describe("release flow model", () => {
       path: "destinations.0.slots.0.input",
     };
     expect(
-      outputReferenceChangeImpact({ kind: "build-disable", buildName: "Windows package" }, [])
-        .confirmationRequired,
-    ).toBe(false);
-    expect(
-      outputReferenceChangeImpact({ kind: "build-disable", buildName: "Windows package" }, [
-        consumer,
-      ]),
-    ).toEqual({
-      confirmationRequired: true,
-      message:
-        "Disabling “Windows package” will leave the selected output unavailable to Store · Production. Its output reference will stay in place; update it manually if needed.",
-    });
-    expect(
       outputReferenceChangeImpact({ kind: "build-remove", buildName: "Unused profile" }, []),
     ).toEqual({
       confirmationRequired: true,
       message: "Removing “Unused profile” will delete its build configuration.",
     });
-    expect(
-      outputReferenceChangeImpact(
-        {
-          kind: "build-engine",
-          buildName: "Windows package",
-          newEngine: "Linux Builder",
-          discardedSettings: ["signingKey"],
-          disabledTargets: ["Windows x64"],
-        },
-        [],
-      ),
-    ).toEqual({
-      confirmationRequired: true,
-      message:
-        "Changing “Windows package” to Linux Builder. Settings no longer supported by Linux Builder will be discarded: signingKey. Previously selected targets will be disabled: Windows x64.",
-    });
-    expect(
-      outputReferenceChangeImpact(
-        {
-          kind: "build-engine",
-          buildName: "Windows package",
-          newEngine: "Linux Builder",
-        },
-        [],
-      ),
-    ).toEqual({ confirmationRequired: false });
-    expect(
-      outputReferenceChangeImpact(
-        {
-          kind: "build-engine",
-          buildName: "Windows package",
-          newEngine: "Linux Builder",
-          disabledTargets: ["Windows x64"],
-        },
-        [consumer],
-      ).message,
-    ).toContain("Store · Production");
   });
 
   it("adds a compatible build and routes the deployment slot to its target", () => {
@@ -1360,9 +959,7 @@ describe("release flow model", () => {
       type: "desktop",
       engine: "engine-a",
     });
-    expect(workflow.builds[0]!.targets.filter((target) => target.enabled).map((t) => t.id)).toEqual(
-      ["windows"],
-    );
+    expect(workflow.builds[0]!.targets.map((t) => t.id)).toEqual(["windows", "macos"]);
     expect(workflow.destinations[0]!.slots[0]!.input).toEqual({
       buildId: "new-build",
       targetId: "windows",
@@ -1449,7 +1046,7 @@ describe("release flow model", () => {
           producers:
             added.engine === "engine-a" &&
             added.type === "desktop" &&
-            added.targets.some((target) => target.id === "windows" && target.enabled)
+            added.targets.some((target) => target.id === "windows")
               ? [{ id: added.id }]
               : [],
           destinations: [],
@@ -1506,9 +1103,8 @@ describe("release flow model", () => {
           id: "build-a",
           type: "desktop",
           engine: "engine-a",
-          enabled: true,
           config: {},
-          targets: [{ id: "windows", enabled: true, config: {} }],
+          targets: [{ id: "windows", config: {} }],
         },
       ],
     };
@@ -1562,7 +1158,7 @@ describe("release flow model", () => {
   });
 
   it("applies producer inspection values and indexed issues", () => {
-    const build = createBuildProfile(catalog, "desktop", "engine-a", "desktop-one")!;
+    const build = createBuildProfile(catalog, "desktop", "engine-a", "desktop-one", ["windows"])!;
     const result = applyProducerInspection(build, 2, {
       fieldValues: { "targets.windows.config.preset": "release" },
       fieldOptions: { preset: [{ label: "Release", value: "release" }] },
@@ -1858,25 +1454,26 @@ describe("release flow model", () => {
         id: "build-one",
         type: "desktop",
         engine: "engine-a",
-        enabled: false,
         config: {},
-        targets: [{ id: "windows", enabled: false, config: {} }],
+        targets: [{ id: "windows", config: {} }],
       },
     ];
     expect(missingRequiredFieldIssues(workflow, metadata)).toEqual([]);
 
     workflow.destinations[0].enabled = true;
     workflow.destinations[0].slots[0].enabled = true;
-    workflow.builds[0].enabled = true;
+    // Nothing reads the build, so its required fields do not block.
     expect(missingRequiredFieldIssues(workflow, metadata).map((issue) => issue.path)).toEqual([
-      "builds.0.config.preset",
       "destinations.0.config.channel",
       "destinations.0.slots.0.config.token",
     ]);
-    workflow.builds[0].targets[0].enabled = true;
-    expect(missingRequiredFieldIssues(workflow, metadata).map((issue) => issue.path)).toContain(
+    workflow.destinations[0].slots[0].input = { buildId: "build-one", targetId: "windows" };
+    expect(missingRequiredFieldIssues(workflow, metadata).map((issue) => issue.path)).toEqual([
+      "builds.0.config.preset",
       "builds.0.targets.0.config.signing",
-    );
+      "destinations.0.config.channel",
+      "destinations.0.slots.0.config.token",
+    ]);
   });
 
   it("clamps blocker navigation when the current issue list changes", () => {
@@ -2148,7 +1745,7 @@ describe("multi-input builds", () => {
     ],
     destinations: [],
   };
-  const enabledTargets = (...ids: string[]) => ids.map((id) => ({ id, enabled: true, config: {} }));
+  const enabledTargets = (...ids: string[]) => ids.map((id) => ({ id, config: {} }));
   const bundleBuild = (
     id: string,
     inputs: ReleaseBuildProfileConfig["inputs"],
@@ -2157,7 +1754,6 @@ describe("multi-input builds", () => {
     id,
     type: "bundle",
     engine: "bundle-engine",
-    enabled: true,
     config: {},
     inputs,
     targets: enabledTargets("zip"),
@@ -2171,7 +1767,6 @@ describe("multi-input builds", () => {
     id,
     type: "desktop",
     engine: "electron",
-    enabled: true,
     config: {},
     targets: enabledTargets(...targets),
     ...overrides,
@@ -2181,11 +1776,10 @@ describe("multi-input builds", () => {
     builds,
   });
 
-  it("offers outputs of other enabled builds that the bundle accepts, in build order", () => {
+  it("offers outputs of other builds that the bundle accepts, in build order", () => {
     const workflow = workflowWith([
       electronBuild("electron-win", ["windows-x64", "linux-x64"]),
-      electronBuild("electron-named", ["windows-x64"], { name: "Desktop shell" }),
-      electronBuild("electron-off", ["windows-x64"], { enabled: false }),
+      electronBuild("electron-named", ["windows-x64", "linux-x64"], { name: "Desktop shell" }),
       electronBuild("docs-like", [], {
         type: "desktop",
         engine: "docs",
@@ -2202,15 +1796,26 @@ describe("multi-input builds", () => {
       "electron-win:windows-x64",
       "electron-win:linux-x64",
       "electron-named:windows-x64",
+      "electron-named:linux-x64",
       "bundle-b:zip",
     ]);
     expect(options.map((option) => option.label)).toEqual([
       "Electron · windows-x64",
       "Electron · linux-x64",
       "Desktop shell · windows-x64",
+      "Desktop shell · linux-x64",
       "Bundle · zip",
     ]);
     expect(options[0]?.ref).toEqual({ buildId: "electron-win", targetId: "windows-x64" });
+  });
+
+  it("rejects an input on a target the build does not list", () => {
+    const workflow = workflowWith([
+      electronBuild("electron-win", ["windows-x64"]),
+      bundleBuild("bundle-a", []),
+    ]);
+    const linuxRef = { buildId: "electron-win", targetId: "linux-x64" };
+    expect(setBuildInputs(workflow, "bundle-a", [linuxRef])).toBe(false);
   });
 
   it("returns no candidates for an unknown build", () => {
@@ -2253,11 +1858,10 @@ describe("multi-input builds", () => {
       id: "bundle-1",
       type: "bundle",
       engine: "bundle-engine",
-      enabled: true,
       inputs: [],
     });
     expect(build?.input).toBeUndefined();
-    expect(build?.targets).toEqual([expect.objectContaining({ id: "zip", enabled: true })]);
+    expect(build?.targets).toEqual([expect.objectContaining({ id: "zip" })]);
     expect(
       createBundleBuild(bundleCatalog, "desktop", "electron", "desktop-1", []),
     ).toBeUndefined();
@@ -2392,16 +1996,5 @@ describe("multi-input builds", () => {
     expect(planned.some((candidate) => candidate.builds.at(-1)?.engine === "bundle-engine")).toBe(
       false,
     );
-  });
-
-  it("drops a single input and starts an empty input list when switching to a multi-input engine", () => {
-    const build = electronBuild("electron-win", ["windows-x64"], {
-      input: { source: true },
-    });
-    const switched = switchBuildProfileEngine(bundleCatalog, build, "bundle-engine");
-
-    expect(switched?.engine).toBe("bundle-engine");
-    expect(switched?.input).toBeUndefined();
-    expect(switched?.inputs).toEqual([]);
   });
 });

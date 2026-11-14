@@ -3,7 +3,7 @@ import { ensureButler } from "./ensure.js";
 import { runWithLiveLogs } from "@pipelab/plugin-core";
 import type { PipelabContext } from "@pipelab/plugin-core";
 import type { WorkflowTask, WorkflowTaskContext } from "@pipelab/workflow-runtime";
-import type { PreflightContext, PreflightResult } from "@pipelab/shared";
+import type { ConnectionTestContext, PreflightContext, PreflightResult } from "@pipelab/shared";
 import { failed, preflightSignal, unverifiable, verified } from "../preflight";
 
 export const WORKFLOW_TASK_ID = "@pipelab/plugin-itch/itch-upload";
@@ -132,13 +132,10 @@ export const createItchUploadTask =
   };
 
 /** Only a rejected key fails; network trouble or a server error stays unverifiable. */
-export const checkItchPreflight = async ({
-  inputs,
-  connectionValues,
-  signal,
-}: PreflightContext<unknown>): Promise<PreflightResult> => {
-  const alias = String(inputs.accountConnectionId || "").trim();
-  const apiKey = String(connectionValues[alias]?.apiKey ?? "").trim();
+export const verifyItchApiKey = async (
+  apiKey: string,
+  signal?: AbortSignal,
+): Promise<PreflightResult> => {
   if (!apiKey) return failed("The Itch account connection has no API key.");
   let response: Response;
   try {
@@ -161,3 +158,53 @@ export const checkItchPreflight = async ({
   }
   return unverifiable("itch.io gave no definitive answer.");
 };
+
+/** The account's own games are the ones butler may push to; a missing one is definitive. */
+export const verifyItchGame = async (
+  apiKey: string,
+  project: string,
+  signal?: AbortSignal,
+): Promise<PreflightResult> => {
+  const slug = project.includes("/") ? project.split("/").pop()! : project;
+  if (!slug) return failed("The Itch project is empty.");
+  try {
+    const response = await fetch(`https://itch.io/api/1/${encodeURIComponent(apiKey)}/my-games`, {
+      signal: preflightSignal(signal),
+    });
+    if (!response.ok) return unverifiable(`itch.io answered HTTP ${response.status}.`);
+    const data = (await response.json()) as { games?: Array<{ url?: string }> };
+    if (!Array.isArray(data.games)) return unverifiable("itch.io gave no list of games.");
+    const known = data.games.some((game) => {
+      try {
+        return new URL(game.url ?? "").pathname.split("/").filter(Boolean).pop() === slug;
+      } catch {
+        return false;
+      }
+    });
+    return known
+      ? verified()
+      : failed(
+          `No itch.io game '${slug}' on this account. Create it on itch.io or fix the project name.`,
+        );
+  } catch {
+    return unverifiable("itch.io could not be reached.");
+  }
+};
+
+export const checkItchPreflight = async ({
+  inputs,
+  connectionValues,
+  signal,
+}: PreflightContext<unknown>): Promise<PreflightResult> => {
+  const alias = String(inputs.accountConnectionId || "").trim();
+  const apiKey = String(connectionValues[alias]?.apiKey ?? "").trim();
+  const account = await verifyItchApiKey(apiKey, signal);
+  if (account.status !== "verified") return account;
+  return verifyItchGame(apiKey, String(inputs.project ?? "").trim(), signal);
+};
+
+export const testItchConnection = async ({
+  values,
+  signal,
+}: ConnectionTestContext<unknown>): Promise<PreflightResult> =>
+  verifyItchApiKey(String(values.apiKey ?? "").trim(), signal);

@@ -1,4 +1,5 @@
 import { planRelease } from "./planner";
+import { consumedOutputKeys } from "./usage";
 import { RELEASE_BEFORE_BUILD_TASK_ID } from "./types";
 import type {
   ArtifactRef,
@@ -24,29 +25,6 @@ const provider = <T extends { id: string }>(providers: T[], id: string, kind: st
 
 const isSourceRef = (ref: ArtifactRef): ref is { source: true } =>
   "source" in ref && ref.source === true;
-
-/**
- * Keys (`producerId:outputId`) of the producer outputs that something reads: each enabled
- * destination slot, and transitively every input of a producer that has a consumed output.
- * Exposed but unconsumed outputs are not in the set and are not compiled.
- */
-const consumedOutputKeys = (plan: ReleasePlan): Set<string> => {
-  const producers = new Map(plan.producers.map((item) => [item.id, item]));
-  const consumed = new Set<string>();
-  const pending: ArtifactRef[] = plan.destinations.flatMap((destination) =>
-    destination.slots.flatMap((slot) => (slot.input ? [slot.input] : [])),
-  );
-  while (pending.length) {
-    const ref = pending.pop()!;
-    if (isSourceRef(ref)) continue;
-    const key = `${ref.producerId}:${ref.outputId}`;
-    if (consumed.has(key)) continue;
-    consumed.add(key);
-    const producer = producers.get(ref.producerId);
-    if (producer) pending.push(...(producer.inputs ?? (producer.input ? [producer.input] : [])));
-  }
-  return consumed;
-};
 
 const toOutputRef = (ref: ArtifactRef): ReleaseOutputRef =>
   isSourceRef(ref) ? { source: true } : { buildId: ref.producerId, targetId: ref.outputId };
@@ -117,7 +95,7 @@ export const compileReleasePlan = (
     ...producer,
     targets: producer.targets.map((target) => ({
       ...target,
-      enabled: target.enabled && consumed.has(`${producer.id}:${target.id}`),
+      enabled: consumed.has(`${producer.id}:${target.id}`),
     })),
   });
   const buildProfiles = new Map(configuration.builds.map((item) => [item.id, item]));

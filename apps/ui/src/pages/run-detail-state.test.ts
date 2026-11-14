@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyWorkflowEventToRunEntry,
   buildRunFailureDiagnostics,
+  failureFix,
   reconcileRunEntry,
   runFailureArtifactSummary,
 } from "./run-detail-state";
@@ -230,7 +231,77 @@ describe("applyWorkflowEventToRunEntry", () => {
   });
 });
 
+describe("failureFix", () => {
+  it("sends a rejected credential to Connections", () => {
+    expect(failureFix("The Itch API key was rejected.", { destinationId: "itch" })).toEqual({
+      kind: "connections",
+      label: "Fix connection",
+      destinationId: "itch",
+    });
+  });
+  it("sends an empty slot to that deployment", () => {
+    expect(
+      failureFix("Choose an output for this destination.", {
+        destinationId: "steam",
+        slotId: "windows",
+      }),
+    ).toEqual({
+      kind: "deployment",
+      label: "Choose output",
+      destinationId: "steam",
+      slotId: "windows",
+    });
+    expect(failureFix("Choose an output for this destination.")).toEqual({
+      kind: "configuration",
+      label: "Choose output",
+    });
+  });
+  it("sends a missing provider setting on a destination step to its settings", () => {
+    expect(
+      failureFix("Depot 12 was not found.", {
+        destinationId: "steam",
+        slotId: "linux",
+        destinationName: "Steam",
+      }),
+    ).toEqual({
+      kind: "deployment",
+      label: "Open Steam settings",
+      destinationId: "steam",
+      slotId: "linux",
+    });
+  });
+  it("offers no fix when nothing points at a view", () => {
+    expect(failureFix("No space left on device", { destinationId: "folder" })).toBeUndefined();
+    expect(failureFix("Something unexpected")).toBeUndefined();
+  });
+});
+
 describe("buildRunFailureDiagnostics", () => {
+  it("shows a failed preflight once, on the failing destination", () => {
+    const run = entry();
+    run.status = "failed";
+    run.error = {
+      message: "Preflight failed — nothing was run.\n• Itch.io: The Itch API key was rejected.",
+      code: "PREFLIGHT_FAILED",
+      timestamp: 20,
+    };
+    run.steps[0] = {
+      ...run.steps[0],
+      name: "Itch.io",
+      status: "failed",
+      error: { message: "The Itch API key was rejected.", code: "PREFLIGHT_FAILED", timestamp: 20 },
+    };
+    const diagnostics = buildRunFailureDiagnostics(run);
+    expect(diagnostics).toHaveLength(1);
+    const [destination] = diagnostics;
+    expect(destination).toMatchObject({
+      category: "Preflight",
+      summary: "The Itch API key was rejected.",
+      stepId: run.steps[0]!.id,
+    });
+    expect(destination?.rawMessage).toBeUndefined();
+  });
+
   it("explains a failed destination step and keeps the provider detail", () => {
     const run = entry();
     run.status = "completed-with-errors";

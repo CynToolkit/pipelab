@@ -120,10 +120,9 @@ describe("core Release filesystem providers", () => {
             id: "bundle",
             type: "bundle",
             engine: "@pipelab/core/bundle",
-            enabled: true,
             inputs: [{ source: true }],
             config: {},
-            targets: [{ id: "zip", enabled: true, config: {} }],
+            targets: [{ id: "zip", config: {} }],
           },
         ],
         [
@@ -233,9 +232,8 @@ describe("core Release filesystem providers", () => {
             id: "electron",
             type: "desktop",
             engine: "@pipelab/plugin-electron/producer",
-            enabled: true,
             config: {},
-            targets: [{ id: "windows-x64", enabled: true, config: {} }],
+            targets: [{ id: "windows-x64", config: {} }],
           },
         ],
         [
@@ -282,17 +280,15 @@ describe("Construct builds in the core Release compiler", () => {
     id: "construct",
     type: "web",
     engine: "@pipelab/plugin-construct/producer",
-    enabled: true,
     config: {},
-    targets: [{ id: "web", enabled: true, config: {} }],
+    targets: [{ id: "web", config: {} }],
   };
   const electronBuild: ReleaseConfig["builds"][number] = {
     id: "electron",
     type: "desktop",
     engine: "@pipelab/plugin-electron/producer",
-    enabled: true,
     config: {},
-    targets: [{ id: "windows-x64", enabled: true, config: {} }],
+    targets: [{ id: "windows-x64", config: {} }],
   };
   const constructSteps = (steps: readonly { id: string }[]) =>
     steps.filter((step) => step.id.includes("construct")).map((step) => step.id);

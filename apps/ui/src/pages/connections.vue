@@ -270,10 +270,29 @@
                   icon="pi pi-check"
                   size="small"
                   class="px-4"
-                  :disabled="!connectionDataReady || !agent.isReady.value"
+                  :loading="editTesting"
+                  :disabled="!connectionDataReady || !agent.isReady.value || editTesting"
                   @click="saveConnectionEdits"
                 />
+                <Button
+                  v-if="editTestable"
+                  label="Test connection"
+                  severity="secondary"
+                  outlined
+                  size="small"
+                  :loading="editTesting"
+                  :disabled="!connectionDataReady || !agent.isReady.value || editTesting"
+                  @click="runEditTest"
+                />
               </div>
+              <p
+                v-if="editTestResult"
+                class="connection-test-result"
+                :class="`connection-test-${editTestResult.status}`"
+                role="status"
+              >
+                {{ connectionTestMessage(editTestResult) }}
+              </p>
             </div>
           </div>
 
@@ -426,6 +445,15 @@
         </template>
       </div>
 
+      <p
+        v-if="addTestResult"
+        class="connection-test-result"
+        :class="`connection-test-${addTestResult.status}`"
+        role="status"
+      >
+        {{ connectionTestMessage(addTestResult) }}
+      </p>
+
       <template #footer>
         <div class="flex justify-end gap-2 mt-2">
           <Button
@@ -436,10 +464,20 @@
             @click="cancelConnectDialog"
           />
           <Button
+            v-if="addTestable"
+            label="Test connection"
+            severity="secondary"
+            outlined
+            size="small"
+            :loading="addTesting"
+            :disabled="!connectionDataReady || !agent.isReady.value || addTesting"
+            @click="runAddTest"
+          />
+          <Button
             label="Connect & Save"
             size="small"
-            :loading="connectingAccountLoader"
-            :disabled="!connectionDataReady || !agent.isReady.value"
+            :loading="connectingAccountLoader || addTesting"
+            :disabled="!connectionDataReady || !agent.isReady.value || addTesting"
             @click="saveNewAccount"
           />
         </div>
@@ -528,6 +566,7 @@
 </template>
 
 <script lang="ts" setup>
+import { useRoute, useRouter } from "vue-router";
 import { useRouteReadiness } from "@renderer/composables/useRouteReadiness";
 import { buildIntegrationTargets } from "./integration-targets";
 import { ref, computed, toRaw, watch } from "vue";
@@ -548,6 +587,14 @@ import {
   connectionIntegrationFieldValue,
   serializeConnectionIntegrationValues,
 } from "../utils/connection-field-values";
+import {
+  connectionTestFingerprint,
+  connectionTestMessage,
+  currentConnectionTest,
+  decideConnectionSave,
+  type TestedConnection,
+} from "../utils/connection-test";
+import type { PreflightResult } from "@pipelab/shared";
 
 interface ConnectedAccount {
   id: string;
@@ -615,7 +662,42 @@ const editConnectionPath = ref("");
 const editConnectionGameId = ref("");
 const editDynamicFields = ref<Record<string, string>>({});
 
+// Connection test state: a result only applies to the exact values it was run for.
+const editTested = ref<TestedConnection>();
+const editTesting = ref(false);
+const addTested = ref<TestedConnection>();
+const addTesting = ref(false);
+
+const runConnectionTest = async (
+  pluginName: string,
+  values: Record<string, string>,
+): Promise<PreflightResult> => {
+  try {
+    const response = await api.execute("connection:test", { pluginName, values });
+    if (response.type === "error")
+      return { status: "unverifiable", reason: "The connection could not be tested." };
+    return response.result;
+  } catch {
+    return { status: "unverifiable", reason: "The connection could not be tested." };
+  }
+};
+
 // --- Computed ---
+const editTestable = computed(() => selectedConnectionIntegration.value?.testable === true);
+const editTestFingerprint = computed(() =>
+  connectionTestFingerprint(selectedConnection.value?.pluginName ?? "", editDynamicFields.value),
+);
+const editTestResult = computed(() =>
+  currentConnectionTest(editTestFingerprint.value, editTested.value),
+);
+const addTestable = computed(() => selectedConnectTarget.value?.testable === true);
+const addTestFingerprint = computed(() =>
+  connectionTestFingerprint(selectedConnectPluginName.value, dynamicFields.value),
+);
+const addTestResult = computed(() =>
+  currentConnectionTest(addTestFingerprint.value, addTested.value),
+);
+
 const connectedAccounts = computed((): readonly ConnectedAccount[] => {
   return connectionsRef.value?.connections || [];
 });
@@ -924,6 +1006,7 @@ const openConnectDialog = () => {
   newConnectionPath.value = "";
   newConnectionGameId.value = "";
   dynamicFields.value = {};
+  addTested.value = undefined;
 
   const target = selectedConnectTarget.value;
   if (target?.fields) {
@@ -946,6 +1029,24 @@ const saveNewAccount = async () => {
     });
     return;
   }
+
+  if (addTesting.value) return;
+  const addDecision = decideConnectionSave({
+    testable: addTestable.value,
+    fingerprint: addTestFingerprint.value,
+    tested: addTested.value,
+  });
+  if (addDecision.action === "test") {
+    await runAddTest();
+    if (
+      decideConnectionSave({
+        testable: addTestable.value,
+        fingerprint: addTestFingerprint.value,
+        tested: addTested.value,
+      }).action !== "save"
+    )
+      return;
+  } else if (addDecision.action === "block") return;
 
   connectingAccountLoader.value = true;
 
@@ -1018,9 +1119,52 @@ const saveNewAccount = async () => {
   }
 };
 
+const runEditTest = async () => {
+  if (editTesting.value || !selectedConnection.value) return;
+  const fingerprint = editTestFingerprint.value;
+  const pluginName = selectedConnection.value.pluginName;
+  editTesting.value = true;
+  try {
+    const result = await runConnectionTest(pluginName, { ...editDynamicFields.value });
+    editTested.value = { fingerprint, result };
+  } finally {
+    editTesting.value = false;
+  }
+};
+
+const runAddTest = async () => {
+  if (addTesting.value) return;
+  const fingerprint = addTestFingerprint.value;
+  addTesting.value = true;
+  try {
+    const result = await runConnectionTest(selectedConnectPluginName.value, {
+      ...dynamicFields.value,
+    });
+    addTested.value = { fingerprint, result };
+  } finally {
+    addTesting.value = false;
+  }
+};
+
 const saveConnectionEdits = async () => {
   if (!connectionDataReady.value || !agent.isReady.value) return;
-  if (!selectedConnection.value) return;
+  if (!selectedConnection.value || editTesting.value) return;
+
+  const decision = decideConnectionSave({
+    testable: editTestable.value,
+    fingerprint: editTestFingerprint.value,
+    tested: editTested.value,
+  });
+  if (decision.action === "test") {
+    await runEditTest();
+    // Stale if the selection changed while testing.
+    const afterTest = decideConnectionSave({
+      testable: editTestable.value,
+      fingerprint: editTestFingerprint.value,
+      tested: editTested.value,
+    });
+    if (afterTest.action !== "save") return;
+  } else if (decision.action === "block") return;
 
   const updated = connectedAccounts.value.map((conn) => {
     if (conn.id === selectedConnectionId.value) {
@@ -1102,9 +1246,27 @@ watch(
   },
   { immediate: true },
 );
-watch([() => connectionsStore.status, connectedAccounts], ([status, accounts]) => {
-  if (status === "ready" && !selectedConnectionId.value && accounts.length)
-    selectedConnectionId.value = accounts[0].id;
+const route = useRoute();
+const router = useRouter();
+// /connections/:connectionId (for example from a failed run's Fix button) opens that connection.
+watch(
+  [() => connectionsStore.status, connectedAccounts, () => route.params.connectionId],
+  ([status, accounts]) => {
+    if (status !== "ready") return;
+    const requested =
+      typeof route.params.connectionId === "string" ? route.params.connectionId : "";
+    if (requested && accounts.some((account) => account.id === requested)) {
+      if (selectedConnectionId.value !== requested) selectedConnectionId.value = requested;
+      return;
+    }
+    if (!selectedConnectionId.value && accounts.length) selectedConnectionId.value = accounts[0].id;
+  },
+  { immediate: true },
+);
+// Keep the address on the selected connection so it can be shared and reloaded.
+watch(selectedConnectionId, (id) => {
+  if (id && route.name === "Connections" && route.params.connectionId !== id)
+    void router.replace({ name: "Connections", params: { connectionId: id } });
 });
 </script>
 
@@ -1351,6 +1513,20 @@ watch([() => connectionsStore.status, connectedAccounts], ([status, accounts]) =
   .plugin-large-icon-pi {
     font-size: 20px;
     color: var(--p-primary-color);
+  }
+}
+
+.connection-test-result {
+  margin: 0;
+  font-size: 0.8rem;
+  &.connection-test-verified {
+    color: var(--p-green-500, #22c55e);
+  }
+  &.connection-test-failed {
+    color: var(--p-red-500, #ef4444);
+  }
+  &.connection-test-unverifiable {
+    color: var(--p-amber-500, #f59e0b);
   }
 }
 

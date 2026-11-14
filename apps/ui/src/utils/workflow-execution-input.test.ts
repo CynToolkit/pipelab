@@ -16,9 +16,8 @@ const workflow: ReleaseConfig = {
       id: "build-1",
       type: "desktop",
       engine: "engine",
-      enabled: true,
       config: { version: "${{ env.BUILD_VERSION }}" },
-      targets: [],
+      targets: [{ id: "web", config: {} }],
     },
   ],
   destinations: [
@@ -27,14 +26,21 @@ const workflow: ReleaseConfig = {
       provider: "itch",
       enabled: true,
       config: { accountConnectionId: "${{ env.CONNECTION_ALIAS_SHOULD_NOT_BE_READ }}" },
-      slots: [],
+      slots: [
+        { id: "slot-1", enabled: true, input: { buildId: "build-1", targetId: "web" }, config: {} },
+      ],
     },
   ],
 };
 const catalog: ReleaseCatalog = {
   buildTypes: [],
   sources: [
-    { id: "folder", label: "Folder", output: { kind: "project", container: "directory" }, defaultConfig: {} },
+    {
+      id: "folder",
+      label: "Folder",
+      output: { kind: "project", container: "directory" },
+      defaultConfig: {},
+    },
   ],
   producers: [],
   destinations: [
@@ -111,17 +117,15 @@ describe("Desktop workflow execution submission", () => {
 
   it("does not request environment values from disabled workflow branches", async () => {
     const inactiveWorkflow = structuredClone(workflow);
-    inactiveWorkflow.builds[0].enabled = false;
     inactiveWorkflow.builds[0].targets = [
-      { id: "web", enabled: true, config: { path: "${{ env.DISABLED_BUILD_TARGET }}" } },
+      { id: "web", config: { path: "${{ env.DISABLED_BUILD_TARGET }}" } },
     ];
     inactiveWorkflow.builds.push({
       id: "build-2",
       type: "desktop",
       engine: "engine",
-      enabled: true,
       config: {},
-      targets: [{ id: "web", enabled: false, config: { path: "${{ env.DISABLED_TARGET }}" } }],
+      targets: [],
     });
     inactiveWorkflow.destinations[0].enabled = false;
     inactiveWorkflow.destinations[0].config = { path: "${{ env.DISABLED_DESTINATION }}" };

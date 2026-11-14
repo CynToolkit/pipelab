@@ -66,7 +66,6 @@ export interface ReleaseBuildProfileConfig {
   id: string;
   type: string;
   engine: string;
-  enabled: boolean;
   input?: ReleaseOutputRef;
   /** Explicit ordered inputs; required for engines whose definition declares `inputs: "many"`. */
   inputs?: ReleaseOutputRef[];
@@ -76,9 +75,9 @@ export interface ReleaseBuildProfileConfig {
   name?: string;
 }
 
+/** A target a build can produce. It is used when a slot or another build reads it. */
 export interface ReleaseBuildTargetConfig {
   id: string;
-  enabled: boolean;
   config: Record<string, unknown>;
 }
 

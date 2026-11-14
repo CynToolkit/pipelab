@@ -69,11 +69,26 @@ describe("build choices", () => {
           id: "b1",
           type: "desktop",
           engine: "electron",
-          enabled: true,
           config: {},
           targets: [
-            { id: "windows-x64", enabled: true, config: {} },
-            { id: "linux-arm64", enabled: false, config: {} },
+            { id: "windows-x64", config: {} },
+            { id: "linux-arm64", config: {} },
+          ],
+        },
+      ],
+      destinations: [
+        {
+          id: "d",
+          provider: "p",
+          enabled: true,
+          config: {},
+          slots: [
+            {
+              id: "s",
+              enabled: true,
+              config: {},
+              input: { buildId: "b1", targetId: "windows-x64" },
+            },
           ],
         },
       ],

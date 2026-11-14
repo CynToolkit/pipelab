@@ -160,6 +160,14 @@ export const workflowCancellationFeedback = (result: {
     ? "This run is no longer active."
     : "";
 
+/** A short path from a failure to the view where it can be fixed. */
+export interface RunFailureFix {
+  kind: "connections" | "deployment" | "builds" | "configuration";
+  label: string;
+  destinationId?: string;
+  slotId?: string;
+}
+
 export interface RunFailureDiagnostic {
   id: string;
   title: string;
@@ -172,6 +180,7 @@ export interface RunFailureDiagnostic {
   rawMessage?: string;
   rawStack?: string;
   errorCode?: string;
+  fix?: RunFailureFix;
 }
 
 export const runFailureArtifactSummary = (entry: BuildHistoryEntry) => {
@@ -249,6 +258,47 @@ const failureGuidance = (message: string) => {
   };
 };
 
+const AUTH_PATTERN =
+  /api key|credential|token|authenticat|unauthori[sz]ed|\b401\b|pipelab login|log(?:ged)? ?in|sign(?:ed)? ?in|expired|invalid (?:key|token|password|secret)|was rejected|access denied/i;
+const DEPLOYMENT_SETTING_PATTERN =
+  /\b(?:app ?id|depot|channel|project|branch|game|slug|username|namespace)\b|not configured|is required|missing|invalid .*\bid\b|does not exist|not found/i;
+
+/** Picks where a failure is best fixed from what the step and message reveal. */
+export const failureFix = (
+  message: string,
+  step?: { destinationId?: string; slotId?: string; destinationName?: string; uses?: string },
+): RunFailureFix | undefined => {
+  if (/choose an output/i.test(message)) {
+    return step?.destinationId
+      ? {
+          kind: "deployment",
+          label: "Choose output",
+          destinationId: step.destinationId,
+          ...(step.slotId ? { slotId: step.slotId } : {}),
+        }
+      : { kind: "configuration", label: "Choose output" };
+  }
+  if (AUTH_PATTERN.test(message))
+    return {
+      kind: "connections",
+      label: "Fix connection",
+      ...(step?.destinationId ? { destinationId: step.destinationId } : {}),
+    };
+  if (step?.destinationId) {
+    return DEPLOYMENT_SETTING_PATTERN.test(message)
+      ? {
+          kind: "deployment",
+          label: step.destinationName ? `Open ${step.destinationName} settings` : "Open settings",
+          destinationId: step.destinationId,
+          ...(step.slotId ? { slotId: step.slotId } : {}),
+        }
+      : undefined;
+  }
+  if (step && DEPLOYMENT_SETTING_PATTERN.test(message))
+    return { kind: "builds", label: "Review builds" };
+  return undefined;
+};
+
 export const buildRunFailureDiagnostics = (entry: BuildHistoryEntry): RunFailureDiagnostic[] => {
   if (entry.status !== "failed" && entry.status !== "completed-with-errors") return [];
 
@@ -265,7 +315,15 @@ export const buildRunFailureDiagnostics = (entry: BuildHistoryEntry): RunFailure
       );
     const rawMessage = step.error?.message || delivery?.error;
     if (!rawMessage) continue;
-    const guidance = failureGuidance(rawMessage);
+    // A failed preflight check already names the problem; show it as is.
+    const preflight = step.error?.code === "PREFLIGHT_FAILED";
+    const guidance = preflight
+      ? {
+          category: "Preflight",
+          summary: rawMessage,
+          nextAction: "Nothing was run. Fix this destination's account, then rerun this workflow.",
+        }
+      : failureGuidance(rawMessage);
     const loginCommand = rawMessage.match(/pipelab login\s+\S+/i)?.[0];
     // A message that already tells the user what to run is clearer than generic advice.
     const selfExplanatory = !loginCommand && /`[^`]+`/.test(rawMessage);
@@ -293,12 +351,22 @@ export const buildRunFailureDiagnostics = (entry: BuildHistoryEntry): RunFailure
           }
         : {}),
       ...(delivery?.slotId || step.slotId ? { slotId: delivery?.slotId || step.slotId } : {}),
-      rawMessage,
+      ...((fix) => (fix ? { fix } : {}))(
+        failureFix(rawMessage, {
+          destinationId: step.destinationId ?? delivery?.destinationId,
+          slotId: step.slotId ?? delivery?.slotId,
+          destinationName: step.destinationName ?? delivery?.destinationName,
+          uses: step.uses,
+        }),
+      ),
+      ...(preflight ? {} : { rawMessage }),
       ...(step.error?.stack ? { rawStack: step.error.stack } : {}),
-      ...(step.error?.code ? { errorCode: step.error.code } : {}),
+      ...(step.error?.code && !preflight ? { errorCode: step.error.code } : {}),
     });
   }
 
+  // A failed preflight is already shown on the failing destination steps.
+  if (entry.error?.code === "PREFLIGHT_FAILED" && failedSteps.length) return diagnostics;
   if (entry.error && !failedSteps.some((step) => step.error?.message === entry.error?.message)) {
     const guidance = failureGuidance(entry.error.message);
     // A message that already tells the user what to run is clearer than generic advice.
@@ -309,6 +377,7 @@ export const buildRunFailureDiagnostics = (entry: BuildHistoryEntry): RunFailure
       category: guidance.category,
       summary: selfExplanatory ? entry.error.message : guidance.summary,
       nextAction: selfExplanatory ? "" : guidance.nextAction,
+      ...((fix) => (fix ? { fix } : {}))(failureFix(entry.error.message)),
       rawMessage: entry.error.message,
       ...(entry.error.stack ? { rawStack: entry.error.stack } : {}),
       ...(entry.error.code ? { errorCode: entry.error.code } : {}),

@@ -17,7 +17,16 @@
             <div class="run-meta">
               <span>{{ formatDate(entry.startTime) }}</span
               ><span>{{ duration }}</span
-              ><code>#{{ shortId }}</code>
+              ><button
+                type="button"
+                class="run-id-copy"
+                :title="runIdCopied ? 'Copied' : `Copy run ID ${fullRunId}`"
+                :aria-label="`Copy run ID ${fullRunId}`"
+                @click="copyRunId"
+              >
+                <code>#{{ shortId }}</code
+                ><i :class="runIdCopied ? 'pi pi-check' : 'pi pi-copy'" /></button
+              >
             </div>
           </div>
         </div>
@@ -88,13 +97,22 @@
             <pre v-if="diagnostic.rawStack">{{ diagnostic.rawStack }}</pre>
           </details>
         </div>
-        <Button
-          :label="diagnostic.stepId ? 'View logs' : 'View run logs'"
-          icon="mdi mdi-console-line"
-          text
-          size="small"
-          @click="viewFailureLogs(diagnostic)"
-        />
+        <div class="failure-buttons">
+          <Button
+            v-if="diagnostic.fix"
+            :label="diagnostic.fix.label"
+            icon="mdi mdi-wrench-outline"
+            size="small"
+            @click="applyFailureFix(diagnostic.fix)"
+          />
+          <Button
+            :label="diagnostic.stepId ? 'View logs' : 'View run logs'"
+            icon="mdi mdi-console-line"
+            text
+            size="small"
+            @click="viewFailureLogs(diagnostic)"
+          />
+        </div>
       </section>
 
       <section v-if="activePanel === 'logs'" class="execution-layout" aria-label="Execution logs">
@@ -360,10 +378,14 @@ import {
   selectRunStep,
   applyWorkflowEventToRunEntry,
   type RunFailureDiagnostic,
+  type RunFailureFix,
 } from "./run-detail-state";
 import { subscribeToRunEvents } from "./run-events";
 import { runStepLabel } from "../utils/run-step-label";
 import { useAppStore } from "../store/app";
+import { useConnectionsStore } from "../store/connections";
+import { useWorkflowDocument } from "../composables/useWorkflowDocument";
+import { releaseDestinationConnectionPreviews } from "../utils/release-connection-bindings";
 import {
   destinationIcon as providerDestinationIcon,
   providerIconClass,
@@ -377,6 +399,7 @@ const router = useRouter();
 const api = useAPI();
 const agent = useAgentAvailability();
 const appStore = useAppStore();
+const connectionsStore = useConnectionsStore();
 // Destination steps are named and iconed like the destination cards in the editor.
 const stepDestination = (step: ExecutionStep) =>
   step.destinationId
@@ -443,6 +466,7 @@ const shortId = computed(() =>
 );
 const flowId = computed(() => String(route.params.flowId || entry.value?.workflowId || ""));
 const projectId = computed(() => String(route.params.projectId || entry.value?.projectId || ""));
+const workflowDoc = useWorkflowDocument({ flowId, projectId });
 const playwrightVideoPath = computed(() => {
   const messages = [
     entry.value?.error?.message,
@@ -631,28 +655,42 @@ const destinationIcon = (serviceId: string) =>
       ? "mdi mdi-controller-classic"
       : "mdi mdi-folder-upload-outline";
 const backToRuns = () => router.push(`/workflows/${flowId.value}/${projectId.value}/runs`);
+const writeClipboard = async (text: string) => {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const input = document.createElement("textarea");
+  input.value = text;
+  input.style.position = "fixed";
+  input.style.opacity = "0";
+  document.body.append(input);
+  input.select();
+  const copied = document.execCommand("copy");
+  input.remove();
+  if (!copied) throw new Error("Clipboard access is unavailable");
+};
 const copyVideoPath = async () => {
   if (!playwrightVideoPath.value) return;
   try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(playwrightVideoPath.value);
-    } else {
-      const input = document.createElement("textarea");
-      input.value = playwrightVideoPath.value;
-      input.style.position = "fixed";
-      input.style.opacity = "0";
-      document.body.append(input);
-      input.select();
-      const copied = document.execCommand("copy");
-      input.remove();
-      if (!copied) throw new Error("Clipboard access is unavailable");
-    }
+    await writeClipboard(playwrightVideoPath.value);
     videoCopied.value = true;
     copyVideoFeedback.value = "Video path copied to clipboard.";
     window.setTimeout(() => (videoCopied.value = false), 2000);
   } catch {
     videoCopied.value = false;
     copyVideoFeedback.value = "Could not copy automatically. Select the path above to copy it.";
+  }
+};
+const runIdCopied = ref(false);
+const fullRunId = computed(() => entry.value?.id || String(route.params.runId));
+const copyRunId = async () => {
+  try {
+    await writeClipboard(fullRunId.value);
+    runIdCopied.value = true;
+    window.setTimeout(() => (runIdCopied.value = false), 2000);
+  } catch {
+    runIdCopied.value = false;
   }
 };
 const cancel = async () => {
@@ -671,6 +709,37 @@ const cancel = async () => {
   }
 };
 const selectStep = (stepId: string | null) => selectRunStep(stepSelection, stepId);
+const applyFailureFix = async (fix: RunFailureFix) => {
+  const params = { flowId: flowId.value, projectId: projectId.value };
+  if (fix.kind === "connections") {
+    // Open the very connection the failing destination uses, when it can be found.
+    if (fix.destinationId) await workflowDoc.ensure();
+    const flow = workflowDoc.flow.value;
+    const connectionId =
+      flow && fix.destinationId && connectionsStore.connections
+        ? releaseDestinationConnectionPreviews(
+            flow,
+            appStore.releaseCatalog,
+            connectionsStore.connections,
+          ).find((preview) => preview.destinationId === fix.destinationId)?.connectionId
+        : undefined;
+    void router.push({
+      name: "Connections",
+      ...(connectionId ? { params: { connectionId } } : {}),
+    });
+  }
+  else if (fix.kind === "builds") void router.push({ name: "WorkflowBuilds", params });
+  else if (fix.kind === "deployment" && fix.destinationId)
+    void router.push(
+      fix.slotId
+        ? {
+            name: "WorkflowDeployment",
+            params: { ...params, destinationId: fix.destinationId, slotId: fix.slotId },
+          }
+        : { name: "WorkflowDestination", params: { ...params, destinationId: fix.destinationId } },
+    );
+  else void router.push({ name: "Workflow", params });
+};
 const viewFailureLogs = (diagnostic: RunFailureDiagnostic) => {
   selectStep(diagnostic.stepId || null);
   activePanel.value = "logs";
@@ -894,6 +963,21 @@ onUnmounted(() => {
 .run-meta code {
   color: var(--text-color);
   font-family: var(--font-family-monospace, monospace);
+}
+.run-id-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.run-id-copy:hover i,
+.run-id-copy:focus-visible i {
+  color: var(--text-color);
 }
 .run-summary {
   display: flex;
@@ -1662,6 +1746,12 @@ onUnmounted(() => {
 .failure-body {
   flex: 1;
   min-width: 0;
+}
+.failure-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
 }
 .failure-diagnostic p {
   margin: 0;

@@ -66,10 +66,9 @@ describe("built-in provider flow audit", () => {
               id: "construct",
               type: "web",
               engine: "@pipelab/plugin-construct/producer",
-              enabled: true,
               input: { source: true },
               config: {},
-              targets: [{ id: "web", enabled: true, config: {} }],
+              targets: [{ id: "web", config: {} }],
             },
           ]
         : [];
@@ -94,13 +93,11 @@ describe("built-in provider flow audit", () => {
                   id: "build",
                   type: target === "web" ? "web" : "desktop",
                   engine: `@pipelab/plugin-${engine}/producer`,
-                  enabled: true,
                   ...(constructWeb ? { input: constructWeb } : {}),
                   config: engine === "godot" ? { executable: "godot" } : {},
                   targets: [
                     {
                       id: target,
-                      enabled: true,
                       config:
                         engine === "godot"
                           ? { preset: target === "web" ? "Web" : "Windows Desktop" }

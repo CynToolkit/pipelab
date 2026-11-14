@@ -134,20 +134,11 @@
               :key="build.id"
               class="build-row"
               :class="{
-                'build-disabled': !build.enabled,
                 'build-invalid': buildIssues(build, index).length,
               }"
               role="listitem"
             >
               <div class="build-header">
-                <ToggleSwitch
-                  class="row-switch"
-                  :model-value="build.enabled"
-                  :inputId="`build-enabled-${build.id}`"
-                  v-tooltip.top="build.enabled ? 'Skip this build' : 'Include this build'"
-                  :aria-label="`${buildLabel(build)} enabled`"
-                  @update:model-value="setBuildEnabled(build, $event)"
-                />
                 <div class="build-icon">
                   <i :class="producerIcon(build.engine)" aria-hidden="true" />
                 </div>
@@ -155,7 +146,7 @@
                   <strong>{{ buildLabel(build) }}</strong>
                   <span
                     >{{ buildTypeLabel(build.type) }} · {{ engineLabel(build.engine) }} ·
-                    {{ enabledTargetLabels(build).join(", ") || "No target" }}</span
+                    {{ usedTargetLabels(build).join(", ") || "Not used" }}</span
                   >
                   <small>
                     {{ isManyInputEngine(catalog, build.engine) ? "Inputs:" : "Input:" }}
@@ -240,40 +231,14 @@
           optionValue="id"
           placeholder="Choose an engine"
           :disabled="!newBuildType"
-          @update:model-value="onNewBuildEngineChange"
         />
       </div>
-      <div v-if="newBuildEngine" class="release-field wide">
-        <span class="field-label">Target</span>
-        <div class="target-list">
-          <button
-            v-for="target in newBuildTargets"
-            :key="target.id"
-            type="button"
-            class="target-row"
-            :class="{ selected: newBuildTarget === target.id }"
-            :disabled="!buildTargetIsAvailable(target)"
-            :aria-pressed="newBuildTarget === target.id"
-            @click="newBuildTarget = target.id"
-          >
-            <i
-              :class="
-                newBuildTarget === target.id ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'
-              "
-            />
-            <span>{{ target.label }}</span>
-            <small v-if="buildTargetAvailabilityReason(target)">{{
-              buildTargetAvailabilityReason(target)
-            }}</small>
-          </button>
-        </div>
-        <small
-          v-if="newBuildEngine && !newBuildTargets.some(buildTargetIsAvailable)"
-          class="field-note"
-        >
-          This engine has no available target for the selected build type.
-        </small>
-      </div>
+      <small
+        v-if="newBuildEngine && !newBuildTargets.some(buildTargetIsAvailable)"
+        class="field-note"
+      >
+        This engine has no available target for the selected build type.
+      </small>
     </div>
     <template #footer>
       <Button label="Cancel" text @click="addVisible = false" />
@@ -302,51 +267,8 @@
         Checking provider settings…
       </p>
       <div class="release-field wide">
-        <label :for="`settings-engine-${draftBuild.id}`">Engine</label>
-        <Select
-          :id="`settings-engine-${draftBuild.id}`"
-          :class="{
-            'issue-focus': isSettingsIssueControl(`settings-engine-${draftBuild.id}`),
-          }"
-          :model-value="draftBuild.engine"
-          :options="buildEnginesFor(catalog, draftBuild.type)"
-          optionLabel="label"
-          optionValue="id"
-          @update:model-value="stageEngineChange"
-        />
-        <small v-if="engineChangeNotice" class="field-note">
-          Select at least one available target before applying this engine.
-        </small>
-      </div>
-
-      <div class="release-field wide">
-        <span class="field-label">Enabled targets</span>
-        <div class="target-list">
-          <button
-            v-for="target in draftTargets"
-            :key="target.id"
-            type="button"
-            :id="buildTargetControlId(draftBuild.id, target.id)"
-            class="target-row"
-            :class="{
-              selected: draftTargetEnabled(target.id),
-              'issue-focus': isSettingsIssueControl(buildTargetControlId(draftBuild.id, target.id)),
-            }"
-            :disabled="!buildTargetIsAvailable(target) && !draftTargetEnabled(target.id)"
-            :aria-pressed="draftTargetEnabled(target.id)"
-            @click="toggleDraftTarget(target)"
-          >
-            <i
-              :class="
-                draftTargetEnabled(target.id) ? 'mdi mdi-check-circle' : 'mdi mdi-circle-outline'
-              "
-            />
-            <span>{{ target.label }}</span>
-            <small v-if="buildTargetAvailabilityReason(target)">{{
-              buildTargetAvailabilityReason(target)
-            }}</small>
-          </button>
-        </div>
+        <span class="field-label">Engine</span>
+        <span>{{ engineLabel(draftBuild.engine) }}</span>
       </div>
 
       <div v-if="isManyInputDraft" class="release-field wide">
@@ -439,7 +361,7 @@
         />
       </template>
       <template
-        v-for="target in draftBuild.targets.filter((item) => item.enabled)"
+        v-for="target in draftBuild.targets.filter((item) => draftTargetUsed(item.id))"
         :key="target.id"
       >
         <template
@@ -558,19 +480,17 @@ import InputText from "primevue/inputtext";
 import Message from "primevue/message";
 import Select from "primevue/select";
 import ReleaseStatus from "../components/ReleaseStatus.vue";
-import ToggleSwitch from "primevue/toggleswitch";
 import { useConfirm } from "primevue/useconfirm";
 import type {
   IconType,
   ProducerInspection,
   ReleaseBuildProfileConfig,
-  ReleaseCatalogTarget,
   ReleaseConfig,
   ReleaseFieldDefinition,
   ReleaseFieldOption,
   ValidationIssue,
 } from "@pipelab/shared";
-import { RELEASE_CONFIG_VERSION } from "@pipelab/shared";
+import { RELEASE_CONFIG_VERSION, plannedUsedTargetKeys, usedTargetKeys } from "@pipelab/shared";
 import ReleaseFieldControl from "../components/ReleaseFieldControl.vue";
 import ReleaseBeforeBuildHooks from "../components/ReleaseBeforeBuildHooks.vue";
 import { useAPI } from "../composables/api";
@@ -610,8 +530,6 @@ import {
   removeBuildProfile,
   selectBuildInput,
   shouldInspectReleaseProviderConfig,
-  setBuildTargetEnabled,
-  switchBuildProfileEngine,
   type CompatibleBuildCandidate,
   type ReleaseOutputOption,
 } from "./release-flow-model";
@@ -703,7 +621,6 @@ const connectionSaving = ref(false);
 const draftBuild = ref<ReleaseBuildProfileConfig>();
 const newBuildType = ref<string>();
 const newBuildEngine = ref<string>();
-const newBuildTarget = ref<string>();
 const connectionDraft = ref({
   name: "",
   integration: "",
@@ -894,35 +811,14 @@ const canCreateBuild = computed(() =>
     flow.value &&
     newBuildType.value &&
     newBuildEngine.value &&
-    newBuildTarget.value &&
-    newBuildTargets.value.some(
-      (target) => target.id === newBuildTarget.value && buildTargetIsAvailable(target),
-    ),
+    newBuildTargets.value.some(buildTargetIsAvailable),
   ),
 );
-const draftTargets = computed(() =>
-  draftBuild.value
-    ? buildTargetsFor(catalog.value, draftBuild.value.engine, draftBuild.value.type)
-    : [],
-);
 const draftTargetSelectionSignature = computed(
-  () =>
-    draftBuild.value?.targets.map((target) => `${target.id}:${target.enabled ? 1 : 0}`).join(",") ||
-    "",
+  () => draftBuild.value?.targets.map((target) => target.id).join(",") || "",
 );
 const producerInspectionSignature = computed(() => buildInspectionSignature(draftBuild.value));
-const engineChangeNotice = computed(() =>
-  Boolean(draftBuild.value && draftBuild.value.engine !== originalEngine.value),
-);
-const originalEngine = ref("");
-const canApplyBuildSettings = computed(() => {
-  if (!draftBuild.value) return false;
-  if (!engineChangeNotice.value) return true;
-  return draftBuild.value.targets.some((target) => {
-    const definition = draftTargets.value.find((candidate) => candidate.id === target.id);
-    return target.enabled && Boolean(definition && buildTargetIsAvailable(definition));
-  });
-});
+const canApplyBuildSettings = computed(() => Boolean(draftBuild.value));
 const draftBuildInputOptions = computed(() =>
   draftBuild.value ? buildInputOptions.value[draftBuild.value.id] || [] : [],
 );
@@ -959,8 +855,23 @@ const producerDefinition = (id: string) => engineDefinition(id);
 const engineLabel = (id: string) => engineDefinition(id)?.label || id;
 const targetDefinition = (engine: string, type: string, targetId: string) =>
   buildTargetsFor(catalog.value, engine, type).find((target) => target.id === targetId);
-const enabledTargetLabels = (build: ReleaseBuildProfileConfig) =>
-  buildProfileSummary(catalog.value, build).targetLabels;
+// A target is "used" when a deployment or another build reads it; nothing else turns it on.
+// The plan is authoritative because it also wires builds that name no input; the configuration
+// is only a fallback while there is no plan yet.
+const usedKeys = () =>
+  plan.value ? plannedUsedTargetKeys(plan.value) : flow.value ? usedTargetKeys(flow.value) : new Set<string>();
+const draftTargetUsed = (targetId: string) =>
+  Boolean(
+    flow.value &&
+    draftBuild.value &&
+    usedKeys().has(`${draftBuild.value.id}:${targetId}`),
+  );
+const usedTargetLabels = (build: ReleaseBuildProfileConfig) => {
+  const used = usedKeys();
+  return buildTargetsFor(catalog.value, build.engine, build.type)
+    .filter((target) => used.has(`${build.id}:${target.id}`))
+    .map((target) => target.label);
+};
 const buildIssues = (build: ReleaseBuildProfileConfig, index: number) =>
   deduplicateValidationIssues([
     ...(plan.value ? issuesForPath(plan.value.issues, `builds.${index}`) : []),
@@ -969,11 +880,10 @@ const buildIssues = (build: ReleaseBuildProfileConfig, index: number) =>
     ),
   ]);
 const buildReadiness = (build: ReleaseBuildProfileConfig, index: number) => {
-  if (!build.enabled) return "Disabled";
   if (!plan.value || planning.value) return "Checking";
   if (buildIssues(build, index).some((issue) => issue.severity === "error"))
     return "Needs attention";
-  if (!build.targets.some((target) => target.enabled)) return "Select a target";
+  if (!usedTargetLabels(build).length) return "Not used";
   return "Ready";
 };
 const sourceFieldOptions = (field: ReleaseFieldDefinition) =>
@@ -1250,9 +1160,9 @@ const inspectDraftBuild = async () => {
   const config = {
     id: build.id,
     provider: build.engine,
-    enabled: build.enabled,
+    enabled: true,
     config: build.config,
-    targets: build.targets,
+    targets: build.targets.map((target) => ({ ...target, enabled: true })),
   };
   if (!shouldInspectReleaseProviderConfig({ sourceConfig, config })) {
     producerInspectionChecking.value = false;
@@ -1321,23 +1231,17 @@ watch(
 const openAddBuild = () => {
   newBuildType.value = undefined;
   newBuildEngine.value = undefined;
-  newBuildTarget.value = undefined;
   addVisible.value = true;
 };
 const onNewBuildTypeChange = () => {
   newBuildEngine.value = undefined;
-  newBuildTarget.value = undefined;
-};
-const onNewBuildEngineChange = () => {
-  newBuildTarget.value = undefined;
 };
 const addBuild = () => {
   if (
     !flow.value ||
     !canCreateBuild.value ||
     !newBuildType.value ||
-    !newBuildEngine.value ||
-    !newBuildTarget.value
+    !newBuildEngine.value
   )
     return;
   const multiInput = isManyInputEngine(catalog.value, newBuildEngine.value);
@@ -1347,7 +1251,7 @@ const addBuild = () => {
     newBuildType.value,
     newBuildEngine.value,
     nanoid(),
-    [newBuildTarget.value],
+    [],
     releaseWorkflowConnectionAliases(flow.value, catalog.value),
   );
   if (!build) return;
@@ -1433,7 +1337,6 @@ const focusSettingsIssue = () => {
 };
 const openBuildSettings = (build: ReleaseBuildProfileConfig, issuePath = "") => {
   if (!flow.value) return;
-  originalEngine.value = build.engine;
   draftBuild.value = structuredClone(toRaw(build));
   settingsIssuePath.value = issuePath;
   const buildIndex = flow.value.builds.findIndex((candidate) => candidate.id === build.id);
@@ -1460,34 +1363,6 @@ function discardBuildSettings() {
 const requestDiscardBuildSettings = async () => {
   if (!hasUnappliedBuildChanges.value || (await confirmDiscardStagedBuild()))
     discardBuildSettings();
-};
-const stageEngineChange = (engine: string) => {
-  if (!draftBuild.value || engine === draftBuild.value.engine) return;
-  const existingAliases = flow.value
-    ? releaseWorkflowConnectionAliases(flow.value, catalog.value)
-    : [];
-  const switched = switchBuildProfileEngine(
-    catalog.value,
-    draftBuild.value,
-    engine,
-    existingAliases,
-  );
-  if (!switched) return;
-  draftBuild.value = switched;
-};
-const draftTargetEnabled = (targetId: string) =>
-  Boolean(draftBuild.value?.targets.some((target) => target.id === targetId && target.enabled));
-const toggleDraftTarget = (target: ReleaseCatalogTarget) => {
-  if (!draftBuild.value) return;
-  setBuildTargetEnabled(
-    draftBuild.value,
-    target.id,
-    !draftTargetEnabled(target.id),
-    target.availability,
-    target.availabilityStatus,
-    target.fields,
-    flow.value ? releaseWorkflowConnectionAliases(flow.value, catalog.value) : [],
-  );
 };
 const setDraftBuildInput = (value: string) => {
   if (draftBuild.value) selectBuildInput(draftBuild.value, draftBuildInputOptions.value, value);
@@ -1516,50 +1391,6 @@ const applyBuildSettings = () => {
     settingsVisible.value = false;
     draftBuild.value = undefined;
   };
-  if (nextBuild.engine !== currentBuild.engine) {
-    const discardedSettings = Object.keys(currentBuild.config).filter(
-      (key) =>
-        !(key in nextBuild.config) &&
-        currentBuild.config[key] !== undefined &&
-        currentBuild.config[key] !== null &&
-        currentBuild.config[key] !== "",
-    );
-    const nextTargets = new Map(nextBuild.targets.map((target) => [target.id, target]));
-    const disabledTargets = currentBuild.targets
-      .filter((target) => target.enabled && !nextTargets.get(target.id)?.enabled)
-      .map(
-        (target) =>
-          buildTargetsFor(catalog.value, currentBuild.engine, currentBuild.type).find(
-            (definition) => definition.id === target.id,
-          )?.label || target.id,
-      );
-    const consumers = outputReferenceConsumers(
-      flow.value,
-      { buildId: currentBuild.id },
-      catalog.value,
-    );
-    const impact = outputReferenceChangeImpact(
-      {
-        kind: "build-engine",
-        buildName: buildLabel(currentBuild),
-        newEngine: engineLabel(nextBuild.engine),
-        discardedSettings,
-        disabledTargets,
-      },
-      consumers,
-    );
-    if (impact.confirmationRequired) {
-      confirm.require({
-        header: `Change engine for ${buildLabel(currentBuild)}`,
-        message: impact.message,
-        icon: "pi pi-exclamation-triangle",
-        rejectProps: { label: "Cancel", severity: "secondary", outlined: true },
-        acceptProps: { label: "Apply engine" },
-        accept: commit,
-      });
-      return;
-    }
-  }
   commit();
 };
 const buildLabel = (build: ReleaseBuildProfileConfig) =>
@@ -1569,35 +1400,6 @@ const buildConsumerList = (build: ReleaseBuildProfileConfig) =>
 const duplicateBuild = (build: ReleaseBuildProfileConfig) => {
   if (!flow.value) return;
   duplicateBuildProfile(flow.value, build.id, nanoid(), buildLabel(build), nanoid);
-};
-const setBuildEnabled = (build: ReleaseBuildProfileConfig, enabled: boolean) => {
-  if (!flow.value || build.enabled === enabled) return;
-  if (enabled) {
-    build.enabled = true;
-    return;
-  }
-  const impact = outputReferenceChangeImpact(
-    { kind: "build-disable", buildName: buildLabel(build) },
-    buildConsumerList(build),
-  );
-  if (!impact.confirmationRequired) {
-    build.enabled = false;
-    return;
-  }
-  confirm.require({
-    header: `Disable ${buildLabel(build)}`,
-    message: impact.message,
-    icon: "pi pi-exclamation-triangle",
-    rejectProps: {
-      label: "Keep enabled",
-      severity: "secondary",
-      outlined: true,
-    },
-    acceptProps: { label: "Disable build", severity: "danger" },
-    accept: () => {
-      build.enabled = false;
-    },
-  });
 };
 const removeBuild = (build: ReleaseBuildProfileConfig) => {
   if (!flow.value) return;
@@ -1837,19 +1639,11 @@ onUnmounted(() => {
     var(--p-surface-200, var(--surface-border))
   );
 }
-.build-row.build-disabled {
-  opacity: 0.72;
-}
 .build-header {
   display: flex;
   align-items: center;
   gap: 14px;
   min-width: 0;
-}
-.row-switch {
-  flex: 0 0 auto;
-  transform: scale(0.72);
-  transform-origin: center;
 }
 .build-icon {
   display: grid;

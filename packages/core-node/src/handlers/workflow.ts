@@ -42,6 +42,7 @@ import { buildCoreReleaseRegistry } from "../release/registry";
 import { getReleaseWorkflowValueRequirements } from "../release/workflow-value-requirements";
 import { withoutUnavailableDestinations } from "../release/unavailable-destinations";
 import { builtInProviders } from "../providers-registry";
+import { testConnection } from "./connection-test";
 import { applyRetention } from "../release/apply-retention";
 import { PreflightFailedError, runPreflights, type PreflightOutcome } from "../release/preflight";
 
@@ -67,7 +68,7 @@ export const prepareReleaseWorkflow = (
     }),
   };
   const resolvedConfig = withoutHostUnavailableBuilds(
-    withoutUnavailableDestinations(resolveReleaseDefaults(config, releaseRegistry, context)),
+    withoutUnavailableDestinations(config),
     releaseRegistry,
     host(),
   );
@@ -516,15 +517,33 @@ export const executeWorkflow = async (
     }
     await flushLiveHistory();
     const finalStatus = options.signal?.aborted ? ("cancelled" as const) : ("failed" as const);
+    // A destination that failed its preflight is the failing step; every other step was never started.
+    const preflightFailureOf = (stepId: string) => {
+      const result = preflightFailure?.outcomes.find(
+        (outcome) => outcome.stepId === stepId,
+      )?.result;
+      return result?.status === "failed" ? result : undefined;
+    };
     const steps = liveSteps.map((step) => ({
       ...step,
+      ...(preflightFailureOf(step.id)
+        ? {
+            error: {
+              message: valueResolver.redactString(preflightFailureOf(step.id)!.message),
+              code: "PREFLIGHT_FAILED",
+              timestamp: Date.now(),
+            },
+          }
+        : {}),
       status:
         observedSteps.get(step.id) === "completed"
           ? ("completed" as const)
           : observedSteps.get(step.id) === "skipped"
             ? ("skipped" as const)
             : preflightFailure
-              ? ("skipped" as const)
+              ? preflightFailureOf(step.id)
+                ? ("failed" as const)
+                : ("skipped" as const)
               : finalStatus === "cancelled"
                 ? ("cancelled" as const)
                 : observedSteps.get(step.id) === "running" ||
@@ -533,6 +552,7 @@ export const executeWorkflow = async (
                   : step.status,
       ...(observedSteps.get(step.id) === "running" ||
       observedSteps.get(step.id) === "failed" ||
+      preflightFailureOf(step.id) ||
       finalStatus === "cancelled"
         ? { endTime: Date.now() }
         : {}),
@@ -714,6 +734,17 @@ export const registerWorkflowHandlers = (context: PipelabContext) => {
         data: {
           type: "success",
           result: resolveReleaseDefaults(value.config, registry(), { host: host() }),
+        },
+      }),
+  );
+  handle(
+    "connection:test",
+    async (_, { send, value }) =>
+      await send({
+        type: "end",
+        data: {
+          type: "success",
+          result: await testConnection(builtInProviders, context, value),
         },
       }),
   );

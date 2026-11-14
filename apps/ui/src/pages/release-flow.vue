@@ -973,6 +973,7 @@ const connectionBindingIssues = computed<ValidationIssue[]>(() => {
       catalog.value,
       localConnectionsConfig.value,
       appStore.providerDefinitions,
+      plan.value,
     );
     return [];
   } catch (cause) {
@@ -1821,6 +1822,26 @@ const openSlotSettings = (destination: ReleaseDestinationConfig, slot: ReleaseDe
   settingsSlot.value = slot;
   slotSettingsVisible.value = true;
 };
+// /deployments/:destinationId[/:slotId] (a failed run's Fix) opens that deployment's settings.
+watch(
+  () => [flow.value?.id, route.params.destinationId, route.params.slotId],
+  () => {
+    const destinationId = route.params.destinationId;
+    if (!destinationId || !flow.value || flow.value.id !== flowId.value) return;
+    const destination = flow.value.destinations.find((item) => item.id === destinationId);
+    const slot = destination?.slots.find((item) => item.id === route.params.slotId);
+    if (destination && slot) openSlotSettings(destination, slot);
+    else if (destination) openDestinationSettings(destination);
+    void router
+      .replace({
+        name: "Workflow",
+        params: { flowId: flowId.value, projectId: projectId.value },
+        hash: route.hash,
+      })
+      .catch(() => {});
+  },
+  { immediate: true },
+);
 const setSourceField = (key: string, value: unknown) => {
   if (flow.value) {
     setField(flow.value.source.config, key, value);
@@ -2143,10 +2164,12 @@ const runShip = async () => {
         catalog.value,
         localConnectionsConfig.value,
         appStore.providerDefinitions,
+        plan.value,
       );
       const result = await submitDesktopWorkflowExecution({
         workflow: flow.value,
         catalog: catalog.value,
+        plan: plan.value,
         request: {
           name: `workflows/${flowId.value}`,
           release: {

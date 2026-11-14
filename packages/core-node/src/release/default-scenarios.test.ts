@@ -10,6 +10,7 @@ import {
   type ReleaseDestinationSlot,
   type ReleaseOutputRef,
   type ReleasePlan,
+  usedTargetKeys,
 } from "@pipelab/shared";
 import { buildHostNeutralRegistry } from "./test-registry";
 
@@ -116,9 +117,12 @@ const refName = (ref: ReleaseOutputRef, names: Map<string, string>) =>
 /** Compact, id-free view of the builds: engine, enabled targets and the output each build reads. */
 const summarizeBuilds = (config: ReleaseConfig) => {
   const names = buildNames(config);
+  const used = usedTargetKeys(config);
   return config.builds.map((build) => ({
     engine: engineName(build.engine),
-    enabledTargets: build.targets.filter((target) => target.enabled).map((target) => target.id),
+    enabledTargets: build.targets
+      .filter((target) => used.has(`${build.id}:${target.id}`))
+      .map((target) => target.id),
     // An input-less build is fed by the source through the planner's automatic resolution.
     input: build.input ? refName(build.input, names) : "implicit",
   }));
@@ -291,10 +295,9 @@ const godotWebBuild: ReleaseBuildProfileConfig = {
   id: "godot-web",
   type: "web",
   engine: "@pipelab/plugin-godot/producer",
-  enabled: true,
   input: { source: true },
   config: {},
-  targets: [{ id: "web", enabled: true, config: { preset: "Web" } }],
+  targets: [{ id: "web", config: { preset: "Web" } }],
 };
 
 describe("Godot to Steam: Godot's native desktop export, not Electron", () => {
@@ -303,7 +306,8 @@ describe("Godot to Steam: Godot's native desktop export, not Electron", () => {
       scenario(godotSource, [steam(slot("windows", { depotId: "480101" }))], [godotWebBuild]),
     );
     expect(summarizeBuilds(resolved)).toEqual([
-      { engine: "godot", enabledTargets: ["web"], input: "source" },
+      // The configured web build feeds nothing, so its target is listed but not used.
+      { engine: "godot", enabledTargets: [], input: "source" },
       { engine: "godot", enabledTargets: ["linux-x64"], input: "source" },
     ]);
     expect(summarizeSlots(resolved)).toEqual([
@@ -394,19 +398,17 @@ describe("Construct with a user-configured Tauri desktop build and an empty Stea
         id: "user-web",
         type: "web",
         engine: "@pipelab/plugin-construct/producer",
-        enabled: true,
         input: { source: true },
         config: {},
-        targets: [{ id: "web", enabled: true, config: {} }],
+        targets: [{ id: "web", config: {} }],
       },
       {
         id: "user-tauri",
         type: "desktop",
         engine: "@pipelab/plugin-tauri/producer",
-        enabled: true,
         input: { buildId: "user-web", targetId: "web" },
         config: {},
-        targets: [{ id: "windows-x64", enabled: true, config: {} }],
+        targets: [{ id: "windows-x64", config: {} }],
       },
     ];
     const config = scenario(
@@ -463,20 +465,20 @@ describe("Construct desktop targets (webview2, wkwebview, cef)", () => {
   });
 
   it.each(CONSTRUCT_DESKTOP_TARGETS)(
-    "explicitly enabling %s fails planning with an unavailable-target error",
+    "using %s fails planning with an unavailable-target error",
     (targetId) => {
       const config = scenario(
         constructSource,
-        [],
+        // Only a target something uses must be available on the host.
+        [steam(slot("windows", { depotId: "480101" }, { buildId: "construct-desktop", targetId }))],
         [
           {
             id: "construct-desktop",
             type: "desktop",
             engine: "@pipelab/plugin-construct/producer",
-            enabled: true,
             input: { source: true },
             config: {},
-            targets: [{ id: targetId, enabled: true, config: {} }],
+            targets: [{ id: targetId, config: {} }],
           },
         ],
       );
@@ -552,19 +554,17 @@ describe("Disabled destinations, disabled slots and explicit inputs", () => {
         id: "web-build",
         type: "web",
         engine: "@pipelab/plugin-construct/producer",
-        enabled: true,
         input: { source: true },
         config: {},
-        targets: [{ id: "web", enabled: true, config: {} }],
+        targets: [{ id: "web", config: {} }],
       },
       {
         id: "electron-build",
         type: "desktop",
         engine: "@pipelab/plugin-electron/producer",
-        enabled: true,
         input: { buildId: "web-build", targetId: "web" },
         config: {},
-        targets: [{ id: "windows-x64", enabled: true, config: {} }],
+        targets: [{ id: "windows-x64", config: {} }],
       },
     ];
     const explicitSteamInput = { buildId: "electron-build", targetId: "windows-x64" };
@@ -623,50 +623,45 @@ const bundleBuilds = (): ReleaseBuildProfileConfig[] => [
     id: "construct-web",
     type: "web",
     engine: "@pipelab/plugin-construct/producer",
-    enabled: true,
     input: { source: true },
     config: {},
-    targets: [{ id: "web", enabled: true, config: {} }],
+    targets: [{ id: "web", config: {} }],
   },
   {
     id: "electron",
     type: "desktop",
     engine: "@pipelab/plugin-electron/producer",
-    enabled: true,
     input: { buildId: "construct-web", targetId: "web" },
     config: {},
-    targets: [{ id: "windows-x64", enabled: true, config: {} }],
+    targets: [{ id: "windows-x64", config: {} }],
   },
   {
     id: "tauri-linux",
     type: "desktop",
     engine: "@pipelab/plugin-tauri/producer",
-    enabled: true,
     input: { buildId: "construct-web", targetId: "web" },
     config: {},
-    targets: [{ id: "linux-x64", enabled: true, config: {} }],
+    targets: [{ id: "linux-x64", config: {} }],
   },
   {
     id: "tauri-macos",
     type: "desktop",
     engine: "@pipelab/plugin-tauri/producer",
-    enabled: true,
     input: { buildId: "construct-web", targetId: "web" },
     config: {},
-    targets: [{ id: "macos-arm64", enabled: true, config: {} }],
+    targets: [{ id: "macos-arm64", config: {} }],
   },
   {
     id: "bundle",
     type: "bundle",
     engine: BUNDLE_PROVIDER,
-    enabled: true,
     inputs: [
       { buildId: "electron", targetId: "windows-x64" },
       { buildId: "tauri-linux", targetId: "linux-x64" },
       { buildId: "tauri-macos", targetId: "macos-arm64" },
     ],
     config: {},
-    targets: [{ id: "zip", enabled: true, config: {} }],
+    targets: [{ id: "zip", config: {} }],
   },
 ];
 

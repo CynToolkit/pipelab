@@ -189,6 +189,7 @@ describe("built-in provider metadata", () => {
         { key: "username", label: "Username", type: "text" },
         { key: "password", label: "Password", type: "password" },
       ],
+      testable: true,
     });
     expect(offlineProvider?.integrations?.[0].fields[0]).toMatchObject({
       key: "path",

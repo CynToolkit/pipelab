@@ -1,4 +1,4 @@
-import { RendererProviderMetadata } from "./plugins/definitions";
+import type { PreflightResult, RendererProviderMetadata } from "./plugins/definitions";
 import { User, UserResponse } from "@supabase/supabase-js";
 import type { Tagged } from "type-fest";
 import { AppConfig, ConnectionsConfig } from "./config.schema";
@@ -178,6 +178,11 @@ export type IpcDefinition = {
   "release:validate": [{ config: ReleaseConfig }, EndEvent<{ issues: ValidationIssue[] }>];
   "release:plan": [{ config: ReleaseConfig }, EndEvent<ReleasePlan>];
   "release:resolve-defaults": [{ config: ReleaseConfig }, EndEvent<ReleaseConfig>];
+  /** Read-only credential check for a connection; never throws, unsupported types are unverifiable. */
+  "connection:test": [
+    { pluginName: string; values: Record<string, string> },
+    EndEvent<PreflightResult>,
+  ];
   "workflow:save": [
     { workflowId: string; data: ReleaseConfig; projectId?: string },
     EndEvent<"ok">,

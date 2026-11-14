@@ -41,10 +41,9 @@ const desktopBuild = (id: string, engine: string, targetId: string): ReleaseBuil
   id,
   type: "desktop",
   engine,
-  enabled: true,
   input: sourceRef,
   config: {},
-  targets: [{ id: targetId, enabled: true, config: {} }],
+  targets: [{ id: targetId, config: {} }],
 });
 
 const electronBuild = desktopBuild("electron", "@pipelab/plugin-electron/producer", "windows-x64");
@@ -59,10 +58,9 @@ const bundleBuild = (id: string, inputs: ReleaseOutputRef[]): ReleaseBuildProfil
   id,
   type: "bundle",
   engine: BUNDLE,
-  enabled: true,
   inputs,
   config: {},
-  targets: [{ id: "zip", enabled: true, config: {} }],
+  targets: [{ id: "zip", config: {} }],
 });
 
 const threeInputs: ReleaseOutputRef[] = [

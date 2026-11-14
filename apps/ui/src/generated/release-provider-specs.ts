@@ -802,6 +802,7 @@ const browserProviderSpecs = {
               type: "password",
             },
           ],
+          testable: true,
         },
       ],
     },
@@ -829,6 +830,7 @@ const browserProviderSpecs = {
       integrations: [
         {
           name: "Steam Account",
+          testable: true,
           fields: [
             {
               key: "username",
@@ -853,6 +855,7 @@ const browserProviderSpecs = {
       integrations: [
         {
           name: "Itch Butler Account",
+          testable: true,
           fields: [
             {
               key: "apiKey",
@@ -877,6 +880,7 @@ const browserProviderSpecs = {
       integrations: [
         {
           name: "Poki Account",
+          testable: true,
           fields: [
             {
               key: "account",
