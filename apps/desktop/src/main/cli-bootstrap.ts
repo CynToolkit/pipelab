@@ -149,7 +149,26 @@ async function waitForProcessGroupExit(groupId: number, timeoutMs: number): Prom
   return true;
 }
 
+/**
+ * Cold PowerShell start-up can take several seconds on a loaded or virus-scanned Windows machine,
+ * so one slow start must not fail the Desktop CLI launch: allow each attempt a generous time and
+ * try once more when an attempt only timed out.
+ */
+const WINDOWS_IDENTITY_TIMEOUT_MS = 15_000;
+const WINDOWS_CLEANUP_TIMEOUT_MS = 30_000;
+const WINDOWS_IDENTITY_TIMEOUT_MESSAGE = "Timed out verifying the Windows CLI process identity.";
+
 export async function getWindowsProcessCreationTime(pid: number): Promise<string> {
+  try {
+    return await queryWindowsProcessCreationTime(pid);
+  } catch (error) {
+    if (!(error instanceof Error) || error.message !== WINDOWS_IDENTITY_TIMEOUT_MESSAGE)
+      throw error;
+    return queryWindowsProcessCreationTime(pid);
+  }
+}
+
+async function queryWindowsProcessCreationTime(pid: number): Promise<string> {
   const script = `$p = Get-Process -Id ${pid} -ErrorAction SilentlyContinue; if ($null -eq $p) { exit 3 }; [Console]::Out.Write($p.StartTime.ToUniversalTime().Ticks.ToString())`;
   return new Promise((resolve, reject) => {
     const powershell = spawn(
@@ -160,8 +179,8 @@ export async function getWindowsProcessCreationTime(pid: number): Promise<string
     let output = "";
     const timer = setTimeout(() => {
       powershell.kill();
-      finish(new Error("Timed out verifying the Windows CLI process identity."));
-    }, 5_000);
+      finish(new Error(WINDOWS_IDENTITY_TIMEOUT_MESSAGE));
+    }, WINDOWS_IDENTITY_TIMEOUT_MS);
     const finish = (error?: Error, value?: string) => {
       clearTimeout(timer);
       if (error) reject(error);
@@ -222,7 +241,7 @@ async function stopWindowsProcessTree(pid: number, expectedCreationTime: string)
     const timer = setTimeout(() => {
       powershell.kill();
       finish(false);
-    }, 10_000);
+    }, WINDOWS_CLEANUP_TIMEOUT_MS);
     powershell.once("error", () => finish(false));
     powershell.once("close", (code) => {
       if (code === 0) finish(true);
