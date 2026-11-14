@@ -1,6 +1,6 @@
 import { expect, test, describe, afterEach, beforeEach, vi } from "vitest";
 import { createPokiUploadTask, POKI_CLI_VERSION } from "./export.js";
-import { mkdir, writeFile, readFile, access, readdir, mkdtemp } from "node:fs/promises";
+import { mkdir, writeFile, readFile, access, readdir, mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createSandbox, runWorkflowTask } from "@pipelab/test-utils";
@@ -30,10 +30,16 @@ test("normalizes Poki account names and rejects unsafe ones", () => {
 
 describe("End-to-End: Poki Upload Workflow task", () => {
   let sandbox: Awaited<ReturnType<typeof createSandbox>>;
+  const tempRoots: string[] = [];
+  const makeTempRoot = async (prefix: string) => {
+    const root = await mkdtemp(join(tmpdir(), prefix));
+    tempRoots.push(root);
+    return root;
+  };
 
   // Keep the developer's real Poki CLI login out of these tests.
   beforeEach(async () => {
-    const emptyConfigRoot = await mkdtemp(join(tmpdir(), "poki-empty-config-"));
+    const emptyConfigRoot = await makeTempRoot("poki-empty-config-");
     vi.stubEnv("XDG_CONFIG_HOME", emptyConfigRoot);
     vi.stubEnv("LOCALAPPDATA", emptyConfigRoot);
   });
@@ -44,6 +50,9 @@ describe("End-to-End: Poki Upload Workflow task", () => {
     if (sandbox) {
       await sandbox.remove();
     }
+    await Promise.all(
+      tempRoots.splice(0).map((root) => rm(root, { recursive: true, force: true })),
+    );
   });
 
   const servicesFor = (sandboxPath: string): PokiTaskServices => {
@@ -161,7 +170,7 @@ describe("End-to-End: Poki Upload Workflow task", () => {
   test("uses a standard Poki CLI login in place without copying it", async () => {
     sandbox = await createSandbox("poki-standard-login");
     await writeFile(join(sandbox.paths.input, "index.html"), "<html></html>");
-    const userConfigRoot = await mkdtemp(join(tmpdir(), "poki-user-config-"));
+    const userConfigRoot = await makeTempRoot("poki-user-config-");
     vi.stubEnv("XDG_CONFIG_HOME", userConfigRoot);
     vi.stubEnv("LOCALAPPDATA", userConfigRoot);
     const authDirectory = join(userConfigRoot, process.platform === "win32" ? "Poki" : "poki");
