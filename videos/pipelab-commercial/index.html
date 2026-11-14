@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js" integrity="sha384-sG0Hv1tP1lZCk9KQmrIbY/XNwi+OY84GQqhMscbnsoBFqAz8KNCil1kvfL3Hbbk2" crossorigin="anonymous"></script>
+    <style>
+      *{margin:0;padding:0;box-sizing:border-box}html,body{width:1920px;height:1080px;overflow:hidden;background:#111318}#root{position:relative;width:1920px;height:1080px;overflow:hidden;background:#111318}.scene{position:absolute;inset:0;width:100%;height:100%}
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="40" data-width="1920" data-height="1080">
+      <div id="continuous-release" class="scene" data-composition-id="pipelab-continuous" data-composition-src="compositions/continuous.html" data-start="0" data-duration="40" data-track-index="0"></div>
+      <audio id="el-bgm" src="assets/bgm/track.wav" data-start="0" data-duration="40" data-track-index="11" data-volume="0.20"></audio>
+      <audio id="el-sfx-shell" src="assets/sfx/impact-bass-1.mp3" data-start="6.55" data-duration="1.5" data-track-index="22" data-volume="0.12"></audio>
+      <audio id="el-sfx-destination-a" src="assets/sfx/click-soft.mp3" data-start="9.0" data-duration="0.37" data-track-index="23" data-volume="0.28"></audio>
+      <audio id="el-sfx-destination-b" src="assets/sfx/click-soft.mp3" data-start="9.58" data-duration="0.37" data-track-index="24" data-volume="0.28"></audio>
+      <audio id="el-sfx-destination-c" src="assets/sfx/click-soft.mp3" data-start="10.16" data-duration="0.37" data-track-index="25" data-volume="0.28"></audio>
+      <audio id="el-sfx-resolve" src="assets/sfx/whoosh-cinematic.mp3" data-start="12.75" data-duration="1.4" data-track-index="26" data-volume="0.16"></audio>
+      <audio id="el-sfx-branch" src="assets/sfx/whoosh-short.mp3" data-start="14.72" data-duration="0.57" data-track-index="27" data-volume="0.12"></audio>
+      <audio id="el-sfx-ship" src="assets/sfx/click.mp3" data-start="23.16" data-duration="0.37" data-track-index="28" data-volume="0.38"></audio>
+      <audio id="el-sfx-delivery-poki" src="assets/sfx/ping.mp3" data-start="29.86" data-duration="0.65" data-track-index="29" data-volume="0.22"></audio>
+      <audio id="el-sfx-delivery-steam" src="assets/sfx/ping.mp3" data-start="31.38" data-duration="0.65" data-track-index="30" data-volume="0.22"></audio>
+      <audio id="el-sfx-delivery-itch" src="assets/sfx/chime.mp3" data-start="32.96" data-duration="1.9" data-track-index="31" data-volume="0.2"></audio>
+      <audio id="el-sfx-logo" src="assets/sfx/chime.mp3" data-start="37.6" data-duration="1.8" data-track-index="32" data-volume="0.12"></audio>
+    </div>
+    <script>window.__timelines=window.__timelines||{};window.__timelines.main=gsap.timeline({paused:true});</script>
+  </body>
+</html>
