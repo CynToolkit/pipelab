@@ -1,26 +1,15 @@
-import { usedTargetKeys } from "@pipelab/shared";
 import type {
   ProviderDefinition,
   ReleaseConfig,
+  ReleaseHostContext,
   ReleasePlan,
   ReleaseRegistry,
 } from "@pipelab/shared";
+import { planReleaseForHost } from "./plan-for-host";
 import type { WorkflowConnectionRequirement } from "@pipelab/workflow-runtime";
 
 const environmentBindingPattern = /^\$\{\{\s*env\.([^\s{}]+)\s*\}\}$/;
 const environmentVariableNamePattern = /^[A-Za-z_][A-Za-z0-9_]*$/;
-
-type ReleaseEnvironmentField = { key: string; type: string };
-type ReleaseEnvironmentDefinition = { id: string; fields?: readonly ReleaseEnvironmentField[] };
-export type ReleaseEnvironmentRegistry = {
-  sources: readonly ReleaseEnvironmentDefinition[];
-  producers: readonly (ReleaseEnvironmentDefinition & {
-    targets: readonly ReleaseEnvironmentDefinition[];
-  })[];
-  destinations: readonly (ReleaseEnvironmentDefinition & {
-    slotFields?: readonly ReleaseEnvironmentField[];
-  })[];
-};
 
 interface WorkflowValueRequirements {
   connectionRequirements: WorkflowConnectionRequirement[];
@@ -33,58 +22,63 @@ interface ConnectionReference {
   required: boolean;
 }
 
-export const getReleaseWorkflowEnvironmentVariableNames = (
+type ReleaseField = NonNullable<ReleaseRegistry["sources"][number]["fields"]>[number];
+
+/**
+ * Visits every field value the plan will really use: the source, each producer and its used targets,
+ * and each enabled destination slot. The planner already drops disabled parts and settles which
+ * targets are used, including implicitly wired ones, so there is one answer for every caller.
+ */
+const forEachPlannedValue = (
   config: ReleaseConfig,
-  registry: ReleaseEnvironmentRegistry,
-): string[] => {
-  const names = new Set<string>();
-  const collectValue = (value: unknown) => {
-    if (Array.isArray(value)) {
-      value.forEach(collectValue);
-      return;
-    }
-    if (typeof value === "object" && value !== null) {
-      Object.values(value).forEach(collectValue);
-      return;
-    }
-    if (typeof value !== "string") return;
-    const name = environmentBindingPattern.exec(value)?.[1];
-    if (name && environmentVariableNamePattern.test(name)) names.add(name);
-  };
-  const collectFields = (
-    fields: readonly ReleaseEnvironmentField[] | undefined,
+  plan: ReleasePlan,
+  registry: ReleaseRegistry,
+  visit: (field: ReleaseField, value: unknown) => void,
+) => {
+  const collect = (
+    fields: readonly ReleaseField[] | undefined,
     values: Record<string, unknown>,
   ) => {
-    for (const field of fields ?? []) {
-      if (field.type === "connection") continue;
-      collectValue(values[field.key]);
-    }
+    for (const field of fields ?? []) visit(field, values[field.key]);
   };
 
   const source = registry.sources.find((candidate) => candidate.id === config.source.provider);
-  collectFields(source?.fields, config.source.config);
-  const usedTargets = usedTargetKeys(config);
-  for (const build of config.builds) {
-    const usedBuildTargets = build.targets.filter((item) =>
-      usedTargets.has(`${build.id}:${item.id}`),
-    );
-    // A build nothing reads contributes no values.
-    if (usedBuildTargets.length === 0) continue;
-    const producer = registry.producers.find((candidate) => candidate.id === build.engine);
-    collectFields(producer?.fields, build.config);
-    for (const target of usedBuildTargets) {
-      const definition = producer?.targets.find((candidate) => candidate.id === target.id);
-      collectFields(definition?.fields, target.config);
+  collect(source?.fields, config.source.config);
+
+  for (const producer of plan.producers) {
+    const definition = registry.producers.find((candidate) => candidate.id === producer.provider);
+    collect(definition?.fields, producer.config);
+    for (const target of producer.targets) {
+      if (!target.enabled) continue;
+      const targetDefinition = definition?.targets.find((candidate) => candidate.id === target.id);
+      collect(targetDefinition?.fields, target.config);
     }
   }
-  for (const destination of config.destinations.filter((candidate) => candidate.enabled)) {
+
+  for (const destination of plan.destinations) {
     const definition = registry.destinations.find(
       (candidate) => candidate.id === destination.provider,
     );
-    collectFields(definition?.fields, destination.config);
-    for (const slot of destination.slots.filter((candidate) => candidate.enabled))
-      collectFields(definition?.slotFields, slot.config);
+    collect(definition?.fields, destination.config);
+    for (const slot of destination.slots) {
+      if (slot.enabled) collect(definition?.slotFields, slot.config);
+    }
   }
+};
+
+/** Names of the `${{ env.NAME }}` bindings the workflow uses, as the Desktop shell must forward them. */
+export const getReleaseWorkflowEnvironmentVariableNames = (
+  config: ReleaseConfig,
+  registry: ReleaseRegistry,
+  host: ReleaseHostContext,
+): string[] => {
+  const { config: resolved, plan } = planReleaseForHost(config, registry, { host });
+  const names = new Set<string>();
+  forEachPlannedValue(resolved, plan, registry, (field, value) => {
+    if (field.type === "connection" || typeof value !== "string") return;
+    const name = environmentBindingPattern.exec(value)?.[1];
+    if (name && environmentVariableNamePattern.test(name)) names.add(name);
+  });
   return [...names];
 };
 
@@ -195,51 +189,16 @@ export const getReleaseWorkflowValueRequirements = (
   const connectionReferences: ConnectionReference[] = [];
   const requiredEnvironmentVariables = new Set<string>();
 
-  const collect = (
-    fields: ReleaseRegistry["sources"][number]["fields"],
-    values: Record<string, unknown>,
-  ) => {
-    for (const field of fields ?? []) {
-      const value = values[field.key];
-      if (field.type === "connection") {
-        if (typeof value !== "string" || value.length === 0) continue;
-        connectionReferences.push({
-          alias: value,
-          integration: field.integration,
-          required: true,
-        });
-        continue;
-      }
-
-      if (!field.required || typeof value !== "string") continue;
-      const environmentName = environmentBindingPattern.exec(value)?.[1];
-      if (environmentName) requiredEnvironmentVariables.add(environmentName);
+  forEachPlannedValue(config, plan, registry, (field, value) => {
+    if (field.type === "connection") {
+      if (typeof value !== "string" || value.length === 0) return;
+      connectionReferences.push({ alias: value, integration: field.integration, required: true });
+      return;
     }
-  };
-
-  const source = registry.sources.find((candidate) => candidate.id === config.source.provider);
-  collect(source?.fields, config.source.config);
-
-  for (const producer of plan.producers) {
-    const definition = registry.producers.find((candidate) => candidate.id === producer.provider);
-    collect(definition?.fields, producer.config);
-    // The plan marks a target enabled when something consumes it, including implicit wiring.
-    for (const target of producer.targets) {
-      if (!target.enabled) continue;
-      const targetDefinition = definition?.targets.find((candidate) => candidate.id === target.id);
-      collect(targetDefinition?.fields, target.config);
-    }
-  }
-
-  for (const destination of plan.destinations) {
-    const definition = registry.destinations.find(
-      (candidate) => candidate.id === destination.provider,
-    );
-    collect(definition?.fields, destination.config);
-    for (const slot of destination.slots) {
-      if (slot.enabled) collect(definition?.slotFields, slot.config);
-    }
-  }
+    if (!field.required || typeof value !== "string") return;
+    const environmentName = environmentBindingPattern.exec(value)?.[1];
+    if (environmentName) requiredEnvironmentVariables.add(environmentName);
+  });
 
   return {
     connectionRequirements: resolveWorkflowConnectionRequirements(connectionReferences, providers),

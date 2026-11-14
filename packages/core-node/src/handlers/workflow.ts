@@ -41,6 +41,7 @@ import { getPipelabCloudDownloadUrl } from "../pipelab-cloud";
 import { buildCoreReleaseRegistry } from "../release/registry";
 import { getReleaseWorkflowValueRequirements } from "../release/workflow-value-requirements";
 import { withoutUnavailableDestinations } from "../release/unavailable-destinations";
+import { planReleaseForHost } from "../release/plan-for-host";
 import { builtInProviders } from "../providers-registry";
 import { testConnection } from "./connection-test";
 import { applyRetention } from "../release/apply-retention";
@@ -67,12 +68,7 @@ export const prepareReleaseWorkflow = (
       nonEmpty: Boolean(env[name]?.trim()),
     }),
   };
-  const resolvedConfig = withoutHostUnavailableBuilds(
-    withoutUnavailableDestinations(config),
-    releaseRegistry,
-    host(),
-  );
-  const plan = planRelease(resolvedConfig, releaseRegistry, context);
+  const { config: resolvedConfig, plan } = planReleaseForHost(config, releaseRegistry, context);
   const errors = plan.issues.filter((issue) => issue.severity === "error");
   if (errors.length) throw new Error(errors.map((issue) => issue.message).join("\n"));
   const valueRequirements = getReleaseWorkflowValueRequirements(
