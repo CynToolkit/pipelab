@@ -60,3 +60,102 @@ export const plannedUsedTargetKeys = (plan: ReleasePlan): Set<string> =>
   new Set(
     [...consumedOutputKeys(plan)].filter((key) => !key.startsWith(AUTOMATIC_PRODUCER_PREFIX)),
   );
+
+/**
+ * The parts of a workflow that something uses, in the shape {@link ReleasePlan} already has: a
+ * producer with its used targets, and an enabled destination with its enabled slots. A real plan
+ * satisfies it; {@link usedSelectionFromConfig} is the syntactic stand-in when no plan exists.
+ */
+export interface UsedValueSelection {
+  producers: ReadonlyArray<{
+    provider: string;
+    config: Record<string, unknown>;
+    targets: ReadonlyArray<{ id: string; enabled: boolean; config: Record<string, unknown> }>;
+  }>;
+  destinations: ReadonlyArray<{
+    provider: string;
+    config: Record<string, unknown>;
+    slots: ReadonlyArray<{ enabled: boolean; config: Record<string, unknown> }>;
+  }>;
+}
+
+/** Selection from the saved config alone: use only when no plan is available (see {@link usedTargetKeys}). */
+export const usedSelectionFromConfig = (config: ReleaseConfig): UsedValueSelection => {
+  const used = usedTargetKeys(config);
+  return {
+    producers: (config.builds ?? []).map((build) => ({
+      provider: build.engine,
+      config: build.config,
+      targets: build.targets.map((target) => ({
+        id: target.id,
+        enabled: used.has(`${build.id}:${target.id}`),
+        config: target.config,
+      })),
+    })),
+    destinations: (config.destinations ?? [])
+      .filter((destination) => destination.enabled)
+      .map((destination) => ({
+        provider: destination.provider,
+        config: destination.config,
+        slots: destination.slots,
+      })),
+  };
+};
+
+type FieldBearer<TField> = { fields?: readonly TField[] };
+
+/** Field definitions a walk reads: the release registry and the renderer catalog both fit. */
+export interface UsedValueDefinitions<TField> {
+  sources: ReadonlyArray<FieldBearer<TField> & { id: string }>;
+  producers: ReadonlyArray<
+    FieldBearer<TField> & {
+      id: string;
+      targets: ReadonlyArray<FieldBearer<TField> & { id: string }>;
+    }
+  >;
+  destinations: ReadonlyArray<FieldBearer<TField> & { id: string; slotFields?: readonly TField[] }>;
+}
+
+/**
+ * Visits every field value a run reads: the source, each producer that has a used target and those
+ * targets, and each enabled slot of each destination. This is the one definition of "what the
+ * workflow uses" for values (environment bindings, Connections); callers differ only in what they
+ * do with a field and its value.
+ */
+export const forEachUsedValue = <TField extends { key: string }>(
+  config: ReleaseConfig,
+  selection: UsedValueSelection,
+  definitions: UsedValueDefinitions<TField>,
+  visit: (field: TField, value: unknown) => void,
+) => {
+  const collect = (fields: readonly TField[] | undefined, values: Record<string, unknown>) => {
+    for (const field of fields ?? []) visit(field, values[field.key]);
+  };
+
+  const source = definitions.sources.find((candidate) => candidate.id === config.source.provider);
+  collect(source?.fields, config.source.config);
+
+  for (const producer of selection.producers) {
+    const usedTargets = producer.targets.filter((target) => target.enabled);
+    // A build nothing reads is not compiled, so it contributes no values.
+    if (usedTargets.length === 0) continue;
+    const definition = definitions.producers.find(
+      (candidate) => candidate.id === producer.provider,
+    );
+    collect(definition?.fields, producer.config);
+    for (const target of usedTargets) {
+      const targetDefinition = definition?.targets.find((candidate) => candidate.id === target.id);
+      collect(targetDefinition?.fields, target.config);
+    }
+  }
+
+  for (const destination of selection.destinations) {
+    const definition = definitions.destinations.find(
+      (candidate) => candidate.id === destination.provider,
+    );
+    collect(definition?.fields, destination.config);
+    for (const slot of destination.slots) {
+      if (slot.enabled) collect(definition?.slotFields, slot.config);
+    }
+  }
+};
