@@ -441,17 +441,21 @@ export const planRelease = (
         );
       if (targetDefinition.isAvailable) {
         const availability = targetDefinition.isAvailable(context.host);
+        // Every target of the engine is listed, so only a target something uses must be available.
         if (!availability.available)
-          issues.push(
-            error(
-              "release.build.target.unavailable",
-              availability.reason ?? `Target ${target.id} is unavailable.`,
-              buildPath(
-                buildId,
-                `.targets.${build.targets.findIndex((candidate) => candidate.id === target.id)}`,
+          deferredValidation.push(() => {
+            if (!target.enabled) return;
+            issues.push(
+              error(
+                "release.build.target.unavailable",
+                availability.reason ?? `Target ${target.id} is unavailable.`,
+                buildPath(
+                  buildId,
+                  `.targets.${build.targets.findIndex((candidate) => candidate.id === target.id)}`,
+                ),
               ),
-            ),
-          );
+            );
+          });
       }
       return target;
     });

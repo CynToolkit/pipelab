@@ -465,11 +465,12 @@ describe("Construct desktop targets (webview2, wkwebview, cef)", () => {
   });
 
   it.each(CONSTRUCT_DESKTOP_TARGETS)(
-    "explicitly enabling %s fails planning with an unavailable-target error",
+    "using %s fails planning with an unavailable-target error",
     (targetId) => {
       const config = scenario(
         constructSource,
-        [],
+        // Only a target something uses must be available on the host.
+        [steam(slot("windows", { depotId: "480101" }, { buildId: "construct-desktop", targetId }))],
         [
           {
             id: "construct-desktop",
