@@ -66,7 +66,11 @@ describe("workflow Connection requirements", () => {
       name: "Release A",
       source: {
         provider: "@pipelab/plugin-construct/source",
-        config: { path: env("PROJECT_PATH"), profilePath: "/profile" },
+        config: {
+          path: env("PROJECT_PATH"),
+          profilePath: "/profile",
+          version: `r-${env("CONSTRUCT_VERSION")}`,
+        },
       },
       builds: [
         {
@@ -123,14 +127,21 @@ describe("workflow Connection requirements", () => {
       ],
     };
 
-    it("lists every binding the plan uses, including an implicitly wired upstream build", () => {
-      expect(getReleaseWorkflowEnvironmentVariableNames(config, registry, host)).toEqual([
-        "PROJECT_PATH",
-        "WEB_OUT",
-        "DESKTOP_OUT",
-        "ITCH_PROJECT",
-        "ITCH_CHANNEL",
-      ]);
+    it("lists what the run resolves: embedded references, required bindings and implicitly wired builds", () => {
+      const names = getReleaseWorkflowEnvironmentVariableNames(config, registry, host);
+      expect([...names].sort()).toEqual(
+        [
+          "PROJECT_PATH",
+          "CONSTRUCT_VERSION", // embedded in a longer value
+          "WEB_OUT", // required field of the implicitly wired web build
+          "DESKTOP_OUT",
+          "ITCH_PROJECT",
+          "ITCH_CHANNEL",
+        ].sort(),
+      );
+      expect(names).not.toContain("UNUSED_TARGET");
+      expect(names).not.toContain("UNUSED_BUILD");
+      expect(names).not.toContain("DISABLED_SLOT");
     });
 
     it("requires, from the same plan, the bindings of required fields only", () => {

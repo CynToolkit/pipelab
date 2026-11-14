@@ -5,6 +5,8 @@ import type {
   ReleasePlan,
   ReleaseRegistry,
 } from "@pipelab/shared";
+import { compileReleasePlan } from "@pipelab/shared";
+import { collectEnvironmentReferences } from "@pipelab/workflow-runtime";
 import { planReleaseForHost } from "./plan-for-host";
 import type { WorkflowConnectionRequirement } from "@pipelab/workflow-runtime";
 
@@ -66,20 +68,42 @@ const forEachPlannedValue = (
   }
 };
 
-/** Names of the `${{ env.NAME }}` bindings the workflow uses, as the Desktop shell must forward them. */
+/** Bindings in required fields: a run demands each to be set and non-empty. */
+const requiredEnvironmentBindings = (
+  config: ReleaseConfig,
+  plan: ReleasePlan,
+  registry: ReleaseRegistry,
+): string[] => {
+  const names = new Set<string>();
+  forEachPlannedValue(config, plan, registry, (field, value) => {
+    if (field.type === "connection" || !field.required || typeof value !== "string") return;
+    const name = environmentBindingPattern.exec(value)?.[1];
+    if (name) names.add(name);
+  });
+  return [...names];
+};
+
+/**
+ * Names of the `${{ env.NAME }}` references the workflow's run resolves, as the Desktop shell must
+ * forward them. They come from the compiled workflow with the runtime's own parser, so they are
+ * what the run demands: embedded references and every step input, plus required-field bindings. A workflow that
+ * cannot be planned has nothing to forward; the run reports its issues.
+ */
 export const getReleaseWorkflowEnvironmentVariableNames = (
   config: ReleaseConfig,
   registry: ReleaseRegistry,
   host: ReleaseHostContext,
 ): string[] => {
-  const { config: resolved, plan } = planReleaseForHost(config, registry, { host });
-  const names = new Set<string>();
-  forEachPlannedValue(resolved, plan, registry, (field, value) => {
-    if (field.type === "connection" || typeof value !== "string") return;
-    const name = environmentBindingPattern.exec(value)?.[1];
-    if (name && environmentVariableNamePattern.test(name)) names.add(name);
-  });
-  return [...names];
+  const context = { host };
+  const { config: resolved, plan } = planReleaseForHost(config, registry, context);
+  if (plan.issues.some((issue) => issue.severity === "error")) return [];
+  const referenced = collectEnvironmentReferences(
+    compileReleasePlan(resolved, plan, registry, context),
+  );
+  // A run also demands every binding in a required field, even one no step input carries.
+  return [
+    ...new Set([...referenced, ...requiredEnvironmentBindings(resolved, plan, registry)]),
+  ].filter((name) => environmentVariableNamePattern.test(name));
 };
 
 const integrationForReference = (
@@ -187,21 +211,14 @@ export const getReleaseWorkflowValueRequirements = (
   providers: readonly Pick<ProviderDefinition, "id" | "integrations">[],
 ): WorkflowValueRequirements => {
   const connectionReferences: ConnectionReference[] = [];
-  const requiredEnvironmentVariables = new Set<string>();
 
   forEachPlannedValue(config, plan, registry, (field, value) => {
-    if (field.type === "connection") {
-      if (typeof value !== "string" || value.length === 0) return;
-      connectionReferences.push({ alias: value, integration: field.integration, required: true });
-      return;
-    }
-    if (!field.required || typeof value !== "string") return;
-    const environmentName = environmentBindingPattern.exec(value)?.[1];
-    if (environmentName) requiredEnvironmentVariables.add(environmentName);
+    if (field.type !== "connection" || typeof value !== "string" || value.length === 0) return;
+    connectionReferences.push({ alias: value, integration: field.integration, required: true });
   });
 
   return {
     connectionRequirements: resolveWorkflowConnectionRequirements(connectionReferences, providers),
-    requiredEnvironmentVariables: [...requiredEnvironmentVariables],
+    requiredEnvironmentVariables: requiredEnvironmentBindings(config, plan, registry),
   };
 };

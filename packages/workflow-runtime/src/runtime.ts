@@ -118,7 +118,8 @@ const isWorkflowArtifactListOwner = (value: Record<string, unknown>): boolean =>
     typeof value.uses === "string" &&
     Array.isArray(value.artifacts));
 
-const collectEnvironmentReferences = (workflow: Workflow): string[] => {
+/** Names of the `${{ env.NAME }}` references a run resolves, embedded in any step input. */
+export const collectEnvironmentReferences = (workflow: Workflow): string[] => {
   const references = new Set<string>();
   const collect = (value: unknown) => {
     if (Array.isArray(value)) {
